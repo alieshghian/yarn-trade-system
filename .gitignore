@@ -1,0 +1,28 @@
+**/bin/
+**/obj/
+frontend/node_modules/
+frontend/dist/
+src/YarnTrade.Api/App_Data/
+work/
+.vs/
+.idea/
+*.user
+*.suo
+
+# Local environment configuration and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/appsettings.*.local.json
+**/secrets*.json
+
+# Local database files, backups, and generated attachments
+*.mdf
+*.ndf
+*.ldf
+*.bak
+*.trn
+*.bacpac
+**/App_Data/
+

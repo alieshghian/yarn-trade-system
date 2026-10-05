@@ -1,0 +1,87 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using YarnTrade.Api.Data;
+using YarnTrade.Api.Domain;
+using YarnTrade.Api.Services;
+
+namespace YarnTrade.Api.Controllers;
+
+[ApiController, Route("api/sales"), Authorize]
+public sealed class SalesController(AppDbContext db, PostingService posting, PersonAccountService personAccounts) : ControllerBase
+{
+    [HttpGet]
+    public async Task<object> Search([FromQuery] string? number, [FromQuery] Guid? customerId, [FromQuery] Guid? sellerId, [FromQuery] Guid? warehouseId,
+        [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
+    {
+        var q = db.Sales.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(number)) q = q.Where(x => x.SaleNumber.Contains(number));
+        if (customerId.HasValue) q = q.Where(x => x.CustomerId == customerId);
+        if (sellerId.HasValue) q = q.Where(x => x.SellerId == sellerId);
+        if (warehouseId.HasValue) q = q.Where(x => x.WarehouseId == warehouseId);
+        if (from.HasValue) q = q.Where(x => x.SaleDate >= from);
+        if (to.HasValue) q = q.Where(x => x.SaleDate <= to);
+        var total = await q.CountAsync(ct);
+        var items = await q.OrderByDescending(x => x.SaleDate).Skip((page - 1) * pageSize).Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(ct);
+        return new { items, total, page, pageSize };
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<Sale>> Get(Guid id, CancellationToken ct)
+    {
+        var item = await db.Sales.AsNoTracking().Include(x => x.Items).Include(x => x.PaymentSchedules).SingleOrDefaultAsync(x => x.Id == id, ct);
+        return item is null ? NotFound() : Ok(item);
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<Sale>> Create(Sale sale, CancellationToken ct)
+    {
+        sale.Id = Guid.NewGuid(); sale.Status = DocumentStatus.Draft;
+        foreach (var item in sale.Items) { item.Id = Guid.NewGuid(); item.SaleId = sale.Id; }
+        foreach (var row in sale.PaymentSchedules) { row.Id = Guid.NewGuid(); row.SaleId = sale.Id; row.DueDaysFromSale = row.DueDate.DayNumber - sale.SaleDate.DayNumber; }
+        db.Sales.Add(sale); await db.SaveChangesAsync(ct); return CreatedAtAction(nameof(Get), new { id = sale.Id }, sale);
+    }
+
+    [HttpPost("calculate-credit")]
+    public async Task<ActionResult<CreditPriceResult>> CalculateCredit(CreditCalculationRequest input, CancellationToken ct)
+    {
+        var rules = await db.CreditRateRules.AsNoTracking().Where(x => x.IsActive && x.ValidFrom <= input.SaleDate && (x.ValidTo == null || x.ValidTo >= input.SaleDate) && (x.YarnItemId == null || x.YarnItemId == input.YarnItemId) && (x.SellerId == null || x.SellerId == input.SellerId)).ToListAsync(ct);
+        return Ok(input.AgreedCreditPrice.HasValue && input.DueDate.HasValue
+            ? BusinessCalculations.AnalyzeNegotiatedCreditPrice(input.CashUnitPrice, input.AgreedCreditPrice.Value, input.SaleDate, input.DueDate.Value)
+            : BusinessCalculations.CalculateSystemCreditPrice(input.CashUnitPrice, input.CreditDays ?? 0, rules));
+    }
+
+    [HttpPost("{id:guid}/post")]
+    public async Task<IActionResult> Post(Guid id, PostSaleRequest input, CancellationToken ct)
+    {
+        var sale = await db.Sales.AsNoTracking().Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (sale is null) return NotFound();
+        if (sale.SaleMode == SaleMode.Credit)
+        {
+            var customer = await db.Persons.AsNoTracking().SingleAsync(x => x.Id == sale.CustomerId, ct);
+            var summary = await personAccounts.GetSummaryAsync(customer.Id, ct);
+            var saleAmount = sale.Items.Sum(x => x.Quantity * x.CreditUnitPriceIRR);
+            var projectedDebt = summary.BalanceIRR + saleAmount;
+            if (projectedDebt > customer.CreditLimitIRR && !input.CreditLimitOverrideConfirmed)
+                return Conflict(new
+                {
+                    code = "CREDIT_LIMIT_EXCEEDED",
+                    error = "بدهی پیش‌بینی‌شده از سقف اعتبار شخص بیشتر است. ادامه عملیات نیاز به تأیید دارد.",
+                    currentDebtIRR = summary.BalanceIRR,
+                    saleAmountIRR = saleAmount,
+                    projectedDebtIRR = projectedDebt,
+                    creditLimitIRR = customer.CreditLimitIRR,
+                    requiresConfirmation = true
+                });
+        }
+        await posting.PostSaleAsync(id, input.UsdRate, input.CostingMethod, input.PaymentToleranceIRR, ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/reverse")]
+    public async Task<IActionResult> Reverse(Guid id, CancellationToken ct)
+    { await posting.ReverseSaleAsync(id, ct); return NoContent(); }
+}
+
+public sealed record CreditCalculationRequest(DateOnly SaleDate, Guid? YarnItemId, Guid? SellerId, decimal CashUnitPrice, int? CreditDays, DateOnly? DueDate, decimal? AgreedCreditPrice);
+public sealed record PostSaleRequest(decimal UsdRate, CostingMethod CostingMethod = CostingMethod.FIFO, decimal PaymentToleranceIRR = 10m, bool CreditLimitOverrideConfirmed = false);
