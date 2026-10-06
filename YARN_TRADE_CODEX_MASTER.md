@@ -607,6 +607,8 @@ Each work package is intentionally bounded. Complete and update this document be
 - token/session review.
 **Exit:** security smoke tests pass.
 
+**Status (2026-10-06): PARTIAL — OWNER DECISION REQUIRED (12.10).** The method-neutral MFA foundation and other A2 baseline controls are implemented on `a2-auth-security-baseline`: Identity role/readiness status, configurable rate limits, strict production configuration validation, HTTPS/HSTS/trusted proxy handling, exact hosts/CORS, safe errors/logging, CSRF for the existing optional cookie mode, and immediate session/security-stamp validation/revocation. MFA method selection, enrollment UI and mandatory enforcement for privileged/partner/external users remain pending; A2 is not marked COMPLETE. Existing Identity second-factor/recovery behavior is preserved, with a test-only provider exercising its contract. No authentication platform, schema migration, business UI or route-permission migration was introduced. Security configuration and deployment/client requirements are documented in README. The repository is now a Git repository; the earlier A1 no-Git limitation records the state at that verification. A3 has not been started.
+
 ### A3 — Replace route-derived permissions — P0
 - endpoint policy-based permission requirements;
 - central permission catalog retained;
@@ -1024,6 +1026,18 @@ A work package is DONE only when:
 ---
 
 # 15. Change Log
+
+## 2026-10-06 — A2 authentication/internet security baseline, MFA decision pending
+- Started from clean `master`, pulled `origin/master` with fast-forward only, and created `a2-auth-security-baseline`.
+- Reused Identity opaque bearer tokens, cookie support and its existing second-factor/recovery facilities. Added `/api/auth/mfa-status` with the required-role baseline (Administrator/Manager/Partner, extensible for external roles), explicit pending-method status and no claim that enforcement is active. Owner decision 12.10 still blocks full MFA completion.
+- Added configurable fixed-window rate limits without queues: authentication/recovery/MFA 30/minute per trusted client IP; uploads/imports 20/minute per user; reports 60/minute per user; backup/restore 2/5 minutes per user. Ordinary business edits and heartbeat are unaffected. Limits are per API instance.
+- Production now requires exact AllowedHosts and HTTPS CORS origins, rejects unsafe SQL/migration/seed/security configuration, redirects HTTP to HTTPS, uses 30-day HSTS and trusts forwarded scheme/IP only from explicitly configured proxy IPs. Host forwarding is disabled. Private SQL/network/certificate deployment requirements are documented; no infrastructure was created.
+- Added generic ProblemDetails with trace IDs, safe structured exception/auth-event logs, production raw framework exception/SQL log suppression, no-store/nosniff/no-referrer headers, and sanitized backup error responses.
+- Set bounded token/cookie lifetimes (60-minute access/application cookie, 24-hour refresh, 5-minute temporary cookies), secure strict HttpOnly cookies and CSRF for optional cookie writes/login. New/changed passwords require 12 characters; lockout defaults to 5 failures/10 minutes.
+- Active/lockout/security-stamp checks now apply to authenticated requests and refresh. Logout revokes all sessions for that account; password changes/resets, role/email changes and deactivation invalidate existing access. The existing frontend Bearer integration and route-derived permission middleware are preserved.
+- Added focused HTTP/Identity security smoke tests. Test-only dependencies are ASP.NET Core TestHost and EF Core InMemory; no runtime dependency was added. Tests cover configuration rejection, 401/429, endpoint limit placement and per-user partitions, safe errors/logs, restrictive hosts/CORS, HTTPS/HSTS/proxy trust, MFA readiness/second-factor/recovery, lockout, CSRF/cookie behavior and token revocation/refresh.
+
+Verification: 104 backend tests pass (61 existing + 43 security tests), with net8.0 tests using the installed .NET 10 runtime via major roll-forward; the test harness uses the installed runtime's response stream writer for TestHost compatibility and isolated ephemeral Data Protection keys. The non-incremental backend Release solution build succeeds with zero warnings/errors. An actual local Production-mode entry-point smoke check with non-secret test configuration returned health 200, protected report 401, invalid Host 400 and HTTP redirect 308, with HSTS behind the trusted proxy; missing production host/security configuration fails before listening. The restricted Windows Event Log initially prevented the local process from starting, and the authorized unrestricted local run passed. No live SQL Server transaction/deployment test is claimed. Frontend is unchanged, so a new frontend build is not required. A2 remains PARTIAL pending MFA selection/enrollment/enforcement; A3 was not started.
 
 ## 2026-10-06 — A1 repository hygiene/configuration hardening
 Implemented within Phase A1:

@@ -2,6 +2,8 @@ using System.Security.Cryptography;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using YarnTrade.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using YarnTrade.Api.Data;
 using YarnTrade.Api.Domain;
@@ -12,6 +14,7 @@ namespace YarnTrade.Api.Controllers;
 public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment environment) : ControllerBase
 {
     [HttpPost]
+    [EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
     public async Task<ActionResult<Attachment>> Upload(IFormFile file, [FromForm] string entityType, [FromForm] Guid entityId,
         [FromForm] string documentType, [FromForm] string? description, CancellationToken ct)

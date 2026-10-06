@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using YarnTrade.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using YarnTrade.Api.Data;
@@ -122,7 +124,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         return Ok(invoice);
     }
 
-    [HttpPost("orders/{orderId:guid}/import")]
+    [HttpPost("orders/{orderId:guid}/import"), EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
     public async Task<ActionResult<ImportedPurchase>> Import(Guid orderId, IFormFile file, CancellationToken ct)
     {

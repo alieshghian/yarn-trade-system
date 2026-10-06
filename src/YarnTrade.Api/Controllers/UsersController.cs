@@ -110,6 +110,8 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         var validation = await Validate(input, id, ct);
         if (validation is not null) return BadRequest(new { error = validation });
         var person = await db.Persons.FindAsync([input.PersonId], ct);
+        var revokeSessions = user.IsActive != input.IsActive || user.Email != input.Email.Trim() ||
+            !currentRoles.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(input.Roles);
         user.PersonId = input.PersonId; user.DisplayName = person!.DisplayName; user.PreferredLanguage = input.PreferredLanguage; user.IsActive = input.IsActive;
         user.Email = input.Email.Trim(); user.UserName = input.Email.Trim(); user.EmailConfirmed = true;
         user.LockoutEnabled = true; user.LockoutEnd = input.IsActive ? null : DateTimeOffset.MaxValue;
@@ -117,6 +119,8 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         if (!updated.Succeeded) return BadRequest(new { error = string.Join(" ", updated.Errors.Select(x => x.Description)) });
         await users.RemoveFromRolesAsync(user, currentRoles.Except(input.Roles));
         await users.AddToRolesAsync(user, input.Roles.Except(currentRoles));
+        if (revokeSessions && !(await users.UpdateSecurityStampAsync(user)).Succeeded)
+            throw new InvalidOperationException("Session revocation failed.");
         if (!string.IsNullOrWhiteSpace(input.Password))
         {
             var token = await users.GeneratePasswordResetTokenAsync(user);

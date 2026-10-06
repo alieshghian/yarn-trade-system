@@ -3,6 +3,8 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using YarnTrade.Api.Security;
 using Microsoft.Data.SqlClient;
 using YarnTrade.Api.Services;
 
@@ -35,7 +37,7 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
     [HttpPost("maintenance-notice/cancel")]
     public async Task<IActionResult> CancelMaintenanceNotice(CancellationToken ct) { await presence.CompleteNotices(User, ct); return NoContent(); }
 
-    [HttpPost("export")]
+    [HttpPost("export"), EnableRateLimiting(InternetSecurity.Backups)]
     public async Task<IActionResult> Export(BackupRequest input, CancellationToken ct)
     {
         var onlineUsers = await presence.GetOtherOnlineUsers(User, ct);
@@ -58,16 +60,16 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
             Response.OnCompleted(() => { TryDeleteFile(zipPath); OperationLock.Release(); return Task.CompletedTask; });
             return PhysicalFile(zipPath, "application/zip", fileName, enableRangeProcessing: true);
         }
-        catch (ArgumentException ex) { OperationLock.Release(); return BadRequest(new { error = ex.Message }); }
-        catch (Exception ex)
+        catch (ArgumentException ex) { OperationLock.Release(); return BadRequest(new { error = environment.IsDevelopment() ? ex.Message : "درخواست پشتیبان‌گیری معتبر نیست." }); }
+        catch
         {
             OperationLock.Release();
-            return Problem(title: "تهیه نسخه پشتیبان انجام نشد.", detail: FriendlyDatabaseError(ex), statusCode: 500);
+            throw;
         }
         finally { if (work is not null) TryDeleteDirectory(work); }
     }
 
-    [HttpPost("restore")]
+    [HttpPost("restore"), EnableRateLimiting(InternetSecurity.Backups)]
     [RequestSizeLimit(MaxRestoreBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxRestoreBytes)]
     public async Task<IActionResult> Restore(IFormFile file, [FromForm] string confirmation, CancellationToken ct)
@@ -106,8 +108,7 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
             await presence.CompleteNotices(User, ct);
             return Ok(new { message = "اطلاعات با موفقیت بازخوانی شد. برای جلوگیری از استفاده از نشست قدیمی، دوباره وارد سیستم شوید.", manifest.CreatedAtUtc, manifest.FileName });
         }
-        catch (InvalidDataException ex) { return BadRequest(new { error = ex.Message }); }
-        catch (Exception ex) { return Problem(title: "بازخوانی اطلاعات انجام نشد.", detail: FriendlyDatabaseError(ex), statusCode: 500); }
+        catch (InvalidDataException ex) { return BadRequest(new { error = environment.IsDevelopment() ? ex.Message : "فایل پشتیبان معتبر نیست یا با این پایگاه داده سازگار نیست." }); }
         finally { TryDeleteDirectory(work); OperationLock.Release(); }
     }
 
@@ -150,7 +151,6 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
     private static AttachmentDirectorySwap SwapAttachments(string source, string target) => new(source, target);
     private static void TryDeleteDirectory(string path) { try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { } }
     private static void TryDeleteFile(string path) { try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); } catch { } }
-    private static string FriendlyDatabaseError(Exception ex) => ex is SqlException ? "SQL Server امکان تهیه یا بازخوانی فایل را نداد. دسترسی سرویس SQL Server به پوشه App_Data و مجوز BACKUP/RESTORE را بررسی کنید." : ex.Message;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 }
 

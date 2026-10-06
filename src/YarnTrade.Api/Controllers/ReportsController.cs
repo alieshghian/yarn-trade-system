@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using YarnTrade.Api.Data;
@@ -6,7 +8,7 @@ using YarnTrade.Api.Domain;
 
 namespace YarnTrade.Api.Controllers;
 
-[ApiController, Route("api/reports"), Authorize]
+[ApiController, Route("api/reports"), Authorize, EnableRateLimiting(InternetSecurity.Reports)]
 public sealed class ReportsController(AppDbContext db) : ControllerBase
 {
     [HttpGet("yarn-transactions")]

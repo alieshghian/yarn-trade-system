@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using YarnTrade.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using YarnTrade.Api.Data;
 using YarnTrade.Api.Domain;
@@ -42,7 +44,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         db.PurchaseInvoices.Add(invoice); await db.SaveChangesAsync(ct); return CreatedAtAction(nameof(Get), new { id = invoice.Id }, invoice);
     }
 
-    [HttpPost("import")]
+    [HttpPost("import"), EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
     public async Task<ActionResult<ImportedPurchase>> Import(IFormFile file, [FromForm] Guid supplierId, [FromForm] Guid uploadedBy, CancellationToken ct)
     {
