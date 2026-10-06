@@ -125,10 +125,8 @@ public sealed partial class SecurityBaselineTests
         Assert.Equal(20m, sale.WeightedCreditDays); Assert.Equal(A5Date.AddDays(20), sale.WeightedDueDate);
         Assert.All(sale.PaymentSchedules, x => Assert.Equal(100m, x.ExchangeRate));
         var allocations = await check.SaleCostAllocations.Where(x => x.SaleItemId == item.Id).ToListAsync();
-        if (method == CostingMethod.WeightedAverage) Assert.Empty(allocations);
-        else
         {
-            var allocation = Assert.Single(allocations); Assert.Equal(method == CostingMethod.FIFO ? f.FirstLayerId : f.LastLayerId, allocation.InventoryLayerId);
+            var allocation = Assert.Single(allocations); Assert.Equal(method == CostingMethod.LIFO ? f.LastLayerId : f.FirstLayerId, allocation.InventoryLayerId);
             Assert.Equal((decimal)costUsd, allocation.TotalCostUSD); Assert.Equal(costUsd * 100m, allocation.TotalCostIRR); Assert.Equal(100m, allocation.ExchangeRateAtSale);
         }
         var movement = await check.InventoryMovements.SingleAsync(x => x.SourceDocumentId == sale.Id);
@@ -319,8 +317,7 @@ public sealed partial class SecurityBaselineTests
     [Fact]
     public async Task A5_sql_success_token_matches_database_and_allows_immediate_reverse()
     {
-        // Reuse A4's nonretrying SQL configuration for the reverse endpoint's unchanged transaction path.
-        await using var f = await A5Create(sqlRetries: false);
+        await using var f = await A5Create();
         var response = await f.Post(new { });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();

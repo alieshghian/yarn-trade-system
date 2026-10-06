@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -50,8 +51,9 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
     [RequirePermission("purchases.create")]
     [HttpPost("import"), EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ImportedPurchase>> Import(IFormFile file, [FromForm] Guid supplierId, [FromForm] Guid uploadedBy, CancellationToken ct)
+    public async Task<ActionResult<ImportedPurchase>> Import(IFormFile file, [FromForm] Guid supplierId, CancellationToken ct)
     {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uploadedBy) || uploadedBy == Guid.Empty) return Unauthorized();
         if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)) return BadRequest(new { error = "Only .xlsx is supported in version 1." });
         return Ok(await importer.ImportAsync(file, supplierId, uploadedBy, ct));
     }
@@ -105,6 +107,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         if (AggregateConcurrency.Apply(db, invoice, rowVersion) is { } concurrencyError) return concurrencyError;
         if (await db.PurchaseInvoices.AnyAsync(x => x.Id == id && x.PurchaseOrderId != null, ct))
             return Conflict(new { error = "فاکتور مرتبط با سفارش خرید باید در فرم خرید نخ توسط کاربر بازرگانی تطبیق و تأیید شود." });
-        await posting.PostPurchaseAsync(id, warehouseId, ct); return Ok(new { invoice.Id, invoice.RowVersion });
+        var result = await posting.PostPurchaseAsync(id, warehouseId, ct);
+        return Ok(new { id = result.InvoiceId, rowVersion = result.RowVersion });
     }
 }

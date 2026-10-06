@@ -182,9 +182,9 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         }
         var userId = CurrentUserId();
         if (!userId.HasValue) return Unauthorized();
-        await posting.PostPurchaseAsync(invoiceId, warehouseId,
+        var result = await posting.PostPurchaseAsync(invoiceId, warehouseId,
             new PurchasePostingConfirmation(userId.Value, comparison?.HasDiscrepancy == true, JsonSerializer.Serialize(comparison)), ct);
-        return Ok(new { invoice.Id, invoice.RowVersion });
+        return Ok(new { id = result.InvoiceId, rowVersion = result.RowVersion });
     }
 
     [RequirePermission("commerce.view")]

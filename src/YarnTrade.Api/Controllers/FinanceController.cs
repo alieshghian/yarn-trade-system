@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ using YarnTrade.Api.Services;
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api/finance"), Authorize]
-public sealed class FinanceController(AppDbContext db) : ControllerBase
+public sealed class FinanceController(AppDbContext db, PersonAccountService personAccounts) : ControllerBase
 {
     [RequirePermission("finance.view")]
     [HttpGet("money-documents")]
@@ -27,6 +28,8 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
     [HttpPost("money-documents")]
     public async Task<ActionResult<MoneyDocument>> CreateDocument(MoneyDocument document, CancellationToken ct)
     {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId) || actorId == Guid.Empty) return Unauthorized();
+        document.CreatedBy = actorId;
         document.Id = Guid.NewGuid(); document.Status = DocumentStatus.Draft;
         foreach (var line in document.Lines) { line.Id = Guid.NewGuid(); line.MoneyDocumentId = document.Id; }
         document.TotalIRR = document.Lines.Sum(x => x.AmountIRR + x.AmountUSD * x.ExchangeRate);
@@ -41,11 +44,26 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         var doc = await db.MoneyDocuments.Include(x => x.Lines).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (doc is null) return NotFound();
         if (AggregateConcurrency.Apply(db, doc, rowVersion) is { } concurrencyError) return concurrencyError;
-        if (doc.Status != DocumentStatus.Draft) return Conflict();
-        if (doc.Lines.Count == 0 || doc.Lines.Any(x => x.AmountIRR < 0 || x.AmountUSD < 0)) return BadRequest();
-        doc.Status = DocumentStatus.Posted; doc.PostedAtUtc = DateTime.UtcNow;
-        db.AuditLogs.Add(new AuditLog { Action = "Post", EntityName = nameof(MoneyDocument), EntityId = id.ToString() });
-        await db.SaveChangesAsync(ct); return Ok(new { doc.Id, doc.RowVersion });
+        var expectedVersion = db.Entry(doc).Property(x => x.RowVersion).OriginalValue.ToArray();
+        var retry = false;
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync<IActionResult>(async () =>
+        {
+            if (retry) db.ChangeTracker.Clear();
+            retry = true;
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var current = await db.MoneyDocuments.Include(x => x.Lines).SingleOrDefaultAsync(x => x.Id == id, ct);
+            if (current is null) return NotFound();
+            if (!current.RowVersion.SequenceEqual(expectedVersion)) throw new DbUpdateConcurrencyException("Money document changed before posting.");
+            db.Entry(current).Property(x => x.RowVersion).OriginalValue = expectedVersion;
+            if (current.Status != DocumentStatus.Draft) return Conflict();
+            if (current.Lines.Count == 0 || current.Lines.Any(x => x.AmountIRR < 0 || x.AmountUSD < 0)) return BadRequest();
+            if (current.DocumentType is MoneyDocumentType.Receipt or MoneyDocumentType.Payment)
+                await personAccounts.LockAccountAsync(current.PersonId, ct);
+            current.Status = DocumentStatus.Posted; current.PostedAtUtc = DateTime.UtcNow;
+            db.AuditLogs.Add(new AuditLog { Action = "Post", EntityName = nameof(MoneyDocument), EntityId = id.ToString() });
+            await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+            return Ok(new { current.Id, current.RowVersion });
+        });
     }
 
     [RequirePermission("checks.view")]
@@ -70,13 +88,14 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
     [HttpPost("checks/{id:guid}/transition")]
     public async Task<IActionResult> TransitionCheck(Guid id, CheckTransitionRequest input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId) || actorId == Guid.Empty) return Unauthorized();
         var check = await db.Checks.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (check is null) return NotFound();
         if (AggregateConcurrency.Apply(db, check, rowVersion) is { } concurrencyError) return concurrencyError;
         if (!CheckTransitions.IsAllowed(check.CurrentStatus, input.ToStatus)) return Conflict(new { error = "Invalid check status transition." });
         var from = check.CurrentStatus; check.CurrentStatus = input.ToStatus;
-        db.CheckOperations.Add(new CheckOperation { CheckId = id, OperationDateUtc = DateTime.UtcNow, OperationType = input.ToStatus.ToString(), FromStatus = from, ToStatus = input.ToStatus, Description = input.Description, CreatedBy = input.UserId });
-        db.AuditLogs.Add(new AuditLog { UserId = input.UserId, Action = "CheckStatusChanged", EntityName = nameof(Check), EntityId = id.ToString(), PreviousValueJson = $"\"{from}\"", NewValueJson = $"\"{input.ToStatus}\"" });
+        db.CheckOperations.Add(new CheckOperation { CheckId = id, OperationDateUtc = DateTime.UtcNow, OperationType = input.ToStatus.ToString(), FromStatus = from, ToStatus = input.ToStatus, Description = input.Description, CreatedBy = actorId });
+        db.AuditLogs.Add(new AuditLog { UserId = actorId, Action = "CheckStatusChanged", EntityName = nameof(Check), EntityId = id.ToString(), PreviousValueJson = $"\"{from}\"", NewValueJson = $"\"{input.ToStatus}\"" });
         await db.SaveChangesAsync(ct); return Ok(new { check.Id, check.RowVersion });
     }
 
@@ -96,17 +115,29 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         var item = await db.PartnerSettlements.Include(x => x.Allocations).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
         if (AggregateConcurrency.Apply(db, item, rowVersion) is { } concurrencyError) return concurrencyError;
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        if (item.Status != DocumentStatus.Draft) return Conflict();
-        if (Math.Abs(item.Allocations.Sum(x => x.ConvertedUSD) - item.PaidUSD) > 0.01m) return BadRequest(new { error = "Allocation total must equal paid USD." });
-        db.PartnerLedgerEntries.Add(new PartnerLedgerEntry { PartnerId = item.PartnerId, EntryDate = item.SettlementDate, EntryType = "Settlement", DescriptionFa = $"تسویه {item.SettlementNumber}", DescriptionEn = $"Settlement {item.SettlementNumber}", DebitUSD = item.PaidUSD, SourceDocumentType = nameof(PartnerSettlement), SourceDocumentId = item.Id, IsPosted = true });
-        item.Status = DocumentStatus.Posted;
-        db.AuditLogs.Add(new AuditLog { Action = "Post", EntityName = nameof(PartnerSettlement), EntityId = id.ToString() });
-        await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); return Ok(new { item.Id, item.RowVersion });
+        var expectedVersion = db.Entry(item).Property(x => x.RowVersion).OriginalValue.ToArray();
+        var retry = false;
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync<IActionResult>(async () =>
+        {
+            if (retry) db.ChangeTracker.Clear();
+            retry = true;
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var current = await db.PartnerSettlements.Include(x => x.Allocations).SingleOrDefaultAsync(x => x.Id == id, ct);
+            if (current is null) return NotFound();
+            if (!current.RowVersion.SequenceEqual(expectedVersion)) throw new DbUpdateConcurrencyException("Settlement changed before posting.");
+            db.Entry(current).Property(x => x.RowVersion).OriginalValue = expectedVersion;
+            if (current.Status != DocumentStatus.Draft) return Conflict();
+            if (Math.Abs(current.Allocations.Sum(x => x.ConvertedUSD) - current.PaidUSD) > 0.01m) return BadRequest(new { error = "Allocation total must equal paid USD." });
+            db.PartnerLedgerEntries.Add(new PartnerLedgerEntry { PartnerId = current.PartnerId, EntryDate = current.SettlementDate, EntryType = "Settlement", DescriptionFa = $"تسویه {current.SettlementNumber}", DescriptionEn = $"Settlement {current.SettlementNumber}", DebitUSD = current.PaidUSD, SourceDocumentType = nameof(PartnerSettlement), SourceDocumentId = current.Id, IsPosted = true });
+            current.Status = DocumentStatus.Posted;
+            db.AuditLogs.Add(new AuditLog { Action = "Post", EntityName = nameof(PartnerSettlement), EntityId = id.ToString() });
+            await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct);
+            return Ok(new { current.Id, current.RowVersion });
+        });
     }
 }
 
-public sealed record CheckTransitionRequest(CheckStatus ToStatus, Guid UserId, string? Description);
+public sealed record CheckTransitionRequest(CheckStatus ToStatus, string? Description);
 
 public static class CheckTransitions
 {

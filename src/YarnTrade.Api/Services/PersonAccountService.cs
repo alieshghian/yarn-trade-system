@@ -8,6 +8,16 @@ public sealed record PersonAccountSummary(decimal BalanceIRR, bool HasHistory);
 
 public sealed class PersonAccountService(AppDbContext db)
 {
+    // Call inside the balance-changing transaction, before any inventory lock.
+    public async Task<Person> LockAccountAsync(Guid personId, CancellationToken ct)
+    {
+        var people = await db.Persons.FromSqlInterpolated($"""
+            SELECT * FROM [Persons] WITH (UPDLOCK, HOLDLOCK, ROWLOCK, FORCESEEK)
+            WHERE [Id] = {personId}
+            """).AsNoTracking().ToListAsync(ct);
+        return people.Single();
+    }
+
     public async Task<PersonAccountSummary> GetSummaryAsync(Guid personId, CancellationToken ct = default)
     {
         var creditSales = await db.Sales.AsNoTracking()

@@ -10,19 +10,38 @@ namespace YarnTrade.Api.Services;
 
 public sealed record PurchasePostingConfirmation(Guid UserId, bool DiscrepancyAccepted, string ComparisonSnapshotJson);
 public sealed record SalePostingResult(Guid SaleId, byte[] RowVersion);
+public sealed record PurchasePostingResult(Guid InvoiceId, byte[] RowVersion);
 
 public sealed class PostingService(AppDbContext db, PersonAccountService personAccounts, PermissionService permissions)
 {
     private static readonly Guid IranianPartnerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid ChinesePartnerId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-    public async Task PostPurchaseAsync(Guid invoiceId, Guid warehouseId, CancellationToken ct)
+    public async Task<PurchasePostingResult> PostPurchaseAsync(Guid invoiceId, Guid warehouseId, CancellationToken ct)
         => await PostPurchaseAsync(invoiceId, warehouseId, null, ct);
 
-    public async Task PostPurchaseAsync(Guid invoiceId, Guid warehouseId, PurchasePostingConfirmation? confirmation, CancellationToken ct)
+    public async Task<PurchasePostingResult> PostPurchaseAsync(Guid invoiceId, Guid warehouseId, PurchasePostingConfirmation? confirmation, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var invoice = await db.PurchaseInvoices.Include(x => x.Items).Include(x => x.Costs).SingleAsync(x => x.Id == invoiceId, ct);
+        var tracked = db.ChangeTracker.Entries<PurchaseInvoice>().SingleOrDefault(x => x.Entity.Id == invoiceId);
+        byte[]? expectedVersion = tracked?.Property(x => x.RowVersion).OriginalValue.ToArray();
+        var retry = false;
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            if (retry) db.ChangeTracker.Clear();
+            retry = true;
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var invoice = await db.PurchaseInvoices.Include(x => x.Items).Include(x => x.Costs).SingleAsync(x => x.Id == invoiceId, ct);
+            expectedVersion ??= invoice.RowVersion.ToArray();
+            if (!invoice.RowVersion.SequenceEqual(expectedVersion)) throw new DbUpdateConcurrencyException("Purchase changed before posting.");
+            db.Entry(invoice).Property(x => x.RowVersion).OriginalValue = expectedVersion;
+            await PostPurchaseCoreAsync(invoice, warehouseId, confirmation, ct);
+            await transaction.CommitAsync(ct);
+            return new PurchasePostingResult(invoice.Id, invoice.RowVersion.ToArray());
+        });
+    }
+
+    private async Task PostPurchaseCoreAsync(PurchaseInvoice invoice, Guid warehouseId, PurchasePostingConfirmation? confirmation, CancellationToken ct)
+    {
         if (invoice.Status != DocumentStatus.Draft) throw new InvalidOperationException("Only draft purchases can be posted.");
         if (invoice.Items.Count == 0 || invoice.Items.Any(x => x.YarnItemId is null || x.NetWeight <= 0))
             throw new InvalidOperationException("All purchase lines must be mapped and have positive net weight.");
@@ -108,7 +127,6 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             });
         db.AuditLogs.Add(Audit("Post", invoice));
         await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
     }
 
     public async Task<SalePostingResult> PostSaleAsync(Guid saleId, ClaimsPrincipal actor, bool creditLimitOverrideRequested, CancellationToken ct)
@@ -195,16 +213,27 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             var layers = lockedLayers[item.YarnItemId];
             var inputs = layers.Select(x => new LayerInput(x.Id, x.ReceivedAtUtc, x.RemainingQuantity, x.UnitPurchaseUSD, x.UnitInternationalFreightUSD, x.UnitIranianImportCostUSD));
             var allocations = BusinessCalculations.AllocateLayers(item.Quantity, inputs, method);
+            IReadOnlyList<LayerAllocation> physicalAllocations = allocations;
+            decimal averagePurchase = 0, averageFreight = 0, averageIranianCost = 0;
             if (method == CostingMethod.WeightedAverage)
             {
+                var available = layers.Where(x => x.RemainingQuantity > 0).ToArray();
+                var totalAvailable = available.Sum(x => x.RemainingQuantity);
+                // Match existing SQL unit precision; the last component absorbs only its rounding residual.
+                averagePurchase = Math.Round(available.Sum(x => x.RemainingQuantity * x.UnitPurchaseUSD) / totalAvailable, 6, MidpointRounding.AwayFromZero);
+                averageFreight = Math.Round(available.Sum(x => x.RemainingQuantity * x.UnitInternationalFreightUSD) / totalAvailable, 6, MidpointRounding.AwayFromZero);
+                averageIranianCost = Math.Round(allocations[0].UnitTotalCostUSD, 6, MidpointRounding.AwayFromZero) - averagePurchase - averageFreight;
+                var physical = new List<LayerAllocation>();
                 var remaining = item.Quantity;
-                foreach (var layer in layers.OrderBy(x => x.ReceivedAtUtc).ThenBy(x => new SqlGuid(x.Id)))
+                foreach (var layer in available.OrderBy(x => x.ReceivedAtUtc).ThenBy(x => new SqlGuid(x.Id)))
                 {
                     var used = Math.Min(remaining, layer.RemainingQuantity);
+                    physical.Add(new LayerAllocation(layer.Id, used, allocations[0].UnitTotalCostUSD, used * allocations[0].UnitTotalCostUSD));
                     layer.RemainingQuantity -= used;
                     remaining -= used;
                     if (remaining == 0) break;
                 }
+                physicalAllocations = physical;
             }
             else
             {
@@ -220,22 +249,35 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             item.CreditTotalIRR = item.Quantity * (sale.SaleMode == SaleMode.Credit ? item.CreditUnitPriceIRR : item.CashUnitPriceSnapshotIRR);
             item.CreditIncreaseIRR = item.CreditTotalIRR - item.CashTotalIRR;
             item.CashProfitOrLossIRR = item.CashTotalIRR - item.CostIRR;
-            foreach (var allocation in allocations.Where(x => x.LayerId != Guid.Empty))
+            decimal allocatedUsd = 0, allocatedIrr = 0;
+            foreach (var allocation in physicalAllocations)
             {
                 var layer = layers.Single(x => x.Id == allocation.LayerId);
+                var totalUsd = allocation.TotalCostUSD;
+                var totalIrr = totalUsd * saleDateUsdRate;
+                if (method == CostingMethod.WeightedAverage)
+                {
+                    // Reconcile independently to the existing persisted item totals (USD scale 6, IRR scale 2).
+                    var last = ReferenceEquals(allocation, physicalAllocations[^1]);
+                    totalUsd = last ? Math.Round(item.CostUSD, 6, MidpointRounding.AwayFromZero) - allocatedUsd
+                        : Math.Round(totalUsd, 6, MidpointRounding.AwayFromZero);
+                    totalIrr = last ? Math.Round(item.CostIRR, 2, MidpointRounding.AwayFromZero) - allocatedIrr
+                        : Math.Round(totalIrr, 2, MidpointRounding.AwayFromZero);
+                    allocatedUsd += totalUsd; allocatedIrr += totalIrr;
+                }
                 db.SaleCostAllocations.Add(new SaleCostAllocation
                 {
                     SaleItemId = item.Id,
                     InventoryLayerId = layer.Id,
                     Quantity = allocation.Quantity,
-                    UnitPurchaseUSD = layer.UnitPurchaseUSD,
-                    UnitInternationalFreightUSD = layer.UnitInternationalFreightUSD,
-                    UnitIranianImportCostUSD = layer.UnitIranianImportCostUSD,
+                    UnitPurchaseUSD = method == CostingMethod.WeightedAverage ? averagePurchase : layer.UnitPurchaseUSD,
+                    UnitInternationalFreightUSD = method == CostingMethod.WeightedAverage ? averageFreight : layer.UnitInternationalFreightUSD,
+                    UnitIranianImportCostUSD = method == CostingMethod.WeightedAverage ? averageIranianCost : layer.UnitIranianImportCostUSD,
                     UnitTotalCostUSD = allocation.UnitTotalCostUSD,
                     ExchangeRateAtSale = saleDateUsdRate,
                     UnitTotalCostIRR = allocation.UnitTotalCostUSD * saleDateUsdRate,
-                    TotalCostUSD = allocation.TotalCostUSD,
-                    TotalCostIRR = allocation.TotalCostUSD * saleDateUsdRate
+                    TotalCostUSD = totalUsd,
+                    TotalCostIRR = totalIrr
                 });
             }
             db.InventoryMovements.Add(new InventoryMovement
@@ -275,7 +317,7 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
     private async Task<bool> CheckSaleCreditAsync(Sale sale, bool overrideRequested, bool overrideAuthorized, CancellationToken ct)
     {
         if (sale.SaleMode != SaleMode.Credit) return false;
-        var customer = await db.Persons.AsNoTracking().SingleAsync(x => x.Id == sale.CustomerId, ct);
+        var customer = await personAccounts.LockAccountAsync(sale.CustomerId, ct);
         var summary = await personAccounts.GetSummaryAsync(customer.Id, ct);
         var saleAmount = sale.Items.Sum(x => x.Quantity * x.CreditUnitPriceIRR);
         var projectedDebt = summary.BalanceIRR + saleAmount;
@@ -383,11 +425,17 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
     private async Task ReverseSaleCoreAsync(Sale sale, CancellationToken ct)
     {
         if (sale.Status != DocumentStatus.Posted) throw new InvalidOperationException("Only posted sales can be reversed.");
+        if (sale.SaleMode == SaleMode.Credit) await personAccounts.LockAccountAsync(sale.CustomerId, ct);
         var allocations = await db.SaleCostAllocations.Where(x => sale.Items.Select(i => i.Id).Contains(x.SaleItemId)).ToListAsync(ct);
-        var affectedItems = allocations.Select(x => x.SaleItemId).ToHashSet();
         var locked = await LockInventoryLayersAsync(sale.WarehouseId,
-            sale.Items.Where(x => affectedItems.Contains(x.Id)).Select(x => x.YarnItemId), ct);
+            sale.Items.Select(x => x.YarnItemId), ct);
         var layers = locked.Values.SelectMany(x => x).ToDictionary(x => x.Id);
+        if (sale.Items.Count == 0 || sale.Items.Any(item => item.Quantity <= 0 ||
+            allocations.Where(x => x.SaleItemId == item.Id).Sum(x => x.Quantity) != item.Quantity) ||
+            allocations.Any(x => x.Quantity <= 0 || !layers.TryGetValue(x.InventoryLayerId, out var layer) ||
+                layer.WarehouseId != sale.WarehouseId || layer.YarnItemId != sale.Items.Single(i => i.Id == x.SaleItemId).YarnItemId))
+            throw new SalePostingRejectedException(409, new { code = "REVERSAL_INVENTORY_LINEAGE_MISSING",
+                error = "سابقه معتبر برداشت موجودی برای برگشت این فروش موجود نیست. هیچ تغییری اعمال نشد." });
         EnsureNonNegativeStock(layers.Values);
         foreach (var allocation in allocations) layers[allocation.InventoryLayerId].RemainingQuantity += allocation.Quantity;
         EnsureNonNegativeStock(layers.Values);

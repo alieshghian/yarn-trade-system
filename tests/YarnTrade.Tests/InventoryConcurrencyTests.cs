@@ -66,7 +66,7 @@ public sealed partial class SecurityBaselineTests
             Assert.Equal(posted ? 2 : 0, await db.AuditLogs.CountAsync(x => x.EntityId == sale.Id.ToString()));
             var itemIds = sale.Items.Select(x => x.Id).ToArray();
             var allocations = await db.SaleCostAllocations.Where(x => itemIds.Contains(x.SaleItemId)).ToListAsync();
-            if (posted && method != CostingMethod.WeightedAverage) Assert.Equal(quantity, allocations.Sum(x => x.Quantity));
+            if (posted) Assert.Equal(quantity, allocations.Sum(x => x.Quantity));
             else Assert.Empty(allocations);
         }
     }
@@ -120,6 +120,8 @@ public sealed partial class SecurityBaselineTests
     [InlineData(CostingMethod.FIFO, true)]
     [InlineData(CostingMethod.LIFO, false)]
     [InlineData(CostingMethod.LIFO, true)]
+    [InlineData(CostingMethod.WeightedAverage, false)]
+    [InlineData(CostingMethod.WeightedAverage, true)]
     public async Task A6_sql_sale_and_reversal_reconcile_in_either_lock_order(CostingMethod method, bool reversalFirst)
     {
         var probe = new A6StockProbe();
@@ -226,7 +228,7 @@ public sealed partial class SecurityBaselineTests
         }
         var expected = method == CostingMethod.LIFO ? new[] { newer, b, a } : new[] { older, a, b };
         var expectedCost = method == CostingMethod.FIFO ? 16m : method == CostingMethod.LIFO ? 32m : 24m;
-        for (var iteration = 0; iteration < (method == CostingMethod.WeightedAverage ? 1 : 2); iteration++)
+        for (var iteration = 0; iteration < 2; iteration++)
         {
             var sale = iteration == 0 ? f.Sale : await A6CreateSale(f, [(yarn, 6)]);
             var response = await A6Post(f, sale); Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -236,21 +238,12 @@ public sealed partial class SecurityBaselineTests
             var quantities = await db.InventoryLayers.ToDictionaryAsync(x => x.Id, x => x.RemainingQuantity);
             Assert.Equal(0m, quantities[expected[0]]); Assert.Equal(0m, quantities[expected[1]]); Assert.Equal(2m, quantities[expected[2]]);
             var allocations = await db.SaleCostAllocations.Where(x => x.SaleItemId == item.Id).ToListAsync();
-            if (method == CostingMethod.WeightedAverage) Assert.Empty(allocations);
-            else
             {
                 Assert.Equal(new[] { 2m, 3m, 1m }, expected.Select(id => allocations.Single(x => x.InventoryLayerId == id).Quantity));
                 Assert.Equal(expectedCost, allocations.Sum(x => x.TotalCostUSD));
                 var reverse = await f.Host.Client.PostAsync(A4Version($"/api/sales/{sale.Id}/reverse", token), null);
                 Assert.Equal(HttpStatusCode.OK, reverse.StatusCode);
             }
-        }
-        if (method == CostingMethod.WeightedAverage)
-        {
-            // Characterize the independent existing missing-lineage issue, explicitly deferred by the A6 request.
-            await using var db = f.Sql.Context(); var token = (await db.Sales.FindAsync(f.Sale.Id))!.RowVersion;
-            Assert.Equal(HttpStatusCode.OK, (await f.Host.Client.PostAsync(A4Version($"/api/sales/{f.Sale.Id}/reverse", token), null)).StatusCode);
-            Assert.Equal(4m, await db.InventoryLayers.SumAsync(x => x.RemainingQuantity));
         }
     }
 
