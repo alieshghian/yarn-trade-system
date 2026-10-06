@@ -63,9 +63,12 @@ public sealed class SalesController(AppDbContext db, PostingService posting) : C
         var sale = await db.Sales.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (sale is null) return NotFound();
         if (AggregateConcurrency.Apply(db, sale, rowVersion) is { } concurrencyError) return concurrencyError;
-        try { await posting.PostSaleAsync(id, User, input.CreditLimitOverrideRequested, ct); }
+        try
+        {
+            var result = await posting.PostSaleAsync(id, User, input.CreditLimitOverrideRequested, ct);
+            return Ok(new { id = result.SaleId, rowVersion = result.RowVersion });
+        }
         catch (SalePostingRejectedException ex) { return StatusCode(ex.StatusCode, ex.Response); }
-        return Ok(new { sale.Id, sale.RowVersion });
     }
 
     [RequirePermission("sales.post")]

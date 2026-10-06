@@ -8,6 +8,7 @@ using YarnTrade.Api.Security;
 namespace YarnTrade.Api.Services;
 
 public sealed record PurchasePostingConfirmation(Guid UserId, bool DiscrepancyAccepted, string ComparisonSnapshotJson);
+public sealed record SalePostingResult(Guid SaleId, byte[] RowVersion);
 
 public sealed class PostingService(AppDbContext db, PersonAccountService personAccounts, PermissionService permissions)
 {
@@ -109,7 +110,7 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
         await transaction.CommitAsync(ct);
     }
 
-    public async Task PostSaleAsync(Guid saleId, ClaimsPrincipal actor, bool creditLimitOverrideRequested, CancellationToken ct)
+    public async Task<SalePostingResult> PostSaleAsync(Guid saleId, ClaimsPrincipal actor, bool creditLimitOverrideRequested, CancellationToken ct)
     {
         var effectivePermissions = await permissions.GetEffectiveAsync(actor, ct);
         if (actor.Identity?.IsAuthenticated != true || !Guid.TryParse(actor.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId) ||
@@ -121,7 +122,7 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
         var tracked = db.ChangeTracker.Entries<Sale>().SingleOrDefault(x => x.Entity.Id == saleId);
         byte[]? expectedVersion = tracked?.Property(x => x.RowVersion).OriginalValue.ToArray();
         var retry = false;
-        await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             if (retry) db.ChangeTracker.Clear();
             retry = true;
@@ -133,6 +134,7 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             await PostSaleCoreAsync(sale, actorId, creditLimitOverrideRequested,
                 effectivePermissions.Contains("sales.creditOverride"), ct);
             await transaction.CommitAsync(ct);
+            return new SalePostingResult(sale.Id, sale.RowVersion.ToArray());
         });
     }
 

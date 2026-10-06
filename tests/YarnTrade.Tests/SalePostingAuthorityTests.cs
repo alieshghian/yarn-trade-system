@@ -23,6 +23,7 @@ public sealed partial class SecurityBaselineTests
     {
         Assert.Equal([nameof(PostSaleRequest.CreditLimitOverrideRequested)], typeof(PostSaleRequest).GetProperties().Select(x => x.Name));
         var method = Assert.Single(typeof(PostingService).GetMethods(), x => x.Name == nameof(PostingService.PostSaleAsync));
+        Assert.Equal(typeof(Task<SalePostingResult>), method.ReturnType);
         Assert.DoesNotContain(method.GetParameters(), x => x.ParameterType == typeof(decimal) || x.ParameterType == typeof(CostingMethod));
         Assert.Single(PermissionCatalog.All, x => x.Key == "sales.creditOverride");
     }
@@ -315,14 +316,77 @@ public sealed partial class SecurityBaselineTests
         Assert.Equal(allocationsBefore, await check.SaleCostAllocations.AsNoTracking().Where(x => x.SaleItemId == sale.Items[0].Id).Select(x => new { x.TotalCostUSD, x.TotalCostIRR, x.ExchangeRateAtSale }).ToListAsync());
     }
 
+    [Fact]
+    public async Task A5_sql_success_token_matches_database_and_allows_immediate_reverse()
+    {
+        // Reuse A4's nonretrying SQL configuration for the reverse endpoint's unchanged transaction path.
+        await using var f = await A5Create(sqlRetries: false);
+        var response = await f.Post(new { });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(f.Sale.Id, json.GetProperty("id").GetGuid());
+        var postedToken = Convert.FromBase64String(json.GetProperty("rowVersion").GetString()!);
+        Assert.False(postedToken.SequenceEqual(f.Sale.RowVersion));
+        await using (var db = f.Sql.Context())
+            Assert.Equal((await db.Sales.AsNoTracking().SingleAsync(x => x.Id == f.Sale.Id)).RowVersion, postedToken);
+
+        var reverse = await f.Host.Client.PostAsync(A4Version($"/api/sales/{f.Sale.Id}/reverse", postedToken), null);
+        Assert.Equal(HttpStatusCode.OK, reverse.StatusCode);
+        var reversedToken = Convert.FromBase64String((await reverse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("rowVersion").GetString()!);
+        await using var check = f.Sql.Context();
+        var sale = await check.Sales.AsNoTracking().SingleAsync(x => x.Id == f.Sale.Id);
+        Assert.Equal(DocumentStatus.Reversed, sale.Status); Assert.Equal(sale.RowVersion, reversedToken);
+        Assert.False(reversedToken.SequenceEqual(postedToken));
+    }
+
+    [Fact]
+    public async Task A5_sql_transient_retry_returns_final_instance_token_with_fixed_expected_version()
+    {
+        var transient = new A5TransientSaleSave();
+        await using var f = await A5Create(interceptor: transient);
+        var response = await f.Post(new { });
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(f.Sale.Id, json.GetProperty("id").GetGuid());
+        var returnedToken = Convert.FromBase64String(json.GetProperty("rowVersion").GetString()!);
+        Assert.Equal(2, transient.SaveAttempts); Assert.True(transient.FirstInstanceDetached);
+        Assert.NotSame(transient.FirstSale, transient.FinalSale);
+        Assert.Equal(f.Sale.RowVersion, transient.FirstExpectedVersion); Assert.Equal(f.Sale.RowVersion, transient.FinalExpectedVersion);
+        Assert.Equal(f.Sale.RowVersion, transient.FirstSale!.RowVersion);
+        Assert.Equal(transient.FinalSale!.RowVersion, returnedToken);
+        Assert.False(returnedToken.SequenceEqual(f.Sale.RowVersion));
+        await using var db = f.Sql.Context();
+        var saved = await db.Sales.AsNoTracking().SingleAsync(x => x.Id == f.Sale.Id);
+        Assert.Equal(DocumentStatus.Posted, saved.Status); Assert.Equal(saved.RowVersion, returnedToken);
+        Assert.Equal(4m, await db.InventoryLayers.SumAsync(x => x.RemainingQuantity));
+        Assert.Single(await db.SaleCostAllocations.ToListAsync()); Assert.Single(await db.InventoryMovements.ToListAsync());
+        Assert.Equal(4, await db.PartnerLedgerEntries.CountAsync(x => x.SourceDocumentId == saved.Id));
+        Assert.Equal(2, await db.AuditLogs.CountAsync(x => x.EntityId == saved.Id.ToString()));
+    }
+
+    [Fact]
+    public async Task A5_sql_transient_retry_rejects_another_writers_newer_sale_version()
+    {
+        var transient = new A5TransientSaleSave();
+        await using var f = await A5Create(interceptor: transient);
+        transient.ConcurrentWrite = f.Sql;
+        await A4AssertCode(await f.Post(new { }), HttpStatusCode.Conflict, AggregateConcurrency.ConflictCode);
+        Assert.Equal(1, transient.SaveAttempts); Assert.Equal(f.Sale.RowVersion, transient.FirstExpectedVersion);
+        await using var db = f.Sql.Context();
+        var saved = await db.Sales.AsNoTracking().SingleAsync(x => x.Id == f.Sale.Id);
+        Assert.Equal("another writer during transient retry", saved.Notes);
+        Assert.False(saved.RowVersion.SequenceEqual(f.Sale.RowVersion));
+        await A5AssertUnposted(f);
+    }
+
     private static async Task<A5Fixture> A5Create(bool credit = true, bool schedules = true, string role = "SalesOperator",
-        bool grantOverride = false, decimal limit = 10000, IInterceptor? interceptor = null)
+        bool grantOverride = false, decimal limit = 10000, IInterceptor? interceptor = null, bool sqlRetries = true)
     {
         var sql = await A4SqlDatabase.CreateLatest();
         TestApp? host = null;
         try
         {
-            host = await CreateApp(sqlConnection: sql.Connection, sqlInterceptor: interceptor, sqlRetries: true);
+            host = await CreateApp(sqlConnection: sql.Connection, sqlInterceptor: interceptor, sqlRetries: sqlRetries);
             await CreateUser(host.App, A5Email, role); await SignIn(host, A5Email);
             var actor = await UserId(host, A5Email);
             var customer = new Person { PersonCode = "A5-CUSTOMER", DisplayName = "A5 Customer", CreditLimitIRR = limit };
@@ -396,6 +460,39 @@ public sealed partial class SecurityBaselineTests
     {
         public Task<HttpResponseMessage> Post(object body) => Host.Client.PostAsJsonAsync(A4Version($"/api/sales/{Sale.Id}/post", Sale.RowVersion), body);
         public async ValueTask DisposeAsync() { await Host.DisposeAsync(); await Sql.DisposeAsync(); }
+    }
+
+    // Inject one recognized infrastructure timeout; the real SQL Server execution strategy performs the retry.
+    private sealed class A5TransientSaleSave : SaveChangesInterceptor
+    {
+        public int SaveAttempts { get; private set; }
+        public Sale? FirstSale { get; private set; }
+        public Sale? FinalSale { get; private set; }
+        public byte[]? FirstExpectedVersion { get; private set; }
+        public byte[]? FinalExpectedVersion { get; private set; }
+        public bool FirstInstanceDetached { get; private set; }
+        public A4SqlDatabase? ConcurrentWrite { get; set; }
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken ct = default)
+        {
+            var entry = eventData.Context!.ChangeTracker.Entries<Sale>().SingleOrDefault(x => x.Entity.Status == DocumentStatus.Posted && x.State == EntityState.Modified);
+            if (entry is null) return result;
+            SaveAttempts++;
+            if (SaveAttempts == 1)
+            {
+                FirstSale = entry.Entity; FirstExpectedVersion = entry.Property(x => x.RowVersion).OriginalValue.ToArray();
+                if (ConcurrentWrite is not null)
+                {
+                    await using var other = ConcurrentWrite.Context();
+                    var sale = await other.Sales.FindAsync([FirstSale.Id], ct);
+                    sale!.Notes = "another writer during transient retry"; await other.SaveChangesAsync(ct);
+                }
+                throw new TimeoutException("One simulated transient sale-save timeout.");
+            }
+            FinalSale = entry.Entity; FinalExpectedVersion = entry.Property(x => x.RowVersion).OriginalValue.ToArray();
+            FirstInstanceDetached = eventData.Context.Entry(FirstSale!).State == EntityState.Detached;
+            return result;
+        }
     }
 
     private sealed class A5SaleRace : SaveChangesInterceptor
