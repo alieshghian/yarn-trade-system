@@ -1,3 +1,4 @@
+using System.Data.SqlTypes;
 using YarnTrade.Api.Domain;
 
 namespace YarnTrade.Api.Services;
@@ -75,8 +76,8 @@ public static class BusinessCalculations
         }
 
         var ordered = method == CostingMethod.FIFO
-            ? available.OrderBy(x => x.ReceivedAtUtc)
-            : available.OrderByDescending(x => x.ReceivedAtUtc);
+            ? available.OrderBy(x => x.ReceivedAtUtc).ThenBy(x => new SqlGuid(x.LayerId))
+            : available.OrderByDescending(x => x.ReceivedAtUtc).ThenByDescending(x => new SqlGuid(x.LayerId));
         var remaining = quantity;
         var result = new List<LayerAllocation>();
         foreach (var layer in ordered)

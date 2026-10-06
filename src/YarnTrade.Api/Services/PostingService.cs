@@ -1,3 +1,4 @@
+using System.Data.SqlTypes;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -175,15 +176,29 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
         }
         else { sale.WeightedCreditDays = 0; sale.WeightedDueDate = null; }
 
+        var lockedLayers = await LockInventoryLayersAsync(sale.WarehouseId, sale.Items.Select(x => x.YarnItemId), ct);
+        EnsureNonNegativeStock(lockedLayers.Values.SelectMany(x => x));
+        foreach (var demand in sale.Items.GroupBy(x => x.YarnItemId))
+        {
+            var required = demand.Sum(x => x.Quantity);
+            var available = lockedLayers[demand.Key].Where(x => x.RemainingQuantity > 0).Sum(x => x.RemainingQuantity);
+            if (available < required)
+                throw new SalePostingRejectedException(409, new
+                {
+                    code = "INSUFFICIENT_STOCK", error = "موجودی انبار برای قطعی‌کردن این فروش کافی نیست.",
+                    warehouseId = sale.WarehouseId, yarnItemId = demand.Key, requiredQuantity = required, availableQuantity = available
+                });
+        }
+
         foreach (var item in sale.Items)
         {
-            var layers = await db.InventoryLayers.Where(x => x.WarehouseId == sale.WarehouseId && x.YarnItemId == item.YarnItemId && x.RemainingQuantity > 0).ToListAsync(ct);
+            var layers = lockedLayers[item.YarnItemId];
             var inputs = layers.Select(x => new LayerInput(x.Id, x.ReceivedAtUtc, x.RemainingQuantity, x.UnitPurchaseUSD, x.UnitInternationalFreightUSD, x.UnitIranianImportCostUSD));
             var allocations = BusinessCalculations.AllocateLayers(item.Quantity, inputs, method);
             if (method == CostingMethod.WeightedAverage)
             {
                 var remaining = item.Quantity;
-                foreach (var layer in layers.OrderBy(x => x.ReceivedAtUtc))
+                foreach (var layer in layers.OrderBy(x => x.ReceivedAtUtc).ThenBy(x => new SqlGuid(x.Id)))
                 {
                     var used = Math.Min(remaining, layer.RemainingQuantity);
                     layer.RemainingQuantity -= used;
@@ -239,6 +254,7 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             });
         }
 
+        EnsureNonNegativeStock(lockedLayers.Values.SelectMany(x => x));
         await PostPartnerShares(sale, ct);
         sale.Status = DocumentStatus.Posted;
         sale.PostedAtUtc = DateTime.UtcNow;
@@ -317,14 +333,64 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
         });
     }
 
-    public async Task ReverseSaleAsync(Guid saleId, CancellationToken ct)
+    private async Task<Dictionary<Guid, List<InventoryLayer>>> LockInventoryLayersAsync(Guid warehouseId, IEnumerable<Guid> yarnItemIds, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var sale = await db.Sales.Include(x => x.Items).SingleAsync(x => x.Id == saleId, ct);
+        var result = new Dictionary<Guid, List<InventoryLayer>>();
+        foreach (var yarnItemId in yarnItemIds.Distinct().OrderBy(x => new SqlGuid(x)))
+        {
+            // Include depleted rows: a reversal can restore them. The indexed key range also protects an empty stock key.
+            var layers = await db.InventoryLayers.FromSqlInterpolated($"""
+                SELECT * FROM [InventoryLayers] WITH
+                    (UPDLOCK, HOLDLOCK, ROWLOCK, INDEX([IX_InventoryLayers_WarehouseId_YarnItemId_ReceivedAtUtc]), FORCESEEK)
+                WHERE [WarehouseId] = {warehouseId} AND [YarnItemId] = {yarnItemId}
+                ORDER BY [ReceivedAtUtc] ASC, [Id] ASC
+                """).AsNoTracking().ToListAsync(ct);
+            // Use the locked database values even when an internal caller had previously tracked this stock.
+            foreach (var entry in db.ChangeTracker.Entries<InventoryLayer>().Where(x =>
+                x.Entity.WarehouseId == warehouseId && x.Entity.YarnItemId == yarnItemId).ToArray())
+                entry.State = EntityState.Detached;
+            db.InventoryLayers.AttachRange(layers);
+            result.Add(yarnItemId, layers);
+        }
+        return result;
+    }
+
+    private static void EnsureNonNegativeStock(IEnumerable<InventoryLayer> layers)
+    {
+        if (layers.Any(x => x.RemainingQuantity < 0)) throw new InvalidOperationException("Inventory quantity invariant violated.");
+    }
+
+    public async Task<SalePostingResult> ReverseSaleAsync(Guid saleId, CancellationToken ct)
+    {
+        var tracked = db.ChangeTracker.Entries<Sale>().SingleOrDefault(x => x.Entity.Id == saleId);
+        byte[]? expectedVersion = tracked?.Property(x => x.RowVersion).OriginalValue.ToArray();
+        var retry = false;
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            if (retry) db.ChangeTracker.Clear();
+            retry = true;
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var sale = await db.Sales.Include(x => x.Items).SingleAsync(x => x.Id == saleId, ct);
+            expectedVersion ??= sale.RowVersion.ToArray();
+            if (!sale.RowVersion.SequenceEqual(expectedVersion)) throw new DbUpdateConcurrencyException("Sale changed before reversal.");
+            db.Entry(sale).Property(x => x.RowVersion).OriginalValue = expectedVersion;
+            await ReverseSaleCoreAsync(sale, ct);
+            await transaction.CommitAsync(ct);
+            return new SalePostingResult(sale.Id, sale.RowVersion.ToArray());
+        });
+    }
+
+    private async Task ReverseSaleCoreAsync(Sale sale, CancellationToken ct)
+    {
         if (sale.Status != DocumentStatus.Posted) throw new InvalidOperationException("Only posted sales can be reversed.");
         var allocations = await db.SaleCostAllocations.Where(x => sale.Items.Select(i => i.Id).Contains(x.SaleItemId)).ToListAsync(ct);
-        var layers = await db.InventoryLayers.Where(x => allocations.Select(a => a.InventoryLayerId).Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        var affectedItems = allocations.Select(x => x.SaleItemId).ToHashSet();
+        var locked = await LockInventoryLayersAsync(sale.WarehouseId,
+            sale.Items.Where(x => affectedItems.Contains(x.Id)).Select(x => x.YarnItemId), ct);
+        var layers = locked.Values.SelectMany(x => x).ToDictionary(x => x.Id);
+        EnsureNonNegativeStock(layers.Values);
         foreach (var allocation in allocations) layers[allocation.InventoryLayerId].RemainingQuantity += allocation.Quantity;
+        EnsureNonNegativeStock(layers.Values);
         foreach (var item in sale.Items)
             db.InventoryMovements.Add(new InventoryMovement
             {
@@ -343,7 +409,6 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
         sale.Status = DocumentStatus.Reversed;
         db.AuditLogs.Add(Audit("Reverse", sale));
         await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
     }
 
     private static AuditLog Audit(string action, Entity entity) => new() { Action = action, EntityName = entity.GetType().Name, EntityId = entity.Id.ToString() };

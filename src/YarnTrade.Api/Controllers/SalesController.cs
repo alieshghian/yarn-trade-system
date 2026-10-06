@@ -78,7 +78,8 @@ public sealed class SalesController(AppDbContext db, PostingService posting) : C
         var sale = await db.Sales.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (sale is null) return NotFound();
         if (AggregateConcurrency.Apply(db, sale, rowVersion) is { } concurrencyError) return concurrencyError;
-        await posting.ReverseSaleAsync(id, ct); return Ok(new { sale.Id, sale.RowVersion });
+        var result = await posting.ReverseSaleAsync(id, ct);
+        return Ok(new { id = result.SaleId, rowVersion = result.RowVersion });
     }
 }
 
