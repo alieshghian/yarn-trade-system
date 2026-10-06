@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/sales"), Authorize]
 public sealed class SalesController(AppDbContext db, PostingService posting, PersonAccountService personAccounts) : ControllerBase
 {
+    [RequirePermission("sales.view")]
     [HttpGet]
     public async Task<object> Search([FromQuery] string? number, [FromQuery] Guid? customerId, [FromQuery] Guid? sellerId, [FromQuery] Guid? warehouseId,
         [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
@@ -26,6 +28,7 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
         return new { items, total, page, pageSize };
     }
 
+    [RequirePermission("sales.view")]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<Sale>> Get(Guid id, CancellationToken ct)
     {
@@ -33,6 +36,7 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
         return item is null ? NotFound() : Ok(item);
     }
 
+    [RequirePermission("sales.create")]
     [HttpPost]
     public async Task<ActionResult<Sale>> Create(Sale sale, CancellationToken ct)
     {
@@ -42,6 +46,7 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
         db.Sales.Add(sale); await db.SaveChangesAsync(ct); return CreatedAtAction(nameof(Get), new { id = sale.Id }, sale);
     }
 
+    [RequirePermission("sales.create")]
     [HttpPost("calculate-credit")]
     public async Task<ActionResult<CreditPriceResult>> CalculateCredit(CreditCalculationRequest input, CancellationToken ct)
     {
@@ -51,6 +56,7 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
             : BusinessCalculations.CalculateSystemCreditPrice(input.CashUnitPrice, input.CreditDays ?? 0, rules));
     }
 
+    [RequirePermission("sales.post")]
     [HttpPost("{id:guid}/post")]
     public async Task<IActionResult> Post(Guid id, PostSaleRequest input, CancellationToken ct)
     {
@@ -78,6 +84,7 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
         return NoContent();
     }
 
+    [RequirePermission("sales.post")]
     [HttpPost("{id:guid}/reverse")]
     public async Task<IActionResult> Reverse(Guid id, CancellationToken ct)
     { await posting.ReverseSaleAsync(id, ct); return NoContent(); }

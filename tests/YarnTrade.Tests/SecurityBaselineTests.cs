@@ -23,10 +23,11 @@ using YarnTrade.Api.Controllers;
 using YarnTrade.Api.Data;
 using YarnTrade.Api.Domain;
 using YarnTrade.Api.Security;
+using YarnTrade.Api.Services;
 
 namespace YarnTrade.Tests;
 
-public sealed class SecurityBaselineTests
+public sealed partial class SecurityBaselineTests
 {
     private const string Password = "SmokeTest!Password42";
 
@@ -586,8 +587,11 @@ public sealed class SecurityBaselineTests
         var mail = new TestEmailSender(); var clock = new TestClock();
         builder.Services.AddSingleton<IAuthenticationEmailSender>(mail);
         builder.Services.AddSingleton<TimeProvider>(clock);
-        builder.Services.AddScoped<PermissionService>();
-        builder.Services.AddAuthorization();
+        builder.Services.AddPermissionAuthorization();
+        builder.Services.AddScoped<UserPresenceService>();
+        builder.Services.AddScoped<PostingService>();
+        builder.Services.AddScoped<PersonAccountService>();
+        builder.Services.AddScoped<XlsxPurchaseImporter>();
         builder.Services.AddControllers().AddApplicationPart(typeof(PresenceController).Assembly);
         var app = builder.Build();
         app.Use((context, next) =>
@@ -607,13 +611,15 @@ public sealed class SecurityBaselineTests
         var authentication = app.MapGroup("/api/auth").RequireRateLimiting(InternetSecurity.Authentication);
         authentication.MapAuthenticationSecurity();
         app.MapControllers();
-        app.MapGet("/test/error", IResult () => throw new InvalidOperationException("sensitive-test-marker"));
-        app.MapGet("/test/problem", () => Results.Problem(detail: "sensitive-test-marker", statusCode: 500, extensions: new Dictionary<string, object?> { ["debug"] = "sensitive-test-marker" }));
-        app.MapGet("/test/network", (HttpContext context) => Results.Ok(new { context.Request.Scheme, ip = context.Connection.RemoteIpAddress!.ToString(), host = context.Request.Host.Value }));
-        app.MapPost("/test/logout", async (ClaimsPrincipal principal, AppSignInManager signIn) => { await signIn.RevokeSessionsAsync(principal); return Results.NoContent(); }).RequireAuthorization();
-        app.MapPost("/test/uploads", () => Results.Ok()).RequireAuthorization().RequireRateLimiting(InternetSecurity.Uploads);
-        app.MapPost("/test/reports", () => Results.Ok()).RequireAuthorization().RequireRateLimiting(InternetSecurity.Reports);
-        app.MapPost("/test/backups", () => Results.Ok()).RequireAuthorization().RequireRateLimiting(InternetSecurity.Backups);
+        app.MapGet("/test/error", IResult () => throw new InvalidOperationException("sensitive-test-marker")).AllowAnonymous().WithMetadata(new TestEndpointMarker());
+        app.MapGet("/test/problem", () => Results.Problem(detail: "sensitive-test-marker", statusCode: 500, extensions: new Dictionary<string, object?> { ["debug"] = "sensitive-test-marker" })).AllowAnonymous().WithMetadata(new TestEndpointMarker());
+        app.MapGet("/test/network", (HttpContext context) => Results.Ok(new { context.Request.Scheme, ip = context.Connection.RemoteIpAddress!.ToString(), host = context.Request.Host.Value })).AllowAnonymous().WithMetadata(new TestEndpointMarker());
+        app.MapPost("/test/logout", async (ClaimsPrincipal principal, AppSignInManager signIn) => { await signIn.RevokeSessionsAsync(principal); return Results.NoContent(); }).RequireAuthenticatedAccess("Test own-session logout.").WithMetadata(new TestEndpointMarker());
+        app.MapPost("/test/uploads", () => Results.Ok()).RequireAuthenticatedAccess("Test rate-limit partition for an authenticated session.").WithMetadata(new TestEndpointMarker()).RequireRateLimiting(InternetSecurity.Uploads);
+        app.MapPost("/test/reports", () => Results.Ok()).RequireAuthenticatedAccess("Test rate-limit partition for an authenticated session.").WithMetadata(new TestEndpointMarker()).RequireRateLimiting(InternetSecurity.Reports);
+        app.MapPost("/test/backups", () => Results.Ok()).RequireAuthenticatedAccess("Test rate-limit partition for an authenticated session.").WithMetadata(new TestEndpointMarker()).RequireRateLimiting(InternetSecurity.Backups);
+        app.MapGet("/health", () => Results.Ok(new { status = "healthy" })).AllowAnonymous();
+        MapAuthorizationProbes(app);
         await app.StartAsync();
         using (var scope = app.Services.CreateScope()) {
             var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();

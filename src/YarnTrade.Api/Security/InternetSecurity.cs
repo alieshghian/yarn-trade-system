@@ -262,6 +262,6 @@ public static class InternetSecurity
             if (user is null) return Results.Unauthorized();
             return Results.Ok(new { enabled = true, requiredForRole = true, method = "email-device", trustedBrowserDays = settings.TrustedBrowserDays,
                 methodDecisionPending = false, enforcementActive = true });
-        }).RequireAuthorization();
+        }).RequireAuthenticatedAccess("Read own authentication verification status.");
     }
 }

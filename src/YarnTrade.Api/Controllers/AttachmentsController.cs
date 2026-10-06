@@ -13,6 +13,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/attachments"), Authorize]
 public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment environment) : ControllerBase
 {
+    [RequirePermission("commerce.upload")]
     [HttpPost]
     [EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
@@ -36,11 +37,13 @@ public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment e
         db.Attachments.Add(item); await db.SaveChangesAsync(ct); return Ok(item);
     }
 
+    [RequirePermission("commerce.view")]
     [HttpGet]
     public Task<List<Attachment>> List([FromQuery] string entityType, [FromQuery] Guid entityId, CancellationToken ct) =>
         db.Attachments.AsNoTracking().Where(x => x.EntityType == entityType && x.EntityId == entityId)
             .OrderByDescending(x => x.UploadedAtUtc).ToListAsync(ct);
 
+    [RequirePermission("commerce.view")]
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
@@ -50,6 +53,7 @@ public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment e
         return System.IO.File.Exists(path) ? PhysicalFile(path, item.ContentType, item.OriginalFileName) : NotFound();
     }
 
+    [RequirePermission("commerce.upload")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

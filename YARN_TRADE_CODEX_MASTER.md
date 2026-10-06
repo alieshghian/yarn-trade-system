@@ -206,7 +206,7 @@ Acceptance:
 - production cannot silently create a known admin account.
 
 ## P0-02 — Authorization is route-string based and is not sufficient
-Current `PermissionGuardMiddleware` infers permissions from URL/method patterns. This is brittle and can fail open for new or changed endpoints.
+The original `PermissionGuardMiddleware` inferred permissions from URL/method patterns. A3 removes that middleware and its resolver entirely. ASP.NET Core endpoint authorization now owns permission enforcement; no business endpoint uses URL inference as its authorization authority.
 
 Required correction:
 - use endpoint authorization policies/attributes/requirements as the authoritative authorization layer;
@@ -449,6 +449,43 @@ Reference basis: NIST SP 800-63-4 / 800-63B-4.
 - exports obey same row/field scope as screens;
 - partner portal can only see explicitly permitted business objects.
 
+### 7.2.1 Implemented A3 authorization baseline (2026-10-06)
+- `RequirePermissionAttribute`, `PermissionRequirement`, the dynamic `PermissionPolicyProvider` and scoped `PermissionAuthorizationHandler` use the existing ASP.NET Core authorization pipeline. Explicit action metadata combines with existing role restrictions; `PermissionCatalog.All`, role defaults and persisted grant/deny overrides are unchanged. There is no second permission catalog or framework.
+- Every mapped endpoint declares permission-based access, an intentional anonymous exception, or an authenticated own-account/session exception with a reason. Default/fallback policies and the authorization result handler deny unclassified application routes, including role-only routes and Administrator. Startup validation rejects missing or conflicting classifications on all mapped endpoints. Coverage tests enumerate real endpoint metadata and fail when permission metadata is removed even if `[Authorize]` remains. Framework routing rejection endpoints execute no application action and retain normal 405/415 responses; unmatched URLs retain 404 behavior.
+- Effective permissions are loaded once per user within the scoped request service; callers receive copies. A later request reloads current active-user roles and overrides, so permission revocation is not hidden behind a cross-request cache. Existing A2 session/security-stamp revocation remains intact. Server 401/403 controls access independently of menus.
+- `IDataScope` / `CurrentUserDataScope` provides authenticated identity and an explicit own-user decision. Own settings/password and access-profile operations enforce matching authenticated user identity; presence and work-item state derive actor identity from that same seam. Work-item queries retain `UserTaskStates.UserId` filtering and existing Commerce/WarehouseOperator routing, now also requiring `dashboard.view` and the applicable `commerce.view` / `inventory.view`. Starting a commerce-order action additionally requires `commerce.accept` before any task or order state is changed. Administrator access to forms does not imply operational inbox membership.
+- **Not activated:** customer, sales-center, seller, partner, warehouse and business-record ownership restrictions. Existing relationships do not define a complete approved ownership model. `BusinessRecord` decisions return false, but this undefined scope is deliberately not applied to business queries: existing permission-authorized broad business visibility remains. This baseline must not be represented as completed customer/center/partner isolation or sufficient external portal confidentiality. Owner decisions and later scoped-query work remain required under DB-09 and the relevant roadmap stages.
+- Attachments keep `commerce.view` for list/download and `commerce.upload` for upload/delete. Entity-level ownership and attachment hardening remain A7. Backup endpoints keep their existing Administrator/Manager role boundary plus `dataBackup.view/create/restore`; A8 backup behavior is unchanged. User creation, invitation reissue, security reset and email/Administrator-role management remain Administrator-only; permission/role changes still require the existing `users.permissions` guard.
+- Seven fixed sequence-suggestion actions preserve all supported URLs and numbering logic while making each permission explicit. Unknown scope URLs now return 404. No schema migration, runtime dependency, frontend change or later work package is introduced.
+
+### 7.2.2 A3 endpoint audit and permission mapping
+The initial audit covered all 96 mapped production endpoints: 77 business actions, nine authenticated own-account/session actions and ten anonymous endpoints. The single sequence-suggestion action became seven explicit actions, producing **102 mapped production endpoints: 83 business, nine own-account/session and ten anonymous**. Inventory currently has warehouse master-data and stock-report endpoints; there is no separate inventory controller. Partner ledger is a report and partner settlement is a finance operation; no separate partner controller or ownership model is invented.
+
+| Controller / actions | Explicit permission | Additional boundary / scope |
+| --- | --- | --- |
+| MasterData: Persons, PersonById, Parameters | persons.view | Business ownership deferred |
+| MasterData: CreatePerson / UpdatePerson / DeletePerson | persons.create / persons.edit / persons.delete | Business ownership deferred |
+| MasterData: Yarns / CreateYarnType, CreateYarn | yarns.view / yarns.create | Business ownership deferred |
+| MasterData: Warehouses / CreateWarehouse | inventory.view / inventory.edit | Business ownership deferred |
+| MasterData: Rates / CreateRate | finance.view / finance.create | Business ownership deferred |
+| Yarns: List, ById / Create / Update / Delete | yarns.view / yarns.create / yarns.edit / yarns.delete | Business ownership deferred |
+| PurchaseOrders: List, Get / Create / Update / Delete / Submit / Accept | purchaseOrders.view / purchaseOrders.create / purchaseOrders.edit / purchaseOrders.delete / purchaseOrders.submit / commerce.accept | Business ownership deferred |
+| Commerce: Workbench, OrderWorkbench, Comparison / CreateInvoice / Import / SendToWarehouse | commerce.view / commerce.edit / commerce.upload / commerce.sendToWarehouse | Business ownership deferred |
+| Purchases: Search, Get / Create, Import / Update / Post | purchases.view / purchases.create / purchases.edit / purchases.post | Business ownership deferred |
+| Sales: Search, Get / Create, CalculateCredit / Post, Reverse | sales.view / sales.create / sales.post | Business ownership deferred |
+| Finance: Documents / CreateDocument / PostDocument | finance.view / finance.create / finance.post | Business ownership deferred |
+| Finance: Checks / CreateCheck / TransitionCheck | checks.view / checks.create / checks.edit | Business ownership deferred |
+| Finance: CreateSettlement / PostSettlement | finance.create / finance.post | Partner ownership deferred |
+| Reports: all five actions, including stock and partner ledger | reports.view | Row/field ownership deferred |
+| Attachments: List, Download / Upload, Delete | commerce.view / commerce.upload | Entity authorization deferred to A7 |
+| Users: List, Catalog, Get / Update | users.view / users.edit | Administrator or Manager; inline Administrator/email and users.permissions guards preserved |
+| Users: Create, ReissueInvitation / ResetSecurity | users.create / users.permissions | Administrator only |
+| SystemBackup: Info, OnlineUsers / MaintenanceNotice, CancelMaintenanceNotice, Export / Restore | dataBackup.view / dataBackup.create / dataBackup.restore | Administrator or Manager; A8 deferred |
+| WorkItems: List, MarkViewed, StartAction | dashboard.view | Own task state and existing role routing; workflow view and commerce.accept checks as above |
+| SequenceSuggestions: person / yarn / purchase-order / purchase-invoice / sale-invoice / receipt, payment | persons.view / yarns.view / purchaseOrders.view / purchases.view / sales.view / finance.view | Existing supported numbering unchanged |
+| Users.MyAccess; UserSettings.Get, Update, ChangePassword; Presence.Heartbeat, Logout, Notice; auth manage/info, mfa-status | Explicit authenticated own-account/session classification | Identity derived from authenticated user, no arbitrary target user |
+| Private auth login, verify-email, resend-code, refresh, activate, forgotPassword, resetPassword, development-session; auth csrf; health | Explicit AllowAnonymous | Existing A2 challenge, origin, environment and rate-limit controls remain |
+
 ## 7.3 Web/API protection
 - HTTPS only;
 - HSTS;
@@ -623,6 +660,8 @@ Each work package is intentionally bounded. Complete and update this document be
 - migrate existing endpoints;
 - security tests.
 **Exit:** no business endpoint depends on URL inference as its sole authorization.
+
+**Status (2026-10-06): COMPLETE.** All 83 current business endpoints use explicit permission metadata; the complete 102-endpoint metadata inventory passes classification checks. No business endpoint depends on URL inference as its sole authorization. All 209 backend tests pass (137 existing plus 72 A3 cases), with zero failures or skipped tests. The non-incremental Release solution build succeeds with zero warnings/errors. Scope and endpoint mapping are recorded in sections 7.2.1–7.2.2. The existing permission catalog/defaults, A2 authentication and Administrator-only controls are preserved. No migration, runtime dependency or frontend change was required; frontend verification is not applicable. Business ownership decisions remain explicitly deferred; no A4 work has started.
 
 ### A4 — Fix RowVersion/concurrency model — P0
 - SQL `rowversion`;
@@ -1033,6 +1072,15 @@ A work package is DONE only when:
 ---
 
 # 15. Change Log
+
+## 2026-10-06 — A3 explicit policy-based authorization
+- Created `a3-policy-authorization` from clean, fast-forwarded master containing approved A2 commit `010e8b5f8658b35a1b280b903a4308398507e083`.
+- Removed route-derived `PermissionGuardMiddleware`; added explicit built-in authorization requirements, provider, handlers, default-deny classification and startup/metadata coverage validation. Audited every existing endpoint and recorded the full mapping in section 7.2.2.
+- Retained the central catalog, role defaults, user overrides, A2 authentication and sensitive role restrictions. Added only request-scoped effective-permission reuse and a small own-user data-scope seam. Closed the work-item start-action path around `commerce.accept` without changing workflow transitions.
+- Recorded undefined ownership/isolation decisions rather than inventing them. Attachment entity checks remain A7; backup lifecycle remains A8. No migration, dependency, frontend change, merge to master or A4 implementation.
+- Verification: all 209 backend tests pass (137 existing plus 72 A3 cases; zero failures/skips), including real HTTP 401/403/grant/revocation cases, role restrictions, view-versus-write separation, own-account/work-item scope, request-only caching, 14 role-default snapshots and classification failure when an endpoint's permission is forgotten. Non-incremental Release solution build: zero warnings/errors. Tests target net8.0 using the installed .NET 10 runtime via the existing major-roll-forward/TestHost compatibility setup. No frontend files changed, so no new frontend build is required.
+- Actual Production entry-point startup/metadata validation succeeds with non-secret smoke configuration: health 200, protected report 401 and development-session 404. Framework-generated method/content-type rejection responses remain unchanged; the existing A2 unavailable-public-account-route test passes. The sandbox cannot decrypt/persist the machine's Windows Data Protection keys; this anonymous entry-point check does not claim a live Production login, SMTP delivery or SQL-backed posting test. Authenticated HTTP tests use isolated ephemeral keys, a fake sender and EF InMemory; no business posting/concurrency verification is claimed for A4/A6.
+- A3 exit criterion is satisfied. The branch remains separate from master; A4 was not started. Undefined customer/center/partner isolation and attachment entity authorization remain the explicitly recorded security limitations for later approved work.
 
 ## 2026-10-06 — A2 final owner decision: private invitation and email browser verification
 - Continued the existing `a2-auth-security-baseline` branch from a clean working tree and fast-forward pull; no new branch or merge. The owner decision supersedes the earlier method-pending baseline below.

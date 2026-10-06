@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -6,15 +7,18 @@ using YarnTrade.Api.Domain;
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api/user-settings"), Authorize]
-public sealed class UserSettingsController(UserManager<AppUser> users) : ControllerBase
+public sealed class UserSettingsController(UserManager<AppUser> users, IDataScope dataScope) : ControllerBase
 {
+    [AuthenticatedOnly("Own account/session; record identity comes from the authenticated user.")]
     [HttpGet]
     public async Task<IActionResult> Get()
     {
         var user = await users.GetUserAsync(User);
-        return user is null ? Unauthorized() : Ok(ToView(user));
+        if (user is null) return Unauthorized();
+        return dataScope.Allows(User, new(DataScopeKind.OwnUser, user.Id)) ? Ok(ToView(user)) : Forbid();
     }
 
+    [AuthenticatedOnly("Own account/session; record identity comes from the authenticated user.")]
     [HttpPut]
     public async Task<IActionResult> Update(UserSettingsInput input)
     {
@@ -22,6 +26,7 @@ public sealed class UserSettingsController(UserManager<AppUser> users) : Control
         if (error is not null) return BadRequest(new { error });
         var user = await users.GetUserAsync(User);
         if (user is null) return Unauthorized();
+        if (!dataScope.Allows(User, new(DataScopeKind.OwnUser, user.Id))) return Forbid();
         user.PreferredLanguage = input.PreferredLanguage;
         user.SessionTimeoutMinutes = input.SessionTimeoutMinutes;
         user.Theme = input.Theme;
@@ -32,6 +37,7 @@ public sealed class UserSettingsController(UserManager<AppUser> users) : Control
         return result.Succeeded ? Ok(ToView(user)) : BadRequest(new { error = string.Join(" ", result.Errors.Select(x => x.Description)) });
     }
 
+    [AuthenticatedOnly("Own account/session; record identity comes from the authenticated user.")]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword(ChangeOwnPasswordInput input)
     {
@@ -41,6 +47,7 @@ public sealed class UserSettingsController(UserManager<AppUser> users) : Control
         if (input.CurrentPassword == input.NewPassword) return BadRequest(new { error = "رمز عبور جدید باید با رمز فعلی متفاوت باشد." });
         var user = await users.GetUserAsync(User);
         if (user is null) return Unauthorized();
+        if (!dataScope.Allows(User, new(DataScopeKind.OwnUser, user.Id))) return Forbid();
         var result = await users.ChangePasswordAsync(user, input.CurrentPassword, input.NewPassword);
         return result.Succeeded ? NoContent() : BadRequest(new { error = result.Errors.Any(x => x.Code == "PasswordMismatch") ? "رمز عبور فعلی صحیح نیست." : string.Join(" ", result.Errors.Select(x => x.Description)) });
     }

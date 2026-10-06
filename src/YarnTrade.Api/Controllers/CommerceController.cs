@@ -14,6 +14,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/commerce"), Authorize]
 public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter importer, PostingService posting) : ControllerBase
 {
+    [RequirePermission("commerce.view")]
     [HttpGet("workbench")]
     public async Task<IActionResult> Workbench(CancellationToken ct)
     {
@@ -35,6 +36,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         return Ok(new { Orders = new { Items = orders, Total = orders.Count }, People = new { Items = people, Total = people.Count }, Warehouses = warehouses, Yarns = new { Items = yarns, Total = yarns.Count } });
     }
 
+    [RequirePermission("commerce.view")]
     [HttpGet("orders/{orderId:guid}/workbench")]
     public async Task<IActionResult> OrderWorkbench(Guid orderId, CancellationToken ct)
     {
@@ -69,6 +71,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         return Ok(new { Order = order, Invoice = invoice, Attachments = attachments, Comparison = comparison });
     }
 
+    [RequirePermission("commerce.edit")]
     [HttpPost("orders/{orderId:guid}/invoice")]
     public async Task<ActionResult<PurchaseInvoice>> CreateInvoice(Guid orderId, CancellationToken ct)
     {
@@ -124,6 +127,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         return Ok(invoice);
     }
 
+    [RequirePermission("commerce.upload")]
     [HttpPost("orders/{orderId:guid}/import"), EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
     public async Task<ActionResult<ImportedPurchase>> Import(Guid orderId, IFormFile file, CancellationToken ct)
@@ -149,6 +153,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         return Ok(result);
     }
 
+    [RequirePermission("commerce.sendToWarehouse")]
     [HttpPost("invoices/{invoiceId:guid}/send-to-warehouse")]
     public async Task<IActionResult> SendToWarehouse(Guid invoiceId, [FromQuery] Guid warehouseId,
         [FromQuery] bool confirmInvoiceData = false, [FromQuery] bool confirmDiscrepancy = false, CancellationToken ct = default)
@@ -178,6 +183,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         return NoContent();
     }
 
+    [RequirePermission("commerce.view")]
     [HttpGet("orders/{orderId:guid}/comparison")]
     public async Task<ActionResult<PurchaseComparisonResult>> Comparison(Guid orderId, CancellationToken ct)
     {

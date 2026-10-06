@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -38,6 +39,7 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         [nameof(YarnInput.TwistType)] = Set("S", "Z")
     };
 
+    [RequirePermission("yarns.view")]
     [HttpGet]
     public async Task<object> List([FromQuery] bool includeInactive = true, [FromQuery] int page = 1, [FromQuery] int pageSize = 500, CancellationToken ct = default)
     {
@@ -49,6 +51,7 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         return new { items, total, page, pageSize = take };
     }
 
+    [RequirePermission("yarns.view")]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<YarnView>> ById(Guid id, CancellationToken ct)
     {
@@ -56,6 +59,7 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         return item is null ? NotFound() : Ok(YarnView.From(item));
     }
 
+    [RequirePermission("yarns.create")]
     [HttpPost]
     public async Task<ActionResult<YarnView>> Create(YarnInput input, CancellationToken ct)
     {
@@ -75,6 +79,7 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         return CreatedAtAction(nameof(ById), new { id = item.Id }, YarnView.From(item));
     }
 
+    [RequirePermission("yarns.edit")]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<YarnView>> Update(Guid id, YarnInput input, CancellationToken ct)
     {
@@ -88,6 +93,7 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         return Ok(YarnView.From(item));
     }
 
+    [RequirePermission("yarns.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {

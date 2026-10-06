@@ -12,6 +12,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/purchases"), Authorize]
 public sealed class PurchasesController(AppDbContext db, PostingService posting, XlsxPurchaseImporter importer) : ControllerBase
 {
+    [RequirePermission("purchases.view")]
     [HttpGet]
     public async Task<object> Search([FromQuery] string? number, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? supplierId, [FromQuery] Guid? purchaseOrderId,
         [FromQuery] DocumentStatus? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
@@ -28,6 +29,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         return new { items, total, page, pageSize };
     }
 
+    [RequirePermission("purchases.view")]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PurchaseInvoice>> Get(Guid id, CancellationToken ct)
     {
@@ -35,6 +37,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         return item is null ? NotFound() : Ok(item);
     }
 
+    [RequirePermission("purchases.create")]
     [HttpPost]
     public async Task<ActionResult<PurchaseInvoice>> Create(PurchaseInvoice invoice, CancellationToken ct)
     {
@@ -44,6 +47,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         db.PurchaseInvoices.Add(invoice); await db.SaveChangesAsync(ct); return CreatedAtAction(nameof(Get), new { id = invoice.Id }, invoice);
     }
 
+    [RequirePermission("purchases.create")]
     [HttpPost("import"), EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
     public async Task<ActionResult<ImportedPurchase>> Import(IFormFile file, [FromForm] Guid supplierId, [FromForm] Guid uploadedBy, CancellationToken ct)
@@ -52,6 +56,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         return Ok(await importer.ImportAsync(file, supplierId, uploadedBy, ct));
     }
 
+    [RequirePermission("purchases.edit")]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, PurchaseInvoice input, CancellationToken ct)
     {
@@ -88,6 +93,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         await db.SaveChangesAsync(ct); return NoContent();
     }
 
+    [RequirePermission("purchases.post")]
     [HttpPost("{id:guid}/post")]
     public async Task<IActionResult> Post(Guid id, [FromQuery] Guid warehouseId, CancellationToken ct)
     {

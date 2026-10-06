@@ -16,6 +16,7 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
     private static readonly SemaphoreSlim OperationLock = new(1, 1);
     private const long MaxRestoreBytes = 5L * 1024 * 1024 * 1024;
 
+    [RequirePermission("dataBackup.view")]
     [HttpGet("info")]
     public IActionResult Info()
     {
@@ -24,9 +25,11 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
         return Ok(new { Database = connection.InitialCatalog, AttachmentCount = Directory.Exists(attachments) ? Directory.EnumerateFiles(attachments).Count() : 0, MaxRestoreSize = MaxRestoreBytes });
     }
 
+    [RequirePermission("dataBackup.view")]
     [HttpGet("online-users")]
     public async Task<IActionResult> OnlineUsers(CancellationToken ct) => Ok(await presence.GetOtherOnlineUsers(User, ct));
 
+    [RequirePermission("dataBackup.create")]
     [HttpPost("maintenance-notice")]
     public async Task<IActionResult> MaintenanceNotice(MaintenanceNoticeInput input, CancellationToken ct)
     {
@@ -34,9 +37,11 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
 
+    [RequirePermission("dataBackup.create")]
     [HttpPost("maintenance-notice/cancel")]
     public async Task<IActionResult> CancelMaintenanceNotice(CancellationToken ct) { await presence.CompleteNotices(User, ct); return NoContent(); }
 
+    [RequirePermission("dataBackup.create")]
     [HttpPost("export"), EnableRateLimiting(InternetSecurity.Backups)]
     public async Task<IActionResult> Export(BackupRequest input, CancellationToken ct)
     {
@@ -69,6 +74,7 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
         finally { if (work is not null) TryDeleteDirectory(work); }
     }
 
+    [RequirePermission("dataBackup.restore")]
     [HttpPost("restore"), EnableRateLimiting(InternetSecurity.Backups)]
     [RequestSizeLimit(MaxRestoreBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxRestoreBytes)]

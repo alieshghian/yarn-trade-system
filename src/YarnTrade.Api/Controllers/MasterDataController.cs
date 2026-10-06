@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/master-data"), Authorize]
 public sealed class MasterDataController(AppDbContext db, PersonAccountService personAccounts) : ControllerBase
 {
+    [RequirePermission("persons.view")]
     [HttpGet("persons")]
     public async Task<object> Persons([FromQuery] string? q, [FromQuery] bool includeInactive = true, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
     {
@@ -30,6 +32,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return new { items, total, page, pageSize };
     }
 
+    [RequirePermission("persons.view")]
     [HttpGet("persons/{id:guid}")]
     public async Task<ActionResult<PersonView>> PersonById(Guid id, CancellationToken ct)
     {
@@ -37,6 +40,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return item is null ? NotFound() : Ok(PersonView.From(item));
     }
 
+    [RequirePermission("persons.create")]
     [HttpPost("persons")]
     public async Task<ActionResult<PersonView>> CreatePerson(PersonInput input, CancellationToken ct)
     {
@@ -50,6 +54,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return CreatedAtAction(nameof(PersonById), new { id = person.Id }, PersonView.From(person));
     }
 
+    [RequirePermission("persons.edit")]
     [HttpPut("persons/{id:guid}")]
     public async Task<ActionResult<PersonView>> UpdatePerson(Guid id, PersonInput input, CancellationToken ct)
     {
@@ -63,6 +68,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return Ok(PersonView.From(person));
     }
 
+    [RequirePermission("persons.delete")]
     [HttpDelete("persons/{id:guid}")]
     public async Task<IActionResult> DeletePerson(Guid id, CancellationToken ct)
     {
@@ -77,6 +83,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return NoContent();
     }
 
+    [RequirePermission("persons.view")]
     [HttpGet("parameters")]
     public async Task<List<ParameterView>> Parameters([FromQuery] ParameterType? type, CancellationToken ct)
     {
@@ -85,6 +92,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return await query.OrderBy(x => x.ParameterType).ThenBy(x => x.SortOrder).Select(x => new ParameterView(x.Id, x.ParameterType, x.Code, x.NameFa, x.NameEn)).ToListAsync(ct);
     }
 
+    [RequirePermission("yarns.view")]
     [HttpGet("yarns")]
     public async Task<object> Yarns([FromQuery] string? q, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
     {
@@ -95,12 +103,14 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return new { items, total, page, pageSize };
     }
 
+    [RequirePermission("yarns.create")]
     [HttpPost("yarn-types")]
     public async Task<ActionResult<YarnType>> CreateYarnType(YarnType item, CancellationToken ct)
     {
         item.Id = Guid.NewGuid(); db.YarnTypes.Add(item); await db.SaveChangesAsync(ct); return Ok(item);
     }
 
+    [RequirePermission("yarns.create")]
     [HttpPost("yarns")]
     public async Task<ActionResult<YarnItem>> CreateYarn(YarnItem item, CancellationToken ct)
     {
@@ -109,13 +119,16 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         db.YarnItems.Add(item); await db.SaveChangesAsync(ct); return Ok(item);
     }
 
+    [RequirePermission("inventory.view")]
     [HttpGet("warehouses")]
     public Task<List<Warehouse>> Warehouses(CancellationToken ct) => db.Warehouses.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Code).ToListAsync(ct);
 
+    [RequirePermission("inventory.edit")]
     [HttpPost("warehouses")]
     public async Task<ActionResult<Warehouse>> CreateWarehouse(Warehouse item, CancellationToken ct)
     { item.Id = Guid.NewGuid(); db.Warehouses.Add(item); await db.SaveChangesAsync(ct); return Ok(item); }
 
+    [RequirePermission("finance.view")]
     [HttpGet("exchange-rates")]
     public Task<List<ExchangeRate>> Rates([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
     {
@@ -125,6 +138,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return q.OrderByDescending(x => x.RateDate).ToListAsync(ct);
     }
 
+    [RequirePermission("finance.create")]
     [HttpPost("exchange-rates")]
     public async Task<ActionResult<ExchangeRate>> CreateRate(ExchangeRate item, CancellationToken ct)
     { item.Id = Guid.NewGuid(); db.ExchangeRates.Add(item); await db.SaveChangesAsync(ct); return Ok(item); }

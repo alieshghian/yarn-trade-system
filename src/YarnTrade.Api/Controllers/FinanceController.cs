@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/finance"), Authorize]
 public sealed class FinanceController(AppDbContext db) : ControllerBase
 {
+    [RequirePermission("finance.view")]
     [HttpGet("money-documents")]
     public async Task<object> Documents([FromQuery] MoneyDocumentType? type, [FromQuery] Guid? personId, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
     {
@@ -21,6 +23,7 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         return new { items, total, page, pageSize };
     }
 
+    [RequirePermission("finance.create")]
     [HttpPost("money-documents")]
     public async Task<ActionResult<MoneyDocument>> CreateDocument(MoneyDocument document, CancellationToken ct)
     {
@@ -31,6 +34,7 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         db.MoneyDocuments.Add(document); await db.SaveChangesAsync(ct); return Ok(document);
     }
 
+    [RequirePermission("finance.post")]
     [HttpPost("money-documents/{id:guid}/post")]
     public async Task<IActionResult> PostDocument(Guid id, CancellationToken ct)
     {
@@ -43,6 +47,7 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync(ct); return NoContent();
     }
 
+    [RequirePermission("checks.view")]
     [HttpGet("checks")]
     public async Task<object> Checks([FromQuery] CheckStatus? status, [FromQuery] DateOnly? dueFrom, [FromQuery] DateOnly? dueTo, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
     {
@@ -55,10 +60,12 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         return new { items, total, page, pageSize };
     }
 
+    [RequirePermission("checks.create")]
     [HttpPost("checks")]
     public async Task<ActionResult<Check>> CreateCheck(Check item, CancellationToken ct)
     { item.Id = Guid.NewGuid(); item.CurrentStatus = CheckStatus.Received; db.Checks.Add(item); await db.SaveChangesAsync(ct); return Ok(item); }
 
+    [RequirePermission("checks.edit")]
     [HttpPost("checks/{id:guid}/transition")]
     public async Task<IActionResult> TransitionCheck(Guid id, CheckTransitionRequest input, CancellationToken ct)
     {
@@ -71,6 +78,7 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync(ct); return NoContent();
     }
 
+    [RequirePermission("finance.create")]
     [HttpPost("settlements")]
     public async Task<ActionResult<PartnerSettlement>> CreateSettlement(PartnerSettlement item, CancellationToken ct)
     {
@@ -79,6 +87,7 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
         db.PartnerSettlements.Add(item); await db.SaveChangesAsync(ct); return Ok(item);
     }
 
+    [RequirePermission("finance.post")]
     [HttpPost("settlements/{id:guid}/post")]
     public async Task<IActionResult> PostSettlement(Guid id, CancellationToken ct)
     {

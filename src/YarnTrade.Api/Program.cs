@@ -29,12 +29,11 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme { Type = SecuritySchemeType.Http, Scheme = "bearer", BearerFormat = "opaque", In = ParameterLocation.Header });
 });
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
-builder.Services.AddAuthorization();
+builder.Services.AddPermissionAuthorization();
 builder.Services.AddScoped<PostingService>();
 builder.Services.AddScoped<XlsxPurchaseImporter>();
 builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddScoped<PersonAccountService>();
-builder.Services.AddScoped<PermissionService>();
 builder.Services.AddScoped<UserPresenceService>();
 
 var app = builder.Build();
@@ -52,12 +51,13 @@ app.UseAuthentication();
 app.UseRateLimiter();
 app.UseMiddleware<AuthenticationSessionMiddleware>();
 app.UseMiddleware<UserPresenceMiddleware>();
-app.UseMiddleware<PermissionGuardMiddleware>();
 app.UseAuthorization();
 var authentication = app.MapGroup("/api/auth").RequireRateLimiting(InternetSecurity.Authentication);
 authentication.MapAuthenticationSecurity();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", utc = DateTime.UtcNow })).AllowAnonymous();
+
+PermissionAuthorization.ValidateEndpointDecisions(((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources.SelectMany(x => x.Endpoints));
 
 if (autoMigrate)
 {

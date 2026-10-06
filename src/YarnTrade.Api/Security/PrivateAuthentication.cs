@@ -269,7 +269,7 @@ public sealed class PrivateAuthentication(UserManager<AppUser> users, AppSignInM
         {
             var user = await users.GetUserAsync(principal);
             return user is null ? Results.Unauthorized() : Results.Ok(new { email = user.Email, isEmailConfirmed = user.EmailConfirmed });
-        }).RequireAuthorization();
+        }).RequireAuthenticatedAccess("Read own registered login email.");
         // No register, confirm/change-email, or authenticator-management routes are mapped.
     }
 }

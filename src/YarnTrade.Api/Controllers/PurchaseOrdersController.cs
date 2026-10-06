@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +11,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/purchase-orders"), Authorize]
 public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
 {
+    [RequirePermission("purchaseOrders.view")]
     [HttpGet]
     public async Task<object> List([FromQuery] PurchaseOrderStatus? status, [FromQuery] bool commerceCartable = false,
         [FromQuery] int page = 1, [FromQuery] int pageSize = 200, CancellationToken ct = default)
@@ -31,6 +33,7 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
         return new { items = rows, total, page = Math.Max(page, 1), pageSize = take };
     }
 
+    [RequirePermission("purchaseOrders.view")]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PurchaseOrderView>> Get(Guid id, CancellationToken ct)
     {
@@ -46,6 +49,7 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
         return Ok(PurchaseOrderView.From(order, items));
     }
 
+    [RequirePermission("purchaseOrders.create")]
     [HttpPost]
     public async Task<ActionResult<PurchaseOrderView>> Create(PurchaseOrderInput input, CancellationToken ct)
     {
@@ -71,6 +75,7 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
         return CreatedAtAction(nameof(Get), new { id = order.Id }, await BuildView(order, ct));
     }
 
+    [RequirePermission("purchaseOrders.edit")]
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<PurchaseOrderView>> Update(Guid id, PurchaseOrderInput input, CancellationToken ct)
     {
@@ -94,6 +99,7 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
         return Ok(await BuildView(order, ct));
     }
 
+    [RequirePermission("purchaseOrders.delete")]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
@@ -108,6 +114,7 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
         return NoContent();
     }
 
+    [RequirePermission("purchaseOrders.submit")]
     [HttpPost("{id:guid}/submit")]
     public async Task<ActionResult<PurchaseOrderView>> Submit(Guid id, CancellationToken ct)
     {
@@ -122,6 +129,7 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
         return Ok(await BuildView(order, ct));
     }
 
+    [RequirePermission("commerce.accept")]
     [HttpPost("{id:guid}/accept")]
     public async Task<ActionResult<PurchaseOrderView>> Accept(Guid id, CancellationToken ct)
     {

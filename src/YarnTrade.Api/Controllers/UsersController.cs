@@ -11,18 +11,21 @@ namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api"), Authorize]
 public sealed class UsersController(AppDbContext db, UserManager<AppUser> users, RoleManager<IdentityRole<Guid>> roles,
-    PermissionService permissionService, PrivateAuthentication authentication, IAuthenticationEmailSender mail) : ControllerBase
+    PermissionService permissionService, PrivateAuthentication authentication, IAuthenticationEmailSender mail, IDataScope dataScope) : ControllerBase
 {
+    [AuthenticatedOnly("Own account/session; record identity comes from the authenticated user.")]
     [HttpGet("user-access")]
     public async Task<ActionResult<object>> MyAccess(CancellationToken ct)
     {
         var user = await users.GetUserAsync(User);
         if (user is null) return Unauthorized();
+        if (!dataScope.Allows(User, new(DataScopeKind.OwnUser, user.Id))) return Forbid();
         var userRoles = await users.GetRolesAsync(user);
         var permissions = await permissionService.GetEffectiveAsync(User, ct);
         return Ok(new { user.Id, user.Email, user.DisplayName, user.PersonId, user.PreferredLanguage, user.SessionTimeoutMinutes, user.Theme, user.CompactMode, user.FontFamily, user.FontSize, Roles = userRoles, Permissions = permissions.Order().ToArray() });
     }
 
+    [RequirePermission("users.view")]
     [HttpGet("users"), Authorize(Roles = "Administrator,Manager")]
     public async Task<ActionResult<object>> List(CancellationToken ct)
     {
@@ -39,6 +42,7 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         return Ok(result);
     }
 
+    [RequirePermission("users.view")]
     [HttpGet("users/catalog"), Authorize(Roles = "Administrator,Manager")]
     public async Task<ActionResult<object>> Catalog(CancellationToken ct)
     {
@@ -51,6 +55,7 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         return Ok(new { Roles = roleRows, Persons = persons, Permissions = PermissionCatalog.All, RoleDefaults = roleDefaults });
     }
 
+    [RequirePermission("users.view")]
     [HttpGet("users/{id:guid}"), Authorize(Roles = "Administrator,Manager")]
     public async Task<ActionResult<object>> Get(Guid id, CancellationToken ct)
     {
@@ -69,6 +74,7 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         });
     }
 
+    [RequirePermission("users.create")]
     [HttpPost("users"), Authorize(Roles = "Administrator")]
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(InternetSecurity.Authentication)]
     public async Task<ActionResult<object>> Create(UserInput input, CancellationToken ct)
@@ -95,6 +101,7 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         return CreatedAtAction(nameof(Get), new { id = user.Id }, new { user.Id });
     }
 
+    [RequirePermission("users.edit")]
     [HttpPut("users/{id:guid}"), Authorize(Roles = "Administrator,Manager")]
     public async Task<IActionResult> Update(Guid id, UserInput input, CancellationToken ct)
     {
@@ -132,6 +139,7 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         return NoContent();
     }
 
+    [RequirePermission("users.create")]
     [HttpPost("users/{id:guid}/invitation"), Authorize(Roles = "Administrator")]
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(InternetSecurity.Authentication)]
     public async Task<IActionResult> ReissueInvitation(Guid id, CancellationToken ct)
@@ -144,6 +152,7 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         return NoContent();
     }
 
+    [RequirePermission("users.permissions")]
     [HttpPost("users/{id:guid}/security-reset"), Authorize(Roles = "Administrator")]
     [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(InternetSecurity.Authentication)]
     public async Task<IActionResult> ResetSecurity(Guid id)

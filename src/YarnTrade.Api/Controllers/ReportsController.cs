@@ -11,6 +11,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/reports"), Authorize, EnableRateLimiting(InternetSecurity.Reports)]
 public sealed class ReportsController(AppDbContext db) : ControllerBase
 {
+    [RequirePermission("reports.view")]
     [HttpGet("yarn-transactions")]
     public async Task<object> YarnTransactions([FromQuery] Guid? warehouseId, [FromQuery] Guid? yarnItemId,
         [FromQuery] Guid? personId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
@@ -61,6 +62,7 @@ public sealed class ReportsController(AppDbContext db) : ControllerBase
         return new { rows, total = rows.Count, quantityIn = rows.Sum(x => x.QuantityIn), quantityOut = rows.Sum(x => x.QuantityOut) };
     }
 
+    [RequirePermission("reports.view")]
     [HttpGet("stock")]
     public async Task<object> Stock([FromQuery] Guid? warehouseId, [FromQuery] Guid? yarnItemId, CancellationToken ct)
     {
@@ -75,6 +77,7 @@ public sealed class ReportsController(AppDbContext db) : ControllerBase
         }).OrderBy(x => x.WarehouseId).ThenBy(x => x.YarnItemId).ToListAsync(ct);
     }
 
+    [RequirePermission("reports.view")]
     [HttpGet("partner-ledger/{partnerId:guid}")]
     public async Task<object> PartnerLedger(Guid partnerId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
     {
@@ -85,10 +88,12 @@ public sealed class ReportsController(AppDbContext db) : ControllerBase
         return new { rows, totals = new { debitIRR = rows.Sum(x => x.DebitIRR), creditIRR = rows.Sum(x => x.CreditIRR), debitUSD = rows.Sum(x => x.DebitUSD), creditUSD = rows.Sum(x => x.CreditUSD) } };
     }
 
+    [RequirePermission("reports.view")]
     [HttpGet("checks-due")]
     public Task<List<Check>> ChecksDue([FromQuery] DateOnly through, CancellationToken ct) =>
         db.Checks.AsNoTracking().Where(x => x.DueDate <= through && x.CurrentStatus != CheckStatus.Collected && x.CurrentStatus != CheckStatus.Cancelled && x.CurrentStatus != CheckStatus.Returned).OrderBy(x => x.DueDate).ToListAsync(ct);
 
+    [RequirePermission("reports.view")]
     [HttpGet("partnership")]
     public async Task<object> Partnership([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
     {

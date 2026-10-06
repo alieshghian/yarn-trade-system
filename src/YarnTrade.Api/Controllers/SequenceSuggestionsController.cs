@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,8 +10,22 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/sequence-suggestions"), Authorize]
 public sealed class SequenceSuggestionsController(AppDbContext db) : ControllerBase
 {
-    [HttpGet("{scope}")]
-    public async Task<ActionResult<object>> Get(string scope, CancellationToken ct)
+    [HttpGet("person"), RequirePermission("persons.view")]
+    public Task<ActionResult<object>> Person(CancellationToken ct) => Suggest("person", ct);
+    [HttpGet("yarn"), RequirePermission("yarns.view")]
+    public Task<ActionResult<object>> Yarn(CancellationToken ct) => Suggest("yarn", ct);
+    [HttpGet("purchase-order"), RequirePermission("purchaseOrders.view")]
+    public Task<ActionResult<object>> PurchaseOrder(CancellationToken ct) => Suggest("purchase-order", ct);
+    [HttpGet("purchase-invoice"), RequirePermission("purchases.view")]
+    public Task<ActionResult<object>> PurchaseInvoice(CancellationToken ct) => Suggest("purchase-invoice", ct);
+    [HttpGet("sale-invoice"), RequirePermission("sales.view")]
+    public Task<ActionResult<object>> SaleInvoice(CancellationToken ct) => Suggest("sale-invoice", ct);
+    [HttpGet("receipt"), RequirePermission("finance.view")]
+    public Task<ActionResult<object>> Receipt(CancellationToken ct) => Suggest("receipt", ct);
+    [HttpGet("payment"), RequirePermission("finance.view")]
+    public Task<ActionResult<object>> Payment(CancellationToken ct) => Suggest("payment", ct);
+
+    private async Task<ActionResult<object>> Suggest(string scope, CancellationToken ct)
     {
         var year = DateTime.Today.Year;
         string? last;

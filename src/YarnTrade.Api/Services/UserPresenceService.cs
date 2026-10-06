@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using YarnTrade.Api.Data;
@@ -6,7 +7,7 @@ using YarnTrade.Api.Domain;
 
 namespace YarnTrade.Api.Services;
 
-public sealed class UserPresenceService(AppDbContext db, UserManager<AppUser> users)
+public sealed class UserPresenceService(AppDbContext db, UserManager<AppUser> users, IDataScope dataScope)
 {
     public static readonly TimeSpan OnlineWindow = TimeSpan.FromSeconds(90);
 
@@ -72,7 +73,12 @@ public sealed class UserPresenceService(AppDbContext db, UserManager<AppUser> us
             .ExecuteUpdateAsync(update => update.SetProperty(x => x.ExpiresAtUtc, now), ct);
     }
 
-    private static bool TryUserId(ClaimsPrincipal principal, out Guid id) => Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out id);
+    private bool TryUserId(ClaimsPrincipal principal, out Guid id)
+    {
+        var scopedId = dataScope.GetUserId(principal);
+        id = scopedId ?? Guid.Empty;
+        return scopedId is not null;
+    }
 }
 
 public sealed record OnlineUserView(Guid Id, string DisplayName, string Email, DateTime LastSeenAtUtc);

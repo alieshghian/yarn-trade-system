@@ -1,3 +1,4 @@
+using YarnTrade.Api.Security;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,8 +9,9 @@ using YarnTrade.Api.Domain;
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api/work-items"), Authorize]
-public sealed class WorkItemsController(AppDbContext db) : ControllerBase
+public sealed class WorkItemsController(AppDbContext db, IDataScope dataScope, PermissionService permissions, IAuthorizationService authorization) : ControllerBase
 {
+    [RequirePermission("dashboard.view")]
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<WorkItemView>>> List(CancellationToken ct)
     {
@@ -35,11 +37,13 @@ public sealed class WorkItemsController(AppDbContext db) : ControllerBase
         return Ok(result);
     }
 
+    [RequirePermission("dashboard.view")]
     [HttpPost("{id}/view")]
     public async Task<IActionResult> MarkViewed(string id, CancellationToken ct)
     {
         var userId = CurrentUserId();
         if (userId is null) return Unauthorized();
+        if (!await CanAccessWorkItem(id, startAction: false)) return Forbid();
         if (!await IsAvailable(id, ct)) return NotFound();
         var state = await GetOrCreateState(userId.Value, id, ct);
         state.ViewedAtUtc ??= DateTime.UtcNow;
@@ -47,11 +51,13 @@ public sealed class WorkItemsController(AppDbContext db) : ControllerBase
         return Ok(new { state.ViewedAtUtc, state.ActionStartedAtUtc });
     }
 
+    [RequirePermission("dashboard.view")]
     [HttpPost("{id}/action")]
     public async Task<IActionResult> StartAction(string id, CancellationToken ct)
     {
         var userId = CurrentUserId();
         if (userId is null) return Unauthorized();
+        if (!await CanAccessWorkItem(id, startAction: true)) return Forbid();
         if (!await IsAvailable(id, ct)) return NotFound();
         var state = await GetOrCreateState(userId.Value, id, ct);
         var now = DateTime.UtcNow;
@@ -73,9 +79,10 @@ public sealed class WorkItemsController(AppDbContext db) : ControllerBase
     private async Task<List<WorkItemView>> BuildCandidates(CancellationToken ct)
     {
         var items = new List<WorkItemView>();
+        var effective = await permissions.GetEffectiveAsync(User, ct);
         // دسترسی مدیریتی به فرم‌ها به معنی عضویت در کارتابل عملیاتی نیست.
         // تسک خرید فقط به کاربری تحویل می‌شود که صراحتاً نقش بازرگانی دارد.
-        if (CanReceive("CommerceOrder"))
+        if (CanReceive("CommerceOrder") && effective.Contains("commerce.view"))
         {
             var orders = await db.PurchaseOrders.AsNoTracking()
                 .Where(x => x.Status == PurchaseOrderStatus.SubmittedToCommerce || x.Status == PurchaseOrderStatus.InCommerce)
@@ -90,7 +97,7 @@ public sealed class WorkItemsController(AppDbContext db) : ControllerBase
                 "commerce", x.Id, x.SubmittedAtUtc ?? x.CreatedAtUtc, null, null, 24)));
         }
 
-        if (CanReceive("WarehouseReceipt"))
+        if (CanReceive("WarehouseReceipt") && effective.Contains("inventory.view"))
         {
             var receipts = await db.PurchaseInvoices.AsNoTracking()
                 .Where(x => x.Status == DocumentStatus.Posted && x.PostedAtUtc != null)
@@ -123,7 +130,19 @@ public sealed class WorkItemsController(AppDbContext db) : ControllerBase
         return state;
     }
 
-    private Guid? CurrentUserId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+    private async Task<bool> CanAccessWorkItem(string id, bool startAction)
+    {
+        // These are known work-item categories, not URL-derived permissions.
+        if (id.StartsWith("commerce-order:", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!(await authorization.AuthorizeAsync(User, null, new PermissionRequirement("commerce.view"))).Succeeded) return false;
+            if (startAction && !(await authorization.AuthorizeAsync(User, null, new PermissionRequirement("commerce.accept"))).Succeeded) return false;
+        }
+        if (id.StartsWith("warehouse-receipt:", StringComparison.OrdinalIgnoreCase) &&
+            !(await authorization.AuthorizeAsync(User, null, new PermissionRequirement("inventory.view"))).Succeeded) return false;
+        return true;
+    }
+    private Guid? CurrentUserId() => dataScope.GetUserId(User);
     private bool CanReceive(string category) => WorkItemRouting.CanReceive(User.FindAll(ClaimTypes.Role).Select(x => x.Value), category);
 }
 

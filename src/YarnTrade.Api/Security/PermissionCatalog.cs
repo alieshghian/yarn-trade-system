@@ -64,7 +64,20 @@ public static class PermissionCatalog
 
 public sealed class PermissionService(AppDbContext db, UserManager<AppUser> userManager)
 {
+    private Guid? cachedUserId;
+    private Task<HashSet<string>>? cachedPermissions;
     public async Task<HashSet<string>> GetEffectiveAsync(ClaimsPrincipal principal, CancellationToken ct = default)
+    {
+        if (principal.Identity?.IsAuthenticated != true || !Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var id)) return [];
+        if (cachedPermissions is null || cachedUserId != id)
+        {
+            cachedUserId = id;
+            cachedPermissions = LoadEffectiveAsync(principal, ct);
+        }
+        return new HashSet<string>(await cachedPermissions, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<HashSet<string>> LoadEffectiveAsync(ClaimsPrincipal principal, CancellationToken ct)
     {
         var rawId = principal.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(rawId, out var userId)) return [];
@@ -76,70 +89,5 @@ public sealed class PermissionService(AppDbContext db, UserManager<AppUser> user
         foreach (var item in overrides)
             if (item.IsGranted) effective.Add(item.PermissionKey); else effective.Remove(item.PermissionKey);
         return effective;
-    }
-}
-
-public sealed class PermissionGuardMiddleware(RequestDelegate next)
-{
-    public async Task InvokeAsync(HttpContext context, PermissionService permissions)
-    {
-        if (context.User.Identity?.IsAuthenticated == true)
-        {
-            var required = Resolve(context.Request);
-            if (required is not null)
-            {
-                var effective = await permissions.GetEffectiveAsync(context.User, context.RequestAborted);
-                if (!effective.Contains(required))
-                {
-                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    await context.Response.WriteAsJsonAsync(new { error = "شما مجوز انجام این عملیات را ندارید.", permission = required }, context.RequestAborted);
-                    return;
-                }
-            }
-        }
-        await next(context);
-    }
-
-    private static string? Resolve(HttpRequest request)
-    {
-        var path = request.Path.Value?.ToLowerInvariant() ?? "";
-        if (!path.StartsWith("/api/") || path.StartsWith("/api/auth") || path == "/api/user-access" || path.StartsWith("/api/user-settings") || path.StartsWith("/api/presence")) return null;
-        var menu = path switch
-        {
-            var x when x.StartsWith("/api/work-items") => "dashboard",
-            var x when x.StartsWith("/api/users") => "users",
-            var x when x.StartsWith("/api/master-data/persons") || x.StartsWith("/api/sequence-suggestions/person") => "persons",
-            var x when x.StartsWith("/api/master-data/parameters") => "persons",
-            var x when x.StartsWith("/api/master-data/yarn") || x.StartsWith("/api/yarns") || x.StartsWith("/api/sequence-suggestions/yarn") => "yarns",
-            var x when x.StartsWith("/api/purchase-orders") || x.StartsWith("/api/sequence-suggestions/purchase-order") => "purchaseOrders",
-            var x when x.StartsWith("/api/commerce") || x.StartsWith("/api/attachments") => "commerce",
-            var x when x.StartsWith("/api/purchases") => "purchases",
-            var x when x.StartsWith("/api/inventory") || x.StartsWith("/api/master-data/warehouses") => "inventory",
-            var x when x.StartsWith("/api/master-data/exchange-rates") => "finance",
-            var x when x.StartsWith("/api/sales") => "sales",
-            var x when x.StartsWith("/api/finance/check") => "checks",
-            var x when x.StartsWith("/api/finance/partner") => "partners",
-            var x when x.StartsWith("/api/finance") => "finance",
-            var x when x.StartsWith("/api/reports") => "reports",
-            var x when x.StartsWith("/api/system-backup") => "dataBackup",
-            _ => null
-        };
-        if (menu is null) return null;
-        var method = request.Method;
-        if (menu == "dashboard") return "dashboard.view";
-        if (menu == "dataBackup" && path.EndsWith("/restore")) return "dataBackup.restore";
-        if (method == HttpMethods.Get) return $"{menu}.view";
-        if (path.StartsWith("/api/attachments") && method == HttpMethods.Delete) return "commerce.upload";
-        if (method == HttpMethods.Delete) return $"{menu}.delete";
-        if (path.StartsWith("/api/attachments")) return $"{menu}.upload";
-        if (path.Contains("/send-to-warehouse")) return "commerce.sendToWarehouse";
-        if (path.EndsWith("/accept")) return "commerce.accept";
-        if (menu == "commerce" && path.EndsWith("/import")) return "commerce.upload";
-        if (menu == "commerce" && method == HttpMethods.Post) return "commerce.edit";
-        if (path.EndsWith("/submit")) return "purchaseOrders.submit";
-        if (path.Contains("/transition") && menu == "checks") return "checks.edit";
-        if (path.EndsWith("/post") || path.EndsWith("/reverse")) return $"{menu}.post";
-        if (menu == "inventory" && method == HttpMethods.Post) return "inventory.edit";
-        return method == HttpMethods.Put || method == HttpMethods.Patch ? $"{menu}.edit" : $"{menu}.create";
     }
 }
