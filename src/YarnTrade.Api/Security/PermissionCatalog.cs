@@ -20,6 +20,7 @@ public static class PermissionCatalog
         P("purchases.view", "purchases", "view", "مشاهده خریدها", "View purchases"), P("purchases.create", "purchases", "create", "ثبت خرید", "Create purchase"), P("purchases.edit", "purchases", "edit", "ویرایش خرید", "Edit purchase"), P("purchases.post", "purchases", "post", "قطعی‌کردن خرید", "Post purchase"),
         P("inventory.view", "inventory", "view", "مشاهده انبار", "View inventory"), P("inventory.edit", "inventory", "edit", "عملیات انبار", "Inventory operations"),
         P("sales.view", "sales", "view", "مشاهده فروش", "View sales"), P("sales.create", "sales", "create", "ثبت فروش", "Create sale"), P("sales.edit", "sales", "edit", "ویرایش فروش", "Edit sale"), P("sales.post", "sales", "post", "قطعی‌کردن فروش", "Post sale"),
+        P("sales.creditOverride", "sales", "creditOverride", "تأیید عبور از سقف اعتبار فروش", "Approve sale credit limit override"),
         P("finance.view", "finance", "view", "مشاهده دریافت و پرداخت", "View finance"), P("finance.create", "finance", "create", "ثبت دریافت و پرداخت", "Create finance document"), P("finance.edit", "finance", "edit", "ویرایش دریافت و پرداخت", "Edit finance document"), P("finance.post", "finance", "post", "قطعی‌کردن سند مالی", "Post finance document"),
         P("checks.view", "checks", "view", "مشاهده چک‌ها", "View checks"), P("checks.create", "checks", "create", "ثبت چک", "Create check"), P("checks.edit", "checks", "edit", "عملیات چک", "Check operations"),
         P("partners.view", "partners", "view", "مشاهده شرکا", "View partners"), P("partners.edit", "partners", "edit", "عملیات شرکا", "Partner operations"),
@@ -55,7 +56,8 @@ public static class PermissionCatalog
             "ReportViewer" => ["reports.view", "inventory.view", "purchases.view", "sales.view", "finance.view", "checks.view", "partners.view"],
             _ => []
         };
-        foreach (var permission in All.Where(x => prefixes.Any(prefix => prefix.EndsWith('.') ? x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) : x.Key.Equals(prefix, StringComparison.OrdinalIgnoreCase))))
+        // Sensitive credit approval is not inherited through an operational menu prefix.
+        foreach (var permission in All.Where(x => x.Key != "sales.creditOverride" && prefixes.Any(prefix => prefix.EndsWith('.') ? x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) : x.Key.Equals(prefix, StringComparison.OrdinalIgnoreCase))))
             set.Add(permission.Key);
     }
 

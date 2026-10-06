@@ -9,7 +9,7 @@ using YarnTrade.Api.Services;
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api/sales"), Authorize]
-public sealed class SalesController(AppDbContext db, PostingService posting, PersonAccountService personAccounts) : ControllerBase
+public sealed class SalesController(AppDbContext db, PostingService posting) : ControllerBase
 {
     [RequirePermission("sales.view")]
     [HttpGet]
@@ -63,25 +63,8 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
         var sale = await db.Sales.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (sale is null) return NotFound();
         if (AggregateConcurrency.Apply(db, sale, rowVersion) is { } concurrencyError) return concurrencyError;
-        if (sale.SaleMode == SaleMode.Credit)
-        {
-            var customer = await db.Persons.AsNoTracking().SingleAsync(x => x.Id == sale.CustomerId, ct);
-            var summary = await personAccounts.GetSummaryAsync(customer.Id, ct);
-            var saleAmount = sale.Items.Sum(x => x.Quantity * x.CreditUnitPriceIRR);
-            var projectedDebt = summary.BalanceIRR + saleAmount;
-            if (projectedDebt > customer.CreditLimitIRR && !input.CreditLimitOverrideConfirmed)
-                return Conflict(new
-                {
-                    code = "CREDIT_LIMIT_EXCEEDED",
-                    error = "بدهی پیش‌بینی‌شده از سقف اعتبار شخص بیشتر است. ادامه عملیات نیاز به تأیید دارد.",
-                    currentDebtIRR = summary.BalanceIRR,
-                    saleAmountIRR = saleAmount,
-                    projectedDebtIRR = projectedDebt,
-                    creditLimitIRR = customer.CreditLimitIRR,
-                    requiresConfirmation = true
-                });
-        }
-        await posting.PostSaleAsync(id, input.UsdRate, input.CostingMethod, input.PaymentToleranceIRR, ct);
+        try { await posting.PostSaleAsync(id, User, input.CreditLimitOverrideRequested, ct); }
+        catch (SalePostingRejectedException ex) { return StatusCode(ex.StatusCode, ex.Response); }
         return Ok(new { sale.Id, sale.RowVersion });
     }
 
@@ -97,4 +80,4 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
 }
 
 public sealed record CreditCalculationRequest(DateOnly SaleDate, Guid? YarnItemId, Guid? SellerId, decimal CashUnitPrice, int? CreditDays, DateOnly? DueDate, decimal? AgreedCreditPrice);
-public sealed record PostSaleRequest(decimal UsdRate, CostingMethod CostingMethod = CostingMethod.FIFO, decimal PaymentToleranceIRR = 10m, bool CreditLimitOverrideConfirmed = false);
+public sealed record PostSaleRequest(bool CreditLimitOverrideRequested = false);

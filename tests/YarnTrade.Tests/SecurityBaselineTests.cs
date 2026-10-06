@@ -570,7 +570,7 @@ public sealed partial class SecurityBaselineTests
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 
-    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1", string environment = "Production", string? sqlConnection = null, Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor? sqlInterceptor = null)
+    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1", string environment = "Production", string? sqlConnection = null, Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor? sqlInterceptor = null, bool sqlRetries = false)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.Configuration.Sources.Clear();
@@ -584,7 +584,7 @@ public sealed partial class SecurityBaselineTests
         var databaseName = Guid.NewGuid().ToString();
         builder.Services.AddDbContext<AppDbContext>(options => {
             if (sqlConnection is null) options.UseInMemoryDatabase(databaseName);
-            else options.UseSqlServer(sqlConnection);
+            else options.UseSqlServer(sqlConnection, sql => { if (sqlRetries) sql.EnableRetryOnFailure(); });
             if (sqlInterceptor is not null) options.AddInterceptors(sqlInterceptor);
         });
         builder.AddInternetSecurity().AddEntityFrameworkStores<AppDbContext>();

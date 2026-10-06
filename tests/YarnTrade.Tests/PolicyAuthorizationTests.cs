@@ -265,9 +265,11 @@ public sealed partial class SecurityBaselineTests
     }
     [Theory]
     [MemberData(nameof(A3RoleDefaults))]
-    public void A3_role_defaults_match_approved_A2_snapshot(string role, string snapshot)
+    public void A3_role_defaults_preserve_approved_snapshot_plus_A5_privileged_credit_override(string role, string snapshot)
     {
-        Assert.Equal(snapshot.Split('|').Order(StringComparer.OrdinalIgnoreCase), PermissionCatalog.Defaults([role]).Order(StringComparer.OrdinalIgnoreCase));
+        // A5 adds only this sensitive permission to the two existing all-permission roles.
+        var expected = snapshot.Split('|').Concat(role is "Administrator" or "Manager" ? ["sales.creditOverride"] : Array.Empty<string>());
+        Assert.Equal(expected.Order(StringComparer.OrdinalIgnoreCase), PermissionCatalog.Defaults([role]).Order(StringComparer.OrdinalIgnoreCase));
     }
 
     [Fact]

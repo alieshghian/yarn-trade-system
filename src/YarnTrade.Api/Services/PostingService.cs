@@ -1,12 +1,15 @@
+using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using YarnTrade.Api.Data;
 using YarnTrade.Api.Domain;
+using YarnTrade.Api.Security;
 
 namespace YarnTrade.Api.Services;
 
 public sealed record PurchasePostingConfirmation(Guid UserId, bool DiscrepancyAccepted, string ComparisonSnapshotJson);
 
-public sealed class PostingService(AppDbContext db)
+public sealed class PostingService(AppDbContext db, PersonAccountService personAccounts, PermissionService permissions)
 {
     private static readonly Guid IranianPartnerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid ChinesePartnerId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -106,25 +109,69 @@ public sealed class PostingService(AppDbContext db)
         await transaction.CommitAsync(ct);
     }
 
-    public async Task PostSaleAsync(Guid saleId, decimal saleDateUsdRate, CostingMethod method, decimal paymentTolerance, CancellationToken ct)
+    public async Task PostSaleAsync(Guid saleId, ClaimsPrincipal actor, bool creditLimitOverrideRequested, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var sale = await db.Sales.Include(x => x.Items).Include(x => x.PaymentSchedules).SingleAsync(x => x.Id == saleId, ct);
+        var effectivePermissions = await permissions.GetEffectiveAsync(actor, ct);
+        if (actor.Identity?.IsAuthenticated != true || !Guid.TryParse(actor.FindFirstValue(ClaimTypes.NameIdentifier), out var actorId) ||
+            !effectivePermissions.Contains("sales.post"))
+            throw new SalePostingRejectedException(403, new { code = "SALE_POST_FORBIDDEN", permission = "sales.post",
+                error = "شما مجوز قطعی‌کردن فروش را ندارید." });
+
+        // Keep A4's original client token across SQL transient retries; never adopt a newer sale version.
+        var tracked = db.ChangeTracker.Entries<Sale>().SingleOrDefault(x => x.Entity.Id == saleId);
+        byte[]? expectedVersion = tracked?.Property(x => x.RowVersion).OriginalValue.ToArray();
+        var retry = false;
+        await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            if (retry) db.ChangeTracker.Clear();
+            retry = true;
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var sale = await db.Sales.Include(x => x.Items).Include(x => x.PaymentSchedules).SingleAsync(x => x.Id == saleId, ct);
+            expectedVersion ??= sale.RowVersion.ToArray();
+            if (!sale.RowVersion.SequenceEqual(expectedVersion)) throw new DbUpdateConcurrencyException("Sale changed before posting.");
+            db.Entry(sale).Property(x => x.RowVersion).OriginalValue = expectedVersion;
+            await PostSaleCoreAsync(sale, actorId, creditLimitOverrideRequested,
+                effectivePermissions.Contains("sales.creditOverride"), ct);
+            await transaction.CommitAsync(ct);
+        });
+    }
+
+    private async Task PostSaleCoreAsync(Sale sale, Guid actorId, bool overrideRequested, bool overrideAuthorized, CancellationToken ct)
+    {
         if (sale.Status != DocumentStatus.Draft) throw new InvalidOperationException("Only draft sales can be posted.");
         if (sale.Items.Count == 0 || sale.Items.Any(x => x.Quantity <= 0 || x.CashUnitPriceSnapshotIRR <= 0))
             throw new InvalidOperationException("Sale items are incomplete.");
+
+        var overrideUsed = await CheckSaleCreditAsync(sale, overrideRequested, overrideAuthorized, ct);
+        var authority = await SalePostingAuthority.ResolveAsync(db, sale.SaleDate, ct);
+        var saleDateUsdRate = authority.UsdRate;
+        var method = authority.CostingMethod;
 
         sale.TotalCashEquivalentIRR = sale.Items.Sum(x => x.Quantity * x.CashUnitPriceSnapshotIRR);
         sale.TotalCreditSaleIRR = sale.Items.Sum(x => x.Quantity * (sale.SaleMode == SaleMode.Credit ? x.CreditUnitPriceIRR : x.CashUnitPriceSnapshotIRR));
         sale.TotalCreditIncreaseIRR = sale.TotalCreditSaleIRR - sale.TotalCashEquivalentIRR;
         if (sale.PaymentSchedules.Count > 0)
         {
-            BusinessCalculations.ValidatePaymentTotal(sale.TotalCreditSaleIRR,
-                sale.PaymentSchedules.Select(x => (x.AmountIRR, x.AmountUSD, x.ExchangeRate)), paymentTolerance);
+            foreach (var row in sale.PaymentSchedules)
+            {
+                row.ExchangeRate = saleDateUsdRate;
+                row.DueDaysFromSale = row.DueDate.DayNumber - sale.SaleDate.DayNumber;
+            }
+            try
+            {
+                BusinessCalculations.ValidatePaymentTotal(sale.TotalCreditSaleIRR,
+                    sale.PaymentSchedules.Select(x => (x.AmountIRR, x.AmountUSD, x.ExchangeRate)), authority.PaymentToleranceIRR);
+            }
+            catch (InvalidOperationException)
+            {
+                throw new SalePostingRejectedException(409, new { code = "SALE_PAYMENT_TOTAL_MISMATCH",
+                    error = "جمع برنامه پرداخت با مبلغ فروش و تلورانس مجاز تطابق ندارد." });
+            }
             sale.WeightedCreditDays = BusinessCalculations.CalculateWeightedDueDays(sale.PaymentSchedules.Select(x =>
                 (x.AmountIRR + x.AmountUSD * (x.ExchangeRate ?? 0m), x.DueDaysFromSale)));
             sale.WeightedDueDate = BusinessCalculations.CalculateWeightedDueDate(sale.SaleDate, sale.WeightedCreditDays);
         }
+        else { sale.WeightedCreditDays = 0; sale.WeightedDueDate = null; }
 
         foreach (var item in sale.Items)
         {
@@ -194,8 +241,39 @@ public sealed class PostingService(AppDbContext db)
         sale.Status = DocumentStatus.Posted;
         sale.PostedAtUtc = DateTime.UtcNow;
         db.AuditLogs.Add(Audit("Post", sale));
+        db.AuditLogs.Add(new AuditLog
+        {
+            UserId = actorId, Action = "SalePostingAuthority", EntityName = nameof(Sale), EntityId = sale.Id.ToString(),
+            NewValueJson = JsonSerializer.Serialize(new
+            {
+                exchangeRateId = authority.RateId, rateDate = authority.RateDate, usdRate = authority.UsdRate,
+                costingMethod = authority.CostingMethod.ToString(), paymentToleranceIRR = authority.PaymentToleranceIRR,
+                creditOverrideUsed = overrideUsed, creditOverrideApproverUserId = overrideUsed ? (Guid?)actorId : null
+            })
+        });
         await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
+    }
+
+    private async Task<bool> CheckSaleCreditAsync(Sale sale, bool overrideRequested, bool overrideAuthorized, CancellationToken ct)
+    {
+        if (sale.SaleMode != SaleMode.Credit) return false;
+        var customer = await db.Persons.AsNoTracking().SingleAsync(x => x.Id == sale.CustomerId, ct);
+        var summary = await personAccounts.GetSummaryAsync(customer.Id, ct);
+        var saleAmount = sale.Items.Sum(x => x.Quantity * x.CreditUnitPriceIRR);
+        var projectedDebt = summary.BalanceIRR + saleAmount;
+        if (projectedDebt <= customer.CreditLimitIRR) return false;
+        if (!overrideRequested)
+            throw new SalePostingRejectedException(409, new
+            {
+                code = "CREDIT_LIMIT_EXCEEDED",
+                error = "بدهی پیش‌بینی‌شده از سقف اعتبار شخص بیشتر است. ادامه عملیات نیاز به تأیید دارد.",
+                currentDebtIRR = summary.BalanceIRR, saleAmountIRR = saleAmount, projectedDebtIRR = projectedDebt,
+                creditLimitIRR = customer.CreditLimitIRR, requiresConfirmation = true
+            });
+        if (!overrideAuthorized)
+            throw new SalePostingRejectedException(403, new { code = "CREDIT_OVERRIDE_FORBIDDEN", permission = "sales.creditOverride",
+                error = "شما مجوز تأیید عبور از سقف اعتبار فروش را ندارید." });
+        return true;
     }
 
     private async Task PostPartnerShares(Sale sale, CancellationToken ct)
