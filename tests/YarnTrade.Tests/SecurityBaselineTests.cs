@@ -570,7 +570,7 @@ public sealed partial class SecurityBaselineTests
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 
-    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1", string environment = "Production", string? sqlConnection = null, Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor? sqlInterceptor = null, bool sqlRetries = false)
+    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1", string environment = "Production", string? sqlConnection = null, Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor? sqlInterceptor = null, bool sqlRetries = false, IAttachmentScanner? attachmentScanner = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.Configuration.Sources.Clear();
@@ -596,6 +596,8 @@ public sealed partial class SecurityBaselineTests
         builder.Services.AddScoped<PostingService>();
         builder.Services.AddScoped<PersonAccountService>();
         builder.Services.AddScoped<XlsxPurchaseImporter>();
+        builder.Services.AddAttachmentSecurity();
+        if (attachmentScanner is not null) builder.Services.AddSingleton<IAttachmentScanner>(attachmentScanner);
         builder.Services.AddControllers(options => options.Filters.Add<ConcurrencyExceptionFilter>()).AddApplicationPart(typeof(PresenceController).Assembly);
         var app = builder.Build();
         app.Use((context, next) =>

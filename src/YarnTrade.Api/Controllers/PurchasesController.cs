@@ -50,11 +50,10 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
 
     [RequirePermission("purchases.create")]
     [HttpPost("import"), EnableRateLimiting(InternetSecurity.Uploads)]
-    [RequestSizeLimit(25_000_000)]
+    [RequestSizeLimit(AttachmentSecurityService.MaxFileBytes)]
     public async Task<ActionResult<ImportedPurchase>> Import(IFormFile file, [FromForm] Guid supplierId, CancellationToken ct)
     {
         if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uploadedBy) || uploadedBy == Guid.Empty) return Unauthorized();
-        if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)) return BadRequest(new { error = "Only .xlsx is supported in version 1." });
         return Ok(await importer.ImportAsync(file, supplierId, uploadedBy, ct));
     }
 

@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,41 +6,38 @@ using YarnTrade.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using YarnTrade.Api.Data;
 using YarnTrade.Api.Domain;
+using YarnTrade.Api.Services;
 
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api/attachments"), Authorize]
-public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment environment) : ControllerBase
+public sealed class AttachmentsController(AppDbContext db, AttachmentSecurityService storage) : ControllerBase
 {
     [RequirePermission("commerce.upload")]
     [HttpPost]
     [EnableRateLimiting(InternetSecurity.Uploads)]
-    [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<Attachment>> Upload(IFormFile file, [FromForm] string entityType, [FromForm] Guid entityId,
+    [RequestSizeLimit(AttachmentSecurityService.MaxFileBytes)]
+    public async Task<ActionResult<AttachmentMetadata>> Upload(IFormFile file, [FromForm] string entityType, [FromForm] Guid entityId,
         [FromForm] string documentType, [FromForm] string? description, CancellationToken ct)
     {
-        if (file.Length == 0) return BadRequest(new { error = "Empty file." });
-        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var uploadedBy)) return Unauthorized();
-        var root = Path.Combine(environment.ContentRootPath, "App_Data", "attachments");
-        Directory.CreateDirectory(root);
-        var storedName = $"{Guid.NewGuid():N}{Path.GetExtension(file.FileName)}";
-        var target = Path.Combine(root, storedName);
-        await using (var output = System.IO.File.Create(target)) await file.CopyToAsync(output, ct);
-        await using var input = System.IO.File.OpenRead(target);
-        var hash = Convert.ToHexString(await SHA256.HashDataAsync(input, ct));
-        var item = new Attachment
-        {
-            EntityType = entityType, EntityId = entityId, DocumentType = documentType, OriginalFileName = Path.GetFileName(file.FileName), StoredFileName = storedName,
-            ContentType = file.ContentType, FileSize = file.Length, FileHash = hash, Description = description, UploadedBy = uploadedBy
-        };
-        db.Attachments.Add(item); await db.SaveChangesAsync(ct); return Ok(item);
+        if (Actor() is not { } uploadedBy) return Unauthorized();
+        await ValidateParent(entityType, entityId, ct);
+        using var validated = await storage.StageAsync(file, ct);
+        var item = validated.CreateMetadata(entityType, entityId, documentType, uploadedBy, description);
+        validated.Promote();
+        db.Attachments.Add(item); db.AuditLogs.Add(validated.UploadAudit(item, uploadedBy));
+        await db.SaveChangesAsync(ct); validated.Complete(); return Ok(AttachmentMetadata.From(item));
     }
 
     [RequirePermission("commerce.view")]
     [HttpGet]
-    public Task<List<Attachment>> List([FromQuery] string entityType, [FromQuery] Guid entityId, CancellationToken ct) =>
-        db.Attachments.AsNoTracking().Where(x => x.EntityType == entityType && x.EntityId == entityId)
+    public async Task<ActionResult<List<AttachmentMetadata>>> List([FromQuery] string entityType, [FromQuery] Guid entityId, CancellationToken ct)
+    {
+        await ValidateParent(entityType, entityId, ct);
+        var items = await db.Attachments.AsNoTracking().Where(x => x.EntityType == entityType && x.EntityId == entityId)
             .OrderByDescending(x => x.UploadedAtUtc).ToListAsync(ct);
+        return Ok(items.Select(AttachmentMetadata.From));
+    }
 
     [RequirePermission("commerce.view")]
     [HttpGet("{id:guid}")]
@@ -49,8 +45,21 @@ public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment e
     {
         var item = await db.Attachments.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
-        var path = Path.Combine(environment.ContentRootPath, "App_Data", "attachments", item.StoredFileName);
-        return System.IO.File.Exists(path) ? PhysicalFile(path, item.ContentType, item.OriginalFileName) : NotFound();
+        if (Actor() is not { } actor) return Unauthorized();
+        await ValidateParent(item.EntityType, item.EntityId, ct);
+        var stream = await storage.OpenVerifiedAsync(item, ct);
+        try
+        {
+            db.AuditLogs.Add(AttachmentSecurityService.Audit("AttachmentDownloaded", item, actor));
+            await db.SaveChangesAsync(ct);
+            Response.Headers.CacheControl = "private, no-store, max-age=0";
+            Response.Headers.Pragma = "no-cache";
+            Response.Headers["X-Content-Type-Options"] = "nosniff";
+            var downloadName = Path.GetFileNameWithoutExtension(AttachmentSecurityService.SafeOriginalName(item.OriginalFileName))
+                + Path.GetExtension(item.StoredFileName);
+            return File(stream, item.ContentType, downloadName);
+        }
+        catch { await stream.DisposeAsync(); throw; }
     }
 
     [RequirePermission("commerce.upload")]
@@ -59,6 +68,10 @@ public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment e
     {
         var item = await db.Attachments.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
+        if (Actor() is not { } actor) return Unauthorized();
+        await ValidateParent(item.EntityType, item.EntityId, ct);
+        // Validate before any filesystem access, including corrupt legacy database values.
+        storage.FinalPath(item.StoredFileName);
         if (item.EntityType.Equals(nameof(PurchaseInvoice), StringComparison.OrdinalIgnoreCase))
         {
             var editable = await db.PurchaseInvoices.AnyAsync(x => x.Id == item.EntityId && x.Status == DocumentStatus.Draft, ct);
@@ -71,9 +84,22 @@ public sealed class AttachmentsController(AppDbContext db, IWebHostEnvironment e
             if (!editable) return Conflict(new { error = "مدرک سفارش تکمیل‌شده قابل حذف نیست." });
         }
         db.Attachments.Remove(item);
+        db.AuditLogs.Add(AttachmentSecurityService.Audit("AttachmentDeleted", item, actor));
         await db.SaveChangesAsync(ct);
-        var path = Path.Combine(environment.ContentRootPath, "App_Data", "attachments", item.StoredFileName);
-        if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
+        storage.DeleteFinal(item.StoredFileName);
         return NoContent();
+    }
+
+    private Guid? Actor() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) && id != Guid.Empty ? id : null;
+    // Both current commerce parents share the explicit action permissions above. No guessed row ownership.
+    private async Task ValidateParent(string type, Guid id, CancellationToken ct)
+    {
+        var exists = type switch
+        {
+            nameof(PurchaseOrder) => await db.PurchaseOrders.AnyAsync(x => x.Id == id, ct),
+            nameof(PurchaseInvoice) => await db.PurchaseInvoices.AnyAsync(x => x.Id == id, ct),
+            _ => throw new AttachmentSecurityException("ATTACHMENT_ENTITY_NOT_SUPPORTED", 400)
+        };
+        if (!exists) throw new AttachmentSecurityException("ATTACHMENT_ENTITY_NOT_FOUND", 404);
     }
 }

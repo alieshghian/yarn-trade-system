@@ -68,7 +68,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
                         (invoiceId.HasValue && x.EntityType == nameof(PurchaseInvoice) && x.EntityId == invoiceId.Value))
             .OrderByDescending(x => x.UploadedAtUtc).ToListAsync(ct);
         var comparison = invoice is null ? null : await Compare(orderId, invoice, ct);
-        return Ok(new { Order = order, Invoice = invoice, Attachments = attachments, Comparison = comparison });
+        return Ok(new { Order = order, Invoice = invoice, Attachments = attachments.Select(AttachmentMetadata.From), Comparison = comparison });
     }
 
     [RequirePermission("commerce.edit")]
@@ -130,7 +130,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
 
     [RequirePermission("commerce.upload")]
     [HttpPost("orders/{orderId:guid}/import"), EnableRateLimiting(InternetSecurity.Uploads)]
-    [RequestSizeLimit(25_000_000)]
+    [RequestSizeLimit(AttachmentSecurityService.MaxFileBytes)]
     public async Task<ActionResult<ImportedPurchase>> Import(Guid orderId, IFormFile file, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.SingleOrDefaultAsync(x => x.Id == orderId, ct);
@@ -139,20 +139,19 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         if (!order.PreferredSupplierId.HasValue) return BadRequest(new { error = "تأمین‌کننده سفارش مشخص نشده است." });
         if (await db.PurchaseInvoices.AnyAsync(x => x.PurchaseOrderId == orderId, ct))
             return Conflict(new { error = "برای این سفارش قبلاً فاکتور خرید ایجاد شده است." });
-        if (!Path.GetExtension(file.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(new { error = "استخراج خودکار فعلاً فقط برای فایل Excel پشتیبانی می‌شود." });
         var userId = CurrentUserId();
         if (!userId.HasValue) return Unauthorized();
         // Save the imported invoice and the expected order version atomically in the final SaveChanges.
-        var result = await importer.ImportAsync(file, order.PreferredSupplierId.Value, userId.Value, ct, saveChanges: false);
-        result.Invoice.PurchaseOrderId = orderId;
-        result.Invoice.OrderNumber = order.OrderNumber;
-        if (order.Status == PurchaseOrderStatus.SubmittedToCommerce)
+        var result = await importer.ImportAsync(file, order.PreferredSupplierId.Value, userId.Value, ct, beforeSave: invoice =>
         {
-            order.Status = PurchaseOrderStatus.InCommerce;
-            order.CommerceStartedAtUtc = DateTime.UtcNow;
-        }
-        await db.SaveChangesAsync(ct);
+            invoice.PurchaseOrderId = orderId;
+            invoice.OrderNumber = order.OrderNumber;
+            if (order.Status == PurchaseOrderStatus.SubmittedToCommerce)
+            {
+                order.Status = PurchaseOrderStatus.InCommerce;
+                order.CommerceStartedAtUtc = DateTime.UtcNow;
+            }
+        });
         return Ok(result with { RowVersion = order.RowVersion });
     }
 

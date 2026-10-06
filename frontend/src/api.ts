@@ -79,10 +79,19 @@ export async function downloadAttachment(id: string, fileName: string) {
   if (token) headers.set('Authorization', `Bearer ${token}`)
   const response = await fetch(`${baseUrl}/api/attachments/${id}`, { headers })
   if (!response.ok) throw new ApiError(response.status, null, `${response.status} ${response.statusText}`)
+  // Blob downloads must retain the server's canonical type, even when CORS hides disposition.
+  const mime = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ?? ''
+  const extension = ({ 'application/pdf': '.pdf', 'image/png': '.png', 'image/jpeg': '.jpg',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx' } as Record<string, string>)[mime]
+  if (!extension) throw new ApiError(415, null, document.documentElement.lang === 'en' ? 'Unsupported attachment type.' : 'نوع پیوست پشتیبانی نمی‌شود.')
+  const encodedName = response.headers.get('content-disposition')?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
+  if (encodedName) { try { fileName = decodeURIComponent(encodedName) } catch { /* Keep display metadata as fallback. */ } }
+  const displayName = fileName.split(/[\\/]/).pop()?.replace(/[\u0000-\u001f\u007f-\u009f:*?"<>|]/g, '').trim().replace(/[. ]+$/, '').slice(0, 180) ?? ''
+  const downloadName = (displayName.replace(/\.[^.]*$/, '') || 'document') + extension
   const url = URL.createObjectURL(await response.blob())
   const link = document.createElement('a')
   link.href = url
-  link.download = fileName
+  link.download = downloadName
   document.body.appendChild(link)
   link.click()
   link.remove()

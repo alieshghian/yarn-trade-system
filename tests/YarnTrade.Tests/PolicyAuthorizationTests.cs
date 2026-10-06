@@ -106,7 +106,7 @@ public sealed partial class SecurityBaselineTests
         yield return ["GET", "/api/system-backup/info", "dataBackup.view", 200];
         yield return ["POST", "/api/system-backup/export", "dataBackup.create", 400];
         yield return ["POST", "/api/system-backup/restore", "dataBackup.restore", 400];
-        yield return ["GET", "/api/attachments?entityType=PurchaseOrder&entityId=" + id, "commerce.view", 200];
+        yield return ["GET", "/api/attachments?entityType=PurchaseOrder&entityId=" + id, "commerce.view", 404];
         yield return ["POST", "/api/attachments", "commerce.upload", 400];
         yield return ["DELETE", $"/api/attachments/{id}", "commerce.upload", 404];
         yield return ["GET", "/api/sequence-suggestions/purchase-invoice", "purchases.view", 200];

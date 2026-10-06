@@ -32,6 +32,7 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn
 builder.Services.AddPermissionAuthorization();
 builder.Services.AddScoped<PostingService>();
 builder.Services.AddScoped<XlsxPurchaseImporter>();
+builder.Services.AddAttachmentSecurity();
 builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddScoped<PersonAccountService>();
 builder.Services.AddScoped<UserPresenceService>();
