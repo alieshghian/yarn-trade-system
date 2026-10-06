@@ -28,7 +28,7 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
             .Select(x => new PurchaseOrderListView(
                 x.Id, x.OrderNumber, x.OrderDate, x.RequiredByDate, x.Priority, x.Currency, x.PreferredSupplierId,
                 x.Status, x.Items.Count, x.Items.Sum(i => i.Quantity),
-                x.Items.Sum(i => i.EstimatedAmount ?? 0), x.CreatedAtUtc))
+                x.Items.Sum(i => i.EstimatedAmount ?? 0), x.CreatedAtUtc, x.RowVersion))
             .ToListAsync(ct);
         return new { items = rows, total, page = Math.Max(page, 1), pageSize = take };
     }
@@ -77,10 +77,12 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
 
     [RequirePermission("purchaseOrders.edit")]
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<PurchaseOrderView>> Update(Guid id, PurchaseOrderInput input, CancellationToken ct)
+    public async Task<ActionResult<PurchaseOrderView>> Update(Guid id, PurchaseOrderInput input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (order is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, order, rowVersion);
+        if (concurrency is not null) return concurrency;
         if (order.Status != PurchaseOrderStatus.Draft)
             return Conflict(new { error = "فقط سفارش پیش‌نویس قابل ویرایش است.", code = "ORDER_NOT_EDITABLE" });
         var validation = await Validate(input, id, ct);
@@ -95,16 +97,19 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
         db.PurchaseOrderItems.RemoveRange(order.Items);
         order.Items.Clear();
         ApplyItems(order, input.Items);
+        db.PurchaseOrderItems.AddRange(order.Items);
         await db.SaveChangesAsync(ct);
         return Ok(await BuildView(order, ct));
     }
 
     [RequirePermission("purchaseOrders.delete")]
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (order is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, order, rowVersion, touch: false);
+        if (concurrency is not null) return concurrency;
         if (order.Status != PurchaseOrderStatus.Draft)
             return Conflict(new { error = "سفارش ارسال‌شده یا در حال پیگیری قابل حذف نیست.", code = "ORDER_NOT_DELETABLE" });
         if (await db.PurchaseInvoices.AnyAsync(x => x.PurchaseOrderId == id, ct))
@@ -116,10 +121,12 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
 
     [RequirePermission("purchaseOrders.submit")]
     [HttpPost("{id:guid}/submit")]
-    public async Task<ActionResult<PurchaseOrderView>> Submit(Guid id, CancellationToken ct)
+    public async Task<ActionResult<PurchaseOrderView>> Submit(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (order is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, order, rowVersion);
+        if (concurrency is not null) return concurrency;
         if (order.Status != PurchaseOrderStatus.Draft)
             return Conflict(new { error = "این سفارش قبلاً از حالت پیش‌نویس خارج شده است." });
         if (order.Items.Count == 0) return BadRequest(new { error = "سفارش بدون ردیف کالا قابل ارسال نیست." });
@@ -131,10 +138,12 @@ public sealed class PurchaseOrdersController(AppDbContext db) : ControllerBase
 
     [RequirePermission("commerce.accept")]
     [HttpPost("{id:guid}/accept")]
-    public async Task<ActionResult<PurchaseOrderView>> Accept(Guid id, CancellationToken ct)
+    public async Task<ActionResult<PurchaseOrderView>> Accept(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (order is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, order, rowVersion);
+        if (concurrency is not null) return concurrency;
         if (order.Status != PurchaseOrderStatus.SubmittedToCommerce)
             return Conflict(new { error = "فقط سفارش ارسال‌شده به بازرگانی قابل پذیرش است." });
         order.Status = PurchaseOrderStatus.InCommerce;
@@ -223,7 +232,7 @@ public sealed class PurchaseOrderItemInput
 
 public sealed record PurchaseOrderListView(Guid Id, string OrderNumber, DateOnly OrderDate, DateOnly? RequiredByDate,
     PurchaseOrderPriority Priority, Currency Currency, Guid? PreferredSupplierId, PurchaseOrderStatus Status,
-    int ItemCount, decimal TotalQuantity, decimal EstimatedTotal, DateTime CreatedAtUtc);
+    int ItemCount, decimal TotalQuantity, decimal EstimatedTotal, DateTime CreatedAtUtc, byte[] RowVersion);
 
 public sealed record PurchaseOrderItemView(Guid Id, int LineNumber, Guid YarnItemId, string YarnCode,
     string DescriptionSnapshot, decimal Quantity, string Unit, decimal? EstimatedUnitPrice,
@@ -232,9 +241,9 @@ public sealed record PurchaseOrderItemView(Guid Id, int LineNumber, Guid YarnIte
 public sealed record PurchaseOrderView(Guid Id, string OrderNumber, DateOnly OrderDate, DateOnly? RequiredByDate,
     PurchaseOrderPriority Priority, Currency Currency, Guid? PreferredSupplierId, Guid RequestedByUserId,
     PurchaseOrderStatus Status, string? Notes, DateTime? SubmittedAtUtc, DateTime? CommerceStartedAtUtc,
-    DateTime? CompletedAtUtc, IReadOnlyList<PurchaseOrderItemView> Items, DateTime CreatedAtUtc)
+    DateTime? CompletedAtUtc, IReadOnlyList<PurchaseOrderItemView> Items, DateTime CreatedAtUtc, byte[] RowVersion)
 {
     public static PurchaseOrderView From(PurchaseOrder x, IReadOnlyList<PurchaseOrderItemView> items) =>
         new(x.Id, x.OrderNumber, x.OrderDate, x.RequiredByDate, x.Priority, x.Currency, x.PreferredSupplierId,
-            x.RequestedByUserId, x.Status, x.Notes, x.SubmittedAtUtc, x.CommerceStartedAtUtc, x.CompletedAtUtc, items, x.CreatedAtUtc);
+            x.RequestedByUserId, x.Status, x.Notes, x.SubmittedAtUtc, x.CommerceStartedAtUtc, x.CompletedAtUtc, items, x.CreatedAtUtc, x.RowVersion);
 }

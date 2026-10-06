@@ -53,19 +53,24 @@ public sealed class WorkItemsController(AppDbContext db, IDataScope dataScope, P
 
     [RequirePermission("dashboard.view")]
     [HttpPost("{id}/action")]
-    public async Task<IActionResult> StartAction(string id, CancellationToken ct)
+    public async Task<IActionResult> StartAction(string id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var userId = CurrentUserId();
         if (userId is null) return Unauthorized();
         if (!await CanAccessWorkItem(id, startAction: true)) return Forbid();
         if (!await IsAvailable(id, ct)) return NotFound();
+        PurchaseOrder? order = null;
+        if (id.StartsWith("commerce-order:", StringComparison.OrdinalIgnoreCase) && Guid.TryParse(id[15..], out var orderId))
+        {
+            order = await db.PurchaseOrders.SingleAsync(x => x.Id == orderId, ct);
+            if (AggregateConcurrency.Apply(db, order, rowVersion) is { } concurrencyError) return concurrencyError;
+        }
         var state = await GetOrCreateState(userId.Value, id, ct);
         var now = DateTime.UtcNow;
         state.ViewedAtUtc ??= now;
         state.ActionStartedAtUtc ??= now;
-        if (id.StartsWith("commerce-order:", StringComparison.OrdinalIgnoreCase) && Guid.TryParse(id[15..], out var orderId))
+        if (order is not null)
         {
-            var order = await db.PurchaseOrders.SingleAsync(x => x.Id == orderId, ct);
             if (order.Status == PurchaseOrderStatus.SubmittedToCommerce)
             {
                 order.Status = PurchaseOrderStatus.InCommerce;
@@ -73,7 +78,7 @@ public sealed class WorkItemsController(AppDbContext db, IDataScope dataScope, P
             }
         }
         await db.SaveChangesAsync(ct);
-        return Ok(new { state.ViewedAtUtc, state.ActionStartedAtUtc });
+        return Ok(new { state.ViewedAtUtc, state.ActionStartedAtUtc, rowVersion = order?.RowVersion });
     }
 
     private async Task<List<WorkItemView>> BuildCandidates(CancellationToken ct)
@@ -87,14 +92,14 @@ public sealed class WorkItemsController(AppDbContext db, IDataScope dataScope, P
             var orders = await db.PurchaseOrders.AsNoTracking()
                 .Where(x => x.Status == PurchaseOrderStatus.SubmittedToCommerce || x.Status == PurchaseOrderStatus.InCommerce)
                 .OrderByDescending(x => x.Priority).ThenBy(x => x.SubmittedAtUtc).Take(100)
-                .Select(x => new { x.Id, x.OrderNumber, x.Status, x.Priority, x.SubmittedAtUtc, x.CreatedAtUtc, ItemCount = x.Items.Count })
+                .Select(x => new { x.Id, x.OrderNumber, x.Status, x.Priority, x.SubmittedAtUtc, x.CreatedAtUtc, x.RowVersion, ItemCount = x.Items.Count })
                 .ToListAsync(ct);
             items.AddRange(orders.Select(x => new WorkItemView(
                 $"commerce-order:{x.Id}", "CommerceOrder", "پیگیری خرید",
                 x.Status == PurchaseOrderStatus.SubmittedToCommerce ? "سفارش خرید جدید" : "سفارش در حال پیگیری",
                 $"سفارش {x.OrderNumber} با {x.ItemCount} ردیف نخ برای بررسی واحد بازرگانی ارجاع شده است.",
                 x.Priority == PurchaseOrderPriority.Urgent ? "Urgent" : x.Status == PurchaseOrderStatus.SubmittedToCommerce ? "Warning" : "Info",
-                "commerce", x.Id, x.SubmittedAtUtc ?? x.CreatedAtUtc, null, null, 24)));
+                "commerce", x.Id, x.SubmittedAtUtc ?? x.CreatedAtUtc, null, null, 24, x.RowVersion)));
         }
 
         if (CanReceive("WarehouseReceipt") && effective.Contains("inventory.view"))
@@ -161,4 +166,4 @@ public static class WorkItemRouting
 
 public sealed record WorkItemView(string Id, string Category, string Summary, string Title, string Description,
     string Severity, string Target, Guid EntityId, DateTime AssignedAtUtc, DateTime? ViewedAtUtc,
-    DateTime? ActionStartedAtUtc, int SlaHours);
+    DateTime? ActionStartedAtUtc, int SlaHours, byte[]? RowVersion = null);

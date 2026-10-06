@@ -70,8 +70,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         foreach (var type in builder.Model.GetEntityTypes().Where(x => typeof(AuditedEntity).IsAssignableFrom(x.ClrType)))
         {
-            var rowVersion = type.FindProperty(nameof(AuditedEntity.RowVersion));
-            if (rowVersion is not null) rowVersion.IsConcurrencyToken = true;
+            builder.Entity(type.ClrType).Property(nameof(AuditedEntity.RowVersion)).IsRowVersion();
         }
 
         builder.Entity<Person>().HasIndex(x => x.PersonCode).IsUnique();
@@ -175,28 +174,28 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         var iranianPartnerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var chinesePartnerId = Guid.Parse("22222222-2222-2222-2222-222222222222");
         builder.Entity<Person>().HasData(
-            new Person { Id = iranianPartnerId, PersonCode = "PARTNER-IR", DisplayName = "شریک ایرانی", CompanyName = "Iranian Partner", PersonType = PersonType.Company, PartnerKind = PartnerKind.Iranian, AccountingCode = "PARTNER-IR", RowVersion = [] },
-            new Person { Id = chinesePartnerId, PersonCode = "PARTNER-CN", DisplayName = "شریک چینی", CompanyName = "Chinese Partner", PersonType = PersonType.Company, PartnerKind = PartnerKind.Chinese, AccountingCode = "PARTNER-CN", RowVersion = [] });
+            new { CreatedAtUtc = SeedCreatedAt(3396), CreditLimitIRR = 0m, IsActive = true, PreferredLanguage = "fa", Id = iranianPartnerId, PersonCode = "PARTNER-IR", DisplayName = "شریک ایرانی", CompanyName = "Iranian Partner", PersonType = PersonType.Company, PartnerKind = PartnerKind.Iranian, AccountingCode = "PARTNER-IR" },
+            new { CreatedAtUtc = SeedCreatedAt(3448), CreditLimitIRR = 0m, IsActive = true, PreferredLanguage = "fa", Id = chinesePartnerId, PersonCode = "PARTNER-CN", DisplayName = "شریک چینی", CompanyName = "Chinese Partner", PersonType = PersonType.Company, PartnerKind = PartnerKind.Chinese, AccountingCode = "PARTNER-CN" });
 
         builder.Entity<ParameterValue>().HasData(
-            Parameter("51000000-0000-0000-0000-000000000001", ParameterType.Job, "CUSTOMER", "مشتری", "Customer", 10),
-            Parameter("51000000-0000-0000-0000-000000000002", ParameterType.Job, "SELLER", "فروشنده", "Seller", 20),
-            Parameter("51000000-0000-0000-0000-000000000003", ParameterType.Job, "SUPPLIER", "تأمین‌کننده", "Supplier", 30),
-            Parameter("51000000-0000-0000-0000-000000000004", ParameterType.Job, "PARTNER", "شریک", "Partner", 40),
-            Parameter("51000000-0000-0000-0000-000000000005", ParameterType.Job, "MANAGEMENT", "مدیریت", "Management", 50),
-            Parameter("51000000-0000-0000-0000-000000000006", ParameterType.Job, "ORDERS", "سفارشات", "Orders", 60),
-            Parameter("51000000-0000-0000-0000-000000000007", ParameterType.Job, "COMMERCE", "بازرگانی", "Commerce", 70),
-            Parameter("51000000-0000-0000-0000-000000000008", ParameterType.Job, "WAREHOUSE", "انباردار", "Warehouse keeper", 80),
-            Parameter("51000000-0000-0000-0000-000000000009", ParameterType.Job, "FINANCE", "مالی", "Finance", 90),
-            Parameter("51000000-0000-0000-0000-000000000010", ParameterType.Job, "OTHER", "سایر", "Other", 100),
-            Parameter("52000000-0000-0000-0000-000000000001", ParameterType.Title, "MR", "آقا", "Mr.", 10),
-            Parameter("52000000-0000-0000-0000-000000000002", ParameterType.Title, "MRS", "خانم", "Ms.", 20),
-            Parameter("52000000-0000-0000-0000-000000000003", ParameterType.Title, "OFFICE", "اداره", "Office", 30),
-            Parameter("52000000-0000-0000-0000-000000000004", ParameterType.Title, "COMPANY", "شرکت", "Company", 40),
-            Parameter("53000000-0000-0000-0000-000000000001", ParameterType.Nationality, "IR", "ایرانی", "Iranian", 10),
-            Parameter("53000000-0000-0000-0000-000000000002", ParameterType.Nationality, "CN", "چینی", "Chinese", 20),
-            Parameter("53000000-0000-0000-0000-000000000003", ParameterType.Nationality, "TR", "ترک", "Turkish", 30),
-            Parameter("53000000-0000-0000-0000-000000000004", ParameterType.Nationality, "OTHER", "سایر", "Other", 99));
+            Parameter("51000000-0000-0000-0000-000000000001", ParameterType.Job, "CUSTOMER", "مشتری", "Customer", 10, 3766),
+            Parameter("51000000-0000-0000-0000-000000000002", ParameterType.Job, "SELLER", "فروشنده", "Seller", 20, 3774),
+            Parameter("51000000-0000-0000-0000-000000000003", ParameterType.Job, "SUPPLIER", "تأمین‌کننده", "Supplier", 30, 3777),
+            Parameter("51000000-0000-0000-0000-000000000004", ParameterType.Job, "PARTNER", "شریک", "Partner", 40, 3793),
+            Parameter("51000000-0000-0000-0000-000000000005", ParameterType.Job, "MANAGEMENT", "مدیریت", "Management", 50, -1),
+            Parameter("51000000-0000-0000-0000-000000000006", ParameterType.Job, "ORDERS", "سفارشات", "Orders", 60, -1),
+            Parameter("51000000-0000-0000-0000-000000000007", ParameterType.Job, "COMMERCE", "بازرگانی", "Commerce", 70, -1),
+            Parameter("51000000-0000-0000-0000-000000000008", ParameterType.Job, "WAREHOUSE", "انباردار", "Warehouse keeper", 80, -1),
+            Parameter("51000000-0000-0000-0000-000000000009", ParameterType.Job, "FINANCE", "مالی", "Finance", 90, -1),
+            Parameter("51000000-0000-0000-0000-000000000010", ParameterType.Job, "OTHER", "سایر", "Other", 100, -1),
+            Parameter("52000000-0000-0000-0000-000000000001", ParameterType.Title, "MR", "آقا", "Mr.", 10, 3796),
+            Parameter("52000000-0000-0000-0000-000000000002", ParameterType.Title, "MRS", "خانم", "Ms.", 20, 3799),
+            Parameter("52000000-0000-0000-0000-000000000003", ParameterType.Title, "OFFICE", "اداره", "Office", 30, 3802),
+            Parameter("52000000-0000-0000-0000-000000000004", ParameterType.Title, "COMPANY", "شرکت", "Company", 40, 3804),
+            Parameter("53000000-0000-0000-0000-000000000001", ParameterType.Nationality, "IR", "ایرانی", "Iranian", 10, 3807),
+            Parameter("53000000-0000-0000-0000-000000000002", ParameterType.Nationality, "CN", "چینی", "Chinese", 20, 3810),
+            Parameter("53000000-0000-0000-0000-000000000003", ParameterType.Nationality, "TR", "ترک", "Turkish", 30, 3812),
+            Parameter("53000000-0000-0000-0000-000000000004", ParameterType.Nationality, "OTHER", "سایر", "Other", 99, 3819));
 
         var roles = new[] { "Administrator", "Manager", "PurchaseOperator", "SalesOperator", "FinanceOperator", "WarehouseOperator", "ReportViewer" };
         builder.Entity<IdentityRole<Guid>>().HasData(roles.Select((name, i) => new IdentityRole<Guid>
@@ -209,10 +208,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         var validFrom = new DateOnly(2024, 1, 1);
         builder.Entity<CreditRateRule>().HasData(
-            new CreditRateRule { Id = Guid.Parse("30000000-0000-0000-0000-000000000001"), Version = 1, ValidFrom = validFrom, FromDay = 1, ToDay = 30, PeriodDays = 30, PeriodRatePercent = 4m, RowVersion = [] },
-            new CreditRateRule { Id = Guid.Parse("30000000-0000-0000-0000-000000000002"), Version = 1, ValidFrom = validFrom, FromDay = 31, ToDay = 60, PeriodDays = 30, PeriodRatePercent = 3m, RowVersion = [] },
-            new CreditRateRule { Id = Guid.Parse("30000000-0000-0000-0000-000000000003"), Version = 1, ValidFrom = validFrom, FromDay = 61, ToDay = 90, PeriodDays = 30, PeriodRatePercent = 3m, RowVersion = [] },
-            new CreditRateRule { Id = Guid.Parse("30000000-0000-0000-0000-000000000004"), Version = 1, ValidFrom = validFrom, FromDay = 91, ToDay = null, PeriodDays = 30, PeriodRatePercent = 3m, RowVersion = [] });
+            new { CreatedAtUtc = SeedCreatedAt(4425), IsActive = true, Id = Guid.Parse("30000000-0000-0000-0000-000000000001"), Version = 1, ValidFrom = validFrom, FromDay = 1, ToDay = 30, PeriodDays = 30, PeriodRatePercent = 4m },
+            new { CreatedAtUtc = SeedCreatedAt(4438), IsActive = true, Id = Guid.Parse("30000000-0000-0000-0000-000000000002"), Version = 1, ValidFrom = validFrom, FromDay = 31, ToDay = 60, PeriodDays = 30, PeriodRatePercent = 3m },
+            new { CreatedAtUtc = SeedCreatedAt(4443), IsActive = true, Id = Guid.Parse("30000000-0000-0000-0000-000000000003"), Version = 1, ValidFrom = validFrom, FromDay = 61, ToDay = 90, PeriodDays = 30, PeriodRatePercent = 3m },
+            new { CreatedAtUtc = SeedCreatedAt(4447), IsActive = true, Id = Guid.Parse("30000000-0000-0000-0000-000000000004"), Version = 1, ValidFrom = validFrom, FromDay = 91, ToDay = (int?)null, PeriodDays = 30, PeriodRatePercent = 3m });
 
         builder.Entity<SystemSetting>().HasData(
             new SystemSetting { Id = Guid.Parse("40000000-0000-0000-0000-000000000001"), Key = "DefaultCurrency", Value = "IRR", ValidFrom = validFrom },
@@ -220,10 +219,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             new SystemSetting { Id = Guid.Parse("40000000-0000-0000-0000-000000000003"), Key = "RoundingToleranceIRR", Value = "10", ValidFrom = validFrom });
     }
 
-    private static ParameterValue Parameter(string id, ParameterType type, string code, string fa, string en, int order) => new()
+    private static object Parameter(string id, ParameterType type, string code, string fa, string en, int order, long ticks) => new
     {
-        Id = Guid.Parse(id), ParameterType = type, Code = code, NameFa = fa, NameEn = en, SortOrder = order, RowVersion = []
+        Id = Guid.Parse(id), ParameterType = type, Code = code, NameFa = fa, NameEn = en, SortOrder = order,
+        IsActive = true, CreatedAtUtc = SeedCreatedAt(ticks)
     };
+
+    // Preserve applied seed timestamps/business values; anonymous seeds omit the SQL-generated column.
+    private static DateTime SeedCreatedAt(long ticks) => ticks < 0 ? new DateTime(2026, 7, 27, 0, 0, 0, DateTimeKind.Utc)
+        : new DateTime(2026, 7, 22, 6, 47, 29, 271, DateTimeKind.Utc).AddTicks(ticks);
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

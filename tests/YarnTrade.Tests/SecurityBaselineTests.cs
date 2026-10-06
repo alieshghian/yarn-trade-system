@@ -570,7 +570,7 @@ public sealed partial class SecurityBaselineTests
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 
-    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1", string environment = "Production")
+    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1", string environment = "Production", string? sqlConnection = null, Microsoft.EntityFrameworkCore.Diagnostics.IInterceptor? sqlInterceptor = null)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.Configuration.Sources.Clear();
@@ -582,7 +582,11 @@ public sealed partial class SecurityBaselineTests
         // Keep test token/CSRF cryptography isolated from the machine's Windows key store.
         builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
         var databaseName = Guid.NewGuid().ToString();
-        builder.Services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(databaseName));
+        builder.Services.AddDbContext<AppDbContext>(options => {
+            if (sqlConnection is null) options.UseInMemoryDatabase(databaseName);
+            else options.UseSqlServer(sqlConnection);
+            if (sqlInterceptor is not null) options.AddInterceptors(sqlInterceptor);
+        });
         builder.AddInternetSecurity().AddEntityFrameworkStores<AppDbContext>();
         var mail = new TestEmailSender(); var clock = new TestClock();
         builder.Services.AddSingleton<IAuthenticationEmailSender>(mail);
@@ -592,7 +596,7 @@ public sealed partial class SecurityBaselineTests
         builder.Services.AddScoped<PostingService>();
         builder.Services.AddScoped<PersonAccountService>();
         builder.Services.AddScoped<XlsxPurchaseImporter>();
-        builder.Services.AddControllers().AddApplicationPart(typeof(PresenceController).Assembly);
+        builder.Services.AddControllers(options => options.Filters.Add<ConcurrencyExceptionFilter>()).AddApplicationPart(typeof(PresenceController).Assembly);
         var app = builder.Build();
         app.Use((context, next) =>
         {
@@ -624,7 +628,7 @@ public sealed partial class SecurityBaselineTests
         using (var scope = app.Services.CreateScope()) {
             var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
             foreach (var name in new[] { "Administrator", "Manager", "Customer", "Partner" })
-                Assert.True((await roles.CreateAsync(new IdentityRole<Guid>(name))).Succeeded);
+                if (!await roles.RoleExistsAsync(name)) Assert.True((await roles.CreateAsync(new IdentityRole<Guid>(name))).Succeeded);
         }
         var client = app.GetTestClient();
         client.BaseAddress = new Uri(environment == "Development" ? "http://localhost" : "https://api.example.test");

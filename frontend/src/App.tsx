@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { api, apiRequest, authenticationRequest, type EmailChallenge, isAuthenticated, login, logout, setAccessPermissions, tryDevelopmentSession, verifyEmail } from './api'
+import { api, apiRequest, isConcurrencyConflict, withRowVersion, authenticationRequest, type EmailChallenge, isAuthenticated, login, logout, setAccessPermissions, tryDevelopmentSession, verifyEmail } from './api'
 import { Language, text } from './i18n'
 import PersonsPage from './PersonsPage'
 import YarnsPage from './YarnsPage'
@@ -12,7 +12,7 @@ import { formatPersianDate } from './persianDate'
 
 type Purchase = { id: string, internalNumber: string, externalInvoiceNumber?: string, invoiceDate: string, supplierId: string, totalNetWeight: number, grandTotal: number, status: string }
 type PurchasePage = { items: Purchase[], total: number }
-type WorkItem = { id: string, category: string, summary: string, title: string, description: string, severity: 'Urgent' | 'Warning' | 'Info', target: string, entityId: string, assignedAtUtc: string, viewedAtUtc?: string, actionStartedAtUtc?: string, slaHours: number }
+type WorkItem = { rowVersion?: string, id: string, category: string, summary: string, title: string, description: string, severity: 'Urgent' | 'Warning' | 'Info', target: string, entityId: string, assignedAtUtc: string, viewedAtUtc?: string, actionStartedAtUtc?: string, slaHours: number }
 type MaintenanceNotice = { id: string, requesterName: string, requesterRoles: string, operation: 'Backup' | 'Restore', reason: string, estimatedMinutes: number, createdAtUtc: string, expiresAtUtc: string }
 type Access = { id: string, email: string, displayName: string, preferredLanguage: string, sessionTimeoutMinutes: number, theme: UserPreferences['theme'], compactMode: boolean, fontFamily: UserPreferences['fontFamily'], fontSize: UserPreferences['fontSize'], roles: string[], permissions: string[] }
 
@@ -248,9 +248,16 @@ export default function App() {
     setActioningWorkItem(item.id)
     try {
       const state = demoMode ? { viewedAtUtc: new Date().toISOString(), actionStartedAtUtc: new Date().toISOString() }
-        : await apiRequest<{ viewedAtUtc: string, actionStartedAtUtc: string }>(`/api/work-items/${encodeURIComponent(item.id)}/action`, { method: 'POST' })
+        : await apiRequest<{ viewedAtUtc: string, actionStartedAtUtc: string, rowVersion?: string }>(item.category === 'CommerceOrder' ? withRowVersion(`/api/work-items/${encodeURIComponent(item.id)}/action`, item.rowVersion) : `/api/work-items/${encodeURIComponent(item.id)}/action`, { method: 'POST' })
       setWorkItems(current => current.map(x => x.id === item.id ? { ...x, ...state } : x))
-    } catch (error) { window.alert(error instanceof Error ? error.message : String(error)); return }
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : String(error))
+      if (isConcurrencyConflict(error)) {
+        try { setWorkItems(await api<WorkItem[]>('/api/work-items')) }
+        catch (reloadError) { window.alert(reloadError instanceof Error ? reloadError.message : String(reloadError)) }
+      }
+      return
+    }
     finally { setActioningWorkItem(undefined) }
     setWorkDrawerOpen(false)
     if (item.target === 'commerce') { setCommerceTarget({ id: item.entityId, request: Date.now() }); openForm('commerce') }

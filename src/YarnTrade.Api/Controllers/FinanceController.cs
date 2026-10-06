@@ -36,15 +36,16 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
 
     [RequirePermission("finance.post")]
     [HttpPost("money-documents/{id:guid}/post")]
-    public async Task<IActionResult> PostDocument(Guid id, CancellationToken ct)
+    public async Task<IActionResult> PostDocument(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var doc = await db.MoneyDocuments.Include(x => x.Lines).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (doc is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, doc, rowVersion) is { } concurrencyError) return concurrencyError;
         if (doc.Status != DocumentStatus.Draft) return Conflict();
         if (doc.Lines.Count == 0 || doc.Lines.Any(x => x.AmountIRR < 0 || x.AmountUSD < 0)) return BadRequest();
         doc.Status = DocumentStatus.Posted; doc.PostedAtUtc = DateTime.UtcNow;
         db.AuditLogs.Add(new AuditLog { Action = "Post", EntityName = nameof(MoneyDocument), EntityId = id.ToString() });
-        await db.SaveChangesAsync(ct); return NoContent();
+        await db.SaveChangesAsync(ct); return Ok(new { doc.Id, doc.RowVersion });
     }
 
     [RequirePermission("checks.view")]
@@ -67,15 +68,16 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
 
     [RequirePermission("checks.edit")]
     [HttpPost("checks/{id:guid}/transition")]
-    public async Task<IActionResult> TransitionCheck(Guid id, CheckTransitionRequest input, CancellationToken ct)
+    public async Task<IActionResult> TransitionCheck(Guid id, CheckTransitionRequest input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var check = await db.Checks.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (check is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, check, rowVersion) is { } concurrencyError) return concurrencyError;
         if (!CheckTransitions.IsAllowed(check.CurrentStatus, input.ToStatus)) return Conflict(new { error = "Invalid check status transition." });
         var from = check.CurrentStatus; check.CurrentStatus = input.ToStatus;
         db.CheckOperations.Add(new CheckOperation { CheckId = id, OperationDateUtc = DateTime.UtcNow, OperationType = input.ToStatus.ToString(), FromStatus = from, ToStatus = input.ToStatus, Description = input.Description, CreatedBy = input.UserId });
         db.AuditLogs.Add(new AuditLog { UserId = input.UserId, Action = "CheckStatusChanged", EntityName = nameof(Check), EntityId = id.ToString(), PreviousValueJson = $"\"{from}\"", NewValueJson = $"\"{input.ToStatus}\"" });
-        await db.SaveChangesAsync(ct); return NoContent();
+        await db.SaveChangesAsync(ct); return Ok(new { check.Id, check.RowVersion });
     }
 
     [RequirePermission("finance.create")]
@@ -89,17 +91,18 @@ public sealed class FinanceController(AppDbContext db) : ControllerBase
 
     [RequirePermission("finance.post")]
     [HttpPost("settlements/{id:guid}/post")]
-    public async Task<IActionResult> PostSettlement(Guid id, CancellationToken ct)
+    public async Task<IActionResult> PostSettlement(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var item = await db.PartnerSettlements.Include(x => x.Allocations).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, item, rowVersion) is { } concurrencyError) return concurrencyError;
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         if (item.Status != DocumentStatus.Draft) return Conflict();
         if (Math.Abs(item.Allocations.Sum(x => x.ConvertedUSD) - item.PaidUSD) > 0.01m) return BadRequest(new { error = "Allocation total must equal paid USD." });
         db.PartnerLedgerEntries.Add(new PartnerLedgerEntry { PartnerId = item.PartnerId, EntryDate = item.SettlementDate, EntryType = "Settlement", DescriptionFa = $"تسویه {item.SettlementNumber}", DescriptionEn = $"Settlement {item.SettlementNumber}", DebitUSD = item.PaidUSD, SourceDocumentType = nameof(PartnerSettlement), SourceDocumentId = item.Id, IsPosted = true });
         item.Status = DocumentStatus.Posted;
         db.AuditLogs.Add(new AuditLog { Action = "Post", EntityName = nameof(PartnerSettlement), EntityId = id.ToString() });
-        await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); return NoContent();
+        await db.SaveChangesAsync(ct); await transaction.CommitAsync(ct); return Ok(new { item.Id, item.RowVersion });
     }
 }
 

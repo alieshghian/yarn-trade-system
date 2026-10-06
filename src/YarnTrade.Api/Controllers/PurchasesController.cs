@@ -58,12 +58,13 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
 
     [RequirePermission("purchases.edit")]
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, PurchaseInvoice input, CancellationToken ct)
+    public async Task<IActionResult> Update(Guid id, PurchaseInvoice input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var invoice = await db.PurchaseInvoices.Include(x => x.Items).Include(x => x.Containers).Include(x => x.Costs).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (invoice is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, invoice, rowVersion) is { } concurrencyError) return concurrencyError;
         if (invoice.Status != DocumentStatus.Draft) return Conflict(new { error = "Posted documents are immutable." });
-        db.Entry(invoice).CurrentValues.SetValues(input);
+        AggregateConcurrency.CopyEditableValues(db, invoice, input);
         invoice.Status = DocumentStatus.Draft;
         invoice.PostedAtUtc = null;
         db.PurchaseInvoiceItems.RemoveRange(invoice.Items);
@@ -82,6 +83,8 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
             ContainerType = x.ContainerType, BillOfLadingNumber = x.BillOfLadingNumber, NetWeight = x.NetWeight,
             GrossWeight = x.GrossWeight, PackageCount = x.PackageCount, Notes = x.Notes
         }).ToList();
+        db.PurchaseInvoiceItems.AddRange(invoice.Items);
+        db.PurchaseContainers.AddRange(invoice.Containers);
         invoice.GoodsTotal = invoice.Items.Sum(x => x.GoodsAmountUSD);
         invoice.TotalNetWeight = invoice.Items.Sum(x => x.NetWeight);
         invoice.TotalGrossWeight = invoice.Items.Sum(x => x.GrossWeight);
@@ -90,15 +93,18 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         var yarnIds = invoice.Items.Where(x => x.YarnItemId.HasValue).Select(x => x.YarnItemId!.Value).Distinct().ToArray();
         if (await db.YarnItems.CountAsync(x => yarnIds.Contains(x.Id) && x.IsActive, ct) != yarnIds.Length)
             return BadRequest(new { error = "یک یا چند نخ انتخاب‌شده معتبر یا فعال نیست." });
-        await db.SaveChangesAsync(ct); return NoContent();
+        await db.SaveChangesAsync(ct); return Ok(invoice);
     }
 
     [RequirePermission("purchases.post")]
     [HttpPost("{id:guid}/post")]
-    public async Task<IActionResult> Post(Guid id, [FromQuery] Guid warehouseId, CancellationToken ct)
+    public async Task<IActionResult> Post(Guid id, [FromQuery] Guid warehouseId, [FromQuery] string? rowVersion, CancellationToken ct)
     {
+        var invoice = await db.PurchaseInvoices.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (invoice is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, invoice, rowVersion) is { } concurrencyError) return concurrencyError;
         if (await db.PurchaseInvoices.AnyAsync(x => x.Id == id && x.PurchaseOrderId != null, ct))
             return Conflict(new { error = "فاکتور مرتبط با سفارش خرید باید در فرم خرید نخ توسط کاربر بازرگانی تطبیق و تأیید شود." });
-        await posting.PostPurchaseAsync(id, warehouseId, ct); return NoContent();
+        await posting.PostPurchaseAsync(id, warehouseId, ct); return Ok(new { invoice.Id, invoice.RowVersion });
     }
 }

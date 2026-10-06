@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, api, apiRequest, currentUserKey, hasPermission } from './api'
+import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
 import { incrementSerial, suggestSerial } from './sequences'
 import SystemDateInput from './SystemDateInput'
@@ -13,6 +13,7 @@ type Yarn = { id: string, code: string, comprehensiveName: string, unitOfMeasure
 type Person = { id: string, displayName: string, isActive: boolean, job?: { code: string } }
 type OrderItem = { id?: string, lineNumber?: number, yarnItemId: string, yarnCode?: string, descriptionSnapshot: string, quantity: number, unit: string, estimatedUnitPrice?: number, estimatedAmount?: number, requiredSpecifications?: string, notes?: string }
 type Order = {
+  rowVersion?: string,
   id: string, orderNumber: string, orderDate: string, requiredByDate?: string, priority: Priority, currency: Currency,
   preferredSupplierId?: string, requestedByUserId?: string, status: Status, notes?: string, itemCount?: number,
   totalQuantity?: number, estimatedTotal?: number, items?: OrderItem[], createdAtUtc: string
@@ -171,19 +172,19 @@ export default function PurchaseOrdersPage({ language, demoMode = false }: { lan
       } else {
         const saved = mode === 'new'
           ? await apiRequest<Order>('/api/purchase-orders', { method: 'POST', body: JSON.stringify(body) })
-          : await apiRequest<Order>(`/api/purchase-orders/${selectedId}`, { method: 'PUT', body: JSON.stringify(body) })
+          : await apiRequest<Order>(withRowVersion(`/api/purchase-orders/${selectedId}`, selected?.rowVersion), { method: 'PUT', body: JSON.stringify(body) })
         setMode('view'); await load(saved.id)
       }
       setMessage(fa ? 'سفارش خرید با موفقیت ثبت شد.' : 'Purchase order saved.')
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
-  }, [mode, validate, draft, demoMode, selectedId, orders.length, selected, applySelection, load, fa])
+    } catch (e) { if (isConcurrencyConflict(e)) { setMode('view'); setFieldErrors({}); await load(selectedId) }; setError(e instanceof Error ? e.message : String(e)) }
+  }, [selected?.rowVersion, mode, validate, draft, demoMode, selectedId, orders.length, selected, applySelection, load, fa])
   const remove = useCallback(async () => {
     if (!selected || selected.status !== 'Draft' || !confirm(fa ? `سفارش «${selected.orderNumber}» حذف شود؟` : `Delete ${selected.orderNumber}?`)) return
     try {
       if (demoMode) { const next = orders.filter(x => x.id !== selected.id); setOrders(next); applySelection(next[0]) }
-      else { await apiRequest<void>(`/api/purchase-orders/${selected.id}`, { method: 'DELETE' }); await load() }
+      else { await apiRequest<void>(withRowVersion(`/api/purchase-orders/${selected.id}`, selected.rowVersion), { method: 'DELETE' }); await load() }
       setMessage(fa ? 'سفارش حذف شد.' : 'Order deleted.')
-    } catch (e) { setError(e instanceof ApiError && e.status === 409 ? (fa ? 'این سفارش دیگر قابل حذف نیست.' : e.message) : e instanceof Error ? e.message : String(e)) }
+    } catch (e) { if (isConcurrencyConflict(e)) { await load(selected.id); setError(e.message); return }; setError(e instanceof ApiError && e.status === 409 ? (fa ? 'این سفارش دیگر قابل حذف نیست.' : e.message) : e instanceof Error ? e.message : String(e)) }
   }, [selected, fa, demoMode, orders, applySelection, load])
   const transition = useCallback(async (action: 'submit' | 'accept') => {
     if (!selected) return
@@ -193,10 +194,10 @@ export default function PurchaseOrdersPage({ language, demoMode = false }: { lan
       if (demoMode) {
         const value = { ...selected, status: action === 'submit' ? 'SubmittedToCommerce' as Status : 'InCommerce' as Status }
         setOrders(x => x.map(y => y.id === value.id ? value : y)); applySelection(value)
-      } else { await apiRequest<Order>(`/api/purchase-orders/${selected.id}/${action}`, { method: 'POST' }); await load(selected.id) }
+      } else { await apiRequest<Order>(withRowVersion(`/api/purchase-orders/${selected.id}/${action}`, selected.rowVersion), { method: 'POST' }); await load(selected.id) }
       window.dispatchEvent(new Event('purchase-orders-changed'))
       setMessage(action === 'submit' ? (fa ? 'سفارش به کارتابل بازرگانی ارسال شد.' : 'Sent to commerce.') : (fa ? 'پیگیری بازرگانی آغاز شد.' : 'Commerce follow-up started.'))
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    } catch (e) { if (isConcurrencyConflict(e)) await load(selected.id); setError(e instanceof Error ? e.message : String(e)) }
   }, [selected, fa, demoMode, applySelection, load])
   const move = useCallback((where: 'up' | 'down' | 'pageUp' | 'pageDown' | 'home' | 'end') => {
     if (!filtered.length) return

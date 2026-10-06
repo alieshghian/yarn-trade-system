@@ -58,10 +58,11 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
 
     [RequirePermission("sales.post")]
     [HttpPost("{id:guid}/post")]
-    public async Task<IActionResult> Post(Guid id, PostSaleRequest input, CancellationToken ct)
+    public async Task<IActionResult> Post(Guid id, PostSaleRequest input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
-        var sale = await db.Sales.AsNoTracking().Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id, ct);
+        var sale = await db.Sales.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (sale is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, sale, rowVersion) is { } concurrencyError) return concurrencyError;
         if (sale.SaleMode == SaleMode.Credit)
         {
             var customer = await db.Persons.AsNoTracking().SingleAsync(x => x.Id == sale.CustomerId, ct);
@@ -81,13 +82,18 @@ public sealed class SalesController(AppDbContext db, PostingService posting, Per
                 });
         }
         await posting.PostSaleAsync(id, input.UsdRate, input.CostingMethod, input.PaymentToleranceIRR, ct);
-        return NoContent();
+        return Ok(new { sale.Id, sale.RowVersion });
     }
 
     [RequirePermission("sales.post")]
     [HttpPost("{id:guid}/reverse")]
-    public async Task<IActionResult> Reverse(Guid id, CancellationToken ct)
-    { await posting.ReverseSaleAsync(id, ct); return NoContent(); }
+    public async Task<IActionResult> Reverse(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
+    {
+        var sale = await db.Sales.SingleOrDefaultAsync(x => x.Id == id, ct);
+        if (sale is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, sale, rowVersion) is { } concurrencyError) return concurrencyError;
+        await posting.ReverseSaleAsync(id, ct); return Ok(new { sale.Id, sale.RowVersion });
+    }
 }
 
 public sealed record CreditCalculationRequest(DateOnly SaleDate, Guid? YarnItemId, Guid? SellerId, decimal CashUnitPrice, int? CreditDays, DateOnly? DueDate, decimal? AgreedCreditPrice);

@@ -75,30 +75,36 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         Apply(item, input);
         db.YarnItems.Add(item);
         try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
         catch (DbUpdateException) { return Conflict(new { error = "کد نخ تکراری است.", code = "DUPLICATE_YARN_CODE" }); }
         return CreatedAtAction(nameof(ById), new { id = item.Id }, YarnView.From(item));
     }
 
     [RequirePermission("yarns.edit")]
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<YarnView>> Update(Guid id, YarnInput input, CancellationToken ct)
+    public async Task<ActionResult<YarnView>> Update(Guid id, YarnInput input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var item = await db.YarnItems.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, item, rowVersion);
+        if (concurrency is not null) return concurrency;
         var error = await Validate(input, id, ct);
         if (error is not null) return BadRequest(new { error });
         Apply(item, input);
         try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
         catch (DbUpdateException) { return Conflict(new { error = "کد نخ تکراری است.", code = "DUPLICATE_YARN_CODE" }); }
         return Ok(YarnView.From(item));
     }
 
     [RequirePermission("yarns.delete")]
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var item = await db.YarnItems.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, item, rowVersion, touch: false);
+        if (concurrency is not null) return concurrency;
         var hasHistory =
             await db.PurchaseOrderItems.AnyAsync(x => x.YarnItemId == id, ct) ||
             await db.PurchaseInvoiceItems.AnyAsync(x => x.YarnItemId == id, ct) ||
@@ -188,9 +194,9 @@ public sealed class YarnInput
 public sealed record YarnView(Guid Id, string Code, string Name, string ComprehensiveName, string? YarnGroup, string? Luster,
     string UnitOfMeasure, string? FixStatus, string? Material, string? SpinType, decimal? FilamentNumber,
     string? SpinningMethod, string? ContinuityType, decimal? CountValue, string? CountType, decimal? TwistAmount,
-    string? TwistType, byte PlyCount, string? Notes, bool IsActive)
+    string? TwistType, byte PlyCount, string? Notes, bool IsActive, byte[] RowVersion)
 {
     public static YarnView From(YarnItem x) => new(x.Id, x.Code, x.NameFa, x.ComprehensiveName, x.YarnGroup, x.Luster,
         x.UnitOfMeasure, x.FixStatus, x.Material, x.SpinType, x.FilamentNumber, x.SpinningMethod, x.ContinuityType,
-        x.CountValue, x.CountType, x.TwistAmount, x.TwistType, x.PlyCount, x.Notes, x.IsActive);
+        x.CountValue, x.CountType, x.TwistAmount, x.TwistType, x.PlyCount, x.Notes, x.IsActive, x.RowVersion);
 }

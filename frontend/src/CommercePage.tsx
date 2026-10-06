@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { api, apiRequest, downloadAttachment, hasPermission } from './api'
+import { api, apiRequest, downloadAttachment, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
 import SystemDateInput from './SystemDateInput'
 import { formatPersianDate } from './persianDate'
 
 type Status = 'SubmittedToCommerce' | 'InCommerce' | 'Completed'
-type OrderRow = { id: string, orderNumber: string, orderDate: string, requiredByDate?: string, priority: string, currency: string, preferredSupplierId?: string, status: Status, itemCount: number, totalQuantity: number, estimatedTotal: number, createdAtUtc: string }
+type OrderRow = { rowVersion?: string, id: string, orderNumber: string, orderDate: string, requiredByDate?: string, priority: string, currency: string, preferredSupplierId?: string, status: Status, itemCount: number, totalQuantity: number, estimatedTotal: number, createdAtUtc: string }
 type OrderItem = { id: string, lineNumber: number, yarnItemId: string, yarnCode: string, descriptionSnapshot: string, quantity: number, unit: string, estimatedUnitPrice?: number, requiredSpecifications?: string, notes?: string }
 type OrderDetail = OrderRow & { notes?: string, items: OrderItem[] }
 type InvoiceItem = { id?: string, yarnItemId?: string, originalDescription: string, originalSpecification?: string, unit: string, netWeight: number, grossWeight: number, packageCount: number, unitPriceUSD: number, goodsAmountUSD: number, notes?: string }
 type Container = { id?: string, containerNumber: string, sealNumber?: string, containerType?: string, billOfLadingNumber?: string, netWeight: number, grossWeight: number, packageCount: number, notes?: string }
 type Invoice = {
+  rowVersion?: string,
   id: string, purchaseOrderId?: string, internalNumber: string, externalInvoiceNumber?: string, invoiceDate: string, supplierId: string,
   buyerName?: string, orderNumber?: string, billOfLadingNumber?: string, originPort?: string, destinationPort?: string,
   deliveryTerms?: string, paymentTerms?: string, shipmentMethod?: string, currency: string, goodsTotal: number,
@@ -91,19 +92,24 @@ export default function CommercePage({ language, initialOrderId, actionRequest, 
   const setItem = (index: number, patch: Partial<InvoiceItem>) => { setDirty(true); setInvoice(current => current ? ({ ...current, items: current.items.map((x, i) => i === index ? { ...x, ...patch } : x) }) : current) }
   const setContainer = (index: number, patch: Partial<Container>) => { setDirty(true); setInvoice(current => current ? ({ ...current, containers: current.containers.map((x, i) => i === index ? { ...x, ...patch } : x) }) : current) }
 
+  async function mutationError(error: unknown) {
+    if (isConcurrencyConflict(error)) { await loadOrders(selectedId); await loadDetail(selectedId); onChanged?.() }
+    setError(error instanceof Error ? error.message : String(error))
+  }
+
   async function accept() {
     if (!order) return
-    try { await apiRequest(`/api/purchase-orders/${order.id}/accept`, { method: 'POST' }); await loadOrders(order.id); await loadDetail(order.id); onChanged?.(); setMessage(fa ? 'پیگیری سفارش آغاز شد.' : 'Order accepted.') }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    try { await apiRequest(withRowVersion(`/api/purchase-orders/${order.id}/accept`, order.rowVersion), { method: 'POST' }); await loadOrders(order.id); await loadDetail(order.id); onChanged?.(); setMessage(fa ? 'پیگیری سفارش آغاز شد.' : 'Order accepted.') }
+    catch (e) { await mutationError(e) }
   }
 
   async function createInvoice() {
     if (!order) return
     try {
-      const value = await apiRequest<Invoice>(`/api/commerce/orders/${order.id}/invoice`, { method: 'POST' })
-      setInvoice(value); await loadOrders(order.id); await loadDetail(order.id); onChanged?.()
+      const value = await apiRequest<{ invoice: Invoice, rowVersion: string }>(withRowVersion(`/api/commerce/orders/${order.id}/invoice`, order.rowVersion), { method: 'POST' })
+      setInvoice(value.invoice); await loadOrders(order.id); await loadDetail(order.id); onChanged?.()
       setMessage(fa ? 'پیش‌نویس فاکتور خرید از روی سفارش ایجاد شد.' : 'Purchase draft created.')
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    } catch (e) { await mutationError(e) }
   }
 
   async function save() {
@@ -113,19 +119,19 @@ export default function CommercePage({ language, initialOrderId, actionRequest, 
     }
     if (invoice.containers.some(x => !x.containerNumber.trim())) { setError(fa ? 'شماره کانتینر در تمام ردیف‌های بسته‌بندی الزامی است.' : 'Container number is required.'); return }
     try {
-      await apiRequest(`/api/purchases/${invoice.id}`, { method: 'PUT', body: JSON.stringify(invoice) })
+      await apiRequest(withRowVersion(`/api/purchases/${invoice.id}`, invoice.rowVersion), { method: 'PUT', body: JSON.stringify(invoice) })
       await loadDetail(selectedId); setDirty(false); setMessage(fa ? 'اطلاعات فاکتور و نتیجه تطبیق ثبت شد.' : 'Purchase and comparison saved.')
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    } catch (e) { await mutationError(e) }
   }
 
   async function importExcel(file?: File) {
     if (!file || !order) return
     const data = new FormData(); data.append('file', file)
     try {
-      await apiRequest(`/api/commerce/orders/${order.id}/import`, { method: 'POST', body: data })
+      await apiRequest(withRowVersion(`/api/commerce/orders/${order.id}/import`, order.rowVersion), { method: 'POST', body: data })
       await loadOrders(order.id); await loadDetail(order.id); onChanged?.()
       setMessage(fa ? 'فاکتور و پکینگ‌لیست Excel استخراج و برای اصلاح نمایش داده شد.' : 'Excel invoice imported.')
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    } catch (e) { await mutationError(e) }
     finally { if (importInput.current) importInput.current.value = '' }
   }
 
@@ -160,9 +166,9 @@ export default function CommercePage({ language, initialOrderId, actionRequest, 
       : (fa ? 'صحت اطلاعات فاکتور و دریافت اقلام را تأیید می‌کنید؟ پس از ثبت قطعی سند قابل ویرایش نیست.' : 'Confirm invoice data, receipt and posting?')
     if (!confirm(discrepancyText)) return
     try {
-      await apiRequest(`/api/commerce/invoices/${invoice.id}/send-to-warehouse?warehouseId=${warehouseId}&confirmInvoiceData=true&confirmDiscrepancy=${comparison?.hasDiscrepancy === true}`, { method: 'POST' })
+      await apiRequest(withRowVersion(`/api/commerce/invoices/${invoice.id}/send-to-warehouse?warehouseId=${warehouseId}&confirmInvoiceData=true&confirmDiscrepancy=${comparison?.hasDiscrepancy === true}`, invoice.rowVersion), { method: 'POST' })
       await loadOrders(order?.id); if (order) await loadDetail(order.id); onChanged?.(); setMessage(fa ? 'گردش هر نخ ثبت و خرید به کارتابل انبار ارسال شد.' : 'Yarn movements posted and sent to warehouse.')
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
+    } catch (e) { await mutationError(e) }
   }
 
   const editable = invoice?.status === 'Draft' && hasPermission('commerce.edit')

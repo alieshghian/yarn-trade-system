@@ -21,7 +21,7 @@ var autoMigrate = builder.Configuration.GetValue<bool>("Database:AutoMigrate");
 var seedEnabled = builder.Configuration.GetValue<bool>("Seed:Enabled");
 builder.AddInternetSecurity().AddEntityFrameworkStores<AppDbContext>();
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
-builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddControllers(options => options.Filters.Add<ConcurrencyExceptionFilter>()).AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

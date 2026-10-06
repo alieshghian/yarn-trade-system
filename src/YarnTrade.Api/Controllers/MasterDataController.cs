@@ -50,30 +50,36 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         Apply(person, input);
         db.Persons.Add(person);
         try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
         catch (DbUpdateException) { return Conflict(new { error = "کد شخص تکراری است.", code = "DUPLICATE_PERSON_CODE" }); }
         return CreatedAtAction(nameof(PersonById), new { id = person.Id }, PersonView.From(person));
     }
 
     [RequirePermission("persons.edit")]
     [HttpPut("persons/{id:guid}")]
-    public async Task<ActionResult<PersonView>> UpdatePerson(Guid id, PersonInput input, CancellationToken ct)
+    public async Task<ActionResult<PersonView>> UpdatePerson(Guid id, PersonInput input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var person = await db.Persons.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (person is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, person, rowVersion);
+        if (concurrency is not null) return concurrency;
         var error = await ValidatePersonAsync(input, id, ct);
         if (error is not null) return BadRequest(new { error });
         Apply(person, input);
         try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
         catch (DbUpdateException) { return Conflict(new { error = "کد شخص تکراری است.", code = "DUPLICATE_PERSON_CODE" }); }
         return Ok(PersonView.From(person));
     }
 
     [RequirePermission("persons.delete")]
     [HttpDelete("persons/{id:guid}")]
-    public async Task<IActionResult> DeletePerson(Guid id, CancellationToken ct)
+    public async Task<IActionResult> DeletePerson(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var person = await db.Persons.Include(x => x.Roles).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (person is null) return NotFound();
+        var concurrency = AggregateConcurrency.Apply(db, person, rowVersion, touch: false);
+        if (concurrency is not null) return concurrency;
         var summary = await personAccounts.GetSummaryAsync(id, ct);
         if (person.PartnerKind != PartnerKind.None || summary.HasHistory || summary.BalanceIRR != 0)
             return Conflict(new { error = "حذف شخص فقط در صورت نداشتن سابقه و مانده صفر مجاز است.", code = "PERSON_HAS_HISTORY_OR_BALANCE", summary.BalanceIRR, summary.HasHistory });
@@ -203,11 +209,11 @@ public sealed record ParameterView(Guid Id, ParameterType ParameterType, string 
 public sealed record PersonView(Guid Id, string PersonCode, string? AccountingCode, PersonType PersonType, string? FirstName, string? LastName,
     string? CompanyName, string DisplayName, Guid? JobId, ParameterView? Job, Guid? TitleId, ParameterView? Title,
     Guid? NationalityId, ParameterView? Nationality, string PreferredLanguage, decimal CreditLimitIRR, string? Phone,
-    string? Mobile, string? Address, string? Notes, bool IsActive)
+    string? Mobile, string? Address, string? Notes, bool IsActive, byte[] RowVersion)
 {
     public static PersonView From(Person x) => new(x.Id, x.PersonCode, x.AccountingCode, x.PersonType, x.FirstName, x.LastName ?? x.CompanyName, x.CompanyName,
         x.DisplayName, x.JobId, Map(x.Job), x.TitleId, Map(x.Title), x.NationalityId, Map(x.Nationality), x.PreferredLanguage,
-        x.CreditLimitIRR, x.Phone, x.Mobile, x.Address, x.Notes, x.IsActive);
+        x.CreditLimitIRR, x.Phone, x.Mobile, x.Address, x.Notes, x.IsActive, x.RowVersion);
     private static ParameterView? Map(ParameterValue? x) => x is null ? null : new(x.Id, x.ParameterType, x.Code, x.NameFa, x.NameEn);
 }
 

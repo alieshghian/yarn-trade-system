@@ -25,7 +25,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
             {
                 x.Id, x.OrderNumber, x.OrderDate, x.RequiredByDate, x.Priority, x.Currency, x.PreferredSupplierId,
                 x.Status, ItemCount = x.Items.Count, TotalQuantity = x.Items.Sum(i => i.Quantity),
-                EstimatedTotal = x.Items.Sum(i => i.EstimatedAmount ?? 0), x.CreatedAtUtc
+                EstimatedTotal = x.Items.Sum(i => i.EstimatedAmount ?? 0), x.CreatedAtUtc, x.RowVersion
             }).ToListAsync(ct);
         var people = await db.Persons.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DisplayName)
             .Select(x => new { x.Id, x.DisplayName }).Take(500).ToListAsync(ct);
@@ -58,7 +58,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
             orderEntity.Id, orderEntity.OrderNumber, orderEntity.OrderDate, orderEntity.RequiredByDate,
             orderEntity.Priority, orderEntity.Currency, orderEntity.PreferredSupplierId, orderEntity.Status,
             ItemCount = items.Count, TotalQuantity = items.Sum(x => x.Quantity),
-            EstimatedTotal = items.Sum(x => x.EstimatedAmount ?? 0), orderEntity.CreatedAtUtc, orderEntity.Notes, Items = items
+            EstimatedTotal = items.Sum(x => x.EstimatedAmount ?? 0), orderEntity.CreatedAtUtc, orderEntity.Notes, orderEntity.RowVersion, Items = items
         };
         var invoice = await db.PurchaseInvoices.AsNoTracking().Include(x => x.Items).Include(x => x.Containers)
             .SingleOrDefaultAsync(x => x.PurchaseOrderId == orderId, ct);
@@ -73,14 +73,15 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
 
     [RequirePermission("commerce.edit")]
     [HttpPost("orders/{orderId:guid}/invoice")]
-    public async Task<ActionResult<PurchaseInvoice>> CreateInvoice(Guid orderId, CancellationToken ct)
+    public async Task<ActionResult<CommerceInvoiceResult>> CreateInvoice(Guid orderId, [FromQuery] string? rowVersion, CancellationToken ct)
     {
-        var existing = await db.PurchaseInvoices.AsNoTracking().Include(x => x.Items).Include(x => x.Containers)
-            .SingleOrDefaultAsync(x => x.PurchaseOrderId == orderId, ct);
-        if (existing is not null) return Ok(existing);
-
         var order = await db.PurchaseOrders.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == orderId, ct);
         if (order is null) return NotFound();
+        var existing = await db.PurchaseInvoices.AsNoTracking().Include(x => x.Items).Include(x => x.Containers)
+            .SingleOrDefaultAsync(x => x.PurchaseOrderId == orderId, ct);
+        if (existing is not null) return Ok(new CommerceInvoiceResult(existing, order.RowVersion));
+
+        if (AggregateConcurrency.Apply(db, order, rowVersion) is { } concurrencyError) return concurrencyError;
         if (order.Status is not (PurchaseOrderStatus.SubmittedToCommerce or PurchaseOrderStatus.InCommerce))
             return Conflict(new { error = "سفارش در کارتابل بازرگانی نیست." });
         if (!order.PreferredSupplierId.HasValue)
@@ -124,16 +125,17 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         invoice.GrandTotal = invoice.GoodsTotal;
         db.PurchaseInvoices.Add(invoice);
         await db.SaveChangesAsync(ct);
-        return Ok(invoice);
+        return Ok(new CommerceInvoiceResult(invoice, order.RowVersion));
     }
 
     [RequirePermission("commerce.upload")]
     [HttpPost("orders/{orderId:guid}/import"), EnableRateLimiting(InternetSecurity.Uploads)]
     [RequestSizeLimit(25_000_000)]
-    public async Task<ActionResult<ImportedPurchase>> Import(Guid orderId, IFormFile file, CancellationToken ct)
+    public async Task<ActionResult<ImportedPurchase>> Import(Guid orderId, IFormFile file, [FromQuery] string? rowVersion, CancellationToken ct)
     {
         var order = await db.PurchaseOrders.SingleOrDefaultAsync(x => x.Id == orderId, ct);
         if (order is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, order, rowVersion) is { } concurrencyError) return concurrencyError;
         if (!order.PreferredSupplierId.HasValue) return BadRequest(new { error = "تأمین‌کننده سفارش مشخص نشده است." });
         if (await db.PurchaseInvoices.AnyAsync(x => x.PurchaseOrderId == orderId, ct))
             return Conflict(new { error = "برای این سفارش قبلاً فاکتور خرید ایجاد شده است." });
@@ -141,7 +143,8 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
             return BadRequest(new { error = "استخراج خودکار فعلاً فقط برای فایل Excel پشتیبانی می‌شود." });
         var userId = CurrentUserId();
         if (!userId.HasValue) return Unauthorized();
-        var result = await importer.ImportAsync(file, order.PreferredSupplierId.Value, userId.Value, ct);
+        // Save the imported invoice and the expected order version atomically in the final SaveChanges.
+        var result = await importer.ImportAsync(file, order.PreferredSupplierId.Value, userId.Value, ct, saveChanges: false);
         result.Invoice.PurchaseOrderId = orderId;
         result.Invoice.OrderNumber = order.OrderNumber;
         if (order.Status == PurchaseOrderStatus.SubmittedToCommerce)
@@ -150,16 +153,17 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
             order.CommerceStartedAtUtc = DateTime.UtcNow;
         }
         await db.SaveChangesAsync(ct);
-        return Ok(result);
+        return Ok(result with { RowVersion = order.RowVersion });
     }
 
     [RequirePermission("commerce.sendToWarehouse")]
     [HttpPost("invoices/{invoiceId:guid}/send-to-warehouse")]
     public async Task<IActionResult> SendToWarehouse(Guid invoiceId, [FromQuery] Guid warehouseId,
-        [FromQuery] bool confirmInvoiceData = false, [FromQuery] bool confirmDiscrepancy = false, CancellationToken ct = default)
+        [FromQuery] string? rowVersion, [FromQuery] bool confirmInvoiceData = false, [FromQuery] bool confirmDiscrepancy = false, CancellationToken ct = default)
     {
-        var invoice = await db.PurchaseInvoices.AsNoTracking().Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == invoiceId, ct);
+        var invoice = await db.PurchaseInvoices.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == invoiceId, ct);
         if (invoice is null) return NotFound();
+        if (AggregateConcurrency.Apply(db, invoice, rowVersion) is { } concurrencyError) return concurrencyError;
         if (!await db.Warehouses.AnyAsync(x => x.Id == warehouseId && x.IsActive, ct))
             return BadRequest(new { error = "انبار مقصد معتبر نیست." });
         if (invoice.Status != DocumentStatus.Draft)
@@ -180,7 +184,7 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
         if (!userId.HasValue) return Unauthorized();
         await posting.PostPurchaseAsync(invoiceId, warehouseId,
             new PurchasePostingConfirmation(userId.Value, comparison?.HasDiscrepancy == true, JsonSerializer.Serialize(comparison)), ct);
-        return NoContent();
+        return Ok(new { invoice.Id, invoice.RowVersion });
     }
 
     [RequirePermission("commerce.view")]
@@ -203,3 +207,6 @@ public sealed class CommerceController(AppDbContext db, XlsxPurchaseImporter imp
     private Guid? CurrentUserId() =>
         Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
 }
+
+// This command uses the order token; the new invoice has its own independent token.
+public sealed record CommerceInvoiceResult(PurchaseInvoice Invoice, byte[] RowVersion);

@@ -669,6 +669,57 @@ Each work package is intentionally bounded. Complete and update this document be
 - migrate mutable aggregates.
 **Exit:** stale update test returns conflict.
 
+**Status (2026-10-06): COMPLETE.** Implementation is confined to `a4-rowversion-concurrency`, based on approved A3 master `f933fff8d844660704dc3fd844a4aba76a8f38e5`. All 220 backend tests pass (209 existing + 11 A4, including five real SQL Server cases; zero failures/skips). The non-incremental Release solution build succeeds with zero warnings/errors, and frontend typecheck/production build succeeds. A5/A6/A7 have not started.
+
+#### A4 aggregate audit and coverage
+
+All 16 current `AuditedEntity` descendants represent mutable directory/configuration/document records or owned costs (classification A). None is an append-only ledger, and no uncertain descendant was changed. Configuration types without an existing edit endpoint receive the correct database mapping without introducing new commands or UI.
+
+| Entity / aggregate | SQL rowversion | Existing mutation of an existing record | Expected token | Reason |
+|---|---|---|---|---|
+| Person | Yes | `PUT/DELETE /api/master-data/persons/{id}` | Person | Editable directory; deletion must respect the version read. |
+| ParameterValue | Yes | None | No current interactive mutation | Mutable directory configuration; existing parameter API is read-only. |
+| YarnType | Yes | None | No token for creation | Mutable yarn classification; current API only creates/reads. |
+| YarnItem | Yes | `PUT/DELETE /api/yarns/{id}` | YarnItem | Editable directory; existing history checks remain. |
+| Warehouse | Yes | None | No token for creation | Mutable warehouse configuration; current API only creates/reads. |
+| ExchangeRate | Yes | None | No token for creation | Dated configuration, not an append-only ledger; current API creates/reads only. A5 FX authority is unchanged. |
+| PurchaseOrder | Yes | `PUT/DELETE /api/purchase-orders/{id}`; `POST .../submit`, `.../accept`; `POST /api/commerce/orders/{id}/invoice`, `.../import`; `POST /api/work-items/commerce-order:{id}/action` | PurchaseOrder | Protects header, replacement items and user intent in workflow actions. Returning an already-existing commerce invoice is an idempotent read and performs no mutation. |
+| PurchaseInvoice | Yes | `PUT /api/purchases/{id}`; `POST .../post`; `POST /api/commerce/invoices/{id}/send-to-warehouse` | PurchaseInvoice | Protects header/child replacements and posting. Linked order completion is an internal effect using the tracked order's own database token. |
+| PurchaseCost | Yes | No independent interactive update endpoint | Parent invoice for existing aggregate commands | Owned mutable cost, not a ledger. No new cost editing behavior is introduced. |
+| PriceList | Yes | None | No current interactive mutation | Mutable pricing configuration used by calculations. |
+| CreditRateRule | Yes | None | No current interactive mutation | Mutable, dated/versioned pricing configuration used by calculations. |
+| Sale | Yes | `POST /api/sales/{id}/post`, `.../reverse` | Sale | Protects document state; existing credit/status checks and financial inputs are unchanged. |
+| MoneyDocument | Yes | `POST /api/finance/money-documents/{id}/post` | MoneyDocument | Protects document posting; current creation needs no prior token. |
+| Check | Yes | `POST /api/finance/checks/{id}/transition` | Check | Protects check state; existing allowed-transition rules remain. |
+| PartnerShareRule | Yes | None | No current interactive mutation | Mutable sharing configuration, separate from partner ledger entries. |
+| PartnerSettlement | Yes | `POST /api/finance/settlements/{id}/post` | PartnerSettlement | Protects settlement posting and its atomic ledger write. |
+
+`InventoryMovement`, `PartnerLedgerEntry`, `CheckOperation`, `AuditLog` and allocation/history rows retain their plain-entity mapping without rowversion. Plain child rows use their aggregate root's token. `InventoryLayer` remains unchanged: its FIFO allocation/oversell protection belongs to A6. Own-user task view markers and warehouse action markers mutate only `UserTaskState`, so they require no document token. Identity/session/settings and attachments are outside the audited aggregate contract; their existing security behavior is preserved.
+
+#### A4 schema, migration and seed contract
+
+- `AuditedEntity.RowVersion` maps through EF `IsRowVersion()` to SQL Server's database-generated 8-byte rowversion (`timestamp` semantics), with generated values ignored on application writes.
+- One migration: `20261006141731_FixSqlRowVersionConcurrency`. SQL Server cannot directly ALTER varbinary into rowversion, so Up replaces only the token column on the 16 audited tables. Business tables/rows, relationships, indexes and other columns remain intact. Down replaces only the token with a legacy non-semantic varbinary placeholder. Both directions are tested on disposable SQL Server databases.
+- Applied migrations are untouched. The snapshot changes only rowversion metadata and removal of explicit token values from seeds. Anonymous seeds omit the generated column; existing seed business values and applied creation timestamps are preserved. The model has no pending migration differences.
+
+#### A4 client/API contract
+
+- JSON `rowVersion` is an opaque Base64 string representing exactly eight bytes. Every protected edit/delete/state command uses the same URL query parameter: `?rowVersion={URL-encoded-Base64}` (or `&rowVersion=...` after other query parameters). Clients must retain the version they read, including for DELETE and multipart commerce imports.
+- Blank/missing token: HTTP 400 `CONCURRENCY_TOKEN_REQUIRED`. Invalid Base64, noncanonical encoding or a decoded length other than eight: HTTP 400 `INVALID_CONCURRENCY_TOKEN`. Existing authorization and model/status validation remain in place.
+- Stale intent or EF `DbUpdateConcurrencyException`: HTTP 409 `CONCURRENCY_CONFLICT`, with the Persian reload/review message. A current token may be included when already safely loaded. The exception has a separate catch before duplicate-code `DbUpdateException` catches; a small MVC exception filter handles other aggregate actions.
+- The expected token is assigned to EF `OriginalValue`, never written to the column. Header/child-only edits force an ordinary parent update using the existing `UpdatedAtUtc` behavior. New replacement items/containers are explicitly Added; a failed SaveChanges rolls back the entire database mutation. Commerce import defers its database save so invoice/attachment metadata and order state save atomically. File storage hardening remains A7.
+- Successful mutations return HTTP 200 with the new token (existing full views or `{id,rowVersion}`); successful deletion remains 204. Commerce invoice creation returns `{invoice,rowVersion}` where the top-level token belongs to the order and `invoice.rowVersion` belongs to the new invoice. Commerce import keeps its existing invoice/warnings/mapping fields and adds the order's `rowVersion`. Creation of an independent record requires no expected token.
+- Controllers and `PostingService` share the scoped DbContext: tracked invoice/sale roots carry the expected OriginalValue into the existing posting/reversal save, without changing service formulas, FIFO allocation or transactions. Internal demo seeding creates its own new documents and has no stale browser intent.
+- Current UI callers in `api.ts`, `PersonsPage.tsx`, `YarnsPage.tsx`, `PurchaseOrdersPage.tsx`, `CommercePage.tsx` and `App.tsx` retain/send/refetch versions. On exactly 409 + `CONCURRENCY_CONFLICT`, they show a clear message and refetch the current record/work item. Stale edits are never automatically replayed or silently merged. No new UI was created for backend-only actions.
+
+#### A4 verification and explicit limits
+
+- Real SQL Server tests require protected process environment variable `YARN_TRADE_SQL_TEST_CONNECTION` pointing to `master`. No connection string or credentials are committed. Tests create only uniquely named `YarnTrade_A4_Test_{GUID}` databases and validate that exact prefix/GUID before cleanup; the owner's normal database is never migrated, reset or deleted.
+- Five real-SQL cases cover all 16 column schemas, seed/insert-generated tokens, changed update tokens, two independent contexts rejecting stale writes, authenticated HTTP stale/current updates and stale deletes, child-only order/invoice edits, workflow gates, token rejection across the remaining mutation routes, and an actual race after controller read returning the concurrency code rather than a duplicate-code error. The migration test applies pre-A4 migrations, inserts business data, migrates Up, rolls back only A4 and reapplies it while preserving rows and values.
+- Existing security tests remain; the only InMemory fixture adjustment supplies a fixed test token for the existing positive work-item action. InMemory does not simulate generation/incrementing and is not used as concurrency proof.
+- Final verification: 220/220 backend tests pass with zero failures/skips, including all 11 A4 cases and all previous A2/A3 coverage. Real SQL Server 2022 (16.0.1000.6): schema, generated tokens, EF/API stale-write rejection, current-token retry, stale delete, child updates and pre-A4 → A4 → pre-A4 → A4 data preservation all pass in isolated temporary databases. Non-incremental Release solution build: zero warnings/errors. Frontend `tsc --noEmit` and Vite production build: pass. The SQL API tests use the existing isolated authentication harness (ephemeral keys/fake email); they do not claim live production authentication/SMTP validation.
+- **A5 remains pending:** client-provided `UsdRate`, `CostingMethod`, `PaymentToleranceIRR` and credit override semantics are unchanged. **A6 remains pending:** A4 does not solve the concurrent FIFO sale race or oversell; no inventory locks/allocation strategy changes were made. A7 has not started.
+
 ### A5 — Make posting inputs server-authoritative — P0
 - sale USD rate resolved from approved exchange-rate record;
 - costing method/tolerances from effective settings;
@@ -1072,6 +1123,14 @@ A work package is DONE only when:
 ---
 
 # 15. Change Log
+
+## 2026-10-06 — A4 real SQL rowversion and optimistic aggregate concurrency
+- Created `a4-rowversion-concurrency` from clean, fast-forwarded master containing approved A3 commit `f933fff8d844660704dc3fd844a4aba76a8f38e5`; implementation remains on that branch and is not merged.
+- Audited all 16 current audited types, enabled database-generated rowversion and added only `20261006141731_FixSqlRowVersionConcurrency`. Up/Down replace token columns while preserving business data; old migrations and unrelated model/Identity metadata are unchanged. Removed explicit generated-token seed values and preserved applied seed dates/business values.
+- Added one consistent Base64 query-token contract across existing aggregate edits/deletes/state actions, standard 400/409 responses, new-token success responses and root protection for child-only changes. Preserved existing status rules, permission metadata and posting calculations. Commerce import database writes now share the final atomic save with its order version check.
+- Updated only current UI mutation callers to retain/send/refetch tokens and show concurrency conflicts; no automatic stale replay, merging, UI redesign or new runtime dependency.
+- Verification: all 220 backend tests pass (209 existing + 11 A4; five real SQL Server integration cases, zero failures/skips). Real SQL migration-path preservation/rollback/reapply, generated eight-byte tokens, two-context stale EF exception, authenticated stale/current update, stale delete, child-only edits, remaining command gates and after-read race handling pass. Non-incremental Release build: zero warnings/errors. Frontend typecheck and production build: pass. Test databases are disposable GUID-named databases, isolated from the owner's normal database; no connection string or credentials are committed.
+- A4 exit criterion is satisfied and A4 is COMPLETE. A5/A6/A7 have not started. Client-authoritative sale inputs remain A5; concurrent FIFO allocation/oversell remains explicitly pending for A6. Rowversion does not replace inventory locking.
 
 ## 2026-10-06 — A3 explicit policy-based authorization
 - Created `a3-policy-authorization` from clean, fast-forwarded master containing approved A2 commit `010e8b5f8658b35a1b280b903a4308398507e083`.

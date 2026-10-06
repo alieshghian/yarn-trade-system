@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, api, apiRequest, currentUserKey, hasPermission } from './api'
+import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
 import { suggestSerial } from './sequences'
 
 type Mode = 'view' | 'new' | 'edit'
 type Yarn = {
+  rowVersion?: string,
   id: string, code: string, name: string, comprehensiveName: string, yarnGroup?: string, luster?: string,
   unitOfMeasure: string, fixStatus?: string, material?: string, spinType?: string, filamentNumber?: number,
   spinningMethod?: string, continuityType?: string, countValue?: number, countType?: string,
   twistAmount?: number, twistType?: string, plyCount: number, notes?: string, isActive: boolean
 }
-type YarnDraft = Omit<Yarn, 'id' | 'comprehensiveName'>
+type YarnDraft = Omit<Yarn, 'rowVersion' | 'id' | 'comprehensiveName'>
 type YarnPageResult = { items: Yarn[], total: number }
 type ColumnKey = 'code' | 'comprehensiveName' | 'yarnGroup' | 'material' | 'countValue' | 'countType' | 'unitOfMeasure' | 'isActive'
 type ColumnState = { key: ColumnKey, width: number, visible: boolean }
@@ -169,19 +170,19 @@ export default function YarnsPage({ language, demoMode = false }: { language: La
       } else {
         const saved = mode === 'new'
           ? await apiRequest<Yarn>('/api/yarns', { method: 'POST', body: JSON.stringify(payload(draft)) })
-          : await apiRequest<Yarn>(`/api/yarns/${selectedId}`, { method: 'PUT', body: JSON.stringify(payload(draft)) })
+          : await apiRequest<Yarn>(withRowVersion(`/api/yarns/${selectedId}`, selected?.rowVersion), { method: 'PUT', body: JSON.stringify(payload(draft)) })
         setMode('view'); await load(saved.id)
       }
       setMessage(fa ? 'اطلاعات نخ با موفقیت ثبت شد.' : 'Yarn saved successfully.')
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
-  }, [mode, validateAll, demoMode, selectedId, comprehensiveName, draft, selectYarn, load, fa])
+    } catch (e) { if (isConcurrencyConflict(e)) { setMode('view'); setFieldErrors({}); await load(selectedId) }; setError(e instanceof Error ? e.message : String(e)) }
+  }, [selected?.rowVersion, mode, validateAll, demoMode, selectedId, comprehensiveName, draft, selectYarn, load, fa])
   const remove = useCallback(async () => {
     if (!selected || mode !== 'view' || !confirm(fa ? `نخ «${selected.comprehensiveName}» حذف شود؟` : `Delete “${selected.comprehensiveName}”?`)) return
     try {
       if (demoMode) { const next = yarns.filter(x => x.id !== selected.id); setYarns(next); selectYarn(next[0]) }
-      else { await apiRequest<void>(`/api/yarns/${selected.id}`, { method: 'DELETE' }); await load() }
+      else { await apiRequest<void>(withRowVersion(`/api/yarns/${selected.id}`, selected.rowVersion), { method: 'DELETE' }); await load() }
       setMessage(fa ? 'نخ حذف شد.' : 'Yarn deleted.')
-    } catch (e) { setError(e instanceof ApiError && e.status === 409 ? (fa ? 'این نخ در تراکنش‌های سیستم استفاده شده و قابل حذف نیست.' : e.message) : e instanceof Error ? e.message : String(e)) }
+    } catch (e) { if (isConcurrencyConflict(e)) { await load(selected.id); setError(e.message); return }; setError(e instanceof ApiError && e.status === 409 ? (fa ? 'این نخ در تراکنش‌های سیستم استفاده شده و قابل حذف نیست.' : e.message) : e instanceof Error ? e.message : String(e)) }
   }, [selected, mode, fa, demoMode, yarns, selectYarn, load])
   const move = useCallback((where: 'up' | 'down' | 'pageUp' | 'pageDown' | 'home' | 'end') => {
     if (!filtered.length) return

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, api, apiRequest, currentUserKey, hasPermission } from './api'
+import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
 import { suggestSerial } from './sequences'
 
 type ParameterType = 'Job' | 'Title' | 'Nationality'
 type Parameter = { id: string, parameterType: ParameterType, code: string, nameFa: string, nameEn: string }
 export type Person = {
+  rowVersion?: string,
   id: string, personCode: string, accountingCode?: string, personType: 'Individual' | 'Company', firstName?: string,
   lastName?: string, companyName?: string, displayName: string, jobId?: string, job?: Parameter, titleId?: string,
   title?: Parameter, nationalityId?: string, nationality?: Parameter, preferredLanguage: 'fa' | 'en', creditLimitIRR: number,
@@ -13,7 +14,7 @@ export type Person = {
 }
 type PersonPage = { items: Person[], total: number }
 type Mode = 'view' | 'new' | 'edit'
-type PersonDraft = Omit<Person, 'id' | 'displayName' | 'job' | 'title' | 'nationality'>
+type PersonDraft = Omit<Person, 'rowVersion' | 'id' | 'displayName' | 'job' | 'title' | 'nationality'>
 type ColumnKey = 'personCode' | 'displayName' | 'job' | 'nationality' | 'mobile' | 'creditLimitIRR' | 'isActive'
 type ColumnState = { key: ColumnKey, width: number, visible: boolean }
 type SortState = { key: ColumnKey, direction: 'asc' | 'desc' }
@@ -234,18 +235,19 @@ export default function PersonsPage({ language, demoMode = false }: { language: 
     try {
       const saved = mode === 'new'
         ? await apiRequest<Person>('/api/master-data/persons', { method: 'POST', body: JSON.stringify(personPayload(draft)) })
-        : await apiRequest<Person>(`/api/master-data/persons/${selectedId}`, { method: 'PUT', body: JSON.stringify(personPayload(draft)) })
+        : await apiRequest<Person>(withRowVersion(`/api/master-data/persons/${selectedId}`, selected?.rowVersion), { method: 'PUT', body: JSON.stringify(personPayload(draft)) })
       setMode('view'); setMessage(fa ? 'اطلاعات با موفقیت ثبت شد.' : 'Saved successfully.'); await load(saved.id)
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
-  }, [mode, draft, fa, selectedId, load, validateAll])
+    } catch (e) { if (isConcurrencyConflict(e)) { setMode('view'); setFieldErrors({}); await load(selectedId) }; setError(e instanceof Error ? e.message : String(e)) }
+  }, [selected?.rowVersion, mode, draft, fa, selectedId, load, validateAll])
   const remove = useCallback(async () => {
     if (!selected || mode !== 'view') return
     if (!window.confirm(fa ? `شخص «${selected.displayName}» حذف شود؟` : `Delete “${selected.displayName}”?`)) return
     try {
-      await apiRequest<void>(`/api/master-data/persons/${selected.id}`, { method: 'DELETE' })
+      await apiRequest<void>(withRowVersion(`/api/master-data/persons/${selected.id}`, selected.rowVersion), { method: 'DELETE' })
       setMessage(fa ? 'شخص حذف شد.' : 'Person deleted.'); await load()
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409) setError(fa ? 'این شخص سابقه عملیاتی دارد یا مانده حساب او صفر نیست و قابل حذف نیست.' : e.message)
+      if (isConcurrencyConflict(e)) { await load(selected.id); setError(e.message) }
+      else if (e instanceof ApiError && e.status === 409) setError(fa ? 'این شخص سابقه عملیاتی دارد یا مانده حساب او صفر نیست و قابل حذف نیست.' : e.message)
       else setError(e instanceof Error ? e.message : String(e))
     }
   }, [selected, mode, fa, load])

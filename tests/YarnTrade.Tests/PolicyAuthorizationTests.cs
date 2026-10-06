@@ -280,7 +280,8 @@ public sealed partial class SecurityBaselineTests
         var orderId = Guid.NewGuid();
         using (var scope = host.App.Services.CreateScope()) {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.PurchaseOrders.Add(new PurchaseOrder { Id = orderId, OrderNumber = "A3-0001", OrderDate = new DateOnly(2026, 10, 6), Status = PurchaseOrderStatus.SubmittedToCommerce });
+            // Fixture token only: InMemory does not generate SQL rowversion values.
+            db.PurchaseOrders.Add(new PurchaseOrder { Id = orderId, OrderNumber = "A3-0001", OrderDate = new DateOnly(2026, 10, 6), Status = PurchaseOrderStatus.SubmittedToCommerce, RowVersion = new byte[8] });
             db.UserTaskStates.Add(new UserTaskState { UserId = await UserId(host, "other-commerce@example.test"), WorkItemKey = "commerce-order:" + orderId, ViewedAtUtc = DateTime.UtcNow.AddHours(-1) });
             await db.SaveChangesAsync();
         }
@@ -299,7 +300,7 @@ public sealed partial class SecurityBaselineTests
         Assert.Equal(0, (await host.Client.GetFromJsonAsync<JsonElement>("/api/work-items")).GetArrayLength());
         Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PostAsync($"/api/work-items/commerce-order:{orderId}/view", null)).StatusCode);
         await SetPermissions(host, "commerce@example.test", "dashboard.view", "commerce.view", "commerce.accept");
-        Assert.Equal(HttpStatusCode.OK, (await host.Client.PostAsync($"/api/work-items/commerce-order:{orderId}/action", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.PostAsync($"/api/work-items/commerce-order:{orderId}/action?rowVersion={Uri.EscapeDataString(Convert.ToBase64String(new byte[8]))}", null)).StatusCode);
         await SignIn(host, "admin@example.test");
         Assert.Equal(0, (await host.Client.GetFromJsonAsync<JsonElement>("/api/work-items")).GetArrayLength());
         Assert.Equal(HttpStatusCode.NotFound, (await host.Client.PostAsync($"/api/work-items/commerce-order:{orderId}/action", null)).StatusCode);

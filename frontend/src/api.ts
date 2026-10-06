@@ -38,6 +38,13 @@ export class ApiError extends Error {
   constructor(public status: number, public details: Record<string, unknown> | null, message: string) { super(message) }
 }
 
+export function withRowVersion(path: string, rowVersion?: string) {
+  return `${path}${path.includes('?') ? '&' : '?'}rowVersion=${encodeURIComponent(rowVersion ?? '')}`
+}
+export function isConcurrencyConflict(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.status === 409 && error.details?.code === 'CONCURRENCY_CONFLICT'
+}
+
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   if (token) headers.set('Authorization', `Bearer ${token}`)
@@ -55,7 +62,9 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
       ? (fa ? 'نشست ورود شما منقضی یا نامعتبر شده است. لطفاً دوباره وارد سیستم شوید.' : 'Your session has expired. Please sign in again.')
       : response.status === 403
         ? (fa ? `شما مجوز انجام این عملیات را ندارید.${permission ? ` مجوز لازم: ${permission}` : ''}` : `You do not have permission for this operation.${permission ? ` Required: ${permission}` : ''}`)
-        : String(payload?.error ?? (validationMessage || `${response.status} ${response.statusText}`))
+        : response.status === 409 && payload?.code === 'CONCURRENCY_CONFLICT'
+          ? (fa ? 'این رکورد توسط کاربر دیگری تغییر کرده است. اطلاعات جدید بارگذاری می‌شود؛ لطفاً آن را بررسی و دوباره اقدام کنید.' : 'Another user changed this record. Reload and review the latest data before trying again.')
+          : String(payload?.error ?? (validationMessage || `${response.status} ${response.statusText}`))
     if (response.status === 401) {
       logout()
       window.dispatchEvent(new CustomEvent('auth-expired', { detail: { message } }))

@@ -8,12 +8,12 @@ using YarnTrade.Api.Domain;
 
 namespace YarnTrade.Api.Services;
 
-public sealed record ImportedPurchase(PurchaseInvoice Invoice, IReadOnlyList<string> Warnings, IReadOnlyList<ImportedFieldMap> Mapping);
+public sealed record ImportedPurchase(PurchaseInvoice Invoice, IReadOnlyList<string> Warnings, IReadOnlyList<ImportedFieldMap> Mapping, byte[]? RowVersion = null);
 public sealed record ImportedFieldMap(string Sheet, string SourceCell, string TargetField, string Rule);
 
 public sealed class XlsxPurchaseImporter(AppDbContext db, IWebHostEnvironment environment)
 {
-    public async Task<ImportedPurchase> ImportAsync(IFormFile file, Guid supplierId, Guid uploadedBy, CancellationToken ct)
+    public async Task<ImportedPurchase> ImportAsync(IFormFile file, Guid supplierId, Guid uploadedBy, CancellationToken ct, bool saveChanges = true)
     {
         var id = Guid.NewGuid();
         var root = Path.Combine(environment.ContentRootPath, "App_Data", "attachments");
@@ -99,7 +99,7 @@ public sealed class XlsxPurchaseImporter(AppDbContext db, IWebHostEnvironment en
         var attachment = new Attachment { Id = id, EntityType = nameof(PurchaseInvoice), EntityId = result.Id, DocumentType = "PurchaseInvoice", OriginalFileName = Path.GetFileName(file.FileName), StoredFileName = storedName, ContentType = file.ContentType, FileSize = file.Length, FileHash = hash, UploadedBy = uploadedBy };
         result.OriginalFileAttachmentId = attachment.Id;
         db.PurchaseInvoices.Add(result); db.Attachments.Add(attachment);
-        await db.SaveChangesAsync(ct);
+        if (saveChanges) await db.SaveChangesAsync(ct);
         return new(result, warnings, mapping);
     }
 
