@@ -7,6 +7,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    server: { port: 5173, proxy: { '/api': proxyTarget, '/health': proxyTarget } }
+    server: { port: 5173, strictPort: true, proxy: {
+      '/api': { target: proxyTarget, configure(proxy) {
+        // Overwrite client input with the real browser socket peer; LAN clients cannot inherit loopback trust.
+        proxy.on('proxyReq', (request, incoming) => request.setHeader('X-YarnTrade-Development-Client', incoming.socket.remoteAddress ?? 'unknown'))
+      } },
+      '/health': proxyTarget
+    } }
   }
 })

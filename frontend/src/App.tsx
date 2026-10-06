@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { api, apiRequest, isAuthenticated, login, logout, setAccessPermissions } from './api'
+import { api, apiRequest, authenticationRequest, type EmailChallenge, isAuthenticated, login, logout, setAccessPermissions, tryDevelopmentSession, verifyEmail } from './api'
 import { Language, text } from './i18n'
 import PersonsPage from './PersonsPage'
 import YarnsPage from './YarnsPage'
@@ -19,6 +19,11 @@ type Access = { id: string, email: string, displayName: string, preferredLanguag
 const icons: Record<string, string> = { dashboard: '▦', persons: '♧', yarns: '≋', purchaseOrders: '☷', commerce: '⚑', purchases: '⇩', inventory: '◫', sales: '↗', finance: '◈', checks: '▤', partners: '♙', reports: '▥', users: '♟', dataBackup: '⟳', settings: '⚙' }
 type MenuKey = 'dashboard' | 'persons' | 'yarns' | 'purchaseOrders' | 'commerce' | 'purchases' | 'inventory' | 'sales' | 'finance' | 'checks' | 'partners' | 'reports' | 'users' | 'dataBackup' | 'settings'
 
+const authenticationLink = new URLSearchParams(location.hash.slice(1))
+const activationToken = authenticationLink.get('activate')
+const recoveryToken = authenticationLink.get('reset')
+if (activationToken || recoveryToken) history.replaceState(null, '', location.pathname + location.search)
+
 export default function App() {
   const demoMode = new URLSearchParams(location.search).get('demo') === '1'
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'fa')
@@ -30,7 +35,15 @@ export default function App() {
   const [active, setActive] = useState<MenuKey>('dashboard')
   const [openTabs, setOpenTabs] = useState<MenuKey[]>(['dashboard'])
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === '1')
-  const [authenticated, setAuthenticated] = useState(isAuthenticated() || demoMode)
+  const [authenticated, setAuthenticated] = useState(!activationToken && !recoveryToken && (isAuthenticated() || demoMode))
+  const [checkingDevelopment, setCheckingDevelopment] = useState(import.meta.env.DEV && !isAuthenticated() && !demoMode && !activationToken && !recoveryToken)
+  useEffect(() => {
+    if (import.meta.env.DEV && !isAuthenticated() && !demoMode && !activationToken && !recoveryToken) {
+      let cancelled = false
+      void tryDevelopmentSession().then(success => { if (!cancelled) { setAuthenticated(success); setCheckingDevelopment(false) } })
+      return () => { cancelled = true }
+    }
+  }, []) // Initial startup only; signing out does not trigger auto-login.
   const [authNotice, setAuthNotice] = useState('')
   const [access, setAccess] = useState<Access>()
   const [purchases, setPurchases] = useState<Purchase[]>([])
@@ -244,6 +257,7 @@ export default function App() {
     else if (item.target === 'inventory') openForm('inventory')
   }
 
+  if (checkingDevelopment) return <main className="login-page">{language === 'fa' ? 'در حال ورود…' : 'Signing in…'}</main>
   if (!authenticated) return <Login language={language} setLanguage={setLanguage} notice={authNotice} onSuccess={() => { setAuthNotice(''); setAuthenticated(true) }} />
 
   return <div className={`app-shell theme-${theme} ${compactMode ? 'compact-ui' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} dir={dir}>
@@ -266,7 +280,7 @@ export default function App() {
       </aside>
       <section className={`content tabbed-content ${active === 'persons' || active === 'yarns' || active === 'purchaseOrders' || active === 'commerce' || active === 'users' || active === 'dataBackup' || active === 'settings' ? 'persons-content' : ''}`}>
         {openTabs.map(tab => <div key={tab} className={`form-tab-pane ${active === tab ? 'active' : ''}`} aria-hidden={active !== tab}>
-          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'settings' ? <UserSettingsPage language={language} onPreferencesChanged={applyPreferences} onPasswordChanged={() => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
+          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} administrator={access?.roles.includes('Administrator') ?? false} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'settings' ? <UserSettingsPage language={language} onPreferencesChanged={applyPreferences} onPasswordChanged={() => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
           <div className="metrics">
           <Metric label={t.openReceivables} value={language === 'fa' ? '۲٬۱۸۰٬۰۰۰٬۰۰۰' : '2,180,000,000'} unit={t.irr} trend={language === 'fa' ? '+۸٫۲٪' : '+8.2%'} tone="gold" />
           <Metric label={t.inventoryValue} value={language === 'fa' ? '۴۳٬۶۴۳٫۷' : '43,643.7'} unit={t.kg} trend={t.twoWarehouses} tone="teal" />
@@ -332,21 +346,56 @@ function DemoRows({ t }: { t: typeof text.fa | typeof text.en }) {
 }
 
 function Login({ language, setLanguage, notice, onSuccess }: { language: Language, setLanguage: (x: Language) => void, notice?: string, onSuccess: () => void }) {
-  const t = text[language]
-  const [email, setEmail] = useState('admin@yarntrade.local')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState(notice ?? '')
-  async function submit(e: FormEvent) { e.preventDefault(); setError(''); try { await login(email, password); onSuccess() } catch { setError(language === 'fa' ? 'ورود ناموفق بود.' : 'Sign in failed.') } }
-  return <main className="login-page" dir={language === 'fa' ? 'rtl' : 'ltr'}>
-    <button className="language login-lang" onClick={() => setLanguage(language === 'fa' ? 'en' : 'fa')}>{language === 'fa' ? 'EN' : 'فا'}</button>
+  const t = text[language], fa = language === 'fa'
+  const [mode, setMode] = useState<'login' | 'otp' | 'activate' | 'reset' | 'forgot'>(activationToken ? 'activate' : recoveryToken ? 'reset' : 'login')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState(''), [confirmation, setConfirmation] = useState('')
+  const [code, setCode] = useState(''), [challenge, setChallenge] = useState<EmailChallenge>()
+  const [showPassword, setShowPassword] = useState(false), [busy, setBusy] = useState(false)
+  const [error, setError] = useState(notice ?? ''), [message, setMessage] = useState(''), [wait, setWait] = useState(0)
+  useEffect(() => { if (wait <= 0) return; const timer = setTimeout(() => setWait(wait - 1), 1000); return () => clearTimeout(timer) }, [wait])
+  function authError(e: unknown) {
+    const status = e && typeof e === 'object' && 'status' in e ? e.status : 0
+    setError(status === 429 ? (fa ? 'کمی صبر کنید و دوباره تلاش کنید.' : 'Please wait and try again.') : status === 503 ? (fa ? 'ارسال ایمیل ورود در دسترس نیست.' : 'Authentication email is unavailable.') : (fa ? 'عملیات ناموفق بود. اطلاعات، اعتبار لینک و سیاست رمز را بررسی کنید.' : 'Operation failed. Check your details, link expiry and password policy.'))
+  }
+  async function submit(e: FormEvent) {
+    e.preventDefault(); setError(''); setBusy(true)
+    try {
+      if (mode === 'login') {
+        const result = await login(email, password); setPassword('')
+        if ('requiresVerification' in result) { setChallenge(result); setWait(result.resendAfterSeconds); setMode('otp') } else onSuccess()
+      } else if (mode === 'otp' && challenge) { await verifyEmail(challenge.challenge, code, email); onSuccess() }
+      else if (mode === 'forgot') {
+        await authenticationRequest('forgotPassword', { email })
+        setMessage(fa ? 'اگر حساب واجد شرایط باشد، راهنما به ایمیل ثبت‌شده ارسال می‌شود.' : 'If the account is eligible, instructions have been sent.')
+      } else {
+        if (password !== confirmation) { setError(fa ? 'تکرار رمز یکسان نیست.' : 'Passwords do not match.'); return }
+        await authenticationRequest(mode === 'activate' ? 'activate' : 'resetPassword', { token: mode === 'activate' ? activationToken : recoveryToken, newPassword: password })
+        setPassword(''); setConfirmation(''); setMode('login'); setMessage(fa ? 'رمز ثبت شد. اکنون وارد شوید.' : 'Password saved. Please sign in.')
+      }
+    } catch (e) { authError(e) } finally { setBusy(false) }
+  }
+  async function resend() {
+    if (!challenge) return
+    setBusy(true); setError('')
+    try { const result = await authenticationRequest<EmailChallenge>('resend-code', { challenge: challenge.challenge }); setChallenge(result); setCode(''); setWait(result.resendAfterSeconds) }
+    catch (e) { authError(e) } finally { setBusy(false) }
+  }
+  const choosingPassword = mode === 'activate' || mode === 'reset'
+  return <main className="login-page" dir={fa ? 'rtl' : 'ltr'}>
+    <button className="language login-lang" onClick={() => setLanguage(fa ? 'en' : 'fa')}>{fa ? 'EN' : 'فا'}</button>
     <form onSubmit={submit}>
-      <div className="brand-mark large">Y</div><h1>{t.title}</h1><p>{t.loginHint}</p>
-      <label>{t.email}<input value={email} onChange={e => setEmail(e.target.value)} type="email" required /></label>
-      <label>{t.password}<div className="login-password"><input value={password} onChange={e => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} required />
-        <button type="button" className={showPassword ? 'password-visible' : ''} aria-label={language === 'fa' ? 'نمایش یا مخفی کردن رمز' : 'Show or hide password'} title={language === 'fa' ? 'نمایش رمز' : 'Show password'} onClick={() => setShowPassword(x => !x)}>👁</button>
-      </div></label>
-      {error && <div className="error">{error}</div>}<button className="primary" type="submit">{t.login}</button>
+      <div className="brand-mark large">Y</div><h1>{t.title}</h1>
+      <p>{mode === 'otp' ? (fa ? 'کد تأیید به ایمیل ثبت‌شدهٔ شما ارسال شد.' : 'A verification code was sent to your registered email address.') : choosingPassword ? (fa ? 'رمز خود را انتخاب کنید: حداقل ۱۲ نویسه، حروف بزرگ و کوچک، عدد و نماد.' : 'Choose a password: at least 12 characters, upper/lowercase, number and symbol.') : t.loginHint}</p>
+      {(mode === 'login' || mode === 'forgot') && <label>{t.email}<input dir="ltr" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} type="email" required /></label>}
+      {(mode === 'login' || choosingPassword) && <label>{t.password}<div className="login-password"><input dir="ltr" autoComplete={choosingPassword ? 'new-password' : 'current-password'} minLength={choosingPassword ? 12 : undefined} value={password} onChange={e => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} required /><button type="button" aria-label={fa ? 'نمایش رمز' : 'Show password'} onClick={() => setShowPassword(x => !x)}>👁</button></div></label>}
+      {choosingPassword && <label>{fa ? 'تکرار رمز' : 'Confirm password'}<input dir="ltr" autoComplete="new-password" type="password" value={confirmation} onChange={e => setConfirmation(e.target.value)} required minLength={12} /></label>}
+      {mode === 'otp' && <label>{fa ? 'کد تأیید' : 'Verification code'}<input dir="ltr" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} required /></label>}
+      {error && <div className="error" role="alert">{error}</div>}{message && <p role="status">{message}</p>}
+      <button className="primary" type="submit" disabled={busy}>{busy ? (fa ? 'در حال انجام…' : 'Please wait…') : mode === 'otp' ? (fa ? 'تأیید و ورود' : 'Verify & sign in') : choosingPassword ? (fa ? 'ثبت رمز' : 'Save password') : mode === 'forgot' ? (fa ? 'ارسال راهنما' : 'Send instructions') : t.login}</button>
+      {mode === 'otp' && <button type="button" disabled={busy || wait > 0} onClick={() => void resend()}>{fa ? 'ارسال مجدد کد' : 'Resend code'}{wait > 0 ? ` (${wait})` : ''}</button>}
+      {mode === 'login' && <button type="button" onClick={() => { setMode('forgot'); setError(''); setMessage('') }}>{fa ? 'فراموشی رمز' : 'Forgot password'}</button>}
+      {mode !== 'login' && <button type="button" disabled={busy} onClick={() => { setMode('login'); setError(''); setMessage(''); setPassword(''); setCode('') }}>{fa ? 'بازگشت به ورود' : 'Back to sign in'}</button>}
     </form>
   </main>
 }

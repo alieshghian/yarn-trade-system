@@ -36,7 +36,7 @@ public sealed class UserSettingsController(UserManager<AppUser> users) : Control
     public async Task<IActionResult> ChangePassword(ChangeOwnPasswordInput input)
     {
         if (string.IsNullOrWhiteSpace(input.CurrentPassword)) return BadRequest(new { error = "رمز عبور فعلی الزامی است." });
-        if (string.IsNullOrWhiteSpace(input.NewPassword) || input.NewPassword.Length < 8) return BadRequest(new { error = "رمز عبور جدید باید حداقل ۸ نویسه باشد." });
+        if (string.IsNullOrWhiteSpace(input.NewPassword) || input.NewPassword.Length < 12) return BadRequest(new { error = "رمز عبور جدید باید حداقل ۱۲ نویسه باشد." });
         if (input.NewPassword != input.ConfirmPassword) return BadRequest(new { error = "تکرار رمز عبور جدید یکسان نیست." });
         if (input.CurrentPassword == input.NewPassword) return BadRequest(new { error = "رمز عبور جدید باید با رمز فعلی متفاوت باشد." });
         var user = await users.GetUserAsync(User);

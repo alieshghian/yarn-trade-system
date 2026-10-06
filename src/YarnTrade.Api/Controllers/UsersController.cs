@@ -10,7 +10,8 @@ using YarnTrade.Api.Security;
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api"), Authorize]
-public sealed class UsersController(AppDbContext db, UserManager<AppUser> users, RoleManager<IdentityRole<Guid>> roles, PermissionService permissionService) : ControllerBase
+public sealed class UsersController(AppDbContext db, UserManager<AppUser> users, RoleManager<IdentityRole<Guid>> roles,
+    PermissionService permissionService, PrivateAuthentication authentication, IAuthenticationEmailSender mail) : ControllerBase
 {
     [HttpGet("user-access")]
     public async Task<ActionResult<object>> MyAccess(CancellationToken ct)
@@ -27,13 +28,13 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
     {
         var rows = await db.Users.AsNoTracking().OrderBy(x => x.DisplayName).Select(x => new
         {
-            x.Id, x.PersonId, x.Email, x.DisplayName, x.PreferredLanguage, x.IsActive
+            x.Id, x.PersonId, x.Email, x.DisplayName, x.PreferredLanguage, x.IsActive, PendingInvitation = x.PasswordHash == null
         }).ToListAsync(ct);
         var result = new List<object>();
         foreach (var row in rows)
         {
             var user = await users.FindByIdAsync(row.Id.ToString());
-            result.Add(new { row.Id, row.PersonId, row.Email, row.DisplayName, row.PreferredLanguage, row.IsActive, Roles = user is null ? [] : await users.GetRolesAsync(user) });
+            result.Add(new { row.Id, row.PersonId, row.Email, row.DisplayName, row.PreferredLanguage, row.IsActive, row.PendingInvitation, Roles = user is null ? [] : await users.GetRolesAsync(user) });
         }
         return Ok(result);
     }
@@ -62,16 +63,18 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
             : savedPermissions.Where(x => x.IsGranted).Select(x => x.PermissionKey).Order().ToArray();
         return Ok(new
         {
-            user.Id, user.PersonId, user.Email, user.DisplayName, user.PreferredLanguage, user.IsActive,
+            user.Id, user.PersonId, user.Email, user.DisplayName, user.PreferredLanguage, user.IsActive, PendingInvitation = user.PasswordHash == null,
             Roles = userRoles,
             Permissions = granted
         });
     }
 
-    [HttpPost("users"), Authorize(Roles = "Administrator,Manager")]
+    [HttpPost("users"), Authorize(Roles = "Administrator")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(InternetSecurity.Authentication)]
     public async Task<ActionResult<object>> Create(UserInput input, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(input.Password)) return BadRequest(new { error = "رمز عبور برای کاربر جدید الزامی است." });
+        if (!mail.IsAvailable) throw new AuthenticationEmailUnavailableException();
+        if (!string.IsNullOrWhiteSpace(input.Password)) return BadRequest(new { error = "رمز اولیه فقط توسط کاربر از طریق دعوت تعیین می‌شود." });
         if (input.Roles.Contains("Administrator", StringComparer.OrdinalIgnoreCase) && !User.IsInRole("Administrator"))
             return Forbid();
         var validation = await Validate(input, null, ct);
@@ -80,14 +83,15 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         var user = new AppUser
         {
             Id = Guid.NewGuid(), PersonId = input.PersonId, Email = input.Email.Trim(), UserName = input.Email.Trim(),
-            EmailConfirmed = true, DisplayName = person!.DisplayName, PreferredLanguage = input.PreferredLanguage,
+            EmailConfirmed = false, DisplayName = person!.DisplayName, PreferredLanguage = input.PreferredLanguage,
             IsActive = input.IsActive, LockoutEnabled = true, LockoutEnd = input.IsActive ? null : DateTimeOffset.MaxValue
         };
-        var created = await users.CreateAsync(user, input.Password);
+        var created = await users.CreateAsync(user);
         if (!created.Succeeded) return BadRequest(new { error = string.Join(" ", created.Errors.Select(x => x.Description)) });
         var roleResult = await users.AddToRolesAsync(user, input.Roles.Distinct());
         if (!roleResult.Succeeded) { await users.DeleteAsync(user); return BadRequest(new { error = string.Join(" ", roleResult.Errors.Select(x => x.Description)) }); }
         await ReplacePermissions(user.Id, input.Permissions, ct);
+        await authentication.SendInvitationAsync(user, ct);
         return CreatedAtAction(nameof(Get), new { id = user.Id }, new { user.Id });
     }
 
@@ -97,12 +101,13 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         var user = await users.FindByIdAsync(id.ToString());
         if (user is null) return NotFound();
         var currentRoles = await users.GetRolesAsync(user);
+        if (!string.Equals(user.Email, input.Email.Trim(), StringComparison.Ordinal) && !User.IsInRole("Administrator")) return Forbid();
         if ((currentRoles.Contains("Administrator") || input.Roles.Contains("Administrator", StringComparer.OrdinalIgnoreCase)) && !User.IsInRole("Administrator"))
             return Forbid();
         if (users.GetUserId(User) == id.ToString() && !input.IsActive)
             return BadRequest(new { error = "کاربر نمی‌تواند حساب خودش را غیرفعال کند." });
         var effective = await permissionService.GetEffectiveAsync(User, ct);
-        if (!string.IsNullOrWhiteSpace(input.Password) && !effective.Contains("users.resetPassword")) return Forbid();
+        if (!string.IsNullOrWhiteSpace(input.Password)) return BadRequest(new { error = "رمز فقط توسط کاربر از طریق بازیابی ایمیلی تغییر می‌کند." });
         var existingGranted = await db.UserPermissions.AsNoTracking().Where(x => x.UserId == id && x.IsGranted).Select(x => x.PermissionKey).ToListAsync(ct);
         if ((!currentRoles.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(input.Roles) ||
              !existingGranted.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(input.Permissions)) &&
@@ -111,9 +116,11 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         if (validation is not null) return BadRequest(new { error = validation });
         var person = await db.Persons.FindAsync([input.PersonId], ct);
         var revokeSessions = user.IsActive != input.IsActive || user.Email != input.Email.Trim() ||
-            !currentRoles.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(input.Roles);
+            !currentRoles.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(input.Roles) ||
+            !existingGranted.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(input.Permissions);
         user.PersonId = input.PersonId; user.DisplayName = person!.DisplayName; user.PreferredLanguage = input.PreferredLanguage; user.IsActive = input.IsActive;
-        user.Email = input.Email.Trim(); user.UserName = input.Email.Trim(); user.EmailConfirmed = true;
+        user.Email = input.Email.Trim(); user.UserName = input.Email.Trim();
+        // The new address must prove ownership on the next login; pending accounts still need activation.
         user.LockoutEnabled = true; user.LockoutEnd = input.IsActive ? null : DateTimeOffset.MaxValue;
         var updated = await users.UpdateAsync(user);
         if (!updated.Succeeded) return BadRequest(new { error = string.Join(" ", updated.Errors.Select(x => x.Description)) });
@@ -121,20 +128,36 @@ public sealed class UsersController(AppDbContext db, UserManager<AppUser> users,
         await users.AddToRolesAsync(user, input.Roles.Except(currentRoles));
         if (revokeSessions && !(await users.UpdateSecurityStampAsync(user)).Succeeded)
             throw new InvalidOperationException("Session revocation failed.");
-        if (!string.IsNullOrWhiteSpace(input.Password))
-        {
-            var token = await users.GeneratePasswordResetTokenAsync(user);
-            var reset = await users.ResetPasswordAsync(user, token, input.Password);
-            if (!reset.Succeeded) return BadRequest(new { error = string.Join(" ", reset.Errors.Select(x => x.Description)) });
-        }
         await ReplacePermissions(user.Id, input.Permissions, ct);
+        return NoContent();
+    }
+
+    [HttpPost("users/{id:guid}/invitation"), Authorize(Roles = "Administrator")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(InternetSecurity.Authentication)]
+    public async Task<IActionResult> ReissueInvitation(Guid id, CancellationToken ct)
+    {
+        var user = await users.FindByIdAsync(id.ToString());
+        if (user is null) return NotFound();
+        if (await users.HasPasswordAsync(user)) return Conflict(new { error = "حساب قبلاً فعال شده است." });
+        if (!mail.IsAvailable) throw new AuthenticationEmailUnavailableException();
+        await authentication.SendInvitationAsync(user, ct);
+        return NoContent();
+    }
+
+    [HttpPost("users/{id:guid}/security-reset"), Authorize(Roles = "Administrator")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting(InternetSecurity.Authentication)]
+    public async Task<IActionResult> ResetSecurity(Guid id)
+    {
+        var user = await users.FindByIdAsync(id.ToString());
+        if (user is null) return NotFound();
+        if (!(await users.UpdateSecurityStampAsync(user)).Succeeded) throw new InvalidOperationException("Security reset failed.");
         return NoContent();
     }
 
     private async Task<string?> Validate(UserInput input, Guid? editingId, CancellationToken ct)
     {
         if (input.PersonId == Guid.Empty || !await db.Persons.AnyAsync(x => x.Id == input.PersonId && x.IsActive, ct)) return "انتخاب شخص معتبر الزامی است.";
-        if (string.IsNullOrWhiteSpace(input.Email)) return "ایمیل الزامی است.";
+        if (string.IsNullOrWhiteSpace(input.Email) || !System.Net.Mail.MailAddress.TryCreate(input.Email.Trim(), out var email) || email.Address != input.Email.Trim()) return "ایمیل معتبر الزامی است.";
         if (await db.Users.AnyAsync(x => x.PersonId == input.PersonId && x.Id != editingId, ct)) return "برای این شخص قبلاً کاربر تعریف شده است.";
         if (await db.Users.AnyAsync(x => x.NormalizedEmail == input.Email.Trim().ToUpper() && x.Id != editingId, ct)) return "این ایمیل قبلاً استفاده شده است.";
         if (input.Roles.Count == 0) return "حداقل یک نقش انتخاب کنید.";

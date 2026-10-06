@@ -17,22 +17,32 @@ public sealed class AppSignInManager(UserManager<AppUser> users, IHttpContextAcc
     public override async Task<AppUser?> ValidateSecurityStampAsync(ClaimsPrincipal? principal)
     {
         var user = await base.ValidateSecurityStampAsync(principal);
-        return user is { IsActive: true } && !await UserManager.IsLockedOutAsync(user) ? user : null;
+        return user is { IsActive: true, EmailConfirmed: true, PasswordHash: not null } && !await UserManager.IsLockedOutAsync(user) ? user : null;
+    }
+
+    public override async Task<bool> ValidateSecurityStampAsync(AppUser? user, string? stamp) =>
+        user is { IsActive: true, EmailConfirmed: true, PasswordHash: not null } && !await UserManager.IsLockedOutAsync(user) && await base.ValidateSecurityStampAsync(user, stamp);
+
+    public async Task<bool> HasValidBrowserTrustAsync(AppUser user, TimeProvider clock)
+    {
+        var result = await Context.AuthenticateAsync(IdentityConstants.TwoFactorRememberMeScheme);
+        return result.Succeeded && result.Properties?.ExpiresUtc > clock.GetUtcNow() &&
+            (await ValidateTwoFactorSecurityStampAsync(result.Principal))?.Id == user.Id;
     }
 
     public async Task RevokeSessionsAsync(ClaimsPrincipal principal)
     {
         var user = await UserManager.GetUserAsync(principal) ?? throw new InvalidOperationException("Session revocation failed.");
-        if (!(await UserManager.UpdateSecurityStampAsync(user)).Succeeded)
+        var session = principal.FindFirstValue(PrivateAuthentication.SessionClaim);
+        if (string.IsNullOrEmpty(session) || !(await UserManager.RemoveAuthenticationTokenAsync(user, PrivateAuthentication.TokenProvider, "Session:" + session)).Succeeded)
             throw new InvalidOperationException("Session revocation failed.");
         await SignOutAsync();
-        await ForgetTwoFactorClientAsync();
     }
 }
 
 public sealed class AuthenticationSessionMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, SignInManager<AppUser> signIn, IAntiforgery antiforgery, ILogger<AuthenticationSessionMiddleware> logger)
+    public async Task InvokeAsync(HttpContext context, SignInManager<AppUser> signIn, PrivateAuthentication auth, IAntiforgery antiforgery, ILogger<AuthenticationSessionMiddleware> logger)
     {
         var action = context.Request.Path.Value?.TrimEnd('/').ToLowerInvariant() switch
         {
@@ -40,6 +50,9 @@ public sealed class AuthenticationSessionMiddleware(RequestDelegate next)
             "/api/auth/forgotpassword" => "recovery-request",
             "/api/auth/resetpassword" => "password-reset",
             "/api/auth/manage/2fa" => "mfa-management",
+            "/api/auth/verify-email" => "email-verification",
+            "/api/auth/resend-code" => "email-resend",
+            "/api/auth/activate" => "invitation-activation",
             "/api/presence/logout" => "logout",
             _ => null
         };
@@ -49,10 +62,9 @@ public sealed class AuthenticationSessionMiddleware(RequestDelegate next)
                 logger.LogInformation("Authentication event. Action={Action} StatusCode={StatusCode} TraceId={TraceId}", action, context.Response.StatusCode, context.TraceIdentifier);
                 return Task.CompletedTask;
             });
-        if (context.User.Identity?.IsAuthenticated == true && await signIn.ValidateSecurityStampAsync(context.User) is null)
+        if (context.User.Identity?.IsAuthenticated == true && !await auth.ValidateSessionAsync(context.User, context))
         {
             await signIn.SignOutAsync();
-            await signIn.ForgetTwoFactorClientAsync();
             await Results.Problem(statusCode: 401, title: "The session is no longer valid.").ExecuteAsync(context);
             return;
         }

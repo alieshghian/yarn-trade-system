@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HostFiltering;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Data.SqlClient;
 using YarnTrade.Api.Domain;
 
@@ -19,7 +20,15 @@ public sealed class SecurityBaselineOptions
     public int CookieMinutes { get; set; } = 60;
     public int LockoutMinutes { get; set; } = 10;
     public int MaxFailedAccessAttempts { get; set; } = 5;
-    public string[] MfaRequiredRoles { get; set; } = ["Administrator", "Manager", "Partner"];
+    public string PublicAppOrigin { get; set; } = "";
+    public int InvitationHours { get; set; } = 24;
+    public int PasswordResetHours { get; set; } = 1;
+    public int TrustedBrowserDays { get; set; } = 30;
+    public int OtpMinutes { get; set; } = 10;
+    public int OtpMaxAttempts { get; set; } = 5;
+    public int OtpMaxSends { get; set; } = 5;
+    public int OtpResendSeconds { get; set; } = 60;
+    public DevelopmentAutoLoginOptions DevelopmentAutoLogin { get; set; } = new();
     public ProxyOptions ReverseProxy { get; set; } = new();
     public RateLimitRule Authentication { get; set; } = new() { PermitLimit = 30, WindowSeconds = 60 };
     public RateLimitRule Uploads { get; set; } = new() { PermitLimit = 20, WindowSeconds = 60 };
@@ -50,7 +59,6 @@ public static class InternetSecurity
     public static SecurityBaselineOptions ValidateConfiguration(IConfiguration config, bool development)
     {
         var settings = config.GetSection("Security").Get<SecurityBaselineOptions>() ?? new();
-        settings.MfaRequiredRoles = config.GetSection("Security:MfaRequiredRoles").Get<string[]>() ?? settings.MfaRequiredRoles;
         if (settings.AccessTokenMinutes is < 1 or > 60 || settings.RefreshTokenHours is < 1 or > 24 ||
             settings.CookieMinutes is < 1 or > 60 || settings.LockoutMinutes is < 1 or > 60 ||
             settings.MaxFailedAccessAttempts is < 3 or > 10)
@@ -58,9 +66,13 @@ public static class InternetSecurity
         foreach (var rule in new[] { settings.Authentication, settings.Uploads, settings.Reports, settings.Backups })
             if (rule.PermitLimit < 1 || rule.WindowSeconds is < 1 or > 3600)
                 throw new InvalidOperationException("Security rate limits must be positive, with windows of at most one hour.");
-        if (!new[] { "Administrator", "Manager", "Partner" }.All(role => settings.MfaRequiredRoles.Contains(role, StringComparer.OrdinalIgnoreCase)) ||
-            settings.MfaRequiredRoles.Any(string.IsNullOrWhiteSpace))
-            throw new InvalidOperationException("Security:MfaRequiredRoles must include Administrator, Manager and Partner.");
+        if (!development && settings.DevelopmentAutoLogin.Enabled)
+            throw new InvalidOperationException("Development auto-login must be disabled outside Development.");
+        if (settings.DevelopmentAutoLogin.Enabled && (string.IsNullOrWhiteSpace(settings.DevelopmentAutoLogin.UserEmail) || settings.ReverseProxy.Enabled))
+            throw new InvalidOperationException("Development auto-login requires a configured local user and no forwarded-header proxy.");
+        if (settings.InvitationHours is < 1 or > 24 || settings.PasswordResetHours is < 1 or > 24 || settings.TrustedBrowserDays is < 1 or > 30 ||
+            settings.OtpMinutes is < 1 or > 10 || settings.OtpMaxAttempts is < 1 or > 5 || settings.OtpMaxSends is < 1 or > 5 || settings.OtpResendSeconds is < 30 or > 300)
+            throw new InvalidOperationException("Invitation, OTP and browser-trust settings are outside the supported safe ranges.");
         if (settings.ReverseProxy.Enabled && (settings.ReverseProxy.ForwardLimit is < 1 or > 5 ||
             settings.ReverseProxy.KnownProxies.Length == 0 || settings.ReverseProxy.KnownProxies.Any(value =>
                 !IPAddress.TryParse(value, out var ip) || ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any))))
@@ -80,6 +92,9 @@ public static class InternetSecurity
                 throw new InvalidOperationException("AllowedHosts must contain explicit host names outside Development.");
             if (origins.Length == 0)
                 throw new InvalidOperationException("Cors:Origins must be explicitly configured outside Development.");
+            var email = config.GetSection("AuthenticationEmail").Get<AuthenticationEmailOptions>() ?? new();
+            if (!email.IsConfigured || !email.EnableSsl || email.Port is < 1 or > 65535)
+                throw new InvalidOperationException("Production requires protected SMTP configuration with TLS for authentication email.");
             var connection = config.GetConnectionString("DefaultConnection");
             if (string.IsNullOrWhiteSpace(connection))
                 throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be supplied through protected deployment configuration.");
@@ -93,6 +108,10 @@ public static class InternetSecurity
         }
         else if (config.GetValue<bool>("Seed:Enabled") && string.IsNullOrWhiteSpace(config["Seed:AdminPassword"]))
             throw new InvalidOperationException("Set Seed:AdminPassword with .NET user-secrets before enabling development seeding.");
+        if (!string.IsNullOrEmpty(settings.PublicAppOrigin) && !origins.Contains(settings.PublicAppOrigin, StringComparer.Ordinal))
+            throw new InvalidOperationException("Security:PublicAppOrigin must be one of the exact configured frontend origins.");
+        if (!development && string.IsNullOrEmpty(settings.PublicAppOrigin))
+            throw new InvalidOperationException("Security:PublicAppOrigin is required for protected invitation/recovery links.");
         return settings;
     }
 
@@ -101,6 +120,10 @@ public static class InternetSecurity
         var development = builder.Environment.IsDevelopment();
         var settings = ValidateConfiguration(builder.Configuration, development);
         builder.Services.AddSingleton(settings);
+        builder.Services.AddSingleton(builder.Configuration.GetSection("AuthenticationEmail").Get<AuthenticationEmailOptions>() ?? new());
+        builder.Services.AddScoped<IAuthenticationEmailSender, SmtpAuthenticationEmailSender>();
+        builder.Services.AddScoped<PrivateAuthentication>();
+        builder.Services.AddDataProtection().SetApplicationName("YarnTrade:" + builder.Environment.EnvironmentName);
         // Framework exception/database loggers can include SQL, paths or URL query secrets.
         // SafeExceptionHandler records only exception type and correlation ID.
         if (!development)
@@ -152,6 +175,7 @@ public static class InternetSecurity
             options.BearerTokenExpiration = TimeSpan.FromMinutes(settings.AccessTokenMinutes);
             options.RefreshTokenExpiration = TimeSpan.FromHours(settings.RefreshTokenHours);
         });
+        builder.Services.AddOptions<BearerTokenOptions>(IdentityConstants.BearerScheme).Configure<TimeProvider>((options, clock) => options.TimeProvider = clock);
         foreach (var scheme in new[] { IdentityConstants.ApplicationScheme, IdentityConstants.ExternalScheme, IdentityConstants.TwoFactorUserIdScheme, IdentityConstants.TwoFactorRememberMeScheme })
             builder.Services.PostConfigure<CookieAuthenticationOptions>(scheme, options =>
             {
@@ -159,10 +183,30 @@ public static class InternetSecurity
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.SecurePolicy = development ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
                 options.ExpireTimeSpan = TimeSpan.FromMinutes(scheme == IdentityConstants.ExternalScheme || scheme == IdentityConstants.TwoFactorUserIdScheme ? 5 : settings.CookieMinutes);
+                if (scheme == IdentityConstants.TwoFactorRememberMeScheme)
+                {
+                    options.ExpireTimeSpan = TimeSpan.FromDays(settings.TrustedBrowserDays);
+                    options.Events.OnValidatePrincipal = async context =>
+                    {
+                        var signIn = context.HttpContext.RequestServices.GetRequiredService<AppSignInManager>();
+                        if (await signIn.ValidateTwoFactorSecurityStampAsync(context.Principal) is null) context.RejectPrincipal();
+                        context.ShouldRenew = false;
+                    };
+                }
+                if (scheme == IdentityConstants.ApplicationScheme)
+                    options.Events.OnValidatePrincipal = async context =>
+                    {
+                        var signIn = context.HttpContext.RequestServices.GetRequiredService<AppSignInManager>();
+                        if (await signIn.ValidateSecurityStampAsync(context.Principal) is null) context.RejectPrincipal();
+                        // Keep the session claim and its fixed expiry; Identity's periodic principal rebuild would drop it.
+                        context.ShouldRenew = false;
+                    };
                 options.SlidingExpiration = false;
                 options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
                 options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
             });
+        foreach (var scheme in new[] { IdentityConstants.ApplicationScheme, IdentityConstants.ExternalScheme, IdentityConstants.TwoFactorUserIdScheme, IdentityConstants.TwoFactorRememberMeScheme })
+            builder.Services.AddOptions<CookieAuthenticationOptions>(scheme).Configure<TimeProvider>((options, clock) => options.TimeProvider = clock);
         builder.Services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -209,16 +253,15 @@ public static class InternetSecurity
 
     public static void MapAuthenticationSecurity(this RouteGroupBuilder group)
     {
+        PrivateAuthentication.MapEndpoints(group);
         group.MapGet("/csrf", (HttpContext context, IAntiforgery antiforgery) =>
             Results.Ok(new { requestToken = antiforgery.GetAndStoreTokens(context).RequestToken })).AllowAnonymous();
         group.MapGet("/mfa-status", async (ClaimsPrincipal principal, UserManager<AppUser> users, SecurityBaselineOptions settings) =>
         {
             var user = await users.GetUserAsync(principal);
             if (user is null) return Results.Unauthorized();
-            var roles = await users.GetRolesAsync(user);
-            return Results.Ok(new { enabled = await users.GetTwoFactorEnabledAsync(user),
-                requiredForRole = roles.Any(role => settings.MfaRequiredRoles.Contains(role, StringComparer.OrdinalIgnoreCase)),
-                methodDecisionPending = true, enforcementActive = false });
+            return Results.Ok(new { enabled = true, requiredForRole = true, method = "email-device", trustedBrowserDays = settings.TrustedBrowserDays,
+                methodDecisionPending = false, enforcementActive = true });
         }).RequireAuthorization();
     }
 }

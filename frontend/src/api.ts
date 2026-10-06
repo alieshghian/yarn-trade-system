@@ -2,13 +2,32 @@ const baseUrl = import.meta.env.VITE_API_URL ?? ''
 let token = sessionStorage.getItem('accessToken')
 let permissions = new Set<string>(JSON.parse(sessionStorage.getItem('permissions') ?? '[]') as string[])
 
-export async function login(email: string, password: string) {
-  const response = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) })
-  if (!response.ok) throw new Error('Login failed')
-  const result = await response.json()
+export type EmailChallenge = { requiresVerification: true, challenge: string, resendAfterSeconds: number }
+type Session = { accessToken: string }
+function storeSession(result: Session, email: string) {
   token = result.accessToken
   sessionStorage.setItem('accessToken', token ?? '')
   sessionStorage.setItem('currentUser', email)
+}
+
+export async function authenticationRequest<T>(action: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${baseUrl}/api/auth/${action}`, { method: body === undefined ? 'GET' : 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) })
+  const payload = (response.headers.get('content-type') ?? '').includes('json') ? await response.json() : null
+  if (!response.ok) throw new ApiError(response.status, payload, response.status === 429 ? 'Please wait before trying again.' : response.status === 503 ? 'Authentication email delivery is unavailable.' : 'Sign in or verification failed. Check your details or request a new link.')
+  return payload as T
+}
+export async function login(email: string, password: string) {
+  const result = await authenticationRequest<EmailChallenge | Session>('login', { email, password })
+  if ('accessToken' in result) storeSession(result, email)
+  return result
+}
+export async function verifyEmail(challenge: string, code: string, email: string) {
+  storeSession(await authenticationRequest<Session>('verify-email', { challenge, code }), email)
+}
+let developmentProbe: Promise<boolean> | undefined
+export function tryDevelopmentSession(): Promise<boolean> {
+  if (!import.meta.env.DEV) return Promise.resolve(false)
+  return developmentProbe ??= authenticationRequest<Session>('development-session').then(result => { storeSession(result, 'development'); return true }).catch(() => false)
 }
 
 export async function api<T>(path: string): Promise<T> {

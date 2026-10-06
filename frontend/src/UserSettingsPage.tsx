@@ -41,7 +41,7 @@ export default function UserSettingsPage({ language, onPreferencesChanged, onPas
     setError(''); setMessage('')
     if (!currentPassword || !newPassword || !confirmPassword) { setError(fa ? 'هر سه فیلد رمز عبور را تکمیل کنید.' : 'Complete all three password fields.'); return }
     if (newPassword !== confirmPassword) { setError(fa ? 'رمز جدید و تکرار آن یکسان نیست.' : 'New password and confirmation do not match.'); return }
-    if (newPassword.length < 8) { setError(fa ? 'رمز جدید باید حداقل ۸ نویسه باشد.' : 'The new password must be at least 8 characters.'); return }
+    if (newPassword.length < 12) { setError(fa ? 'رمز جدید باید حداقل ۱۲ نویسه باشد.' : 'The new password must be at least 12 characters.'); return }
     setSaving(true)
     try {
       await apiRequest('/api/user-settings/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword, confirmPassword }) })

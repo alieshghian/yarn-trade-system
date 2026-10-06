@@ -48,7 +48,12 @@ public sealed class SecurityBaselineTests
     [InlineData("Security:Authentication:PermitLimit", "0")]
     [InlineData("Security:ReverseProxy:Enabled", "true")]
     [InlineData("Security:AccessTokenMinutes", "120")]
-    [InlineData("Security:MfaRequiredRoles:0", "Other")]
+    [InlineData("Security:DevelopmentAutoLogin:Enabled", "true")]
+    [InlineData("AuthenticationEmail:Host", "")]
+    [InlineData("AuthenticationEmail:Password", "")]
+    [InlineData("AuthenticationEmail:EnableSsl", "false")]
+    [InlineData("Security:TrustedBrowserDays", "31")]
+    [InlineData("Security:OtpMaxAttempts", "6")]
     public void Unsafe_production_configuration_fails_before_startup(string key, string value)
     {
         var config = Configuration(new() { [key] = value });
@@ -59,7 +64,7 @@ public sealed class SecurityBaselineTests
     [Fact]
     public void Development_allows_local_HTTP_and_wildcard_hosts()
     {
-        var config = Configuration(new() { ["AllowedHosts"] = "*", ["Cors:Origins:0"] = "http://localhost:5173" });
+        var config = Configuration(new() { ["AllowedHosts"] = "*", ["Cors:Origins:0"] = "http://localhost:5173", ["Security:PublicAppOrigin"] = "http://localhost:5173" });
         Assert.NotNull(InternetSecurity.ValidateConfiguration(config, development: true));
     }
 
@@ -77,6 +82,9 @@ public sealed class SecurityBaselineTests
     [InlineData("/api/auth/login", "{}")]
     [InlineData("/api/auth/forgotPassword", "{\"email\":\"absent@example.test\"}")]
     [InlineData("/api/auth/resetPassword", "{}")]
+    [InlineData("/api/auth/activate", "{}")]
+    [InlineData("/api/auth/verify-email", "{}")]
+    [InlineData("/api/auth/resend-code", "{}")]
     public async Task Authentication_and_recovery_are_throttled(string path, string json)
     {
         await using var host = await CreateApp(new() { ["Security:Authentication:PermitLimit"] = "2" });
@@ -114,8 +122,8 @@ public sealed class SecurityBaselineTests
         await using var host = await CreateApp(new() { [$"Security:{setting}:PermitLimit"] = "1" });
         await CreateUser(host.App, "alice@example.test");
         await CreateUser(host.App, "bob@example.test");
-        var alice = await Login(host.Client, "alice@example.test");
-        var bob = await Login(host.Client, "bob@example.test");
+        var alice = await Login(host, "alice@example.test");
+        var bob = await Login(host, "bob@example.test");
         host.Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", alice.AccessToken);
         Assert.Equal(HttpStatusCode.OK, (await host.Client.PostAsync(path, null)).StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, (await host.Client.PostAsync(path, null)).StatusCode);
@@ -128,7 +136,7 @@ public sealed class SecurityBaselineTests
     {
         await using var host = await CreateApp();
         await CreateUser(host.App, "refresh@example.test");
-        var tokens = await Login(host.Client, "refresh@example.test");
+        var tokens = await Login(host, "refresh@example.test");
         var refreshed = await host.Client.PostAsJsonAsync("/api/auth/refresh", new { refreshToken = tokens.RefreshToken });
         Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
         var replacement = (await refreshed.Content.ReadFromJsonAsync<TokenResponse>())!;
@@ -201,45 +209,20 @@ public sealed class SecurityBaselineTests
     }
 
     [Fact]
-    public async Task MFA_foundation_reports_role_requirement_without_selecting_a_method()
+    public async Task Email_device_verification_is_required_for_every_normal_role()
     {
         await using var host = await CreateApp();
         foreach (var role in new[] { "Administrator", "Manager", "Partner", "Customer" })
         {
             var email = role + "@example.test";
             await CreateUser(host.App, email, role);
-            var token = await Login(host.Client, email);
+            var token = await Login(host, email);
             host.Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
             var status = await host.Client.GetFromJsonAsync<JsonElement>("/api/auth/mfa-status");
-            Assert.Equal(role != "Customer", status.GetProperty("requiredForRole").GetBoolean());
-            Assert.True(status.GetProperty("methodDecisionPending").GetBoolean());
-            Assert.False(status.GetProperty("enforcementActive").GetBoolean());
+            Assert.True(status.GetProperty("requiredForRole").GetBoolean());
+            Assert.False(status.GetProperty("methodDecisionPending").GetBoolean());
+            Assert.True(status.GetProperty("enforcementActive").GetBoolean());
         }
-    }
-
-    [Fact]
-    public async Task Identity_requires_a_second_factor_when_it_is_enabled_and_supports_recovery_codes()
-    {
-        await using var host = await CreateApp();
-        await CreateUser(host.App, "mfa@example.test", "Administrator");
-        using (var scope = host.App.Services.CreateScope())
-        {
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-            var user = (await users.FindByEmailAsync("mfa@example.test"))!;
-            Assert.True((await users.SetTwoFactorEnabledAsync(user, true)).Succeeded);
-        }
-        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "mfa@example.test", password = Password })).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "mfa@example.test", password = Password, twoFactorCode = "invalid" })).StatusCode);
-        var token = await Login(host.Client, "mfa@example.test", "test-second-factor");
-        host.Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
-        Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/auth/mfa-status")).StatusCode);
-        using var scope2 = host.App.Services.CreateScope();
-        var manager = scope2.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
-        var account = (await manager.FindByEmailAsync("mfa@example.test"))!;
-        var recovery = (await manager.GenerateNewTwoFactorRecoveryCodesAsync(account, 1))!.Single();
-        host.Client.DefaultRequestHeaders.Authorization = null;
-        Assert.Equal(HttpStatusCode.OK, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "mfa@example.test", password = Password, twoFactorRecoveryCode = recovery })).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "mfa@example.test", password = Password, twoFactorRecoveryCode = recovery })).StatusCode);
     }
 
     [Theory]
@@ -251,7 +234,7 @@ public sealed class SecurityBaselineTests
     {
         await using var host = await CreateApp();
         await CreateUser(host.App, "session@example.test");
-        var tokens = await Login(host.Client, "session@example.test");
+        var tokens = await Login(host, "session@example.test");
         Assert.Equal(3600, tokens.ExpiresIn);
         host.Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
         if (action == "logout") Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PostAsync("/test/logout", null)).StatusCode);
@@ -299,7 +282,10 @@ public sealed class SecurityBaselineTests
         var requestToken = (await csrf.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("requestToken").GetString();
         host.Client.DefaultRequestHeaders.Add("Cookie", Cookies(csrf));
         host.Client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", requestToken);
-        var login = await host.Client.PostAsJsonAsync("/api/auth/login?useCookies=true", new { email = "cookie@example.test", password = Password });
+        var begin = await host.Client.PostAsJsonAsync("/api/auth/login?useCookies=true", new { email = "cookie@example.test", password = Password });
+        Assert.Equal(HttpStatusCode.Accepted, begin.StatusCode);
+        var challenge = (await begin.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("challenge").GetString();
+        var login = await host.Client.PostAsJsonAsync("/api/auth/verify-email", new { challenge, code = host.Mail.Code });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         Assert.All(login.Headers.GetValues("Set-Cookie"), cookie => { Assert.Contains("secure", cookie); Assert.Contains("httponly", cookie); Assert.Contains("samesite=strict", cookie); });
         host.Client.DefaultRequestHeaders.Remove("Cookie");
@@ -307,6 +293,8 @@ public sealed class SecurityBaselineTests
         host.Client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
         Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/auth/mfa-status")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsync("/test/logout", null)).StatusCode);
+        host.Clock.Advance(TimeSpan.FromMinutes(31));
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/auth/mfa-status")).StatusCode);
         var authenticatedCsrf = await host.Client.GetAsync("/api/auth/csrf");
         var authenticatedToken = (await authenticatedCsrf.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("requestToken").GetString();
         var authCookie = host.Client.DefaultRequestHeaders.GetValues("Cookie").Single();
@@ -317,6 +305,253 @@ public sealed class SecurityBaselineTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/api/auth/mfa-status")).StatusCode);
     }
 
+    [Fact]
+    public async Task Public_registration_and_self_email_change_are_unavailable() {
+        await using var host = await CreateApp();
+        foreach (var path in new[] { "/api/auth/register", "/api/auth/confirmEmail", "/api/auth/manage/2fa" }) {
+            var response = await host.Client.PostAsJsonAsync(path, new { email = "stranger@example.test", password = Password });
+            Assert.Contains(response.StatusCode, new[] { HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed });
+        }
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/users", new {})).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "stranger@example.test", password = Password })).StatusCode);
+        using (var scope = host.App.Services.CreateScope()) Assert.Null(await scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>().FindByEmailAsync("stranger@example.test"));
+        await CreateUser(host.App, "normal@example.test", "Customer");
+        var tokens = await Login(host, "normal@example.test");
+        host.Client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.AccessToken);
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, (await host.Client.PostAsJsonAsync("/api/auth/manage/info", new { newEmail = "changed@example.test" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PutAsJsonAsync("/api/users/" + Guid.NewGuid(), UserBody(Guid.NewGuid(), "changed@example.test"))).StatusCode);
+    }
+
+    private static object UserBody(Guid person, string email, string[]? roles = null, bool active = true, string? password = null) =>
+        new { personId = person, email, password, preferredLanguage = "fa", isActive = active, roles = roles ?? ["Customer"], permissions = Array.Empty<string>() };
+    private static async Task<Guid> PersonFor(TestApp host) {
+        using var scope = host.App.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var person = new Person { PersonCode = Guid.NewGuid().ToString(), DisplayName = "Invited user" };
+        db.Persons.Add(person); await db.SaveChangesAsync(); return person.Id;
+    }
+    private static async Task<Guid> UserId(TestApp host, string email) {
+        using var scope = host.App.Services.CreateScope(); return (await scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>().FindByEmailAsync(email))!.Id;
+    }
+    private static async Task<string> Begin(TestApp host, string email, string password = Password) {
+        var response = await host.Client.PostAsJsonAsync("/api/auth/login", new { email, password });
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(body.TryGetProperty("code", out _)); Assert.False(body.TryGetProperty("accessToken", out _));
+        return body.GetProperty("challenge").GetString()!;
+    }
+    private static Task<HttpResponseMessage> Verify(TestApp host, string challenge, string code) => host.Client.PostAsJsonAsync("/api/auth/verify-email", new { challenge, code });
+    private static async Task SignIn(TestApp host, string email) {
+        var tokens = await Login(host, email); host.Client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.AccessToken);
+    }
+
+    [Theory]
+    [InlineData("activate")]
+    [InlineData("expired")]
+    [InlineData("reissue")]
+    public async Task Administrator_invites_and_only_fresh_single_use_invitation_activates(string action) {
+        await using var host = await CreateApp();
+        await CreateUser(host.App, "admin@example.test", "Administrator");
+        await CreateUser(host.App, "customer@example.test", "Customer");
+        await SignIn(host, "admin@example.test");
+        var person = await PersonFor(host);
+        var result = await host.Client.PostAsJsonAsync("/api/users", UserBody(person, "invited@example.test"));
+        Assert.Equal(HttpStatusCode.Created, result.StatusCode);
+        var body = await result.Content.ReadAsStringAsync(); var link = host.Mail.LinkToken;
+        Assert.DoesNotContain(link, body); Assert.Equal("invited@example.test", host.Mail.Messages.Last().Email);
+        var id = await UserId(host, "invited@example.test");
+        if (action == "reissue") {
+            Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PostAsync($"/api/users/{id}/invitation", null)).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/auth/activate", new { token = link, newPassword = Password })).StatusCode);
+            link = host.Mail.LinkToken;
+        }
+        host.Client.DefaultRequestHeaders.Authorization = null;
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "invited@example.test", password = Password })).StatusCode);
+        if (action == "expired") host.Clock.Advance(TimeSpan.FromHours(25));
+        var activation = await host.Client.PostAsJsonAsync("/api/auth/activate", new { token = link, newPassword = Password });
+        Assert.Equal(action == "expired" ? HttpStatusCode.BadRequest : HttpStatusCode.OK, activation.StatusCode);
+        if (action != "expired") {
+            Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/auth/activate", new { token = link, newPassword = Password })).StatusCode);
+            Assert.NotEmpty(await Begin(host, "invited@example.test"));
+        }
+        Assert.DoesNotContain(host.Logs.Messages, message => message.Contains(link));
+    }
+
+    [Fact]
+    public async Task Only_administrator_creates_accounts_or_changes_login_email() {
+        await using var host = await CreateApp();
+        await CreateUser(host.App, "admin@example.test", "Administrator");
+        await CreateUser(host.App, "manager@example.test", "Manager");
+        await SignIn(host, "admin@example.test");
+        var person = await PersonFor(host);
+        Assert.Equal(HttpStatusCode.Created, (await host.Client.PostAsJsonAsync("/api/users", UserBody(person, "invited@example.test"))).StatusCode);
+        var id = await UserId(host, "invited@example.test");
+        await SignIn(host, "manager@example.test");
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PostAsJsonAsync("/api/users", UserBody(await PersonFor(host), "new@example.test"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PutAsJsonAsync($"/api/users/{id}", UserBody(person, "changed@example.test"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PostAsync($"/api/users/{id}/invitation", null)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PostAsync($"/api/users/{id}/security-reset", null)).StatusCode);
+        await SignIn(host, "admin@example.test");
+        Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PutAsJsonAsync($"/api/users/{id}", UserBody(person, "changed@example.test"))).StatusCode);
+        Assert.Equal(id, await UserId(host, "changed@example.test"));
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PutAsJsonAsync($"/api/users/{id}", UserBody(person, "changed@example.test", password: Password))).StatusCode);
+    }
+
+    [Fact]
+    public async Task OTP_is_private_invalid_codes_fail_and_success_is_single_use() {
+        await using var host = await CreateApp(); await CreateUser(host.App, "otp@example.test");
+        var challenge = await Begin(host, "otp@example.test"); var code = host.Mail.Code;
+        Assert.Equal("otp@example.test", host.Mail.Messages.Last().Email);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, "invalid")).StatusCode);
+        var success = await Verify(host, challenge, code); Assert.Equal(HttpStatusCode.OK, success.StatusCode);
+        Assert.DoesNotContain(code, await success.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, code)).StatusCode);
+        Assert.DoesNotContain(host.Logs.Messages, message => message.Contains(code) || message.Contains(challenge));
+        using var scope = host.App.Services.CreateScope();
+        var stored = await scope.ServiceProvider.GetRequiredService<AppDbContext>().UserTokens.ToListAsync();
+        Assert.DoesNotContain(stored, x => (x.Value ?? "").Contains(code));
+    }
+
+    [Theory]
+    [InlineData("expired")]
+    [InlineData("attempts")]
+    [InlineData("resend")]
+    public async Task OTP_has_expiry_bounded_attempts_and_resend_cooldown(string action) {
+        await using var host = await CreateApp(); await CreateUser(host.App, "otp@example.test");
+        var challenge = await Begin(host, "otp@example.test"); var code = host.Mail.Code;
+        if (action == "expired") host.Clock.Advance(TimeSpan.FromMinutes(11));
+        if (action == "attempts") {
+            for (var i = 0; i < 5; i++) Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, "invalid")).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "otp@example.test", password = Password })).StatusCode);
+        }
+        if (action == "resend") {
+            Assert.Equal(HttpStatusCode.TooManyRequests, (await host.Client.PostAsJsonAsync("/api/auth/resend-code", new { challenge })).StatusCode);
+            host.Clock.Advance(TimeSpan.FromSeconds(61));
+            var resend = await host.Client.PostAsJsonAsync("/api/auth/resend-code", new { challenge }); Assert.Equal(HttpStatusCode.Accepted, resend.StatusCode);
+            var replacement = (await resend.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("challenge").GetString()!;
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, code)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await Verify(host, replacement, host.Mail.Code)).StatusCode);
+        } else Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, code)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Repeated_password_login_does_not_reset_OTP_budget_or_send_more_mail() {
+        await using var host = await CreateApp(new() { ["Security:OtpMaxAttempts"] = "2" }); await CreateUser(host.App, "otp@example.test");
+        var challenge = await Begin(host, "otp@example.test");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, "invalid")).StatusCode);
+        challenge = await Begin(host, "otp@example.test");
+        Assert.Single(host.Mail.Messages);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, "invalid")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await Verify(host, challenge, host.Mail.Code)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "otp@example.test", password = Password })).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("logout")]
+    [InlineData("expiry")]
+    [InlineData("password")]
+    [InlineData("email")]
+    [InlineData("role")]
+    [InlineData("disable")]
+    [InlineData("reset")]
+    public async Task Browser_trust_survives_logout_but_expires_and_security_changes_revoke_it(string action) {
+        await using var host = await CreateApp(); await CreateUser(host.App, "trusted@example.test", "Customer");
+        var challenge = await Begin(host, "trusted@example.test");
+        var verified = await Verify(host, challenge, host.Mail.Code); Assert.Equal(HttpStatusCode.OK, verified.StatusCode);
+        var tokens = (await verified.Content.ReadFromJsonAsync<TokenResponse>())!;
+        var trust = Cookies(verified);
+        Assert.All(verified.Headers.GetValues("Set-Cookie"), value => { Assert.Contains("httponly", value); Assert.Contains("secure", value); Assert.Contains("samesite=strict", value); });
+        var options = host.App.Services.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>().Get(IdentityConstants.TwoFactorRememberMeScheme);
+        Assert.Equal(TimeSpan.FromDays(30), options.ExpireTimeSpan); Assert.False(options.SlidingExpiration);
+        host.Client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.AccessToken);
+        if (action == "logout") Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PostAsync("/test/logout", null)).StatusCode);
+        if (action == "expiry") {
+            host.Client.DefaultRequestHeaders.Authorization = null; host.Client.DefaultRequestHeaders.Add("Cookie", trust);
+            host.Clock.Advance(TimeSpan.FromDays(29));
+            var withinThirtyDays = await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "trusted@example.test", password = Password });
+            Assert.Equal(HttpStatusCode.OK, withinThirtyDays.StatusCode);
+            Assert.False(withinThirtyDays.Headers.Contains("Set-Cookie")); Assert.Single(host.Mail.Messages);
+            host.Client.DefaultRequestHeaders.Remove("Cookie"); host.Clock.Advance(TimeSpan.FromDays(2));
+        }
+        var email = "trusted@example.test"; var password = Password;
+        if (action is "password" or "email" or "role" or "disable" or "reset") {
+            await CreateUser(host.App, "admin@example.test", "Administrator");
+            await SignIn(host, "admin@example.test");
+            var id = await UserId(host, email); var person = await PersonFor(host);
+            if (action == "reset") Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PostAsync($"/api/users/{id}/security-reset", null)).StatusCode);
+            else if (action == "password") {
+                using var scope = host.App.Services.CreateScope(); var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+                password = "Changed!Password42"; Assert.True((await users.ChangePasswordAsync((await users.FindByEmailAsync(email))!, Password, password)).Succeeded);
+            } else {
+                if (action == "email") email = "changed@example.test";
+                Assert.Equal(HttpStatusCode.NoContent, (await host.Client.PutAsJsonAsync($"/api/users/{id}", UserBody(person, email, action == "role" ? ["Manager"] : ["Customer"], action != "disable"))).StatusCode);
+            }
+        }
+        host.Client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.AccessToken);
+        if (action != "expiry") Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/api/auth/mfa-status")).StatusCode);
+        host.Client.DefaultRequestHeaders.Authorization = null; host.Client.DefaultRequestHeaders.Add("Cookie", trust);
+        var login = await host.Client.PostAsJsonAsync("/api/auth/login", new { email, password });
+        Assert.Equal(action == "logout" ? HttpStatusCode.OK : action == "disable" ? HttpStatusCode.Unauthorized : HttpStatusCode.Accepted, login.StatusCode);
+        if (action == "logout") { Assert.Single(host.Mail.Messages); Assert.False(login.Headers.Contains("Set-Cookie")); }
+    }
+
+    [Fact]
+    public async Task Recovery_is_neutral_and_password_reset_revokes_session_and_trust() {
+        await using var host = await CreateApp(); await CreateUser(host.App, "recover@example.test");
+        var challenge = await Begin(host, "recover@example.test"); var verify = await Verify(host, challenge, host.Mail.Code);
+        var trust = Cookies(verify); var tokens = (await verify.Content.ReadFromJsonAsync<TokenResponse>())!;
+        var known = await host.Client.PostAsJsonAsync("/api/auth/forgotPassword", new { email = "recover@example.test" }); var reset = host.Mail.LinkToken;
+        var unknown = await host.Client.PostAsJsonAsync("/api/auth/forgotPassword", new { email = "absent@example.test" });
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode); Assert.Equal(known.StatusCode, unknown.StatusCode);
+        Assert.Equal(await known.Content.ReadAsStringAsync(), await unknown.Content.ReadAsStringAsync());
+        Assert.DoesNotContain(reset, await known.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.PostAsJsonAsync("/api/auth/resetPassword", new { token = reset, newPassword = "Reset!Password42" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await host.Client.PostAsJsonAsync("/api/auth/resetPassword", new { token = reset, newPassword = Password })).StatusCode);
+        host.Client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.AccessToken);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/api/auth/mfa-status")).StatusCode);
+        host.Client.DefaultRequestHeaders.Authorization = null; host.Client.DefaultRequestHeaders.Add("Cookie", trust);
+        Assert.NotEmpty(await Begin(host, "recover@example.test", "Reset!Password42"));
+        Assert.DoesNotContain(host.Logs.Messages, message => message.Contains(reset));
+    }
+
+    [Fact]
+    public async Task Mail_failure_is_safe_and_unknown_recovery_remains_neutral() {
+        await using var host = await CreateApp(); await CreateUser(host.App, "mail@example.test"); host.Mail.FailDelivery = true;
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await host.Client.PostAsJsonAsync("/api/auth/login", new { email = "mail@example.test", password = Password })).StatusCode);
+        var known = await host.Client.PostAsJsonAsync("/api/auth/forgotPassword", new { email = "mail@example.test" });
+        var unknown = await host.Client.PostAsJsonAsync("/api/auth/forgotPassword", new { email = "unknown@example.test" });
+        Assert.Equal(await known.Content.ReadAsStringAsync(), await unknown.Content.ReadAsStringAsync());
+        host.Mail.FailDelivery = false; Assert.NotEmpty(await Begin(host, "mail@example.test"));
+    }
+
+    [Theory]
+    [InlineData(true, "127.0.0.1", null, 200)]
+    [InlineData(true, "::1", null, 200)]
+    [InlineData(true, "::ffff:127.0.0.1", "::ffff:127.0.0.1", 200)]
+    [InlineData(false, "127.0.0.1", null, 404)]
+    [InlineData(true, "192.168.1.22", null, 403)]
+    [InlineData(true, "127.0.0.1", "192.168.1.22", 403)]
+    public async Task Development_bypass_requires_explicit_setting_and_real_loopback(bool enabled, string peer, string? proxyPeer, int expected) {
+        await using var host = await CreateApp(new() { ["AllowedHosts"] = "localhost", ["Cors:Origins:0"] = "http://localhost:5173", ["Security:PublicAppOrigin"] = "http://localhost:5173", ["Security:DevelopmentAutoLogin:Enabled"] = enabled.ToString() }, peer, "Development");
+        await CreateUser(host.App, "admin@yarntrade.local", "Administrator");
+        if (proxyPeer is not null) host.Client.DefaultRequestHeaders.Add("X-YarnTrade-Development-Client", proxyPeer);
+        var response = await host.Client.GetAsync("/api/auth/development-session"); Assert.Equal(expected, (int)response.StatusCode); Assert.Empty(host.Mail.Messages);
+        if (expected == 200) {
+            var tokens = (await response.Content.ReadFromJsonAsync<TokenResponse>())!; host.Client.DefaultRequestHeaders.Authorization = new("Bearer", tokens.AccessToken);
+            var access = await host.Client.GetFromJsonAsync<JsonElement>("/api/user-access"); Assert.Contains("Administrator", access.GetProperty("roles").EnumerateArray().Select(x => x.GetString()));
+            host.Client.DefaultRequestHeaders.Add("X-YarnTrade-Development-Client", "192.168.1.22");
+            Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync("/api/user-access")).StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task Production_has_no_development_session_and_development_rejects_forwarded_requests() {
+        await using (var production = await CreateApp()) Assert.Equal(HttpStatusCode.NotFound, (await production.Client.GetAsync("/api/auth/development-session")).StatusCode);
+        await using var host = await CreateApp(new() { ["AllowedHosts"] = "localhost", ["Cors:Origins:0"] = "http://localhost:5173", ["Security:PublicAppOrigin"] = "http://localhost:5173", ["Security:DevelopmentAutoLogin:Enabled"] = "true" }, environment: "Development");
+        await CreateUser(host.App, "admin@yarntrade.local", "Administrator");
+        host.Client.DefaultRequestHeaders.Add("X-Forwarded-For", "127.0.0.1");
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync("/api/auth/development-session")).StatusCode);
+    }
+
     private static string Cookies(HttpResponseMessage response) => string.Join("; ", response.Headers.GetValues("Set-Cookie").Select(cookie => cookie.Split(';')[0]));
     private static IConfiguration Configuration(Dictionary<string, string?>? changes = null)
     {
@@ -324,15 +559,19 @@ public sealed class SecurityBaselineTests
         {
             ["AllowedHosts"] = "api.example.test", ["Cors:Origins:0"] = "https://app.example.test",
             ["ConnectionStrings:DefaultConnection"] = "Server=db.example.test;Database=SecuritySmoke;Encrypt=True;TrustServerCertificate=False",
-            ["Database:AutoMigrate"] = "false", ["Seed:Enabled"] = "false"
+            ["Database:AutoMigrate"] = "false", ["Seed:Enabled"] = "false",
+            ["Security:PublicAppOrigin"] = "https://app.example.test",
+            ["AuthenticationEmail:Host"] = "smtp.example.test", ["AuthenticationEmail:Port"] = "587",
+            ["AuthenticationEmail:UserName"] = "test-only", ["AuthenticationEmail:Password"] = "fake-test-only",
+            ["AuthenticationEmail:FromAddress"] = "auth@example.test", ["AuthenticationEmail:EnableSsl"] = "true"
         };
         if (changes is not null) foreach (var change in changes) values[change.Key] = change.Value;
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
     }
 
-    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1")
+    private static async Task<TestApp> CreateApp(Dictionary<string, string?>? changes = null, string remoteIp = "127.0.0.1", string environment = "Production")
     {
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Production" });
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddConfiguration(Configuration(changes));
         builder.WebHost.UseTestServer();
@@ -343,8 +582,11 @@ public sealed class SecurityBaselineTests
         builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
         var databaseName = Guid.NewGuid().ToString();
         builder.Services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(databaseName));
-        builder.AddInternetSecurity().AddEntityFrameworkStores<AppDbContext>().AddTokenProvider<TestSecondFactor>("SmokeSecondFactor");
-        builder.Services.Configure<IdentityOptions>(options => options.Tokens.AuthenticatorTokenProvider = "SmokeSecondFactor");
+        builder.AddInternetSecurity().AddEntityFrameworkStores<AppDbContext>();
+        var mail = new TestEmailSender(); var clock = new TestClock();
+        builder.Services.AddSingleton<IAuthenticationEmailSender>(mail);
+        builder.Services.AddSingleton<TimeProvider>(clock);
+        builder.Services.AddScoped<PermissionService>();
         builder.Services.AddAuthorization();
         builder.Services.AddControllers().AddApplicationPart(typeof(PresenceController).Assembly);
         var app = builder.Build();
@@ -363,7 +605,6 @@ public sealed class SecurityBaselineTests
         app.UseMiddleware<AuthenticationSessionMiddleware>();
         app.UseAuthorization();
         var authentication = app.MapGroup("/api/auth").RequireRateLimiting(InternetSecurity.Authentication);
-        authentication.MapIdentityApi<AppUser>();
         authentication.MapAuthenticationSecurity();
         app.MapControllers();
         app.MapGet("/test/error", IResult () => throw new InvalidOperationException("sensitive-test-marker"));
@@ -374,9 +615,14 @@ public sealed class SecurityBaselineTests
         app.MapPost("/test/reports", () => Results.Ok()).RequireAuthorization().RequireRateLimiting(InternetSecurity.Reports);
         app.MapPost("/test/backups", () => Results.Ok()).RequireAuthorization().RequireRateLimiting(InternetSecurity.Backups);
         await app.StartAsync();
+        using (var scope = app.Services.CreateScope()) {
+            var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+            foreach (var name in new[] { "Administrator", "Manager", "Customer", "Partner" })
+                Assert.True((await roles.CreateAsync(new IdentityRole<Guid>(name))).Succeeded);
+        }
         var client = app.GetTestClient();
-        client.BaseAddress = new Uri("https://api.example.test");
-        return new TestApp(app, client, logs);
+        client.BaseAddress = new Uri(environment == "Development" ? "http://localhost" : "https://api.example.test");
+        return new TestApp(app, client, logs, mail, clock);
     }
 
     private static async Task CreateUser(WebApplication app, string email, string? role = null)
@@ -393,25 +639,35 @@ public sealed class SecurityBaselineTests
         }
     }
 
-    private static async Task<TokenResponse> Login(HttpClient client, string email, string? twoFactorCode = null)
-    {
-        var response = await client.PostAsJsonAsync("/api/auth/login", new { email, password = Password, twoFactorCode });
+    private static async Task<TokenResponse> Login(TestApp host, string email) {
+        host.Client.DefaultRequestHeaders.Authorization = null;
+        var response = await host.Client.PostAsJsonAsync("/api/auth/login", new { email, password = Password });
+        if (response.StatusCode == HttpStatusCode.Accepted) {
+            var challenge = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("challenge").GetString();
+            response = await host.Client.PostAsJsonAsync("/api/auth/verify-email", new { challenge, code = host.Mail.Code });
+        }
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<TokenResponse>())!;
     }
-
     private sealed record TokenResponse(string AccessToken, string RefreshToken, int ExpiresIn);
-    private sealed record TestApp(WebApplication App, HttpClient Client, SafeLogCapture Logs) : IAsyncDisposable
-    {
+    private sealed record TestApp(WebApplication App, HttpClient Client, SafeLogCapture Logs, TestEmailSender Mail, TestClock Clock) : IAsyncDisposable {
         public async ValueTask DisposeAsync() { Client.Dispose(); await App.DisposeAsync(); }
     }
-
-    // Test-only provider exercises Identity's second-factor contract without selecting a production method.
-    public sealed class TestSecondFactor : IUserTwoFactorTokenProvider<AppUser>
-    {
-        public Task<bool> CanGenerateTwoFactorTokenAsync(UserManager<AppUser> manager, AppUser user) => Task.FromResult(true);
-        public Task<string> GenerateAsync(string purpose, UserManager<AppUser> manager, AppUser user) => Task.FromResult("test-second-factor");
-        public Task<bool> ValidateAsync(string purpose, string token, UserManager<AppUser> manager, AppUser user) => Task.FromResult(token == "test-second-factor");
+    private sealed class TestClock : TimeProvider {
+        private DateTimeOffset now = DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow() => now;
+        public void Advance(TimeSpan duration) => now += duration;
+    }
+    private sealed class TestEmailSender : IAuthenticationEmailSender {
+        public bool IsAvailable { get; set; } = true;
+        public bool FailDelivery { get; set; }
+        public List<(string Email, string Subject, string Body)> Messages { get; } = [];
+        public string Code => Messages.Last(x => x.Subject.Contains("verification code")).Body.Split(':')[1].Trim().Split('\n')[0];
+        public string LinkToken => Uri.UnescapeDataString(Messages.Last().Body.Split('=', 2)[1]);
+        public Task SendAsync(string registeredEmail, string subject, string text, CancellationToken ct) {
+            if (!IsAvailable || FailDelivery) throw new AuthenticationEmailUnavailableException();
+            Messages.Add((registeredEmail, subject, text)); return Task.CompletedTask;
+        }
     }
 
     private sealed class SafeLogCapture : ILoggerProvider

@@ -55,7 +55,6 @@ app.UseMiddleware<UserPresenceMiddleware>();
 app.UseMiddleware<PermissionGuardMiddleware>();
 app.UseAuthorization();
 var authentication = app.MapGroup("/api/auth").RequireRateLimiting(InternetSecurity.Authentication);
-authentication.MapIdentityApi<AppUser>();
 authentication.MapAuthenticationSecurity();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", utc = DateTime.UtcNow })).AllowAnonymous();
