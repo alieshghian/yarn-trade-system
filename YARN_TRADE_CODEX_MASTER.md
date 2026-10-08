@@ -49,6 +49,20 @@ Do not mark a work package complete until:
 ### 0.3 Decision discipline
 Where this document says **OWNER DECISION REQUIRED**, Codex must stop before implementing the affected business rule. It may prepare analysis/migration options, but must not invent the business answer.
 
+### 0.4 Git save — HARD / NON-NEGOTIABLE PROJECT RULE
+For every completed and accepted task, Git save is a mandatory final step. Never consider the task finished until the finalized, in-scope changes are safely recorded in Git.
+
+Required final sequence:
+1. Check `git status`.
+2. Ensure only files related to the completed task are included.
+3. Commit the finalized work with a clear commit message.
+4. Push the commit to the appropriate remote branch.
+5. Verify that the push succeeded.
+6. Confirm whether the working tree is clean.
+7. Report the branch, commit SHA, commit message, push result, and working-tree status.
+
+Never leave accepted/final work only in the local working tree. Do not include unrelated changes in the commit, and do not merge to `master` unless explicitly instructed. If commit or push cannot be completed, report the reason clearly. This rule applies permanently to all future work packages.
+
 ---
 
 # 1. Product goal and boundaries
