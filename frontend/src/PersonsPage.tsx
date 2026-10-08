@@ -9,7 +9,7 @@ export type Person = {
   rowVersion?: string,
   id: string, personCode: string, accountingCode?: string, personType: 'Individual' | 'Company', firstName?: string,
   lastName?: string, companyName?: string, displayName: string, jobId?: string, job?: Parameter, titleId?: string,
-  title?: Parameter, nationalityId?: string, nationality?: Parameter, preferredLanguage: 'fa' | 'en', creditLimitIRR: number,
+  title?: Parameter, nationalityId?: string, nationality?: Parameter, preferredLanguage: 'fa' | 'en' | 'zh', creditLimitIRR: number,
   phone?: string, mobile?: string, address?: string, notes?: string, isActive: boolean
 }
 type PersonPage = { items: Person[], total: number }
@@ -357,7 +357,15 @@ export default function PersonsPage({ language, demoMode = false }: { language: 
 
   const disabled = mode === 'view'
   const set = <K extends keyof PersonDraft>(key: K, value: PersonDraft[K]) => {
-    setDraft(current => ({ ...current, [key]: value }))
+    setDraft(current => {
+      const next = { ...current, [key]: value }
+      if (key === 'nationalityId') {
+        const code = nationalities.find(x => x.id === value)?.code.trim().toUpperCase()
+        if (code === 'IR') next.preferredLanguage = 'fa'
+        else if (code === 'CN') next.preferredLanguage = 'zh'
+      }
+      return next
+    })
     if (fieldErrors[key]) setFieldErrors(current => ({ ...current, [key]: '' }))
   }
   const parameterLabel = (x?: Parameter) => x ? (fa ? x.nameFa : x.nameEn) : '—'
@@ -402,7 +410,7 @@ export default function PersonsPage({ language, demoMode = false }: { language: 
         <Field label={fa ? 'نام خانوادگی / نام شرکت یا اداره *' : 'Last name / company or office name *'} wide error={fieldErrors.lastName}><input data-field="lastName" aria-invalid={Boolean(fieldErrors.lastName)} disabled={disabled} value={draft.lastName} onChange={e => set('lastName', e.target.value)} /></Field>
         <Field label={fa ? 'نقش یا شغل' : 'Job'}><select data-field="jobId" disabled={disabled} value={draft.jobId} onChange={e => set('jobId', e.target.value)}><option value="">—</option>{jobs.map(x => <option key={x.id} value={x.id}>{parameterLabel(x)}</option>)}</select></Field>
         <Field label={fa ? 'ملیت' : 'Nationality'}><select data-field="nationalityId" disabled={disabled} value={draft.nationalityId} onChange={e => set('nationalityId', e.target.value)}><option value="">—</option>{nationalities.map(x => <option key={x.id} value={x.id}>{parameterLabel(x)}</option>)}</select></Field>
-        <Field label={fa ? 'زبان' : 'Language'}><select data-field="preferredLanguage" disabled={disabled} value={draft.preferredLanguage} onChange={e => set('preferredLanguage', e.target.value as 'fa' | 'en')}><option value="fa">فارسی</option><option value="en">English</option></select></Field>
+        <Field label={fa ? 'زبان' : 'Language'}><select data-field="preferredLanguage" disabled={disabled} value={draft.preferredLanguage} onChange={e => set('preferredLanguage', e.target.value as Person['preferredLanguage'])}><option value="fa">فارسی</option><option value="en">English</option><option value="zh">中文</option></select></Field>
         <Field label={fa ? 'مبلغ اعتبار (ریال)' : 'Credit limit (IRR)'} error={fieldErrors.creditLimitIRR}><input data-field="creditLimitIRR" aria-invalid={Boolean(fieldErrors.creditLimitIRR)} className="ltr-input" disabled={disabled} min={0} type="number" value={draft.creditLimitIRR} onChange={e => set('creditLimitIRR', Number(e.target.value))} /></Field>
         <Field label={fa ? 'تلفن' : 'Phone'}><input data-field="phone" className="ltr-input" disabled={disabled} value={draft.phone} onChange={e => set('phone', e.target.value)} /></Field>
         <Field label={fa ? 'موبایل' : 'Mobile'}><input data-field="mobile" className="ltr-input" disabled={disabled} value={draft.mobile} onChange={e => set('mobile', e.target.value)} /></Field>

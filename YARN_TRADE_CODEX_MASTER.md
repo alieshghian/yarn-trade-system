@@ -1282,6 +1282,11 @@ A work package is DONE only when:
 
 # 15. Change Log
 
+## 2026-10-08 — Persons nationality and default language (Step 5)
+- Changing nationality to IR (Iranian) sets the editable language to `fa`; CN (Chinese) sets it to `zh`. English remains a manual alternative; all nationality options and the Persian/English language options remain available. Other nationality changes preserve the current language. Loading an existing record preserves its stored language, including an existing Chinese person with English selected.
+- Persons API accepts and persists `fa`, `en`, and `zh` through the existing preferred-language string and create/update/read paths. No schema change or historical rewrite is required.
+- Verification: four focused InMemory controller tests pass for create/reopen and manual English/Chinese updates; frontend TypeScript check passes. The real form check confirms CN→Chinese, manual English, IR→Persian, and Other preserving manual English. No person record was saved by the UI check; the API was rebuilt/restarted and its health endpoint returned HTTP 200.
+
 ## 2026-10-06 — A7 attachment hardening
 - Implemented only `a7-attachment-hardening` from approved merged A6R master `add990b811b5c9216b9e5c5f3169b0a6fd03dffa`. Audited every runtime user-file surface, including separately deferred privileged backup/restore. Added one shared bounded local file/OOXML validator, quarantine/SHA-256/canonical storage, explicit optional scanner seam and request-owned cleanup, reused by generic uploads and both XLSX imports.
 - Supported parents are existing PurchaseOrder/PurchaseInvoice under existing commerce view/upload permissions; no guessed ownership or new finance/check workflows. Direct IDs enforce parent checks. Safe metadata DTO, verified same-handle downloads, encoded canonical download names/headers and authenticated upload/download/delete audits close the current bypasses. Commerce import retains its original A4 atomic order save and cleans files on a genuine SQL conflict. One existing frontend download helper is updated; no UI redesign.

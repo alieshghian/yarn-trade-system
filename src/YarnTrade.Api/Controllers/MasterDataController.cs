@@ -154,7 +154,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         input.PersonCode = input.PersonCode.Trim();
         if (string.IsNullOrWhiteSpace(input.PersonCode) || input.PersonCode.Length > 30) return "کد شخص الزامی و حداکثر ۳۰ کاراکتر است.";
         if (input.CreditLimitIRR < 0) return "مبلغ اعتبار نمی‌تواند منفی باشد.";
-        if (input.PreferredLanguage is not ("fa" or "en")) return "زبان باید فارسی یا انگلیسی باشد.";
+        if (input.PreferredLanguage is not ("fa" or "en" or "zh")) return "زبان باید فارسی، انگلیسی یا چینی باشد.";
         if (string.IsNullOrWhiteSpace(input.LastName)) return "نام خانوادگی یا نام شرکت/اداره الزامی است.";
         if (await db.Persons.AnyAsync(x => x.PersonCode == input.PersonCode && x.Id != currentId, ct)) return "کد شخص تکراری است.";
         if (!await IsParameterAsync(input.JobId, ParameterType.Job, ct)) return "شغل انتخاب‌شده معتبر نیست.";
