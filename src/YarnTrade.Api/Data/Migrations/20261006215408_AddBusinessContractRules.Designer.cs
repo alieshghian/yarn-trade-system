@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using YarnTrade.Api.Data;
 
@@ -11,9 +12,11 @@ using YarnTrade.Api.Data;
 namespace YarnTrade.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006215408_AddBusinessContractRules")]
+    partial class AddBusinessContractRules
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -504,16 +507,10 @@ namespace YarnTrade.Api.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<Guid?>("PartnerInvestorId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid?>("PartnerPersonId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("PreviousVersionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("PrimaryInvestorId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("ReceivablesFinancingAllowed")
@@ -545,13 +542,9 @@ namespace YarnTrade.Api.Data.Migrations
 
                     b.HasIndex("EffectiveFrom");
 
-                    b.HasIndex("PartnerInvestorId");
-
                     b.HasIndex("PartnerPersonId");
 
                     b.HasIndex("PreviousVersionId");
-
-                    b.HasIndex("PrimaryInvestorId");
 
                     b.HasIndex("VersionNumber")
                         .IsUnique();
@@ -923,83 +916,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.ToTable("InventoryMovements");
                 });
 
-            modelBuilder.Entity("YarnTrade.Api.Domain.Investor", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("InvestorCode")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<string>("LegalName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int>("PersonType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<DateTime?>("UpdatedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvestorCode")
-                        .IsUnique();
-
-                    b.ToTable("Investors");
-                });
-
-            modelBuilder.Entity("YarnTrade.Api.Domain.InvestorBalance", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(20, 6)
-                        .HasColumnType("decimal(20,6)");
-
-                    b.Property<int>("Currency")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("InvestorId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("InvestorId", "Currency", "Kind")
-                        .IsUnique();
-
-                    b.ToTable("InvestorBalances", t =>
-                        {
-                            t.HasCheckConstraint("CK_InvestorBalances_Currency", "[Currency] IN (0, 1)");
-                        });
-                });
-
             modelBuilder.Entity("YarnTrade.Api.Domain.MaintenanceNotice", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1203,9 +1119,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
-                    b.Property<int?>("TitlePersonType")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1336,10 +1249,9 @@ namespace YarnTrade.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 7, 22, 6, 47, 29, 271, DateTimeKind.Utc).AddTicks(3796),
                             IsActive = true,
                             NameEn = "Mr.",
-                            NameFa = "آقای",
+                            NameFa = "آقا",
                             ParameterType = 1,
-                            SortOrder = 10,
-                            TitlePersonType = 0
+                            SortOrder = 10
                         },
                         new
                         {
@@ -1350,8 +1262,7 @@ namespace YarnTrade.Api.Data.Migrations
                             NameEn = "Ms.",
                             NameFa = "خانم",
                             ParameterType = 1,
-                            SortOrder = 20,
-                            TitlePersonType = 0
+                            SortOrder = 20
                         },
                         new
                         {
@@ -1362,8 +1273,7 @@ namespace YarnTrade.Api.Data.Migrations
                             NameEn = "Office",
                             NameFa = "اداره",
                             ParameterType = 1,
-                            SortOrder = 50,
-                            TitlePersonType = 1
+                            SortOrder = 30
                         },
                         new
                         {
@@ -1374,32 +1284,7 @@ namespace YarnTrade.Api.Data.Migrations
                             NameEn = "Company",
                             NameFa = "شرکت",
                             ParameterType = 1,
-                            SortOrder = 30,
-                            TitlePersonType = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("52000000-0000-0000-0000-000000000005"),
-                            Code = "INSTITUTE",
-                            CreatedAtUtc = new DateTime(2026, 7, 27, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            NameEn = "Institute",
-                            NameFa = "مؤسسه",
-                            ParameterType = 1,
-                            SortOrder = 40,
-                            TitlePersonType = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("52000000-0000-0000-0000-000000000006"),
-                            Code = "ORGANIZATION",
-                            CreatedAtUtc = new DateTime(2026, 7, 27, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            NameEn = "Organization",
-                            NameFa = "سازمان",
-                            ParameterType = 1,
-                            SortOrder = 60,
-                            TitlePersonType = 1
+                            SortOrder = 40
                         },
                         new
                         {
@@ -1712,12 +1597,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("AddressesJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("CapitalInvestorId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("CompanyName")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -1728,10 +1607,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<decimal>("CreditLimitIRR")
                         .HasPrecision(20, 2)
                         .HasColumnType("decimal(20,2)");
-
-                    b.Property<string>("DirectorName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()
@@ -1755,9 +1630,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<string>("Mobile")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("MobileNumbersJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<Guid?>("NationalityId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1776,9 +1648,6 @@ namespace YarnTrade.Api.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Phone")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PhoneNumbersJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PreferredLanguage")
@@ -1803,8 +1672,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.HasIndex("AccountingCode")
                         .IsUnique()
                         .HasFilter("[AccountingCode] IS NOT NULL");
-
-                    b.HasIndex("CapitalInvestorId");
 
                     b.HasIndex("DisplayName");
 
@@ -3166,11 +3033,6 @@ namespace YarnTrade.Api.Data.Migrations
 
             modelBuilder.Entity("YarnTrade.Api.Domain.BusinessContractVersion", b =>
                 {
-                    b.HasOne("YarnTrade.Api.Domain.Investor", "PartnerInvestor")
-                        .WithMany()
-                        .HasForeignKey("PartnerInvestorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("YarnTrade.Api.Domain.Person", "PartnerPerson")
                         .WithMany()
                         .HasForeignKey("PartnerPersonId")
@@ -3181,29 +3043,9 @@ namespace YarnTrade.Api.Data.Migrations
                         .HasForeignKey("PreviousVersionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("YarnTrade.Api.Domain.Investor", "PrimaryInvestor")
-                        .WithMany()
-                        .HasForeignKey("PrimaryInvestorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("PartnerInvestor");
-
                     b.Navigation("PartnerPerson");
 
                     b.Navigation("PreviousVersion");
-
-                    b.Navigation("PrimaryInvestor");
-                });
-
-            modelBuilder.Entity("YarnTrade.Api.Domain.InvestorBalance", b =>
-                {
-                    b.HasOne("YarnTrade.Api.Domain.Investor", "Investor")
-                        .WithMany()
-                        .HasForeignKey("InvestorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Investor");
                 });
 
             modelBuilder.Entity("YarnTrade.Api.Domain.MoneyDocument", b =>
@@ -3242,11 +3084,6 @@ namespace YarnTrade.Api.Data.Migrations
 
             modelBuilder.Entity("YarnTrade.Api.Domain.Person", b =>
                 {
-                    b.HasOne("YarnTrade.Api.Domain.Investor", "CapitalInvestor")
-                        .WithMany()
-                        .HasForeignKey("CapitalInvestorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("YarnTrade.Api.Domain.ParameterValue", "Job")
                         .WithMany()
                         .HasForeignKey("JobId")
@@ -3261,8 +3098,6 @@ namespace YarnTrade.Api.Data.Migrations
                         .WithMany()
                         .HasForeignKey("TitleId")
                         .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("CapitalInvestor");
 
                     b.Navigation("Job");
 

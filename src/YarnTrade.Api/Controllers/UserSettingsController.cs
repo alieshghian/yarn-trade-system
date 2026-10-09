@@ -65,7 +65,7 @@ public static class UserSettingsRules
 {
     public static string? Validate(UserSettingsInput input)
     {
-        if (input.PreferredLanguage is not ("fa" or "en")) return "زبان انتخاب‌شده معتبر نیست.";
+        if (input.PreferredLanguage is not ("fa" or "en" or "zh")) return "زبان انتخاب‌شده معتبر نیست.";
         if (input.SessionTimeoutMinutes is < 1 or > 480) return "زمان نشست باید بین ۱ تا ۴۸۰ دقیقه باشد.";
         if (input.Theme is not ("system" or "light" or "dark" or "ocean")) return "تم انتخاب‌شده معتبر نیست.";
         if (input.FontFamily is not ("vazirmatn" or "tahoma" or "segoe" or "arial" or "naskh")) return "فونت انتخاب‌شده معتبر نیست.";

@@ -35,8 +35,8 @@ public sealed partial class SecurityBaselineTests
         await using var host = await CreateApp();
         var endpoints = ProductionEndpoints(host);
         PermissionAuthorization.ValidateEndpointDecisions(endpoints);
-        Assert.Equal(102, endpoints.Count);
-        Assert.Equal(83, endpoints.Count(x => x.Metadata.GetOrderedMetadata<RequirePermissionAttribute>().Count > 0));
+        Assert.Equal(109, endpoints.Count);
+        Assert.Equal(90, endpoints.Count(x => x.Metadata.GetOrderedMetadata<RequirePermissionAttribute>().Count > 0));
         Assert.Equal(9, endpoints.Count(x => x.Metadata.GetMetadata<AuthenticatedOnlyAttribute>() is not null));
         Assert.Equal(10, endpoints.Count(x => x.Metadata.GetMetadata<IAllowAnonymous>() is not null));
         Assert.Null(typeof(PermissionCatalog).Assembly.GetType("YarnTrade.Api.Security.PermissionGuardMiddleware"));
@@ -223,11 +223,11 @@ public sealed partial class SecurityBaselineTests
             Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync(path)).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await host.Client.GetAsync("/api/presence/notice")).StatusCode);
         var otherId = await UserId(host, "other@example.test");
-        var update = await host.Client.PutAsJsonAsync("/api/user-settings", new { userId = otherId, preferredLanguage = "en", sessionTimeoutMinutes = 30, theme = "system", compactMode = false, fontFamily = "vazirmatn", fontSize = "normal" });
+        var update = await host.Client.PutAsJsonAsync("/api/user-settings", new { userId = otherId, preferredLanguage = "zh", sessionTimeoutMinutes = 30, theme = "system", compactMode = false, fontFamily = "vazirmatn", fontSize = "normal" });
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         using var dbScope = host.App.Services.CreateScope(); var db = dbScope.ServiceProvider.GetRequiredService<AppDbContext>();
         Assert.Equal("fa", (await db.Users.FindAsync(otherId))!.PreferredLanguage);
-        Assert.Equal("en", (await db.Users.FindAsync(await UserId(host, "own@example.test")))!.PreferredLanguage);
+        Assert.Equal("zh", (await db.Users.FindAsync(await UserId(host, "own@example.test")))!.PreferredLanguage);
     }
 
     [Fact]

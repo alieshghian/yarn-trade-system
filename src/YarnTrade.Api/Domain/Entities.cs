@@ -17,6 +17,8 @@ public enum PartnerResultType { CashProfit, CashLoss, CreditIncrease, CreditAdju
 public enum ParameterType { Job, Title, Nationality }
 public enum PurchaseOrderStatus { Draft, SubmittedToCommerce, InCommerce, Completed, Cancelled }
 public enum PurchaseOrderPriority { Normal, Urgent }
+public enum BusinessStructure { SoleOwnership, Partnership }
+public enum CreditCalculationMethod { MonthlyPercentage, NegotiatedAmount, TermWeightedDueDate }
 
 public abstract class Entity { public Guid Id { get; set; } = Guid.NewGuid(); }
 public abstract class AuditedEntity : Entity
@@ -87,15 +89,22 @@ public sealed class UserPermission : Entity
 
 public sealed class Person : AuditedEntity
 {
+    // Investor master reservation (same code, inactive/no trade roles), or a separate commercial child.
+    public Guid? CapitalInvestorId { get; set; }
+    public Investor? CapitalInvestor { get; set; }
     public required string PersonCode { get; set; }
     public PersonType PersonType { get; set; }
     public string? CompanyName { get; set; }
     public string? FirstName { get; set; }
     public string? LastName { get; set; }
+    public string? DirectorName { get; set; }
     public required string DisplayName { get; set; }
     public string? Phone { get; set; }
+    public string? PhoneNumbersJson { get; set; }
     public string? Mobile { get; set; }
+    public string? MobileNumbersJson { get; set; }
     public string? Address { get; set; }
+    public string? AddressesJson { get; set; }
     public string? AccountingCode { get; set; }
     public Guid? JobId { get; set; }
     public ParameterValue? Job { get; set; }
@@ -114,6 +123,7 @@ public sealed class Person : AuditedEntity
 public sealed class ParameterValue : AuditedEntity
 {
     public ParameterType ParameterType { get; set; }
+    public PersonType? TitlePersonType { get; set; }
     public required string Code { get; set; }
     public required string NameFa { get; set; }
     public required string NameEn { get; set; }
@@ -193,6 +203,7 @@ public sealed class ExchangeRate : AuditedEntity
 
 public sealed class PurchaseInvoice : AuditedEntity
 {
+    public Guid? BusinessContractVersionId { get; set; }
     public Guid? PurchaseOrderId { get; set; }
     public required string InternalNumber { get; set; }
     public string? ExternalInvoiceNumber { get; set; }
@@ -391,6 +402,7 @@ public sealed class CreditRateRule : AuditedEntity
 
 public sealed class Sale : AuditedEntity
 {
+    public Guid? BusinessContractVersionId { get; set; }
     public required string SaleNumber { get; set; }
     public DateOnly SaleDate { get; set; }
     public Guid CustomerId { get; set; }
@@ -469,6 +481,7 @@ public sealed class SaleCostAllocation : Entity
 
 public sealed class MoneyDocument : AuditedEntity
 {
+    public Guid? BusinessContractVersionId { get; set; }
     public required string DocumentNumber { get; set; }
     public MoneyDocumentType DocumentType { get; set; }
     public DateOnly DocumentDate { get; set; }
@@ -564,6 +577,7 @@ public sealed class PartnerLedgerEntry : Entity
 
 public sealed class PartnerSettlement : AuditedEntity
 {
+    public Guid? BusinessContractVersionId { get; set; }
     public required string SettlementNumber { get; set; }
     public Guid PartnerId { get; set; }
     public DateOnly SettlementDate { get; set; }
@@ -634,4 +648,67 @@ public sealed class SystemSetting : Entity
     public required string Key { get; set; }
     public required string Value { get; set; }
     public DateOnly ValidFrom { get; set; }
+}
+
+// Capital identity is deliberately independent of the commercial Person directory.
+public sealed class Investor : AuditedEntity
+{
+    public required string InvestorCode { get; set; }
+    public PersonType PersonType { get; set; }
+    public required string LegalName { get; set; }
+    public string? Phone { get; set; }
+    public string? Address { get; set; }
+}
+
+// Storage boundary only: no capital posting, transfer or automatic commercial netting workflow.
+public enum InvestorBalanceKind { Capital, ProfitEntitlement, CostReimbursement, OtherInvestment }
+public sealed class InvestorBalance : Entity
+{
+    public Guid InvestorId { get; set; }
+    public Investor Investor { get; set; } = null!;
+    public Currency Currency { get; set; }
+    public InvestorBalanceKind Kind { get; set; }
+    public decimal Amount { get; set; }
+}
+
+public sealed class BusinessContractVersion : AuditedEntity
+{
+    // Nullable only for historical versions whose identity must not be invented.
+    public Guid? PrimaryInvestorId { get; set; }
+    public Investor? PrimaryInvestor { get; set; }
+    public Guid? PartnerInvestorId { get; set; }
+    public Investor? PartnerInvestor { get; set; }
+    public int VersionNumber { get; set; }
+    public Guid? PreviousVersionId { get; set; }
+    public BusinessContractVersion? PreviousVersion { get; set; }
+    public required string ContractName { get; set; }
+    public DateOnly EffectiveFrom { get; set; }
+    public Currency BaseCurrency { get; set; } = Currency.USD;
+    public BusinessStructure BusinessStructure { get; set; }
+    public Guid? PartnerPersonId { get; set; }
+    public Person? PartnerPerson { get; set; }
+    public decimal OwnershipParty1Percent { get; set; }
+    public decimal OwnershipParty2Percent { get; set; }
+    public decimal NormalSaleProfitParty1Percent { get; set; }
+    public decimal NormalSaleProfitParty2Percent { get; set; }
+    public decimal CreditSaleProfitParty1Percent { get; set; }
+    public decimal CreditSaleProfitParty2Percent { get; set; }
+    public decimal LossParty1Percent { get; set; }
+    public decimal LossParty2Percent { get; set; }
+    public required string CostResponsibilitiesJson { get; set; }
+    public bool CashSalesAllowed { get; set; }
+    public bool CreditSalesAllowed { get; set; }
+    public CreditCalculationMethod? CreditCalculationMethod { get; set; }
+    public decimal? DefaultCreditRatePercent { get; set; }
+    public int? CheckCollectionGracePeriodDays { get; set; }
+    public string? ResponsiblePartyAfterGracePeriod { get; set; }
+    public bool ReceivablesFinancingAllowed { get; set; }
+    public string? FinancingCostResponsibleParty { get; set; }
+    public string? FinancedCheckPrincipalRiskParty { get; set; }
+    public required string PartnerEntitlementCreatedWhen { get; set; }
+    public required string CashSaleClaimPayableWhen { get; set; }
+    public required string CreditSaleClaimPayableWhen { get; set; }
+    public bool UseActualTransactionFxRate { get; set; }
+    public bool SeparateFxPurchaseAndPartnerRemittance { get; set; }
+    public bool CarryPartnerOverpaymentToCurrentAccount { get; set; }
 }

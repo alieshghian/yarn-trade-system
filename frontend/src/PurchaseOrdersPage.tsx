@@ -218,12 +218,8 @@ export default function PurchaseOrdersPage({ language, demoMode = false }: { lan
   }, [mode, save, cancel, beginNew, beginEdit, remove, move, filterMenu])
 
   function formKeyDown(e: React.KeyboardEvent) {
-    if (mode === 'view' || e.altKey || e.ctrlKey || e.metaKey || !['Enter', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
-    const controls = Array.from(formRef.current?.querySelectorAll<HTMLElement>('input:not(:disabled),select:not(:disabled),textarea:not(:disabled),button.line-control:not(:disabled)') ?? [])
-    const target = e.target as HTMLElement, index = controls.indexOf(target); if (index < 0) return
-    if (target instanceof HTMLSelectElement && e.key !== 'Enter') return
-    if (e.key === 'Enter' && !validateCurrentControl(target)) return
-    e.preventDefault(); const next = e.key === 'ArrowUp' ? Math.max(0, index - 1) : Math.min(controls.length - 1, index + 1); controls[next]?.focus()
+    if (mode === 'view' || e.altKey || e.ctrlKey || e.metaKey || e.key !== 'Enter') return
+    if (!validateCurrentControl(e.target as HTMLElement)) e.preventDefault()
   }
   function validateCurrentControl(target: HTMLElement) {
     const field = target.dataset.field

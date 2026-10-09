@@ -10,6 +10,43 @@ namespace YarnTrade.Tests;
 public sealed class PersonsLanguageTests
 {
     [Theory]
+    [InlineData("IR", null, "fa")]
+    [InlineData("CN", null, "zh")]
+    [InlineData("CN", "en", "en")]
+    [InlineData("IR", "zh", "zh")]
+    public async Task Recipient_report_default_and_override_do_not_change_person_or_user_language(string code, string? chosen, string expected)
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        await using var db = new AppDbContext(options);
+        var nationality = Nationality(code);
+        var person = new Person { PersonCode = "RECIPIENT", LastName = "Recipient", DisplayName = "Recipient", Nationality = nationality, PreferredLanguage = "en" };
+        var user = new AppUser { UserName = "editor", Email = "editor@example.test", PreferredLanguage = "fa" };
+        db.AddRange(person, user);
+        await db.SaveChangesAsync();
+        var reports = new ReportsController(db);
+        foreach (var result in new[] {
+            await reports.YarnTransactions(null, null, person.Id, null, null, default, chosen),
+            await reports.PartnerLedger(person.Id, null, null, default, chosen)
+        }) Assert.Equal(expected, result.GetType().GetProperty("reportLanguage")!.GetValue(result));
+        Assert.Equal("en", (await db.Persons.AsNoTracking().SingleAsync()).PreferredLanguage);
+        Assert.Equal("fa", (await db.Users.AsNoTracking().SingleAsync()).PreferredLanguage);
+    }
+
+    [Fact]
+    public async Task Changing_nationality_preserves_the_explicit_person_language()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        await using var db = new AppDbContext(options);
+        var iranian = Nationality("IR"); var chinese = Nationality("CN");
+        var person = new Person { PersonCode = "LANG-001", DisplayName = "Language test", LastName = "Language test", Nationality = iranian, PreferredLanguage = "en", RowVersion = new byte[8] };
+        db.AddRange(iranian, chinese, person);
+        await db.SaveChangesAsync();
+        var result = await Controller(db).UpdatePerson(person.Id, Input(chinese.Id, "en"), Convert.ToBase64String(person.RowVersion), default);
+        Assert.Equal("en", Assert.IsType<PersonView>(Assert.IsType<OkObjectResult>(result.Result).Value).PreferredLanguage);
+        Assert.Equal(chinese.Id, (await db.Persons.AsNoTracking().SingleAsync()).NationalityId);
+    }
+
+    [Theory]
     [InlineData("IR", "fa")]
     [InlineData("CN", "zh")]
     [InlineData("CN", "en")]

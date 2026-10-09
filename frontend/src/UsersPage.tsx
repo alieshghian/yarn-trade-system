@@ -1,4 +1,4 @@
-import { KeyboardEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiRequest, currentUserKey } from './api'
 import type { Language } from './i18n'
 
@@ -115,12 +115,6 @@ export default function UsersPage({ language, administrator }: { language: Langu
     try { await apiRequest(`/api/users/${form.id}/${action}`, { method: 'POST' }); setError(''); setMessage(fa ? 'عملیات امنیتی انجام شد.' : 'Security action completed.'); await load() }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
   }
-  function enterNext(event: KeyboardEvent<HTMLElement>) {
-    if (event.key !== 'Enter' || event.currentTarget instanceof HTMLButtonElement) return
-    event.preventDefault()
-    const fields = [...event.currentTarget.closest('form')!.querySelectorAll<HTMLElement>('input:not(:disabled),select:not(:disabled),button.permission-save')]
-    fields[fields.indexOf(event.currentTarget) + 1]?.focus()
-  }
   function startResize(event: ReactPointerEvent) {
     event.preventDefault()
     const move = (pointer: PointerEvent) => {
@@ -150,7 +144,7 @@ export default function UsersPage({ language, administrator }: { language: Langu
       <div className="person-section-head"><div><h2>{fa ? 'تعریف کاربر و اختیارات' : 'Users & permissions'}</h2><p>{mode === 'new' ? (fa ? 'کاربر جدید' : 'New user') : mode === 'edit' ? (fa ? 'اصلاح کاربر' : 'Edit user') : (fa ? 'اطلاعات کاربر' : 'User details')}</p></div><span className={`mode-badge ${mode}`}>{mode === 'new' ? (fa ? 'جدید' : 'New') : mode === 'edit' ? (fa ? 'ویرایش' : 'Edit') : (fa ? 'مرور' : 'Browse')}</span></div>
       {error && <div className="form-message error-message">{error}</div>}{message && <div className="form-message success-message">{message}</div>}
       {administrator && form.id && mode === 'view' && <div className="shortcut-bar">{users.find(x => x.id === form.id)?.pendingInvitation && <button type="button" onClick={() => void securityAction('invitation')}>{fa ? 'ارسال مجدد دعوت' : 'Reissue invitation'}</button>}<button type="button" onClick={() => void securityAction('security-reset')}>{fa ? 'لغو همه نشست‌ها و اعتماد مرورگر' : 'Revoke sessions & browser trust'}</button></div>}
-      <form onKeyDown={enterNext}>
+      <form>
         <div className={`person-form-grid user-form-grid ${editing ? 'editing' : ''}`}>
           <label><span>{fa ? 'شخص مرتبط *' : 'Person *'}</span><select ref={firstInput} disabled={!editing} value={form.personId} onChange={e => { const person = catalog.persons.find(x => x.id === e.target.value); setForm(x => ({ ...x, personId: e.target.value, email: x.email, displayName: person?.displayName ?? '' })) }}><option value="">—</option>{catalog.persons.map(x => <option disabled={usedPersons.has(x.id)} key={x.id} value={x.id}>{x.personCode} — {x.displayName}</option>)}</select></label>
           <label><span>{fa ? 'ایمیل / نام کاربری *' : 'Email / username *'}</span><input dir="ltr" disabled={!editing || !administrator} type="email" value={form.email} onChange={e => setForm(x => ({ ...x, email: e.target.value }))} /></label>

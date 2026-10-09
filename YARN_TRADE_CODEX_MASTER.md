@@ -83,11 +83,51 @@ The application deliberately does **not** implement a full general ledger. It ma
 Responsibilities:
 - products/SKUs and hierarchical product groups;
 - persons/companies: customers, suppliers, Chinese partner, sales centers, exchange houses;
+- independent shared brands and person–brand associations/defaults (approved decision M1.1);
 - warehouses, units, currencies, bilingual static data;
 - users, roles, permissions, data scopes;
 - settings and effective-dated/versioned parameters;
 - audit, approvals, notifications, attachments/comments;
 - shared import/export infrastructure.
+
+### M1.1 — Approved Brand architecture (2026-10-09)
+
+**Status:** Owner-approved architecture decision; implementation is pending. This decision does not claim that Brand schema, APIs or UI already exist.
+
+1. Brand Definition belongs to the shared **Master Data** module, alongside Persons and Products.
+2. Brand is an independent entity with **BrandCode**, **BrandName** and **Address**, and one permanent master identity (for example, BrandCode `700`) shared by purchasing, sales, inventory, accounting and reports. All transactions reference the master **Brand ID**.
+3. Brands must not be owned exclusively by Persons, Products or Suppliers.
+4. Persons and Brands have a **many-to-many** relationship. Each person may have multiple associated brands and **at most one default brand**, selected from that person's associated brands.
+5. Brand selection in Persons must support **multiple selections**. The **Insert** shortcut opens Brand Definition, then returns to Persons and selects the newly created brand.
+6. Purchase transactions may use **any registered brand**, regardless of supplier. The supplier's default brand is only an editable suggestion, never a restriction on brand selection.
+7. Brand Definition UI must follow the approved **Persons form design, grid, footer, typography and theme**.
+8. Preserve existing data and avoid duplicate Brand entities or tables; reuse existing structures where applicable.
+9. Before introducing any new schema or APIs, implementations must inspect existing **Master Data structures**, relationships and workflows.
+
+#### M1.1.1 — Future Brand Barcode Profiles
+
+**Status:** Approved future requirements; deferred until the Barcode Recognition module is designed.
+
+1. Each master Brand may have unlimited child **Barcode Profiles**, displayed as `700 - بخش 1`, `700 - بخش 2`, etc. These identify barcode formats, **not separate brands**.
+2. Profiles may differ in barcode length, symbology, field positions, field lengths, product code, color code, serial number and decoding rules.
+3. Multiple historical profiles may coexist for the same Brand. New formats must not overwrite older decoding definitions.
+4. The future **Barcode Recognition** module creates, configures, tests and manages these profiles; Brand Definition and Product Definition forms do not manage them.
+5. During goods receipt, scanned barcodes are matched against valid profiles to identify the master Brand and decode product information.
+6. Ambiguous or unmatched barcodes must not be silently assigned to a Brand. The future recognition workflow must handle both cases explicitly.
+7. Profiles must never create separate Brand identities or split stock balances, purchases, sales or financial reports. The master Brand ID specified in M1.1 remains the transaction reference.
+8. Architecture must allow a future child entity such as **BrandBarcodeProfile**, with a foreign key to **Brand**, a profile identifier, decoding configuration, status and revision history. Preserve traceability of which profile and revision decoded each incoming barcode.
+9. **Current implementation scope:** only core Brand Definition and Person–Brand relationships under the previously approved M1.1 rules. Do not implement barcode recognition, profile tables, profile migrations or barcode UI until that module is designed. Recording this decision does not authorize or perform feature implementation in this documentation work package.
+
+### Shared Navigation — approved configurable sidebar (2026-10-09)
+
+- Navigation is a flat collection of stable node IDs, nullable parent IDs, labels, existing icon keys, enabled flags, sibling order and optional stable application route IDs. Groups may nest without a fixed depth limit; parent references must exist and cycles are rejected.
+- Only Administrators may change or restore the global menu, enforced server-side with the existing authentication and permissions. Routes come from a fixed server catalog; URLs, scripts and arbitrary executable routes cannot be entered.
+- Authenticated users may reorder permitted siblings, hide/show permitted nodes, collapse/expand groups and pin/reorder permitted route shortcuts independently. User changes do not change global parents, routes, enablement or permissions.
+- Quick Access is a compact icon row at the top of the existing right sidebar. It uses the existing icon palette and opens the existing forms through their stable route IDs.
+- Reuse existing SystemSettings persistence: a dedicated versioned global navigation key and authenticated-user-specific preference keys. The server derives the user ID from the session, filters routes by effective permissions and rejects unauthorized preferences. No new table or migration is required.
+- Use the existing conflict/rowVersion API convention for saves, with a SHA-256 revision of the JSON and an atomic conditional update because SystemSetting has no SQL RowVersion column. Global restore reinstates the approved built-in route layout; personal restore removes only the current user's overrides and pins. Invalid stored configurations fail visibly; route permissions remain authoritative. New/removed nodes must reconcile with existing personal preferences without introducing unauthorized routes.
+- Preserve the sidebar width, RTL layout, colors, fonts, current form routes, open forms and permission checks. Validate drag/drop, nested groups, two-user isolation, shortcuts and restore with focused tests.
+- Before implementation, create an external timestamped snapshot of tracked/untracked work and Git metadata, verify SHA-256 and Git recovery, and preserve older snapshots. Navigation changes must be recoverable without losing unrelated edits.
 
 ## M2 — Procurement & Shipping
 Responsibilities:
@@ -390,6 +430,14 @@ Introduce explicit data-scope model before external sales-center rollout.
 External commission centers may have anonymized customer identity from company users depending on configured policy.
 The restriction applies to APIs, reports, exports, search, attachments, and logs—not only UI.
 
+## DB-10 — Investor identity and commercial-account separation (2026-10-07)
+- `Investor` is the capital identity, with dedicated unique `InvestorCode`, legal name, existing `PersonType` convention and optional phone/address. New contracts require a registered primary investor even for sole ownership; partnerships require a distinct registered second investor. The existing optional `PartnerPersonId` remains a legacy commercial reference and is not synthesized from the investor code.
+- `SerialCode.Increment` is reused with `INV-0001`; SQL range locking plus the unique code index protects concurrent registration. Contract/identity mutation endpoints use existing `settings.edit`, existing RowVersion validation and the SQL execution strategy.
+- `Person.CapitalInvestorId` is an optional restrictive FK for a future, separately numbered commercial child. Registering an investor creates no Person, AR/AP, money document or trading transaction. No child-account workflow or consolidated report is introduced.
+- `InvestorBalances` is a storage boundary only, keyed uniquely by investor, explicit IRR/USD currency and investment kind (capital/profit entitlement/cost reimbursement/other investment). It is separate from the existing commercial account summary. There is no balance-writing API, transfer form, automatic conversion or netting. Capital/claim calculations, opening balances, audited transfer transactions and the unresolved Phase F numeric decisions remain deferred.
+- Posting holds a shared serializable contract read lock, permitting independent operations to coexist. Contract and investor edits first take the exclusive contract lock. Referenced investor identity/code edits and deletes are rejected after real operational use; restrictive FKs also prevent deleting referenced investors. Replacement is through a new contract amendment. Draft documents remain editable and do not trigger locking; Posted/Reversed documents and committed inventory movements do.
+- `20261007123138_AddInvestorIdentities` adds two tables and nullable restrictive identity links. Legacy contracts retain null identity references rather than invented identities; historical documents, amounts and calculations are not rewritten. A new editable contract or amendment must supply registered identities. Migration downgrade removes only this new structure and preserves existing contracts/transactions; investor data must be retained separately before a deliberate downgrade.
+
 ---
 
 # 6. Index review and policy
@@ -595,7 +643,7 @@ Current backup/restore work is a useful base but production requires:
 - Every business document has a stable internal ID and controlled human-readable number.
 - Monetary/weight precision is explicitly defined by domain, not inferred only from property name.
 - UTC timestamps for technical events; business dates stored explicitly as dates.
-- Jalali/Gregorian is presentation, not duplicate underlying dates.
+- Jalali/Gregorian is presentation, not duplicate underlying dates. **HARD DATE RULE:** Each calendar representation uses its own natural visual direction independently of the UI language. Jalali: RTL — Day right, Month center, Year left. Gregorian: LTR — Day left, Month center, Year right. The read-only equivalent date must use the direction of its own calendar and must never blindly inherit the page direction.
 - Foreign keys remain restrictive by default; cascade only for true owned child rows.
 - Use database constraints for critical invariants where practical.
 
@@ -1282,10 +1330,35 @@ A work package is DONE only when:
 
 # 15. Change Log
 
+## 2026-10-09 — Configurable shared navigation and Quick Access
+- Implemented the approved Shared Navigation architecture: hierarchical route/group nodes, administrator editing and drag/drop, independent user visibility/order/collapse preferences, and icon shortcuts. Fixed route IDs and actual permissions restrict every menu/shortcut; server-side Administrator plus settings.edit is required for global writes. Existing SystemSettings JSON storage, authenticated owner IDs, atomic revision checks and audit logging are reused; no migration or dependency was added.
+- Recovery baseline: `C:\project\recovery\yarn-trade-system-2026-10-09T13-40-06-826Z`, master at `156142d05a30f04b9c4052409f5f479db61014b6`; 574 files verified by SHA256 before implementation. Older snapshots and unrelated uncommitted changes are preserved.
+- Focused verification: 5/5 authenticated HTTP/rules tests and 8/8 frontend navigation checks pass; backend Release build has zero warnings/errors and frontend TypeScript/production build passes. Real UI at http://127.0.0.1:5173/ passes nested collapse, administrator mouse drag/move/save/reload/reset, personal hide/reorder/pin/unpin/reload/reset, RTL shortcut dragging, Persons/Yarns route opening, modal keyboard isolation and 250px/62px expanded/collapsed sidebar checks. Temporary navigation layouts were restored to defaults; no business record was changed.
+- Two-user isolation and permission denial were tested through authenticated HTTP fixtures, not a real two-account browser switch. Other forms were not individually exercised. No commit or push was performed.
+
+## 2026-10-09 — Approved shared Brand architecture
+- Recorded the nine approved Brand rules in M1.1: independent Master Data ownership, person–brand many-to-many associations with at most one default, multiple selection/Insert return workflow, unrestricted purchase brand selection, reuse of the approved Persons UI and existing structures, and data preservation.
+- Documentation only. No feature, application code, API, schema or migration was implemented in this work package.
+
 ## 2026-10-08 — Persons nationality and default language (Step 5)
 - Changing nationality to IR (Iranian) sets the editable language to `fa`; CN (Chinese) sets it to `zh`. English remains a manual alternative; all nationality options and the Persian/English language options remain available. Other nationality changes preserve the current language. Loading an existing record preserves its stored language, including an existing Chinese person with English selected.
 - Persons API accepts and persists `fa`, `en`, and `zh` through the existing preferred-language string and create/update/read paths. No schema change or historical rewrite is required.
 - Verification: four focused InMemory controller tests pass for create/reopen and manual English/Chinese updates; frontend TypeScript check passes. The real form check confirms CN→Chinese, manual English, IR→Persian, and Other preserving manual English. No person record was saved by the UI check; the API was rebuilt/restarted and its health endpoint returned HTTP 200.
+
+## 2026-10-07 — Shared form interaction and investor identity fixes
+- Applied the requested items sequentially with focused checks before each next item. Shared label tokens now use 13px/600 and adequate line height/contrast; section headings retain hierarchy. `formInteraction.ts`, installed once in `main.tsx`, owns F3 through the visible enabled Save action (including scoped nested editors), select-all on focus and validated RTL/LTR navigation. Existing field validation is retained while duplicated movement code is removed. Closed/disabled/hidden/read-only controls are skipped, native select arrows and intentional caret movement remain native.
+- `SystemDateInput` has one outer border, no segment borders and retained focus/error/disabled states. Leading zeros survive two-digit day/month auto-advance; Jalali `05` maps to 1405 and `95` to 1395 through the shared calendar utility. Invalid input clears the ISO value and native form validity prevents submitting stale dates. Gregorian English/Chinese rendering uses Intl's correct `gregory` calendar identifier.
+- Added explicit registered primary/partner investor selection and before-use identity editing. Reused existing numbering, permission and concurrency conventions. Recorded the investor/commercial linkage, separate currency/kind balance storage boundary, migration and deferred financial workflows in DB-10. No multi-partner support, transfer form, new calculation, claim lifecycle or historical recalculation was added.
+- Final verification: **461/461 backend tests pass**, zero failed/skipped/not-executed; includes real SQL concurrency, identity HTTP bypass rejection, contract amendment/history preservation and migration downgrade/reapply. Operational SQL fixtures now supply the prerequisite registered owner/contract; held shared contract reads permit independent posting while exclusive mutation locks preserve immutability. **6/6 frontend helper tests pass**; TypeScript and production build pass; full non-incremental Release solution build has **zero warnings/errors**; `git diff --check` passes.
+- Manual checks pass for Persian/English/Chinese labels, F3, RTL/LTR navigation, native select arrows, numeric replacement and text selection. Date checks cover normal/focus/error/disabled borders, 01→month, 07→year, 05/95 expansion, rejected invalid dates and Gregorian display. UI checks use isolated temporary form fixtures, which were removed afterward. Contract/investor tests verify sole ownership, two distinct partnership identities/codes, separated IRR/USD investment/commercial balances, before-use edit, posted-use edit/delete rejection and draft-versus-operational locking. Prior unrelated working-tree changes were preserved.
+- Remaining scope boundary: the balance table has no write/transfer workflow; linked commercial child account creation/reporting and Phase F calculations still require their own approved work. Legacy investor identities are never fabricated by migration.
+- Local runtime check: API restarted with Development seeding disabled; health is healthy, the reviewed additive migration applied, Development quick login succeeds and the real Persian contract form loads. No investor/contract test record was written to the owner's database. Final disposable SQL database count is zero.
+
+## 2026-10-07 — Business Contract & Rules settings
+- Added the compact `Definitions & Settings → Business Contract & Rules` form with sole-ownership/one-partner modes, exact 100% allocation validation, cost responsibilities, sales/credit settings, settlement settings, responsive central-theme styling and state-driven Save/Edit/Create Amendment actions.
+- Added one versioned `BusinessContractVersions` model/table. Posted purchases, sales, money documents and partner settlements retain the effective contract-version reference. SQL update locks serialize direct edits with operational posting; a used version rejects direct updates and amendments must start after the prior version and historical transactions. Historical calculations are never rewritten.
+- Extended the existing per-user language preference and central UI dictionary with `zh`; Persian remains RTL and English/Chinese LTR. Every new page string has fa/en/zh text. No company selector, multi-company redesign, multi-partner support, accounting engine or new runtime dependency was added.
+- Verification: Release solution and frontend production builds pass. Focused contract/language tests pass 17/17. The wider run passed 327 non-SQL tests; the 121 real-SQL cases could not run in this session because the protected `YARN_TRADE_SQL_TEST_CONNECTION` environment value was unavailable.
 
 ## 2026-10-06 — A7 attachment hardening
 - Implemented only `a7-attachment-hardening` from approved merged A6R master `add990b811b5c9216b9e5c5f3169b0a6fd03dffa`. Audited every runtime user-file surface, including separately deferred privileged backup/restore. Added one shared bounded local file/OOXML validator, quarantine/SHA-256/canonical storage, explicit optional scanner seam and request-owned cleanup, reused by generic uploads and both XLSX imports.

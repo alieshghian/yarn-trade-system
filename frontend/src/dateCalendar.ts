@@ -7,6 +7,7 @@ const persianMonthsFa = ['فروردین', 'اردیبهشت', 'خرداد', 'ت
 const persianMonthsEn = ['Farvardin', 'Ordibehesht', 'Khordad', 'Tir', 'Mordad', 'Shahrivar', 'Mehr', 'Aban', 'Azar', 'Dey', 'Bahman', 'Esfand']
 const gregorianMonthsFa = ['ژانویه', 'فوریه', 'مارس', 'آوریل', 'مه', 'ژوئن', 'ژوئیه', 'اوت', 'سپتامبر', 'اکتبر', 'نوامبر', 'دسامبر']
 const gregorianMonthsEn = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const gregorianMonthsZh = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月']
 
 export function localTodayIso() {
   const value = new Date()
@@ -43,22 +44,43 @@ export function calendarWeekday(year: number, month: number, calendar: CalendarK
   return iso ? new Date(`${iso}T00:00:00Z`).getUTCDay() : 0
 }
 
-export function monthName(month: number, calendar: CalendarKind, language: 'fa' | 'en') {
+export function monthName(month: number, calendar: CalendarKind, language: 'fa' | 'en' | 'zh') {
   const names = calendar === 'persian'
     ? language === 'fa' ? persianMonthsFa : persianMonthsEn
-    : language === 'fa' ? gregorianMonthsFa : gregorianMonthsEn
+    : language === 'fa' ? gregorianMonthsFa : language === 'zh' ? gregorianMonthsZh : gregorianMonthsEn
   return names[month - 1] ?? ''
 }
 
-export function fullDateLabel(value: string, calendar: CalendarKind, language: 'fa' | 'en') {
+export function fullDateLabel(value: string, calendar: CalendarKind, language: 'fa' | 'en' | 'zh') {
   if (!value) return ''
   const date = new Date(`${value.slice(0, 10)}T00:00:00Z`)
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(language === 'fa' ? 'fa-IR' : 'en-US', {
-    calendar, timeZone: 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  return new Intl.DateTimeFormat(language === 'fa' ? 'fa-IR' : language === 'zh' ? 'zh-CN' : 'en-US', {
+    calendar: calendar === 'gregorian' ? 'gregory' : 'persian', timeZone: 'UTC', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   }).format(date)
 }
 
 export function calendarYearRange(calendar: CalendarKind) {
   return calendar === 'persian' ? { min: 1200, max: 1700 } : { min: 1000, max: 9999 }
+}
+
+export function expandShortYear(value: string, calendar: CalendarKind) {
+  const year = Number(value)
+  if (value.length !== 2) return year
+  // Fixed pivot: 00–49 belong to the current century, 50–99 to the previous one.
+  return (calendar === 'persian' ? year >= 50 ? 1300 : 1400 : year >= 50 ? 1900 : 2000) + year
+}
+
+export function resolvedEntryYear(raw: string, calendar: CalendarKind): number | null {
+  if (!/^\d{2}$|^\d{4}$/.test(raw)) return null
+  const year = expandShortYear(raw, calendar)
+  const range = calendarYearRange(calendar)
+  return year >= range.min && year <= range.max ? year : null
+}
+
+export function decisiveDateSegment(raw: string, part: 'day' | 'month', maximum: number) {
+  const value = Number(raw)
+  if (!raw || value < 1 || value > maximum) return false
+  // A single digit is decisive only if none of its two-digit completions is valid.
+  return raw.length === 2 || value * 10 > maximum
 }

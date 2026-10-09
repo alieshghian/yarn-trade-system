@@ -35,6 +35,7 @@ builder.Services.AddScoped<XlsxPurchaseImporter>();
 builder.Services.AddAttachmentSecurity();
 builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddScoped<PersonAccountService>();
+builder.Services.AddScoped<BusinessContractService>();
 builder.Services.AddScoped<UserPresenceService>();
 
 var app = builder.Build();
@@ -43,8 +44,8 @@ if (app.Environment.IsDevelopment()) { app.UseSwagger(); app.UseSwaggerUI(); }
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
     DefaultRequestCulture = new RequestCulture("fa-IR"),
-    SupportedCultures = [new CultureInfo("fa-IR"), new CultureInfo("en-US")],
-    SupportedUICultures = [new CultureInfo("fa-IR"), new CultureInfo("en-US")]
+    SupportedCultures = [new CultureInfo("fa-IR"), new CultureInfo("en-US"), new CultureInfo("zh-CN")],
+    SupportedUICultures = [new CultureInfo("fa-IR"), new CultureInfo("en-US"), new CultureInfo("zh-CN")]
 });
 app.UseRouting();
 app.UseCors("frontend");

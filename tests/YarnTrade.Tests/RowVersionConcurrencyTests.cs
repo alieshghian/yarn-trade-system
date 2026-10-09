@@ -34,7 +34,7 @@ public sealed partial class SecurityBaselineTests
     {
         using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer().Options);
         var audited = db.Model.GetEntityTypes().Where(x => typeof(AuditedEntity).IsAssignableFrom(x.ClrType)).ToArray();
-        Assert.Equal(16, audited.Length);
+        Assert.Equal(18, audited.Length);
         foreach (var type in audited) {
             var token = type.FindProperty(nameof(AuditedEntity.RowVersion))!;
             Assert.True(token.IsConcurrencyToken);
@@ -293,10 +293,26 @@ public sealed partial class SecurityBaselineTests
             var sql = new A4SqlDatabase(connection);
             await sql.ExecuteMaster($"CREATE DATABASE [{sql.name}]"); return sql;
         }
-        public static async Task<A4SqlDatabase> CreateLatest()
+        public static async Task<A4SqlDatabase> CreateLatest(bool operationalContract = true)
         {
             var sql = await Create();
-            try { await using var db = sql.Context(); await db.Database.MigrateAsync(); return sql; }
+            try {
+                await using var db = sql.Context(); await db.Database.MigrateAsync();
+                if (operationalContract)
+                {
+                    // Legacy operational tests now need the explicit contract required before posting.
+                    var investor = new Investor { InvestorCode = "INV-0001", LegalName = "Operational fixture owner", PersonType = PersonType.Company };
+                    db.Investors.Add(investor);
+                    db.BusinessContractVersions.Add(new BusinessContractVersion {
+                        VersionNumber = 1, ContractName = "Operational fixture contract", EffectiveFrom = new(2000, 1, 1), PrimaryInvestorId = investor.Id,
+                        BaseCurrency = Currency.USD, BusinessStructure = BusinessStructure.SoleOwnership, CashSalesAllowed = true,
+                        OwnershipParty1Percent = 100, NormalSaleProfitParty1Percent = 100, CreditSaleProfitParty1Percent = 100, LossParty1Percent = 100,
+                        CostResponsibilitiesJson = "[]", PartnerEntitlementCreatedWhen = "OnTransactionPosting", CashSaleClaimPayableWhen = "OnCashCollection", CreditSaleClaimPayableWhen = "OnCollection"
+                    });
+                    await db.SaveChangesAsync();
+                }
+                return sql;
+            }
             catch { await sql.DisposeAsync(); throw; }
         }
         public AppDbContext Context() => new(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer(Connection).Options);

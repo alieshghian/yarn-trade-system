@@ -24,10 +24,9 @@ export async function login(email: string, password: string) {
 export async function verifyEmail(challenge: string, code: string, email: string) {
   storeSession(await authenticationRequest<Session>('verify-email', { challenge, code }), email)
 }
-let developmentProbe: Promise<boolean> | undefined
 export function tryDevelopmentSession(): Promise<boolean> {
   if (!import.meta.env.DEV) return Promise.resolve(false)
-  return developmentProbe ??= authenticationRequest<Session>('development-session').then(result => { storeSession(result, 'development'); return true }).catch(() => false)
+  return authenticationRequest<Session>('development-session').then(result => { storeSession(result, 'development'); return true }).catch(() => false)
 }
 
 export async function api<T>(path: string): Promise<T> {

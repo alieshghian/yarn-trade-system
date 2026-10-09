@@ -106,8 +106,6 @@ public static class InternetSecurity
             if (config.GetValue<bool>("Database:AutoMigrate") || config.GetValue<bool>("Seed:Enabled"))
                 throw new InvalidOperationException("Database auto-migration and demo seeding must be disabled outside Development.");
         }
-        else if (config.GetValue<bool>("Seed:Enabled") && string.IsNullOrWhiteSpace(config["Seed:AdminPassword"]))
-            throw new InvalidOperationException("Set Seed:AdminPassword with .NET user-secrets before enabling development seeding.");
         if (!string.IsNullOrEmpty(settings.PublicAppOrigin) && !origins.Contains(settings.PublicAppOrigin, StringComparer.Ordinal))
             throw new InvalidOperationException("Security:PublicAppOrigin must be one of the exact configured frontend origins.");
         if (!development && string.IsNullOrEmpty(settings.PublicAppOrigin))

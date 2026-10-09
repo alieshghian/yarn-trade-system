@@ -2,6 +2,7 @@ using System.Data.SqlTypes;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using YarnTrade.Api.Controllers;
 using YarnTrade.Api.Data;
 using YarnTrade.Api.Domain;
 using YarnTrade.Api.Security;
@@ -14,6 +15,7 @@ public sealed record PurchasePostingResult(Guid InvoiceId, byte[] RowVersion);
 
 public sealed class PostingService(AppDbContext db, PersonAccountService personAccounts, PermissionService permissions)
 {
+    private readonly BusinessContractService contracts = new(db);
     private static readonly Guid IranianPartnerId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid ChinesePartnerId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
@@ -49,6 +51,8 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             throw new InvalidOperationException("Item net weights do not reconcile with invoice total.");
         if (invoice.PurchaseOrderId.HasValue && confirmation is null)
             throw new InvalidOperationException("Commerce confirmation is required for an invoice created from a purchase order.");
+        var contractVersion = await contracts.ResolveForDateAsync(invoice.InvoiceDate, ct);
+        invoice.BusinessContractVersionId = contractVersion.Id;
 
         var freightPerKg = invoice.TotalNetWeight == 0 ? 0 : invoice.InternationalFreight / invoice.TotalNetWeight;
         foreach (var item in invoice.Items)
@@ -84,6 +88,8 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             });
         }
 
+        var chineseCostContribution = invoice.Costs.Where(x => x.ResponsiblePartner == PartnerKind.Chinese
+            && BusinessContractRules.ShouldCountCostTowardCapital(contractVersion.CostResponsibilitiesJson, x.CostType)).Sum(x => x.AmountUSD);
         db.PartnerLedgerEntries.Add(new PartnerLedgerEntry
         {
             PartnerId = ChinesePartnerId,
@@ -91,12 +97,13 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
             EntryType = "PurchaseAndFreightContribution",
             DescriptionFa = $"خرید و حمل فاکتور {invoice.ExternalInvoiceNumber}",
             DescriptionEn = $"Purchase and freight for invoice {invoice.ExternalInvoiceNumber}",
-            CreditUSD = invoice.GoodsTotal + invoice.InternationalFreight,
+            CreditUSD = invoice.GoodsTotal + invoice.InternationalFreight + chineseCostContribution,
             SourceDocumentType = nameof(PurchaseInvoice),
             SourceDocumentId = invoice.Id,
             IsPosted = true
         });
-        var iranianCostTotal = invoice.Costs.Where(x => x.ResponsiblePartner == PartnerKind.Iranian && x.IsReasonableImportCost).Sum(x => x.AmountUSD);
+        var iranianCostTotal = invoice.Costs.Where(x => x.ResponsiblePartner == PartnerKind.Iranian
+            && BusinessContractRules.ShouldCountCostTowardCapital(contractVersion.CostResponsibilitiesJson, x.CostType)).Sum(x => x.AmountUSD);
         if (iranianCostTotal > 0)
             db.PartnerLedgerEntries.Add(new PartnerLedgerEntry
             {
@@ -162,6 +169,7 @@ public sealed class PostingService(AppDbContext db, PersonAccountService personA
         if (sale.Status != DocumentStatus.Draft) throw new InvalidOperationException("Only draft sales can be posted.");
         if (sale.Items.Count == 0 || sale.Items.Any(x => x.Quantity <= 0 || x.CashUnitPriceSnapshotIRR <= 0))
             throw new InvalidOperationException("Sale items are incomplete.");
+        sale.BusinessContractVersionId = (await contracts.ResolveForDateAsync(sale.SaleDate, ct)).Id;
 
         var overrideUsed = await CheckSaleCreditAsync(sale, overrideRequested, overrideAuthorized, ct);
         var authority = await SalePostingAuthority.ResolveAsync(db, sale.SaleDate, ct);

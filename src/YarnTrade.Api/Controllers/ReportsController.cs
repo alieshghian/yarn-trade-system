@@ -14,8 +14,11 @@ public sealed class ReportsController(AppDbContext db) : ControllerBase
     [RequirePermission("reports.view")]
     [HttpGet("yarn-transactions")]
     public async Task<object> YarnTransactions([FromQuery] Guid? warehouseId, [FromQuery] Guid? yarnItemId,
-        [FromQuery] Guid? personId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
+        [FromQuery] Guid? personId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct,
+        [FromQuery] string? reportLanguage = null)
     {
+        if (reportLanguage is not null && reportLanguage is not ("fa" or "en" or "zh"))
+            return BadRequest("Unsupported report language.");
         var query = db.InventoryMovements.AsNoTracking().AsQueryable();
         if (warehouseId.HasValue) query = query.Where(x => x.WarehouseId == warehouseId);
         if (yarnItemId.HasValue) query = query.Where(x => x.YarnItemId == yarnItemId);
@@ -59,7 +62,8 @@ public sealed class ReportsController(AppDbContext db) : ControllerBase
                 SaleAmountIRR = saleItem?.CreditTotalIRR, m.UnitCostUSD, m.UnitCostIRR, m.PostedAtUtc, m.Notes
             };
         }).Where(x => !personId.HasValue || x.PersonId == personId).ToList();
-        return new { rows, total = rows.Count, quantityIn = rows.Sum(x => x.QuantityIn), quantityOut = rows.Sum(x => x.QuantityOut) };
+        return new { rows, total = rows.Count, quantityIn = rows.Sum(x => x.QuantityIn), quantityOut = rows.Sum(x => x.QuantityOut),
+            reportLanguage = await RecipientLanguage(personId, reportLanguage, ct) };
     }
 
     [RequirePermission("reports.view")]
@@ -79,13 +83,26 @@ public sealed class ReportsController(AppDbContext db) : ControllerBase
 
     [RequirePermission("reports.view")]
     [HttpGet("partner-ledger/{partnerId:guid}")]
-    public async Task<object> PartnerLedger(Guid partnerId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
+    public async Task<object> PartnerLedger(Guid partnerId, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct,
+        [FromQuery] string? reportLanguage = null)
     {
+        if (reportLanguage is not null && reportLanguage is not ("fa" or "en" or "zh"))
+            return BadRequest("Unsupported report language.");
         var q = db.PartnerLedgerEntries.AsNoTracking().Where(x => x.PartnerId == partnerId && x.IsPosted);
         if (from.HasValue) q = q.Where(x => x.EntryDate >= from);
         if (to.HasValue) q = q.Where(x => x.EntryDate <= to);
         var rows = await q.OrderBy(x => x.EntryDate).ThenBy(x => x.CreatedAtUtc).ToListAsync(ct);
-        return new { rows, totals = new { debitIRR = rows.Sum(x => x.DebitIRR), creditIRR = rows.Sum(x => x.CreditIRR), debitUSD = rows.Sum(x => x.DebitUSD), creditUSD = rows.Sum(x => x.CreditUSD) } };
+        return new { rows, totals = new { debitIRR = rows.Sum(x => x.DebitIRR), creditIRR = rows.Sum(x => x.CreditIRR), debitUSD = rows.Sum(x => x.DebitUSD), creditUSD = rows.Sum(x => x.CreditUSD) },
+            reportLanguage = await RecipientLanguage(partnerId, reportLanguage, ct) };
+    }
+
+    private async Task<string?> RecipientLanguage(Guid? personId, string? selectedLanguage, CancellationToken ct)
+    {
+        if (selectedLanguage is not null || personId is null) return selectedLanguage;
+        var recipient = await db.Persons.AsNoTracking().Include(x => x.Nationality).SingleOrDefaultAsync(x => x.Id == personId, ct);
+        return recipient?.Nationality?.Code.Trim().ToUpperInvariant() switch {
+            "IR" => "fa", "CN" => "zh", _ => recipient?.PreferredLanguage
+        };
     }
 
     [RequirePermission("reports.view")]

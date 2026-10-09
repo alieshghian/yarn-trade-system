@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using YarnTrade.Api.Data;
 
@@ -11,9 +12,11 @@ using YarnTrade.Api.Data;
 namespace YarnTrade.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261008125711_AddPersonDirectorName")]
+    partial class AddPersonDirectorName
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1203,9 +1206,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
-                    b.Property<int?>("TitlePersonType")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -1336,10 +1336,9 @@ namespace YarnTrade.Api.Data.Migrations
                             CreatedAtUtc = new DateTime(2026, 7, 22, 6, 47, 29, 271, DateTimeKind.Utc).AddTicks(3796),
                             IsActive = true,
                             NameEn = "Mr.",
-                            NameFa = "آقای",
+                            NameFa = "آقا",
                             ParameterType = 1,
-                            SortOrder = 10,
-                            TitlePersonType = 0
+                            SortOrder = 10
                         },
                         new
                         {
@@ -1350,8 +1349,7 @@ namespace YarnTrade.Api.Data.Migrations
                             NameEn = "Ms.",
                             NameFa = "خانم",
                             ParameterType = 1,
-                            SortOrder = 20,
-                            TitlePersonType = 0
+                            SortOrder = 20
                         },
                         new
                         {
@@ -1362,8 +1360,7 @@ namespace YarnTrade.Api.Data.Migrations
                             NameEn = "Office",
                             NameFa = "اداره",
                             ParameterType = 1,
-                            SortOrder = 50,
-                            TitlePersonType = 1
+                            SortOrder = 30
                         },
                         new
                         {
@@ -1374,32 +1371,7 @@ namespace YarnTrade.Api.Data.Migrations
                             NameEn = "Company",
                             NameFa = "شرکت",
                             ParameterType = 1,
-                            SortOrder = 30,
-                            TitlePersonType = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("52000000-0000-0000-0000-000000000005"),
-                            Code = "INSTITUTE",
-                            CreatedAtUtc = new DateTime(2026, 7, 27, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            NameEn = "Institute",
-                            NameFa = "مؤسسه",
-                            ParameterType = 1,
-                            SortOrder = 40,
-                            TitlePersonType = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("52000000-0000-0000-0000-000000000006"),
-                            Code = "ORGANIZATION",
-                            CreatedAtUtc = new DateTime(2026, 7, 27, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            NameEn = "Organization",
-                            NameFa = "سازمان",
-                            ParameterType = 1,
-                            SortOrder = 60,
-                            TitlePersonType = 1
+                            SortOrder = 40
                         },
                         new
                         {
@@ -1712,9 +1684,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("AddressesJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<Guid?>("CapitalInvestorId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1755,9 +1724,6 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<string>("Mobile")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("MobileNumbersJson")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<Guid?>("NationalityId")
                         .HasColumnType("uniqueidentifier");
 
@@ -1776,9 +1742,6 @@ namespace YarnTrade.Api.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Phone")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PhoneNumbersJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PreferredLanguage")

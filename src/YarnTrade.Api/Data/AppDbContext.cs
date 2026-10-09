@@ -50,6 +50,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SystemSetting> SystemSettings => Set<SystemSetting>();
+    public DbSet<BusinessContractVersion> BusinessContractVersions => Set<BusinessContractVersion>();
+    public DbSet<Investor> Investors => Set<Investor>();
+    public DbSet<InvestorBalance> InvestorBalances => Set<InvestorBalance>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -74,6 +77,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         }
 
         builder.Entity<Person>().HasIndex(x => x.PersonCode).IsUnique();
+        builder.Entity<Person>().Property(x => x.DirectorName).HasMaxLength(200);
         builder.Entity<AppUser>().HasIndex(x => x.PersonId).IsUnique().HasFilter("[PersonId] IS NOT NULL");
         builder.Entity<AppUser>().Property(x => x.PreferredLanguage).HasMaxLength(2);
         builder.Entity<AppUser>().Property(x => x.Theme).HasMaxLength(20);
@@ -151,6 +155,35 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<PartnerLedgerEntry>().HasIndex(x => new { x.PartnerId, x.EntryDate });
         builder.Entity<MoneyDocument>().HasIndex(x => x.DocumentNumber).IsUnique();
         builder.Entity<SystemSetting>().HasIndex(x => new { x.Key, x.ValidFrom }).IsUnique();
+        builder.Entity<BusinessContractVersion>().HasIndex(x => x.VersionNumber).IsUnique();
+        builder.Entity<Investor>().Property(x => x.InvestorCode).HasMaxLength(30);
+        builder.Entity<Investor>().Property(x => x.LegalName).HasMaxLength(200);
+        builder.Entity<Investor>().Property(x => x.Phone).HasMaxLength(50);
+        builder.Entity<Investor>().Property(x => x.Address).HasMaxLength(500);
+        builder.Entity<Investor>().HasIndex(x => x.InvestorCode).IsUnique();
+        builder.Entity<InvestorBalance>().HasOne(x => x.Investor).WithMany().HasForeignKey(x => x.InvestorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<InvestorBalance>().HasIndex(x => new { x.InvestorId, x.Currency, x.Kind }).IsUnique();
+        builder.Entity<InvestorBalance>().Property(x => x.Amount).HasPrecision(20, 6);
+        builder.Entity<InvestorBalance>().ToTable(t => t.HasCheckConstraint("CK_InvestorBalances_Currency", "[Currency] IN (0, 1)"));
+        builder.Entity<Person>().HasOne(x => x.CapitalInvestor).WithMany().HasForeignKey(x => x.CapitalInvestorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<BusinessContractVersion>().HasOne(x => x.PrimaryInvestor).WithMany().HasForeignKey(x => x.PrimaryInvestorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<BusinessContractVersion>().HasOne(x => x.PartnerInvestor).WithMany().HasForeignKey(x => x.PartnerInvestorId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<BusinessContractVersion>().HasIndex(x => x.EffectiveFrom);
+        builder.Entity<BusinessContractVersion>().Property(x => x.ContractName).HasMaxLength(200);
+        builder.Entity<BusinessContractVersion>().Property(x => x.CostResponsibilitiesJson).HasColumnType("nvarchar(max)");
+        builder.Entity<BusinessContractVersion>().Property(x => x.ResponsiblePartyAfterGracePeriod).HasMaxLength(30);
+        builder.Entity<BusinessContractVersion>().Property(x => x.FinancingCostResponsibleParty).HasMaxLength(30);
+        builder.Entity<BusinessContractVersion>().Property(x => x.FinancedCheckPrincipalRiskParty).HasMaxLength(30);
+        builder.Entity<BusinessContractVersion>().Property(x => x.PartnerEntitlementCreatedWhen).HasMaxLength(50);
+        builder.Entity<BusinessContractVersion>().Property(x => x.CashSaleClaimPayableWhen).HasMaxLength(50);
+        builder.Entity<BusinessContractVersion>().Property(x => x.CreditSaleClaimPayableWhen).HasMaxLength(50);
+        builder.Entity<BusinessContractVersion>().HasOne(x => x.PreviousVersion).WithMany().HasForeignKey(x => x.PreviousVersionId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<BusinessContractVersion>().HasOne(x => x.PartnerPerson).WithMany().HasForeignKey(x => x.PartnerPersonId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<PurchaseInvoice>().HasOne<BusinessContractVersion>().WithMany().HasForeignKey(x => x.BusinessContractVersionId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Sale>().HasOne<BusinessContractVersion>().WithMany().HasForeignKey(x => x.BusinessContractVersionId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<MoneyDocument>().HasOne<BusinessContractVersion>().WithMany().HasForeignKey(x => x.BusinessContractVersionId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PartnerSettlement>().HasOne<BusinessContractVersion>().WithMany().HasForeignKey(x => x.BusinessContractVersionId).OnDelete(DeleteBehavior.Restrict);
 
         builder.Entity<PurchaseOrder>().HasMany(x => x.Items).WithOne().HasForeignKey(x => x.PurchaseOrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Entity<PurchaseOrder>().HasOne<Person>().WithMany().HasForeignKey(x => x.PreferredSupplierId).OnDelete(DeleteBehavior.Restrict);
@@ -188,10 +221,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             Parameter("51000000-0000-0000-0000-000000000008", ParameterType.Job, "WAREHOUSE", "انباردار", "Warehouse keeper", 80, -1),
             Parameter("51000000-0000-0000-0000-000000000009", ParameterType.Job, "FINANCE", "مالی", "Finance", 90, -1),
             Parameter("51000000-0000-0000-0000-000000000010", ParameterType.Job, "OTHER", "سایر", "Other", 100, -1),
-            Parameter("52000000-0000-0000-0000-000000000001", ParameterType.Title, "MR", "آقا", "Mr.", 10, 3796),
+            Parameter("52000000-0000-0000-0000-000000000001", ParameterType.Title, "MR", "آقای", "Mr.", 10, 3796),
             Parameter("52000000-0000-0000-0000-000000000002", ParameterType.Title, "MRS", "خانم", "Ms.", 20, 3799),
-            Parameter("52000000-0000-0000-0000-000000000003", ParameterType.Title, "OFFICE", "اداره", "Office", 30, 3802),
-            Parameter("52000000-0000-0000-0000-000000000004", ParameterType.Title, "COMPANY", "شرکت", "Company", 40, 3804),
+            Parameter("52000000-0000-0000-0000-000000000003", ParameterType.Title, "OFFICE", "اداره", "Office", 50, 3802),
+            Parameter("52000000-0000-0000-0000-000000000004", ParameterType.Title, "COMPANY", "شرکت", "Company", 30, 3804),
+            Parameter("52000000-0000-0000-0000-000000000005", ParameterType.Title, "INSTITUTE", "مؤسسه", "Institute", 40, -1),
+            Parameter("52000000-0000-0000-0000-000000000006", ParameterType.Title, "ORGANIZATION", "سازمان", "Organization", 60, -1),
             Parameter("53000000-0000-0000-0000-000000000001", ParameterType.Nationality, "IR", "ایرانی", "Iranian", 10, 3807),
             Parameter("53000000-0000-0000-0000-000000000002", ParameterType.Nationality, "CN", "چینی", "Chinese", 20, 3810),
             Parameter("53000000-0000-0000-0000-000000000003", ParameterType.Nationality, "TR", "ترک", "Turkish", 30, 3812),
@@ -222,6 +257,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     private static object Parameter(string id, ParameterType type, string code, string fa, string en, int order, long ticks) => new
     {
         Id = Guid.Parse(id), ParameterType = type, Code = code, NameFa = fa, NameEn = en, SortOrder = order,
+        TitlePersonType = type == ParameterType.Title ? (PersonType?)(code is "MR" or "MRS" ? PersonType.Individual : PersonType.Company) : null,
         IsActive = true, CreatedAtUtc = SeedCreatedAt(ticks)
     };
 

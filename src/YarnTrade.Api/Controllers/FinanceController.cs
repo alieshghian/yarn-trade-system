@@ -12,6 +12,7 @@ namespace YarnTrade.Api.Controllers;
 [ApiController, Route("api/finance"), Authorize]
 public sealed class FinanceController(AppDbContext db, PersonAccountService personAccounts) : ControllerBase
 {
+    private readonly BusinessContractService contracts = new(db);
     [RequirePermission("finance.view")]
     [HttpGet("money-documents")]
     public async Task<object> Documents([FromQuery] MoneyDocumentType? type, [FromQuery] Guid? personId, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
@@ -57,6 +58,7 @@ public sealed class FinanceController(AppDbContext db, PersonAccountService pers
             db.Entry(current).Property(x => x.RowVersion).OriginalValue = expectedVersion;
             if (current.Status != DocumentStatus.Draft) return Conflict();
             if (current.Lines.Count == 0 || current.Lines.Any(x => x.AmountIRR < 0 || x.AmountUSD < 0)) return BadRequest();
+            current.BusinessContractVersionId = (await contracts.ResolveForDateAsync(current.DocumentDate, ct)).Id;
             if (current.DocumentType is MoneyDocumentType.Receipt or MoneyDocumentType.Payment)
                 await personAccounts.LockAccountAsync(current.PersonId, ct);
             current.Status = DocumentStatus.Posted; current.PostedAtUtc = DateTime.UtcNow;
@@ -128,6 +130,7 @@ public sealed class FinanceController(AppDbContext db, PersonAccountService pers
             db.Entry(current).Property(x => x.RowVersion).OriginalValue = expectedVersion;
             if (current.Status != DocumentStatus.Draft) return Conflict();
             if (Math.Abs(current.Allocations.Sum(x => x.ConvertedUSD) - current.PaidUSD) > 0.01m) return BadRequest(new { error = "Allocation total must equal paid USD." });
+            current.BusinessContractVersionId = (await contracts.ResolveForDateAsync(current.SettlementDate, ct)).Id;
             db.PartnerLedgerEntries.Add(new PartnerLedgerEntry { PartnerId = current.PartnerId, EntryDate = current.SettlementDate, EntryType = "Settlement", DescriptionFa = $"تسویه {current.SettlementNumber}", DescriptionEn = $"Settlement {current.SettlementNumber}", DebitUSD = current.PaidUSD, SourceDocumentType = nameof(PartnerSettlement), SourceDocumentId = current.Id, IsPosted = true });
             current.Status = DocumentStatus.Posted;
             db.AuditLogs.Add(new AuditLog { Action = "Post", EntityName = nameof(PartnerSettlement), EntityId = id.ToString() });

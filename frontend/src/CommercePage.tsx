@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiRequest, downloadAttachment, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
 import SystemDateInput from './SystemDateInput'
@@ -189,12 +189,6 @@ export default function CommercePage({ language, initialOrderId, actionRequest, 
   const canUploadDocument = Boolean(order) && hasPermission('commerce.upload') && invoice?.status !== 'Posted' && order?.status !== 'Completed'
   const addItem = () => invoice && setInvoiceField('items', [...invoice.items, { originalDescription: '', unit: 'KG', netWeight: 0, grossWeight: 0, packageCount: 0, unitPriceUSD: 0, goodsAmountUSD: 0 }])
   const removeItem = (index: number) => invoice && setInvoiceField('items', invoice.items.filter((_, i) => i !== index))
-  const moveOnEnter = (event: ReactKeyboardEvent<HTMLElement>) => {
-    if (event.key !== 'Enter' || event.target instanceof HTMLSelectElement || event.target instanceof HTMLButtonElement) return
-    event.preventDefault()
-    const fields = [...event.currentTarget.querySelectorAll<HTMLElement>('input:not(:disabled),select:not(:disabled),button:not(:disabled)')]
-    fields[fields.indexOf(event.target as HTMLElement) + 1]?.focus()
-  }
   return <div className="commerce-page">
     <section className="panel commerce-detail">
       <div className="person-section-head"><div><h2>{fa ? 'خرید نخ' : 'Yarn purchase'}</h2><p>{order ? `${order.orderNumber} — ${statusLabel(order.status)}` : (fa ? 'سفارشی انتخاب نشده است' : 'No order selected')}</p></div><div className="commerce-actions">
@@ -204,7 +198,7 @@ export default function CommercePage({ language, initialOrderId, actionRequest, 
         {editable && hasPermission('commerce.edit') && <button className="primary" onClick={save}>F3&nbsp; {fa ? 'ثبت اطلاعات' : 'Save'}</button>}
       </div></div>
       {error && <div className="form-message error-message">{error}</div>}{message && <div className="form-message success-message">{message}</div>}
-      {displayedInvoice ? <div className="commerce-scroll" onKeyDown={moveOnEnter}>
+      {displayedInvoice ? <div className="commerce-scroll">
         {orderPreview && <div className="form-message success-message">{fa ? 'اطلاعات زیر، سربرگ و اقلام سفارش خرید است. پس از ایجاد یا استخراج فاکتور، همین بخش برای تطبیق و اصلاح فعال می‌شود.' : 'This preview shows the purchase-order header and lines. Create or import the invoice to reconcile and edit it.'}</div>}
         <div className="person-form-grid commerce-header-grid">
           <label><span>{fa ? 'شماره داخلی' : 'Internal no.'}</span><input disabled value={displayedInvoice.internalNumber} /></label>

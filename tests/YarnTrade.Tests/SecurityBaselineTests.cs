@@ -69,6 +69,13 @@ public sealed partial class SecurityBaselineTests
         Assert.NotNull(InternetSecurity.ValidateConfiguration(config, development: true));
     }
 
+    [Fact]
+    public void Development_seed_does_not_require_an_admin_password_before_checking_for_an_existing_admin()
+    {
+        var config = Configuration(new() { ["Seed:Enabled"] = "true" });
+        Assert.NotNull(InternetSecurity.ValidateConfiguration(config, development: true));
+    }
+
     [Theory]
     [InlineData("/api/reports/stock")]
     [InlineData("/api/auth/mfa-status")]
@@ -595,6 +602,7 @@ public sealed partial class SecurityBaselineTests
         builder.Services.AddScoped<UserPresenceService>();
         builder.Services.AddScoped<PostingService>();
         builder.Services.AddScoped<PersonAccountService>();
+        builder.Services.AddScoped<BusinessContractService>();
         builder.Services.AddScoped<XlsxPurchaseImporter>();
         builder.Services.AddAttachmentSecurity();
         if (attachmentScanner is not null) builder.Services.AddSingleton<IAttachmentScanner>(attachmentScanner);

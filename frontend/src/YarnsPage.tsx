@@ -19,7 +19,7 @@ type Filters = Record<ColumnKey, string[] | null>
 type ShortcutAction = 'new' | 'edit' | 'delete' | 'save'
 type ShortcutMap = Record<ShortcutAction, string>
 
-const labels: Record<string, { fa: string, en: string }> = {
+const labels: Record<string, { fa: string, en: string, zh?: string }> = {
   CN: { fa: 'چینی', en: 'Chinese' }, IR: { fa: 'ایرانی', en: 'Iranian' }, SOHAIL: { fa: 'سهیل', en: 'Sohail' },
   BRIGHT: { fa: 'براق', en: 'Bright' }, SEMI_DULL: { fa: 'نیمه مات', en: 'Semi-dull' }, DULL: { fa: 'مات', en: 'Dull' },
   KG: { fa: 'کیلوگرم', en: 'kg' }, COUNT: { fa: 'عدد', en: 'Count' }, CONE: { fa: 'دوک', en: 'Cone' }, HANK: { fa: 'کلاف', en: 'Hank' },
@@ -87,7 +87,7 @@ export default function YarnsPage({ language, demoMode = false }: { language: La
   const original = useRef(JSON.stringify(emptyDraft())), frameRef = useRef<HTMLDivElement>(null), formRef = useRef<HTMLDivElement>(null)
   const selected = yarns.find(x => x.id === selectedId), dirty = mode !== 'view' && JSON.stringify(draft) !== original.current
   const visibleColumns = columns.filter(x => x.visible)
-  const label = useCallback((code?: string) => code ? labels[code]?.[language] ?? code : '', [language])
+  const label = useCallback((code?: string) => code ? labels[code]?.[language] ?? labels[code]?.en ?? code : '', [language])
   const comprehensiveName = useMemo(() => [
     draft.name.trim(), label(draft.luster), label(draft.material), draft.filamentNumber, label(draft.spinType),
     draft.countValue, label(draft.countType), draft.plyCount > 0 ? `${draft.plyCount} ${fa ? 'لا' : 'ply'}` : ''
@@ -206,14 +206,9 @@ export default function YarnsPage({ language, demoMode = false }: { language: La
   }, [mode, shortcuts, save, cancel, beginNew, beginEdit, remove, move, filterMenu])
 
   function formKeyDown(event: React.KeyboardEvent) {
-    if (mode === 'view' || event.altKey || event.ctrlKey || event.metaKey || !['Enter', 'ArrowDown', 'ArrowUp'].includes(event.key)) return
-    const controls = Array.from(formRef.current?.querySelectorAll<HTMLElement>('input:not(:disabled),select:not(:disabled),textarea:not(:disabled)') ?? []).filter(x => x.tabIndex !== -1)
-    const target = event.target as HTMLElement, index = controls.indexOf(target); if (index < 0) return
-    if (target instanceof HTMLSelectElement && event.key !== 'Enter') return
-    event.preventDefault(); const field = target.dataset.field as keyof YarnDraft | undefined
-    if (event.key === 'Enter' && field && !validateAndShow(field)) return
-    const next = event.key === 'ArrowUp' ? Math.max(0, index - 1) : Math.min(controls.length - 1, index + 1); controls[next]?.focus()
-    if (controls[next] instanceof HTMLInputElement && controls[next].type === 'text') controls[next].select()
+    if (mode === 'view' || event.altKey || event.ctrlKey || event.metaKey || event.key !== 'Enter') return
+    const field = (event.target as HTMLElement).dataset.field as keyof YarnDraft | undefined
+    if (field && !validateAndShow(field)) event.preventDefault()
   }
   function resizeStart(event: React.PointerEvent) {
     event.currentTarget.setPointerCapture(event.pointerId); const startY = event.clientY, start = topHeight, height = frameRef.current?.clientHeight ?? 720
@@ -277,7 +272,7 @@ export default function YarnsPage({ language, demoMode = false }: { language: La
       <div className="shortcut-bar">{mode === 'view' ? <>
         <Shortcut code={shortcuts.new} label={fa ? 'نخ جدید' : 'New'} onClick={beginNew} primary disabled={!hasPermission('yarns.create')} /><Shortcut code={shortcuts.edit} label={fa ? 'ویرایش' : 'Edit'} onClick={beginEdit} disabled={!hasPermission('yarns.edit')} /><Shortcut code={shortcuts.delete} label={fa ? 'حذف' : 'Delete'} onClick={() => void remove()} danger disabled={!hasPermission('yarns.delete')} />
         <Shortcut code="Home" label={fa ? 'اول' : 'First'} onClick={() => move('home')} /><Shortcut code="PgUp" label={fa ? 'صفحه قبل' : 'Page up'} onClick={() => move('pageUp')} /><Shortcut code="↑ ↓" label={fa ? 'مرور' : 'Browse'} onClick={() => move('down')} /><Shortcut code="PgDn" label={fa ? 'صفحه بعد' : 'Page down'} onClick={() => move('pageDown')} /><Shortcut code="End" label={fa ? 'آخر' : 'Last'} onClick={() => move('end')} />
-      </> : <><Shortcut code={shortcuts.save} label={fa ? 'ثبت اطلاعات' : 'Save'} onClick={() => void save()} primary /><Shortcut code="Esc" label={fa ? 'انصراف' : 'Cancel'} onClick={cancel} /></>}
+      </> : <><Shortcut code="F3" label={fa ? 'ثبت اطلاعات' : 'Save'} onClick={() => void save()} primary /><Shortcut code="Esc" label={fa ? 'انصراف' : 'Cancel'} onClick={cancel} /></>}
         <details className="shortcut-settings"><summary title={fa ? 'شخصی‌سازی کلیدها' : 'Customize shortcuts'}>⚙</summary><div>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(x => ({ ...x, [action]: e.target.value }))}>{shortcutOptions.map(o => <option key={o}>{o}</option>)}</select></label>)}</div></details>
       </div>
     </section>

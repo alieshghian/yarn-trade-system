@@ -12,6 +12,9 @@ public sealed class UserSettingsRulesTests
     [Fact]
     public void Accepts_supported_preferences() => Assert.Null(UserSettingsRules.Validate(new("fa", 30, "dark", true, "tahoma", "large")));
 
+    [Fact]
+    public void Accepts_chinese_as_a_per_user_language() => Assert.Null(UserSettingsRules.Validate(new("zh", 30, "light", false, "vazirmatn", "normal")));
+
     [Theory]
     [InlineData("de", 30, "light")]
     [InlineData("fa", 0, "light")]

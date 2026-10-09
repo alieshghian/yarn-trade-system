@@ -138,7 +138,30 @@ pnpm --dir frontend build
 
 ## قرارداد تاریخ
 
+All business date fields must use the shared SystemDateInput component. Its standard dimensions and behavior must not be overridden per page.
+
+Standard date-entry size is 172 × 33 px, with fixed segment/separator/icon widths. Parent flex/grid layouts must not stretch or compress it. Any future scaling must scale the entire component proportionally, including text, segments, spacing and calendar icon.
+
 همه تاریخ‌های رابط کاربری، مگر فیلدی که صریحاً «میلادی» نام‌گذاری شده باشد، با تقویم شمسی نمایش و ویرایش می‌شوند. تمام فرم‌ها باید از کنترل مشترک `SystemDateInput` استفاده کنند و نوع تقویم را با `calendar="persian"` یا `calendar="gregorian"` مشخص کنند. این کنترل یک فیلد یکپارچه با ترتیب ورود `روز ← ماه ← سال`، پذیرش رقم فارسی/عربی/لاتین، اعتبارسنجی مرحله‌ای، تقویم بازشونده، گزینه امروز و تغییر ماه/سال دارد. اگر کاربر تاریخ پیشنهادی را تغییر نداده باشد یک `Enter` کل تاریخ را تأیید و از آن عبور می‌کند؛ پس از شروع ویرایش، `Enter` هر قسمت را تأیید و به قسمت بعد می‌رود. مقدار تاریخ در API و پایگاه داده همچنان به قالب استاندارد `YYYY-MM-DD` میلادی نگه‌داری می‌شود تا مرتب‌سازی، مقایسه و یکپارچگی داده تغییر نکند.
+
+## Global Trade Form Action Button Standard
+
+### GLOBAL TRADE HARD UI RULE — HARD / NON-NEGOTIABLE UI STANDARD
+
+All form action buttons must remain permanently visible at the bottom of the active form/page.
+If form content requires scrolling, only the content area scrolls; the action bar remains fixed/sticky and accessible at all times.
+No form may place its primary actions only at the end of scrollable content.
+All forms must inherit the shared action-bar implementation; page-specific overrides are prohibited.
+
+Use the shared `shortcut-bar` inside the active `form-tab-pane`. Its sticky positioning, normal-flow space and shared scroll clearance keep the last fields accessible without per-page positioning.
+
+All bottom-form action buttons must follow the Product Definition form visual pattern: the shared `shortcut-bar`, with visible shortcut `<kbd>` above the localized action `<span>`, without per-page button redesigns. Each form displays only the actions valid for its current state. Create/Space uses the standard light-yellow action color (`data-create-action="true"`); Save/F3 uses the standard light-green save color (`primary`, `data-save-action="true"`). Shortcut labels remain untranslated and action typography must remain clearly readable. Display only shortcuts that the action actually supports.
+
+## قرارداد و قواعد کسب‌وکار
+
+قرارداد باید پیش از شروع عملیات تعریف شود و می‌تواند «مالکیت انفرادی» یا «مشارکت یک مالک و یک شریک» باشد. تا پیش از نخستین عملیات، نسخهٔ جاری قابل ویرایش است؛ پس از آن قفل می‌شود و هر تغییر فقط با نسخهٔ اصلاحی و تاریخ اعتبار جدید انجام می‌شود. هر خرید، فروش، سند مالی و تسویهٔ قطعی، شناسهٔ نسخهٔ مؤثر در تاریخ خود را نگه می‌دارد؛ نسخهٔ جدید هیچ محاسبه یا تراکنش تاریخی را تغییر نمی‌دهد. دکمه‌های صفحه بر اساس وضعیت فقط یکی از اقدام‌های معتبر ذخیره، ویرایش یا ایجاد اصلاحیه را نشان می‌دهند.
+
+صفحه از تم و کنترل‌های مشترک استفاده می‌کند. متن‌های آن در سامانهٔ مرکزی زبان برای فارسی، انگلیسی و چینی تعریف شده‌اند؛ فارسی راست‌به‌چپ و دو زبان دیگر چپ‌به‌راست هستند. زبان در حساب هر کاربر ذخیره می‌شود و تنظیم سراسری شرکت نیست. دادهٔ تجاری مانند نام قرارداد یک‌بار ذخیره می‌شود و فقط برچسب‌های رابط ترجمه می‌شوند.
 
 ## نکات SQL Server
 
