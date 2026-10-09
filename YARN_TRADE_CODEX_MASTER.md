@@ -63,6 +63,17 @@ Required final sequence:
 
 Never leave accepted/final work only in the local working tree. Do not include unrelated changes in the commit, and do not merge to `master` unless explicitly instructed. If commit or push cannot be completed, report the reason clearly. This rule applies permanently to all future work packages.
 
+### 0.5 Permanent rule — master document local/GitHub synchronization
+Whenever `YARN_TRADE_CODEX_MASTER.md` is created, modified, or updated, the same committed version must be saved in the main local repository and synchronized to its corresponding GitHub remote. For every such update:
+1. Save the updated Markdown file locally.
+2. Verify that no sensitive credentials have been introduced.
+3. Stage and commit the updated Markdown file.
+4. Push the commit to the correct GitHub branch.
+5. Verify that the local and remote branches contain the same committed version of this file; do not claim synchronization without this verification.
+6. If synchronization fails, report the issue immediately and do not claim success.
+
+This rule is permanent and applies to every future creation or update of this master document. Keep the commit scoped to the Markdown file unless the owner explicitly authorizes otherwise.
+
 ---
 
 # 1. Product goal and boundaries
