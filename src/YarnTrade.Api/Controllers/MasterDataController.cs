@@ -16,7 +16,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
     [HttpGet("persons")]
     public async Task<object> Persons([FromQuery] string? q, [FromQuery] bool includeInactive = true, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
     {
-        var query = db.Persons.AsNoTracking().Include(x => x.Job).Include(x => x.Title).Include(x => x.Nationality).Include(x => x.Roles).AsQueryable();
+        var query = db.Persons.AsNoTracking().Include(x => x.Job).Include(x => x.Title).Include(x => x.Nationality).Include(x => x.Roles).Include(x => x.BrandLinks).AsQueryable();
         if (!includeInactive) query = query.Where(x => x.IsActive);
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -39,7 +39,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
     [HttpGet("persons/{id:guid}")]
     public async Task<ActionResult<PersonView>> PersonById(Guid id, CancellationToken ct)
     {
-        var item = await db.Persons.AsNoTracking().Include(x => x.Job).Include(x => x.Title).Include(x => x.Nationality).Include(x => x.Roles).SingleOrDefaultAsync(x => x.Id == id, ct);
+        var item = await db.Persons.AsNoTracking().Include(x => x.Job).Include(x => x.Title).Include(x => x.Nationality).Include(x => x.Roles).Include(x => x.BrandLinks).SingleOrDefaultAsync(x => x.Id == id, ct);
         return item is null ? NotFound() : Ok(PersonView.From(item, await LinkedToContract(id, ct)));
     }
 
@@ -88,7 +88,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
 
     private async Task<ActionResult<PersonView>> UpdatePersonCore(Guid id, PersonInput input, string? rowVersion, bool contractWorkflow, CancellationToken ct)
     {
-        var person = await db.Persons.Include(x => x.Job).Include(x => x.Roles).SingleOrDefaultAsync(x => x.Id == id, ct);
+        var person = await db.Persons.Include(x => x.Job).Include(x => x.Roles).Include(x => x.BrandLinks).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (person is null) return NotFound();
         var linked = await LinkedToContract(id, ct);
         var partner = IsPartner(person) || linked;
@@ -130,7 +130,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
 
     private async Task<IActionResult> DeletePersonCore(Guid id, string? rowVersion, bool contractWorkflow, CancellationToken ct)
     {
-        var person = await db.Persons.Include(x => x.Roles).Include(x => x.Job).SingleOrDefaultAsync(x => x.Id == id, ct);
+        var person = await db.Persons.Include(x => x.Roles).Include(x => x.Job).Include(x => x.BrandLinks).SingleOrDefaultAsync(x => x.Id == id, ct);
         if (person is null) return NotFound();
         var linked = await LinkedToContract(id, ct);
         if (!contractWorkflow && (linked || IsPartner(person))) return PartnerProtected();
@@ -144,6 +144,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         if (person.PartnerKind != PartnerKind.None || summary.HasHistory || summary.BalanceIRR != 0)
             return Conflict(new { error = "حذف شخص فقط در صورت نداشتن سابقه و مانده صفر مجاز است.", code = "PERSON_HAS_HISTORY_OR_BALANCE", summary.BalanceIRR, summary.HasHistory });
         db.PersonRoles.RemoveRange(person.Roles);
+        db.PersonBrands.RemoveRange(person.BrandLinks);
         db.Persons.Remove(person);
         await db.SaveChangesAsync(ct);
         return NoContent();
@@ -233,6 +234,15 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
 
     private async Task<string?> ValidatePersonAsync(PersonInput input, Guid? currentId, CancellationToken ct, bool contractWorkflow = false)
     {
+        if (input.BrandIds is not null)
+        {
+            var ids = input.BrandIds.Distinct().ToArray();
+            if (ids.Length != input.BrandIds.Length || await db.Brands.CountAsync(x => ids.Contains(x.Id), ct) != ids.Length)
+                return "برندهای انتخاب‌شده نامعتبر یا تکراری هستند.";
+            if (input.DefaultBrandId is { } defaultId && !ids.Contains(defaultId))
+                return "برند پیش‌فرض باید از برندهای انتخاب‌شدهٔ شخص باشد.";
+        }
+        else if (input.DefaultBrandId is not null) return "برای تغییر برند پیش‌فرض، برندهای انتخاب‌شده را نیز ارسال کنید.";
         input.PersonCode = input.PersonCode.Trim().ToUpperInvariant();
         if (string.IsNullOrWhiteSpace(input.PersonCode) || input.PersonCode.Length > 30) return "کد شخص الزامی و حداکثر ۳۰ کاراکتر است.";
         if (input.CreditLimitIRR < 0) return "مبلغ اعتبار نمی‌تواند منفی باشد.";
@@ -268,8 +278,17 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         ? Task.FromResult(true)
         : db.ParameterValues.AnyAsync(x => x.Id == id && x.ParameterType == type && x.IsActive, ct);
 
-    private static void Apply(Person person, PersonInput input)
+    private void Apply(Person person, PersonInput input)
     {
+        // Omitted associations preserve legacy clients' existing brands and default.
+        if (input.BrandIds is not null)
+        {
+            db.PersonBrands.RemoveRange(person.BrandLinks.Where(x => !input.BrandIds.Contains(x.BrandId)));
+            person.BrandLinks.RemoveAll(x => !input.BrandIds.Contains(x.BrandId));
+            foreach (var id in input.BrandIds.Where(id => person.BrandLinks.All(x => x.BrandId != id)))
+                person.BrandLinks.Add(new PersonBrand { PersonId = person.Id, BrandId = id });
+            person.DefaultBrandId = input.DefaultBrandId;
+        }
         person.PersonCode = input.PersonCode.Trim();
         person.AccountingCode = string.IsNullOrWhiteSpace(input.AccountingCode) ? person.PersonCode : input.AccountingCode.Trim();
         person.PersonType = input.PersonType;
@@ -304,6 +323,8 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
 
 public sealed class PersonInput
 {
+    public Guid[]? BrandIds { get; set; }
+    public Guid? DefaultBrandId { get; set; }
     public string PersonCode { get; set; } = string.Empty;
     public string? AccountingCode { get; set; }
     public PersonType PersonType { get; set; }
@@ -333,6 +354,8 @@ public sealed record PersonView(Guid Id, string PersonCode, string? AccountingCo
     Guid? NationalityId, ParameterView? Nationality, string PreferredLanguage, decimal CreditLimitIRR, string? Phone,
     string? Mobile, string? Address, string? Notes, bool IsActive, byte[] RowVersion)
 {
+    public Guid[] BrandIds { get; init; } = [];
+    public Guid? DefaultBrandId { get; init; }
     public string? DirectorName { get; init; }
     public string[] PhoneNumbers { get; init; } = [];
     public string[] MobileNumbers { get; init; } = [];
@@ -343,7 +366,7 @@ public sealed record PersonView(Guid Id, string PersonCode, string? AccountingCo
         x.DisplayName, x.JobId, Map(x.Job), x.TitleId, Map(x.Title), x.NationalityId, Map(x.Nationality), x.PreferredLanguage,
         x.CreditLimitIRR, x.Phone, x.Mobile, x.Address, x.Notes, x.IsActive, x.RowVersion) { DirectorName = x.DirectorName, PhoneNumbers = PersonNumberList.Read(x.PhoneNumbersJson, x.Phone), MobileNumbers = PersonNumberList.Read(x.MobileNumbersJson, x.Mobile),
             IsContractPartner = linked || x.PartnerKind != PartnerKind.None || x.Job?.Code == "PARTNER" || x.Roles.Any(role => role.Role == "Partner"),
-            Addresses = PersonNumberList.Read(x.AddressesJson, x.Address) };
+            Addresses = PersonNumberList.Read(x.AddressesJson, x.Address), BrandIds = x.BrandLinks.Select(b => b.BrandId).ToArray(), DefaultBrandId = x.DefaultBrandId };
     private static ParameterView? Map(ParameterValue? x) => x is null ? null : new(x.Id, x.ParameterType, x.Code, x.NameFa, x.NameEn, x.TitlePersonType);
 }
 

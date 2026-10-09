@@ -103,7 +103,7 @@ Responsibilities:
 
 ### M1.1 — Approved Brand architecture (2026-10-09)
 
-**Status:** Owner-approved architecture decision; implementation is pending. This decision does not claim that Brand schema, APIs or UI already exist.
+**Status:** Owner-approved architecture decision; core Brand Definition and Person–Brand integration implemented on 2026-10-10. The approved decisions below remain authoritative; barcode profiles remain deferred under M1.1.1.
 
 1. Brand Definition belongs to the shared **Master Data** module, alongside Persons and Products.
 2. Brand is an independent entity with **BrandCode**, **BrandName** and **Address**, and one permanent master identity (for example, BrandCode `700`) shared by purchasing, sales, inventory, accounting and reports. All transactions reference the master **Brand ID**.
@@ -114,6 +114,14 @@ Responsibilities:
 7. Brand Definition UI must follow the approved **Persons form design, grid, footer, typography and theme**.
 8. Preserve existing data and avoid duplicate Brand entities or tables; reuse existing structures where applicable.
 9. Before introducing any new schema or APIs, implementations must inspect existing **Master Data structures**, relationships and workflows.
+
+Implementation references (backend paths are relative to `src/YarnTrade.Api`; frontend paths are relative to the repository root):
+- `Domain/Entities.cs` and `Data/AppDbContext.cs`: independent audited `Brand` with a permanent GUID ID, unique normalized BrandCode (up to 30 characters, no three-digit restriction), BrandName (up to 200) and optional Address (up to 2000). `PersonBrand` is a unique PersonId/BrandId association; Person has one nullable DefaultBrandId validated against its selected BrandIds. Foreign keys restrict deletion; associated brands and brands referenced by purchases cannot be deleted.
+- `Controllers/BrandsController.cs`: paged/searchable create/read/update/delete API at `/api/master-data/brands`, protected by `brands.view/create/edit/delete` and the existing rowVersion convention. `MasterDataController.cs` returns/persists BrandIds and DefaultBrandId atomically with person edits; omitted BrandIds preserve legacy clients' existing associations/default. Existing person fields and partner protections remain in place.
+- `frontend/src/BrandsPage.tsx` reuses the Persons form's Field/Shortcut controls through `DefinitionControls.tsx` and the existing CSS/theme/grid/footer. `PersonsPage.tsx` supports multiple selected brands and one associated default. Insert opens Brand Definition while the parent component retains its draft; successful creation returns and adds the new brand without discarding existing selections, default or unsaved person fields. Brand saves/deletes refresh the mounted Persons brand lookup through a local browser event without resetting its draft.
+- Stable route ID `brands` is registered in the existing frontend workspace/navigation/i18n and backend trusted route/permission catalogs, under Definitions & Settings by default. Existing navigation management and personal preferences are reused. Operational roles already reading persons receive brand lookup permission; brand write access follows the existing catalog/role/user override rules.
+- Migration `20261009201818_AddBrandDefinition` adds Brands, PersonBrands, nullable Persons.DefaultBrandId and PurchaseInvoices.BrandId, unique indexes and restrictive foreign keys. It extends an existing valid global navigation JSON once, preserves existing nodes/order and personal preferences, and handles node ID collisions. Nullable purchase BrandId accepts any registered brand independently of supplier associations; no purchasing UI redesign was introduced.
+- Migration is applied to the main local database; the existing 8 persons and 3 purchases remain. Brand profile tables, recognition/scanning, Product–Brand UI and new reports are outside this implementation.
 
 #### M1.1.1 — Future Brand Barcode Profiles
 
@@ -1340,6 +1348,13 @@ A work package is DONE only when:
 ---
 
 # 15. Change Log
+
+## 2026-10-10 — Shared Brand Definition and Person–Brand integration
+- Implemented the approved M1.1 core workflow, independent Brand master, CRUD/concurrency/permission validation, person associations/default and Insert/create/return draft preservation. Registered route `brands` under the existing configurable Definitions & Settings group with Persian/English/Chinese labels and the existing Persons icon glyph. Reused Persons controls, theme, typography, grid and footer; narrow editors scroll within their panels.
+- Added only migration `20261009201818_AddBrandDefinition` and its EF model metadata. Existing global menu layouts are extended once; personal configurations are untouched. Optional purchase BrandId references the master identity and accepts any registered brand. Main database migration is verified, with person/purchase counts unchanged at 8/3. No barcode feature or barcode schema was added.
+- Verification: 23 focused backend cases pass across Brand, Navigation, PermissionCatalog and PersonsLanguage (20 passed in the combined run, then the three creation-language cases passed after supplying the title already required by the existing API). Two cases exercise real isolated SQL databases, including unique code/association enforcement, restrictive deletion, unrestricted purchase brand use, existing-record/layout/preference preservation and migration rollback/reapply. Eight frontend navigation/shared form interaction cases pass. Backend Release build and frontend TypeScript/production build succeed.
+- Real browser verification on a disposable database covers brand creation/search/update, menu move out of/back into Definitions & Settings, person multi-selection/default persistence, Insert → create → return with unsaved fields/default retained, RTL typography matching Persons and a 390px responsive viewport. Existing language regression fixtures were updated to include the pre-existing mandatory title. No test credential or connection string is committed.
+- Pre-change file/Git recovery snapshot: `C:\project\recovery\yarn-trade-system-brand-14050717-234023`, base commit `4ca0556d93a3213a6c560a5e5a53374121b73280`; file hashes and Git recovery/status were verified. Implementation and documentation are saved together on master and require verified origin/master synchronization under section 0.5.
 
 ## 2026-10-09 — Configurable shared navigation and Quick Access
 - Implemented the approved Shared Navigation architecture: hierarchical route/group nodes, administrator editing and drag/drop, independent user visibility/order/collapse preferences, and icon shortcuts. Fixed route IDs and actual permissions restrict every menu/shortcut; server-side Administrator plus settings.edit is required for global writes. Existing SystemSettings JSON storage, authenticated owner IDs, atomic revision checks and audit logging are reused; no migration or dependency was added.

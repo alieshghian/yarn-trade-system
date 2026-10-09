@@ -13,6 +13,7 @@ public static class PermissionCatalog
     public static readonly IReadOnlyList<PermissionDefinition> All =
     [
         P("dashboard.view", "dashboard", "view", "مشاهده داشبورد", "View dashboard"),
+        P("brands.view", "brands", "view", "مشاهده برندها", "View brands"), P("brands.create", "brands", "create", "تعریف برند", "Create brand"), P("brands.edit", "brands", "edit", "ویرایش برند", "Edit brand"), P("brands.delete", "brands", "delete", "حذف برند", "Delete brand"),
         P("persons.view", "persons", "view", "مشاهده اشخاص", "View persons"), P("persons.create", "persons", "create", "تعریف شخص", "Create person"), P("persons.edit", "persons", "edit", "ویرایش شخص", "Edit person"), P("persons.delete", "persons", "delete", "حذف شخص", "Delete person"),
         P("yarns.view", "yarns", "view", "مشاهده نخ‌ها", "View yarns"), P("yarns.create", "yarns", "create", "تعریف نخ", "Create yarn"), P("yarns.edit", "yarns", "edit", "ویرایش نخ", "Edit yarn"), P("yarns.delete", "yarns", "delete", "حذف نخ", "Delete yarn"),
         P("purchaseOrders.view", "purchaseOrders", "view", "مشاهده سفارش خرید", "View purchase orders"), P("purchaseOrders.create", "purchaseOrders", "create", "ثبت سفارش خرید", "Create purchase order"), P("purchaseOrders.edit", "purchaseOrders", "edit", "ویرایش سفارش خرید", "Edit purchase order"), P("purchaseOrders.delete", "purchaseOrders", "delete", "حذف سفارش خرید", "Delete purchase order"), P("purchaseOrders.submit", "purchaseOrders", "submit", "ارسال سفارش به بازرگانی", "Submit to commerce"),
@@ -57,6 +58,7 @@ public static class PermissionCatalog
             _ => []
         };
         // Sensitive credit approval is not inherited through an operational menu prefix.
+        if (prefixes.Any(x => x is "persons.view" or "persons.")) set.Add("brands.view");
         foreach (var permission in All.Where(x => x.Key != "sales.creditOverride" && prefixes.Any(prefix => prefix.EndsWith('.') ? x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) : x.Key.Equals(prefix, StringComparison.OrdinalIgnoreCase))))
             set.Add(permission.Key);
     }

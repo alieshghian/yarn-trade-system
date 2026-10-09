@@ -56,9 +56,11 @@ public sealed class PersonsLanguageTests
         Guid id;
         await using (var db = new AppDbContext(options)) {
             var nationality = Nationality(nationalityCode);
-            db.ParameterValues.Add(nationality);
+            var title = new ParameterValue { ParameterType = ParameterType.Title, Code = "MR", NameFa = "آقای", NameEn = "Mr.", TitlePersonType = PersonType.Individual };
+            db.ParameterValues.AddRange(nationality, title);
             await db.SaveChangesAsync();
-            var result = await Controller(db).CreatePerson(Input(nationality.Id, language), default);
+            var input = Input(nationality.Id, language); input.TitleId = title.Id;
+            var result = await Controller(db).CreatePerson(input, default);
             var view = Assert.IsType<PersonView>(Assert.IsType<CreatedAtActionResult>(result.Result).Value);
             Assert.Equal(language, view.PreferredLanguage);
             id = view.Id;

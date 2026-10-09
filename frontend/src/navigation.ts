@@ -1,10 +1,10 @@
-export const icons = { dashboard: '▦', persons: '♧', yarns: '≋', purchaseOrders: '☷', commerce: '⚑', purchases: '⇩', inventory: '◫', sales: '↗', finance: '◈', checks: '▤', partners: '♙', reports: '▥', users: '♟', dataBackup: '⟳', businessContract: '§', settings: '⚙' }
+export const icons = { dashboard: '▦', persons: '♧', brands: '♧', yarns: '≋', purchaseOrders: '☷', commerce: '⚑', purchases: '⇩', inventory: '◫', sales: '↗', finance: '◈', checks: '▤', partners: '♙', reports: '▥', users: '♟', dataBackup: '⟳', businessContract: '§', settings: '⚙' }
 export type MenuKey = keyof typeof icons
 export type NavigationNode = { id: string, parentId: string | null, routeId: MenuKey | null, label: string, icon: MenuKey, enabled: boolean }
 export type NavigationPreferences = { order: string[], hidden: string[], collapsed: string[], pinned: MenuKey[] }
 export const defaultPreferences = (): NavigationPreferences => ({ order: [], hidden: [], collapsed: [], pinned: [] })
 export const defaultNavigation = (): NavigationNode[] => [
-  ...Object.keys(icons).map(id => ({ id, parentId: ['businessContract', 'settings'].includes(id) ? 'definitions' : null, routeId: id as MenuKey, label: '', icon: id as MenuKey, enabled: true })),
+  ...Object.keys(icons).map(id => ({ id, parentId: ['businessContract', 'settings', 'brands'].includes(id) ? 'definitions' : null, routeId: id as MenuKey, label: '', icon: id as MenuKey, enabled: true })),
   { id: 'definitions', parentId: null, routeId: null, label: 'تعاریف و تنظیمات', icon: 'settings', enabled: true }
 ]
 export type DropPlacement = 'before' | 'after' | 'inside'

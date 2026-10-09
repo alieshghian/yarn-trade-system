@@ -372,6 +372,7 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .person-editor .person-title-entry>small{color:#a34336;font-size:10px}
 .persons-page .person-editor .person-form-grid :is(input:not([type='checkbox']),select,textarea){font-size:14px}
 .persons-page .person-table,.persons-page .person-table td{font-size:13px}
+
 .persons-page .person-table th,.persons-page .person-table .column-title{font-size:14px}
 .persons-page .person-table .person-grid-phone{display:inline-block;direction:ltr;unicode-bidi:isolate}
 .persons-page .person-table .person-status{font-size:10px}
@@ -409,3 +410,12 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .persons-page.person-layout-five .person-editor .person-form-grid>.person-notes-active{grid-column:11 / span 10;grid-row:3}
 
 .navigation-quick{max-height:76px;overflow-y:auto;scrollbar-width:thin}.navigation-tools:empty{display:none}
+
+.persons-page .person-editor select[multiple]{height:56px!important}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-brands-field{grid-column:1 / span 3;grid-row:2}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-default-brand-field{grid-column:4 / span 2;grid-row:2}
+.brands-page .person-editor .brand-form-grid{grid-template-columns:minmax(100px,1fr) minmax(160px,2fr) minmax(180px,3fr)}
+.brands-page .person-editor .brand-form-grid>label,.brands-page .person-editor .brand-form-grid>label.wide-field{grid-column:auto}
+.brands-page .grid-toolbar input[type=search]{max-width:220px;height:32px}
+@media(max-width:760px){.brands-page .person-editor,.persons-page.person-layout-five .person-editor{overflow:auto}.brands-page .person-editor .brand-form-grid{grid-template-columns:minmax(0,1fr)}.brands-page .person-editor .brand-form-grid>label{grid-column:1!important}.persons-page.person-layout-five .person-editor .person-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.persons-page.person-layout-five .person-editor .person-form-grid>label,.persons-page.person-layout-five .person-editor .person-form-grid>.person-notes-active{grid-column:span 1!important;grid-row:auto}}
+@media(max-width:520px){.persons-page.person-layout-five .person-editor .person-form-grid{grid-template-columns:minmax(0,1fr)!important}}

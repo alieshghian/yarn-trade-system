@@ -42,6 +42,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
     [HttpPost]
     public async Task<ActionResult<PurchaseInvoice>> Create(PurchaseInvoice invoice, CancellationToken ct)
     {
+        if (invoice.BrandId is { } brandId && !await db.Brands.AnyAsync(x => x.Id == brandId, ct)) return BadRequest(new { error = "برند انتخاب‌شده معتبر نیست." });
         invoice.Id = Guid.NewGuid(); invoice.Status = DocumentStatus.Draft;
         foreach (var item in invoice.Items) { item.Id = Guid.NewGuid(); item.PurchaseInvoiceId = invoice.Id; }
         foreach (var container in invoice.Containers) { container.Id = Guid.NewGuid(); container.PurchaseInvoiceId = invoice.Id; }
@@ -65,6 +66,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         if (invoice is null) return NotFound();
         if (AggregateConcurrency.Apply(db, invoice, rowVersion) is { } concurrencyError) return concurrencyError;
         if (invoice.Status != DocumentStatus.Draft) return Conflict(new { error = "Posted documents are immutable." });
+        if (input.BrandId is { } brandId && !await db.Brands.AnyAsync(x => x.Id == brandId, ct)) return BadRequest(new { error = "برند انتخاب‌شده معتبر نیست." });
         AggregateConcurrency.CopyEditableValues(db, invoice, input);
         invoice.Status = DocumentStatus.Draft;
         invoice.PostedAtUtc = null;

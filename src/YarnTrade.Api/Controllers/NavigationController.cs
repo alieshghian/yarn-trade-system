@@ -23,6 +23,7 @@ public static class NavigationRules
 {
     public static readonly NavigationRoute[] Routes = [
         new("dashboard", "dashboard", "dashboard.view"), new("persons", "persons", "persons.view"),
+        new("brands", "brands", "brands.view"),
         new("yarns", "yarns", "yarns.view"), new("purchaseOrders", "purchaseOrders", "purchaseOrders.view"),
         new("commerce", "commerce", "commerce.view"), new("purchases", "purchases", "purchases.view"),
         new("inventory", "inventory", "inventory.view"), new("sales", "sales", "sales.view"),
@@ -32,7 +33,7 @@ public static class NavigationRules
         new("businessContract", "businessContract", "settings.view"), new("settings", "settings", null)
     ];
     public static List<NavigationNode> Defaults() => Routes.Select(x => new NavigationNode(x.Id,
-        x.Id is "businessContract" or "settings" ? "definitions" : null, x.Id, "", x.Icon, true))
+        x.Id is "businessContract" or "settings" or "brands" ? "definitions" : null, x.Id, "", x.Icon, true))
         .Append(new NavigationNode("definitions", null, null, "تعاریف و تنظیمات", "settings", true)).ToList();
 
     public static string? Validate(List<NavigationNode>? nodes)

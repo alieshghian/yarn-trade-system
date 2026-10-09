@@ -10,6 +10,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<AppUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<Person> Persons => Set<Person>();
+    public DbSet<Brand> Brands => Set<Brand>();
+    public DbSet<PersonBrand> PersonBrands => Set<PersonBrand>();
     public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
     public DbSet<UserTaskState> UserTaskStates => Set<UserTaskState>();
     public DbSet<RoleTaskSetting> RoleTaskSettings => Set<RoleTaskSetting>();
@@ -77,6 +79,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         }
 
         builder.Entity<Person>().HasIndex(x => x.PersonCode).IsUnique();
+        builder.Entity<Brand>().HasIndex(x => x.BrandCode).IsUnique();
+        builder.Entity<Brand>().Property(x => x.BrandCode).HasMaxLength(30);
+        builder.Entity<Brand>().Property(x => x.BrandName).HasMaxLength(200);
+        builder.Entity<Brand>().Property(x => x.Address).HasMaxLength(2000);
+        builder.Entity<PersonBrand>().HasIndex(x => new { x.PersonId, x.BrandId }).IsUnique();
+        builder.Entity<PersonBrand>().HasOne<Person>().WithMany(x => x.BrandLinks).HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PersonBrand>().HasOne<Brand>().WithMany().HasForeignKey(x => x.BrandId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Person>().HasOne<Brand>().WithMany().HasForeignKey(x => x.DefaultBrandId).OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<PurchaseInvoice>().HasOne<Brand>().WithMany().HasForeignKey(x => x.BrandId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Person>().Property(x => x.DirectorName).HasMaxLength(200);
         builder.Entity<AppUser>().HasIndex(x => x.PersonId).IsUnique().HasFilter("[PersonId] IS NOT NULL");
         builder.Entity<AppUser>().Property(x => x.PreferredLanguage).HasMaxLength(2);

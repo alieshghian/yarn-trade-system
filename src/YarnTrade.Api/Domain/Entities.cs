@@ -89,6 +89,8 @@ public sealed class UserPermission : Entity
 
 public sealed class Person : AuditedEntity
 {
+    public Guid? DefaultBrandId { get; set; }
+    public List<PersonBrand> BrandLinks { get; set; } = [];
     // Investor master reservation (same code, inactive/no trade roles), or a separate commercial child.
     public Guid? CapitalInvestorId { get; set; }
     public Investor? CapitalInvestor { get; set; }
@@ -118,6 +120,19 @@ public sealed class Person : AuditedEntity
     public bool IsActive { get; set; } = true;
     public PartnerKind PartnerKind { get; set; }
     public List<PersonRole> Roles { get; set; } = [];
+}
+
+public sealed class Brand : AuditedEntity
+{
+    public required string BrandCode { get; set; }
+    public required string BrandName { get; set; }
+    public string? Address { get; set; }
+}
+
+public sealed class PersonBrand : Entity
+{
+    public Guid PersonId { get; set; }
+    public Guid BrandId { get; set; }
 }
 
 public sealed class ParameterValue : AuditedEntity
@@ -203,6 +218,7 @@ public sealed class ExchangeRate : AuditedEntity
 
 public sealed class PurchaseInvoice : AuditedEntity
 {
+    public Guid? BrandId { get; set; }
     public Guid? BusinessContractVersionId { get; set; }
     public Guid? PurchaseOrderId { get; set; }
     public required string InternalNumber { get; set; }

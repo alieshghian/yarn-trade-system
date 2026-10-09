@@ -1,3 +1,5 @@
+import { Field, Shortcut } from './DefinitionControls'
+import BrandsPage, { type Brand, type BrandPage } from './BrandsPage'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
@@ -9,6 +11,7 @@ type Parameter = { id: string, parameterType: ParameterType, code: string, nameF
 const titleOrder = ['MR', 'MRS', 'COMPANY', 'INSTITUTE', 'OFFICE', 'ORGANIZATION']
 const titlePersonType = (title?: Parameter) => title?.personType ?? (title?.code === 'MR' || title?.code === 'MRS' ? 'Individual' : title && titleOrder.includes(title.code) ? 'Company' : undefined)
 export type Person = {
+  brandIds?: string[], defaultBrandId?: string | null,
   rowVersion?: string,
   id: string, personCode: string, accountingCode?: string, personType: 'Individual' | 'Company', firstName?: string,
   lastName?: string, companyName?: string, directorName?: string, displayName: string, jobId?: string, job?: Parameter, titleId?: string,
@@ -53,11 +56,13 @@ function loadColumns(key: string, legacyKey = key): ColumnState[] {
 }
 
 const emptyDraft = (): PersonDraft => ({
+  brandIds: [], defaultBrandId: null,
   personCode: '', accountingCode: '', personType: 'Individual', firstName: '', lastName: '', companyName: '', directorName: '', jobId: '',
   titleId: '', nationalityId: '', preferredLanguage: 'fa', creditLimitIRR: 0, phone: '', phoneNumbers: [], mobile: '', mobileNumbers: [], address: '', addresses: [], notes: '', isActive: true
 })
 
 const copyDraft = (person: Person): PersonDraft => ({
+  brandIds: person.brandIds ?? [], defaultBrandId: person.defaultBrandId ?? null,
   personCode: person.personCode, accountingCode: person.accountingCode ?? '', personType: person.personType,
   firstName: person.firstName ?? '', lastName: person.lastName ?? person.companyName ?? '', companyName: '',
   directorName: person.directorName ?? '',
@@ -121,6 +126,9 @@ type ContractCreation = { personId?: string, onSaved: (person: Person) => void, 
 export default function PersonsPage({ language, demoMode = false, contractCreation, authenticatedUserId }: { language: Language, demoMode?: boolean, contractCreation?: ContractCreation, authenticatedUserId?: string }) {
   const fa = language === 'fa'
   const [persons, setPersons] = useState<Person[]>([])
+  const [brands, setBrands] = useState<Brand[]>([])
+  const [brandCreation, setBrandCreation] = useState(false)
+  const brandSelection = useRef<HTMLSelectElement>(null)
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [titleEntry, setTitleEntry] = useState(false)
   const [titleName, setTitleName] = useState('')
@@ -214,6 +222,22 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [demoMode])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (demoMode || !hasPermission('brands.view')) return
+    let alive = true
+    let revision = 0
+    const reloadBrands = () => { const ticket = ++revision; void (async () => {
+      const all: Brand[] = []
+      for (let page = 1; ; page++) {
+        const result = await api<BrandPage>(`/api/master-data/brands?page=${page}&pageSize=500`)
+        all.push(...result.items)
+        if (!result.items.length || all.length >= result.total) break
+      }
+      if (alive && ticket === revision) setBrands(all)
+    })().catch(e => { if (alive && ticket === revision) setError(e instanceof Error ? e.message : String(e)) }) }
+    reloadBrands(); window.addEventListener('brands-changed', reloadBrands)
+    return () => { alive = false; window.removeEventListener('brands-changed', reloadBrands) }
+  }, [demoMode])
   useEffect(() => { if (titleEntry) titleInput.current?.focus() }, [titleEntry])
   useEffect(() => { setTitleEntry(false) }, [mode])
   useEffect(() => {
@@ -378,6 +402,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (brandCreation || !frameRef.current) return
       if (frameRef.current?.closest('[aria-hidden="true"]')) return
       const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement
       if (mode !== 'view') {
@@ -405,7 +430,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     }
     document.addEventListener('keydown', keydown)
     return () => document.removeEventListener('keydown', keydown)
-  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, filterMenu, titleEntry])
+  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, filterMenu, titleEntry, brandCreation])
 
   function resizeStart(event: React.PointerEvent) {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -552,6 +577,15 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     finally { setTitleSaving(false) }
   }
 
+  if (brandCreation) return <BrandsPage language={language} demoMode={demoMode} creation={{
+    onCancel: () => { setBrandCreation(false); requestAnimationFrame(() => brandSelection.current?.focus()) },
+    onSaved: brand => {
+      setBrands(current => [...current.filter(x => x.id !== brand.id), brand])
+      setDraft(current => ({ ...current, brandIds: [...new Set([...(current.brandIds ?? []), brand.id])] }))
+      setBrandCreation(false); requestAnimationFrame(() => brandSelection.current?.focus())
+    }
+  }} />
+
   return <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
     <section className="person-editor panel">
       <div className="person-section-head"><div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div><span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span></div>
@@ -570,6 +604,8 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
         <Field className="person-mobile-field" label={fa ? 'موبایل' : 'Mobile'}><NumberControl field="mobile" label={fa ? 'موبایل' : 'Mobile'} primary={draft.mobile ?? ''} numbers={draft.mobileNumbers ?? []} disabled={disabled} fa={fa} suggestedCode={dialingCode} onChange={(mobile, mobileNumbers) => setDraft(current => ({ ...current, mobile, mobileNumbers }))} /></Field>
         <Field label={fa ? 'آدرس' : 'Address'} wide className="person-address-field"><NumberControl field="address" label={fa ? 'آدرس' : 'Address'} primary={draft.address ?? ''} numbers={draft.addresses ?? []} disabled={disabled} fa={fa} onChange={(address, addresses) => setDraft(current => ({ ...current, address, addresses }))} multiline /></Field>
         <div className="person-notes-active"><Field label={fa ? 'توضیحات' : 'Notes'} className="person-notes-field"><input data-field="notes" disabled={disabled} value={draft.notes} onChange={e => set('notes', e.target.value)} /></Field><label className="active-check"><input data-field="isActive" type="checkbox" disabled={disabled} checked={draft.isActive} onChange={e => set('isActive', e.target.checked)} />{fa ? 'فعال' : 'Active'}</label></div>
+        <Field label={fa ? 'برندها' : 'Brands'} className="person-brands-field"><div className="person-title-wrap"><button type="button" className="title-add-button" disabled={disabled || !hasPermission('brands.create')} aria-label={fa ? 'تعریف برند جدید' : 'New brand'} title="Insert" onClick={() => setBrandCreation(true)}>+</button><select ref={brandSelection} data-field="brandIds" aria-label={fa ? 'برندها' : 'Brands'} multiple size={2} disabled={disabled || !hasPermission('brands.view')} value={draft.brandIds ?? []} onKeyDown={event => { if (event.key === 'Insert' && !disabled && hasPermission('brands.create')) { event.preventDefault(); event.stopPropagation(); setBrandCreation(true) } }} onChange={event => { const ids = [...event.target.selectedOptions].map(x => x.value); setDraft(current => ({ ...current, brandIds: ids, defaultBrandId: ids.includes(current.defaultBrandId ?? '') ? current.defaultBrandId : null })) }}>{brands.map(brand => <option key={brand.id} value={brand.id}>{brand.brandCode} — {brand.brandName}</option>)}</select></div></Field>
+        <Field label={fa ? 'برند پیش‌فرض' : 'Default brand'} className="person-default-brand-field"><select data-field="defaultBrandId" disabled={disabled || !hasPermission('brands.view')} value={draft.defaultBrandId ?? ''} onChange={event => set('defaultBrandId', event.target.value || null)}><option value="">—</option>{brands.filter(brand => draft.brandIds?.includes(brand.id)).map(brand => <option key={brand.id} value={brand.id}>{brand.brandCode} — {brand.brandName}</option>)}</select></Field>
       </div>
     </section>
     <div className="split-handle" onPointerDown={resizeStart}><span /></div>
@@ -606,10 +642,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       </div>
     </section>
   </div>
-}
-
-function Field({ label, wide, compact, error, className = '', children }: { label: string, wide?: boolean, compact?: boolean, error?: string, className?: string, children: React.ReactNode }) {
-  return <label className={`${wide ? 'wide-field' : ''} ${compact ? 'person-compact-field' : ''} ${error ? 'invalid-field' : ''} ${className}`}><span>{label}</span>{children}{error && <small className="field-error">{error}</small>}</label>
 }
 function NumberControl({ field, label, primary, numbers, disabled, fa, onChange, suggestedCode = '', multiline = false }: { field: 'phone' | 'mobile' | 'address', label: string, primary: string, numbers: string[], disabled: boolean, fa: boolean, suggestedCode?: string, multiline?: boolean, onChange: (primary: string, numbers: string[]) => void }) {
   const [open, setOpen] = useState(false)
@@ -724,7 +756,4 @@ function NumberControl({ field, label, primary, numbers, disabled, fa, onChange,
       {!disabled && <button type="button" className="number-confirm" onClick={confirm}>{fa ? 'تأیید (F3)' : 'Apply (F3)'}</button>}
     </div>}
   </div>
-}
-function Shortcut({ code, label, onClick, primary, danger, disabled }: { code: string, label: string, onClick: () => void, primary?: boolean, danger?: boolean, disabled?: boolean }) {
-  return <button type="button" disabled={disabled} className={`${primary ? 'primary' : ''} ${danger ? 'danger-shortcut' : ''}`} onClick={onClick}><kbd>{code}</kbd><span>{label}</span></button>
 }
