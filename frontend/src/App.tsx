@@ -3,6 +3,7 @@ import { api, apiRequest, isConcurrencyConflict, withRowVersion, authenticationR
 import { Language, languageNames, loginText, text } from './i18n'
 import PersonsPage from './PersonsPage'
 import BrandsPage from './BrandsPage'
+import FormLaboratoryPage from './FormLaboratoryPage'
 import YarnsPage from './YarnsPage'
 import PurchaseOrdersPage from './PurchaseOrdersPage'
 import CommercePage from './CommercePage'
@@ -21,7 +22,7 @@ type MaintenanceNotice = { id: string, requesterName: string, requesterRoles: st
 type Access = { id: string, email: string, displayName: string, preferredLanguage: string, sessionTimeoutMinutes: number, theme: UserPreferences['theme'], compactMode: boolean, fontFamily: UserPreferences['fontFamily'], fontSize: UserPreferences['fontSize'], roles: string[], permissions: string[] }
 
 const workspaceStateKey = 'global-trade-workspace-v1'
-const workspaceMenuKeys: MenuKey[] = ['dashboard', 'persons', 'brands', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings']
+const workspaceMenuKeys: MenuKey[] = ['dashboard', 'persons', 'brands', 'formLaboratory', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings']
 
 function readWorkspaceState(): { active: MenuKey, openTabs: MenuKey[] } {
   try {
@@ -69,7 +70,7 @@ export default function App() {
   const languageChangeSequence = useRef(0)
   const t = text[language]
   const dir = language === 'fa' ? 'rtl' : 'ltr'
-  const allMenus = useMemo(() => ['dashboard', 'persons', 'brands', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings'] as const, [])
+  const allMenus = useMemo(() => ['dashboard', 'persons', 'brands', 'formLaboratory', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings'] as const, [])
   const menu = useMemo(() => allMenus.filter(key => demoMode || key === 'settings' || (!access ? key === 'dashboard' : access.permissions.includes(key === 'businessContract' ? 'settings.view' : `${key}.view`))), [allMenus, access, demoMode])
   // هر فرم فقط کارتابل فعالیت مرتبط با خودش را نمایش می‌دهد؛ نقش مقصد در API کنترل می‌شود.
   const currentWorkItems = useMemo(() => workItems.filter(item => item.target === active), [workItems, active])
@@ -345,9 +346,9 @@ export default function App() {
         <div className="work-items">{currentWorkItems.length ? currentWorkItems.map(item => <WorkItemRow key={item.id} item={item} language={language} now={clockNow} expanded={expandedWorkItem === item.id} actioning={actioningWorkItem === item.id} onView={() => void viewWorkItem(item)} onAction={() => void actionWorkItem(item)} />) : <p>{t.noActiveTask}</p>}</div>
         <button className="work-refresh" onClick={refreshWorkItems}>{t.refreshInbox}</button>
       </aside>
-      <section className={`content tabbed-content ${active === 'persons' || active === 'brands' || active === 'yarns' || active === 'purchaseOrders' || active === 'commerce' || active === 'users' || active === 'dataBackup' || active === 'businessContract' || active === 'settings' ? 'persons-content' : ''}`}>
+      <section className={`content tabbed-content ${active === 'persons' || active === 'brands' || active === 'formLaboratory' || active === 'yarns' || active === 'purchaseOrders' || active === 'commerce' || active === 'users' || active === 'dataBackup' || active === 'businessContract' || active === 'settings' ? 'persons-content' : ''}`}>
         {openTabs.filter(key => menu.includes(key)).map(tab => <div key={tab} className={`form-tab-pane ${active === tab ? 'active' : ''}`} aria-hidden={active !== tab}>
-          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} authenticatedUserId={access?.id} /> : tab === 'brands' ? <BrandsPage language={language} demoMode={demoMode} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} administrator={access?.roles.includes('Administrator') ?? false} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'businessContract' ? <BusinessContractPage language={language} canEdit={demoMode || (access?.permissions.includes('settings.edit') ?? false)} /> : tab === 'settings' ? <UserSettingsPage language={language} onLanguageChanged={changeLanguage} onPreferencesChanged={savePreferences} onPasswordChanged={() => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : language === 'zh' ? '密码已更改，请使用新密码登录。' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
+          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} authenticatedUserId={access?.id} /> : tab === 'brands' ? <BrandsPage language={language} demoMode={demoMode} /> : tab === 'formLaboratory' ? <FormLaboratoryPage language={language} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} administrator={access?.roles.includes('Administrator') ?? false} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'businessContract' ? <BusinessContractPage language={language} canEdit={demoMode || (access?.permissions.includes('settings.edit') ?? false)} /> : tab === 'settings' ? <UserSettingsPage language={language} onLanguageChanged={changeLanguage} onPreferencesChanged={savePreferences} onPasswordChanged={() => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : language === 'zh' ? '密码已更改，请使用新密码登录。' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
           <div className="metrics">
           <Metric label={t.openReceivables} value={language === 'fa' ? '۲٬۱۸۰٬۰۰۰٬۰۰۰' : '2,180,000,000'} unit={t.irr} trend={language === 'fa' ? '+۸٫۲٪' : '+8.2%'} tone="gold" />
           <Metric label={t.inventoryValue} value={language === 'fa' ? '۴۳٬۶۴۳٫۷' : '43,643.7'} unit={t.kg} trend={t.twoWarehouses} tone="teal" />

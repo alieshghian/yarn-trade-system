@@ -13,6 +13,7 @@ public static class PermissionCatalog
     public static readonly IReadOnlyList<PermissionDefinition> All =
     [
         P("dashboard.view", "dashboard", "view", "مشاهده داشبورد", "View dashboard"),
+        P("formLaboratory.view", "formLaboratory", "view", "مشاهده آزمایشگاه فرم‌ها", "View Form Laboratory"),
         P("brands.view", "brands", "view", "مشاهده برندها", "View brands"), P("brands.create", "brands", "create", "تعریف برند", "Create brand"), P("brands.edit", "brands", "edit", "ویرایش برند", "Edit brand"), P("brands.delete", "brands", "delete", "حذف برند", "Delete brand"),
         P("persons.view", "persons", "view", "مشاهده اشخاص", "View persons"), P("persons.create", "persons", "create", "تعریف شخص", "Create person"), P("persons.edit", "persons", "edit", "ویرایش شخص", "Edit person"), P("persons.delete", "persons", "delete", "حذف شخص", "Delete person"),
         P("yarns.view", "yarns", "view", "مشاهده نخ‌ها", "View yarns"), P("yarns.create", "yarns", "create", "تعریف نخ", "Create yarn"), P("yarns.edit", "yarns", "edit", "ویرایش نخ", "Edit yarn"), P("yarns.delete", "yarns", "delete", "حذف نخ", "Delete yarn"),
