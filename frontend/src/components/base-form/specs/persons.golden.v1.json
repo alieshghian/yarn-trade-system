@@ -1,0 +1,173 @@
+{
+  "format": "yarn-trade.golden-form",
+  "schemaVersion": 1,
+  "form": {
+    "id": "persons.definition",
+    "name": "Persons Definition",
+    "status": "approved-golden-reference",
+    "baselineImmutable": true,
+    "dataPolicy": "metadata-only-no-person-records",
+    "observedFrom": [
+      "frontend/src/PersonsPage.tsx",
+      "frontend/src/DefinitionControls.tsx",
+      "frontend/src/formInteraction.ts",
+      "frontend/src/App.tsx",
+      "frontend/src/styles.css",
+      "frontend/src/UserSettingsPage.tsx"
+    ]
+  },
+  "sections": [
+    {
+      "id": "persons.editor",
+      "kind": "editor",
+      "defaultState": "view",
+      "layout": {
+        "type": "css-grid",
+        "trackCount": 20,
+        "trackSizing": "repeat(20,minmax(0,1fr))",
+        "trackUnit": "1/20 of editor inline size",
+        "fieldMinimumInlineSizePx": null,
+        "fieldMinimumInlineSizeStatus": "NOT SPECIFIED by current CSS; tracks and labels allow zero minimum"
+      },
+      "rows": [
+        {
+          "id": "identity",
+          "row": 1,
+          "fields": [
+            { "id": "personCode", "startTrack": 1, "trackSpan": 2, "required": true },
+            { "id": "titleId", "startTrack": 3, "trackSpan": 3, "required": true },
+            { "id": "firstName", "startTrack": 6, "trackSpan": 5, "when": "Individual" },
+            { "id": "lastName", "startTrack": 11, "trackSpan": 5, "when": "Individual; organization-name label for Company" },
+            { "id": "directorName", "startTrack": 11, "trackSpan": 5, "when": "Company" },
+            { "id": "jobId", "startTrack": 16, "trackSpan": 5, "when": "not contract-creation mode" }
+          ]
+        },
+        {
+          "id": "contact-and-brands",
+          "row": 2,
+          "fields": [
+            { "id": "brandIds", "startTrack": 1, "trackSpan": 3, "when": "not contract-creation mode" },
+            { "id": "defaultBrandId", "startTrack": 4, "trackSpan": 2, "when": "not contract-creation mode" },
+            { "id": "nationalityId", "startTrack": 6, "trackSpan": 5 },
+            { "id": "phone", "startTrack": 11, "trackSpan": 5 },
+            { "id": "mobile", "startTrack": 16, "trackSpan": 5 }
+          ]
+        },
+        {
+          "id": "address-and-notes",
+          "row": 3,
+          "fields": [
+            { "id": "address", "startTrack": 1, "trackSpan": 10 },
+            { "id": "notes-active-group", "startTrack": 11, "trackSpan": 10, "children": ["notes", "isActive"], "layout": "notes flexes; active checkbox stays beside it" }
+          ]
+        }
+      ],
+      "fieldIdsSource": "data-field attributes in PersonsPage.tsx; nested group IDs identify existing rendered groups"
+    },
+    {
+      "id": "persons.grid",
+      "kind": "existing-excel-grid",
+      "defaultColumns": [
+        { "id": "personCode", "widthPx": 130 },
+        { "id": "displayName", "widthPx": 280 },
+        { "id": "job", "widthPx": 150 },
+        { "id": "nationality", "widthPx": 130 },
+        { "id": "mobile", "widthPx": 145 },
+        { "id": "phone", "widthPx": 160 },
+        { "id": "isActive", "widthPx": 100 }
+      ],
+      "capabilities": {
+        "sortByHeaderAscendingDescending": true,
+        "excelColumnFilter": true,
+        "filterValueSearch": true,
+        "selectAllFilterValues": true,
+        "clearColumnFilter": true,
+        "columnResize": "pointer; minimum width 80px",
+        "columnOrdering": "drag and drop",
+        "columnVisibility": true,
+        "globalSearchAboveGrid": "NOT IMPLEMENTED",
+        "filteringAndCounts": "client-side over the loaded persons collection"
+      },
+      "count": "filtered.length of persons.length; not a server-wide total contract"
+    },
+    {
+      "id": "persons.footer",
+      "kind": "existing-shortcut-footer",
+      "viewActions": ["new", "edit", "delete", "first", "previous-page", "browse", "next-page", "last"],
+      "editActions": ["save:F3", "cancel:Escape"],
+      "shortcutSettings": {
+        "default": { "new": "Space", "edit": "Insert", "delete": "Delete", "save": "F3" },
+        "options": ["Space", "Insert", "Delete", "F2", "F3", "F4", "F6", "F7", "Ctrl+N", "Ctrl+E"],
+        "persistence": "localStorage per current user key"
+      }
+    }
+  ],
+  "editorGridSplitter": {
+    "type": "vertical pointer splitter",
+    "defaultEditorHeightPx": 330,
+    "minimumEditorHeightPx": 260,
+    "maximumEditorHeight": "frame height - 260px",
+    "gridMinimumHeightPx": 230,
+    "persistence": "localStorage persons-split:<current-user-key>"
+  },
+  "typography": {
+    "fontFamily": "inherit --user-font-family; default Vazirmatn,Tahoma,Arial,sans-serif",
+    "fontSize": "inherit --user-font-size preference; editor controls 14px, editor labels 10px, grid body 13px, grid headings 14px",
+    "fontWeight": "inherited unless current state or semantic element specifies emphasis",
+    "tokens": ["--ink", "--muted", "--line", "--cream", "--teal", "--gold", "--form-frame-fill"]
+  },
+  "visualStatesObserved": {
+    "normal": "current form CSS defaults",
+    "hover": "existing buttons, grid rows and controls have hover rules",
+    "focus": "existing input focus, focus-visible and focus-within rules",
+    "selected": "existing selected grid row and active footer action",
+    "disabled": "existing disabled input/select/button styles",
+    "error": "existing invalid-field, aria-invalid and field-error styles"
+  },
+  "languageAndDirection": {
+    "fa": "RTL; grid starts at inline-start (right)",
+    "en": "LTR",
+    "zh": "LTR; current Persons labels use the non-Persian language branch",
+    "numberInputs": "existing number controls keep phone values LTR and address RTL"
+  },
+  "responsive": {
+    "atOrBelow760px": "Persons workspace retains 620px minimum width and scrolls horizontally; editor fields reflow to two columns",
+    "atOrBelow520px": "editor fields reflow to one column",
+    "otherBehavior": "existing grid/footer and application breakpoints remain authoritative"
+  },
+  "preferenceInheritanceObserved": {
+    "themeAndFont": "App applies the authenticated user's UserSettings preferences to the document root; form inherits existing CSS tokens and font variables",
+    "personalGrid": "column order, width and visibility use a user-keyed localStorage entry",
+    "personalSplitter": "user-keyed localStorage entry",
+    "personalShortcuts": "user-keyed localStorage entry",
+    "perFieldStyleOverrides": "NOT IMPLEMENTED",
+    "administratorFormDefaults": "NOT IMPLEMENTED"
+  },
+  "keyboardContracts": [
+    "formInteraction is installed once by main.tsx and owns global text focus selection, validated field navigation and F3 routing",
+    "F3 invokes the visible enabled save action in the focused form scope; the designer must not replace or intercept this contract",
+    "Persons view shortcuts use the configured new/edit/delete keys and Home/End/Page/arrow navigation",
+    "Persons edit mode uses the configured save key and Escape to cancel"
+  ],
+  "futureConfigurationPrecedence": [
+    "immutable Golden Form specification and existing host defaults",
+    "current application theme/font preferences",
+    "administrator form defaults, applying explicit properties only",
+    "the authenticated user's explicit per-property overrides",
+    "transient interaction states such as focus, error and disabled"
+  ],
+  "futureReusableSections": {
+    "editor": "independently renderable field sections keyed by stable section and field IDs",
+    "grid": "reuse the existing Excel grid implementation; Base Form does not introduce another grid",
+    "footer": "independently renderable actions while preserving formInteraction and existing shortcuts"
+  },
+  "notImplemented": [
+    "reusable Base Form renderer and visual Form Designer",
+    "direct field resizing, proportional resize weights, field drag/drop and group styling",
+    "live per-field color/typography preview and per-property overrides",
+    "custom footer button dimensions",
+    "Undo/Redo/Save/Cancel/Reset for designer configuration",
+    "administrator defaults and user-specific form layout persistence",
+    "isolated synthetic-data Form Laboratory and performance tests up to 100000 rows"
+  ]
+}
