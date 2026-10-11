@@ -12,7 +12,7 @@
 
 ## 0. Mandatory Codex protocol
 
-Codex MUST read this file before making architectural, database, security, workflow, posting, costing, inventory, partner-account, permission, or deployment changes.
+Codex MUST consult the relevant sections of this file before making architectural, database, security, workflow, posting, costing, inventory, partner-account, permission, or deployment changes. Read the complete document only when the scope or evidence requires it; all applicable approved requirements remain binding.
 
 ### 0.1 Living-document rule
 This document is not a static specification. It must evolve with the codebase.
@@ -73,6 +73,18 @@ Whenever `YARN_TRADE_CODEX_MASTER.md` is created, modified, or updated, the same
 6. If synchronization fails, report the issue immediately and do not claim success.
 
 This rule is permanent and applies to every future creation or update of this master document. Keep the commit scoped to the Markdown file unless the owner explicitly authorizes otherwise.
+
+### 0.6 Scoped reading, context and validation
+- Explicit user/task restrictions take precedence over default workflow instructions, including Master updates, validation and Git operations. Sections 0.4-0.5 remain the default Git/GitHub synchronization requirements; never claim synchronization without verification.
+- Start each task by stating its scope. Inspect relevant files and direct dependencies; expand only when evidence or applicable correctness/security requirements require it.
+- Prefer symbol searches and bounded line ranges. Exclude generated/dependency directories (node_modules, dist, bin, obj) from content searches. Read complete large files only when essential.
+- Reuse completed searches and reads unless files changed, evidence is missing or a new question requires them. Inspect focused diffs; keep terminal output targeted and reports concise without arbitrary limits that block necessary analysis.
+- At meaningful task boundaries or before known context transitions, retain only: current task/scope; files inspected; relevant architectural decisions; changes made; validation completed; remaining steps and blockers.
+- After compaction, use available conversation/task state first; do not routinely reload the full Master or large sources. Do not summarize after every tool call. These rules do not control internal compaction.
+- Validate at meaningful checkpoints, not after every small edit. Prefer focused tests; run broader checks when integration risk, applicable requirements or completion require them. Repeat successful checks only when later changes invalidate them or new evidence requires it.
+- Use browser automation when visual or functional verification requires it. Prefer targeted DOM inspection; use full-page accessibility snapshots only when necessary.
+- Instruction/documentation-only tasks use exact diff and scope verification; do not run builds, tests or browser automation unless explicitly requested or justified by an actual code/integration impact.
+- Preserve required correctness, security and regression checks. No specific reduction in token usage or five-hour quota consumption is guaranteed.
 
 ---
 
@@ -1333,8 +1345,8 @@ and optional `PackageId` reference in movement/allocation model when implemented
 
 A work package is DONE only when:
 - scope is exactly the requested item;
-- build passes;
-- relevant tests pass;
+- applicable build passes for source/integration changes; documentation-only changes use focused diff verification;
+- relevant tests pass for affected behavior;
 - migration is reversible/reviewed where applicable;
 - security/data-scope impact reviewed;
 - no new secret committed;
