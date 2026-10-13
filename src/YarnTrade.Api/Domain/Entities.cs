@@ -127,6 +127,7 @@ public sealed class Brand : AuditedEntity
     public required string BrandCode { get; set; }
     public required string BrandName { get; set; }
     public string? Address { get; set; }
+    public string? Description { get; set; }
 }
 
 public sealed class PersonBrand : Entity

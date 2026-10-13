@@ -86,7 +86,11 @@ public sealed partial class SecurityBaselineTests
         var navigation = await host.Client.GetFromJsonAsync<JsonElement>("/api/navigation");
         Assert.Contains(navigation.GetProperty("nodes").EnumerateArray(), x => x.GetProperty("routeId").GetString() == "brands");
         await CreateUser(host.App, "brand-admin@example.test", "Administrator"); await SignIn(host, "brand-admin@example.test");
-        Assert.Equal(HttpStatusCode.Created, (await host.Client.PostAsJsonAsync("/api/master-data/brands", new BrandInput("700", "Brand", null))).StatusCode);
+        var created = await host.Client.PostAsJsonAsync("/api/master-data/brands", new BrandInput("700", "Brand", null, "Description survives API mapping"));
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var listed = await host.Client.GetFromJsonAsync<JsonElement>("/api/master-data/brands?q=Description%20survives%20API%20mapping");
+        var savedBrand = listed.GetProperty("items").EnumerateArray().Single();
+        Assert.Equal("Description survives API mapping", savedBrand.GetProperty("description").GetString());
     }
 
     [Fact]
@@ -110,7 +114,7 @@ public sealed partial class SecurityBaselineTests
     public async Task Brand_SQL_migration_preserves_records_layout_preferences_and_rollback()
     {
         await using var sql = await A4SqlDatabase.Create(); await using var db = sql.Context();
-        var before = db.Database.GetMigrations().Where(x => !x.EndsWith("_AddBrandDefinition")).Last();
+        var before = db.Database.GetMigrations().Where(x => !x.EndsWith("_AddBrandDefinition") && !x.EndsWith("_AddBrandDescription")).Last();
         var migrator = db.GetService<IMigrator>(); await migrator.MigrateAsync(before);
         var person = new Person { PersonCode = "LEGACY", DisplayName = "Legacy person", Notes = "Keep" }; db.Persons.Add(person);
         // Use raw SQL so the old schema is exercised before the new model's nullable columns exist.
@@ -121,8 +125,11 @@ public sealed partial class SecurityBaselineTests
         var json = JsonSerializer.Serialize(nodes, new JsonSerializerOptions(JsonSerializerDefaults.Web));
         db.SystemSettings.Add(new() { Key = "Navigation.Global.v1", Value = json, ValidFrom = new(2000, 1, 1) });
         var own = new SystemSetting { Key = "Navigation.User.v1.test", Value = "{\"pinned\":[\"persons\"],\"hidden\":[\"settings\"]}", ValidFrom = new(2000, 1, 1) }; db.SystemSettings.Add(own); await db.SaveChangesAsync();
+        await migrator.MigrateAsync("20261009201818_AddBrandDefinition");
+        db.Brands.Add(new Brand { BrandCode = "BRAND-MIG", BrandName = "Existing brand" }); await db.SaveChangesAsync();
         await migrator.MigrateAsync(); db.ChangeTracker.Clear();
         var saved = await db.Persons.SingleAsync(x => x.Id == person.Id); Assert.Equal("Keep", saved.Notes); Assert.Null(saved.DefaultBrandId);
+        var savedBrand = await db.Brands.SingleAsync(x => x.BrandCode == "BRAND-MIG"); Assert.Equal("Existing brand", savedBrand.BrandName); Assert.Null(savedBrand.Description);
         var layout = JsonSerializer.Deserialize<List<NavigationNode>>((await db.SystemSettings.SingleAsync(x => x.Key == "Navigation.Global.v1")).Value, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         Assert.Equal(nodes, layout.Where(x => x.RouteId != "brands").ToList()); Assert.Equal("definitions", layout.Single(x => x.RouteId == "brands").ParentId);
         Assert.Equal(own.Value, (await db.SystemSettings.SingleAsync(x => x.Key == own.Key)).Value);
@@ -137,7 +144,7 @@ public sealed partial class SecurityBaselineTests
         Guid brandId, personId;
         await using (var db = sql.Context())
         {
-            var brand = new Brand { BrandCode = "700", BrandName = "Master" }; db.Brands.Add(brand); await db.SaveChangesAsync(); brandId = brand.Id;
+            var brand = new Brand { BrandCode = "700", BrandName = "Master", Description = "Preserved brand description" }; db.Brands.Add(brand); await db.SaveChangesAsync(); brandId = brand.Id;
             var controller = new MasterDataController(db, new PersonAccountService(db));
             var title = await db.ParameterValues.SingleAsync(x => x.ParameterType == ParameterType.Title && x.Code == "MR");
             var result = await controller.CreatePerson(BrandPersonInput(title.Id, [brand.Id], brand.Id), default);
@@ -155,6 +162,7 @@ public sealed partial class SecurityBaselineTests
         }
         await using (var db = sql.Context())
         {
+            Assert.Equal("Preserved brand description", (await db.Brands.SingleAsync(x => x.Id == brandId)).Description);
             db.Brands.Add(new Brand { BrandCode = "700", BrandName = "Duplicate" }); await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         }
         await using (var db = sql.Context())

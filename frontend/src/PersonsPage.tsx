@@ -1,4 +1,6 @@
 import { Field, Shortcut } from './DefinitionControls'
+import { ExcelGridColumnHeader, ExcelGridFilterScope } from './components/base-form/ExcelGridColumnHeader'
+import { applyGridFiltersAndSort, gridDistinctValues, type ExcelGridColumn, type GridFilterState, type GridPage, type GridQuery, type GridSortState, type GridValue } from './components/base-form/excelGrid'
 import BrandsPage, { type Brand, type BrandPage } from './BrandsPage'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -18,13 +20,10 @@ export type Person = {
   title?: Parameter, nationalityId?: string, nationality?: Parameter, preferredLanguage: 'fa' | 'en' | 'zh', creditLimitIRR: number,
   phone?: string, phoneNumbers?: string[], mobile?: string, mobileNumbers?: string[], address?: string, addresses?: string[], notes?: string, isActive: boolean, isContractPartner?: boolean
 }
-type PersonPage = { items: Person[], total: number }
 type Mode = 'view' | 'new' | 'edit'
 type PersonDraft = Omit<Person, 'rowVersion' | 'id' | 'displayName' | 'job' | 'title' | 'nationality'>
 type ColumnKey = 'personCode' | 'displayName' | 'job' | 'nationality' | 'mobile' | 'phone' | 'isActive'
 type ColumnState = { key: ColumnKey, width: number, visible: boolean }
-type SortState = { key: ColumnKey, direction: 'asc' | 'desc' }
-type ColumnFilters = Record<ColumnKey, string[] | null>
 type ShortcutAction = 'new' | 'edit' | 'delete' | 'save'
 type ShortcutMap = Record<ShortcutAction, string>
 const defaultShortcuts: ShortcutMap = { new: 'Space', edit: 'Insert', delete: 'Delete', save: 'F3' }
@@ -44,7 +43,6 @@ const defaultColumns: ColumnState[] = [
   { key: 'phone', width: 160, visible: true },
   { key: 'isActive', width: 100, visible: true }
 ]
-const emptyColumnFilters = (): ColumnFilters => ({ personCode: null, displayName: null, job: null, nationality: null, mobile: null, phone: null, isActive: null })
 
 function loadColumns(key: string, legacyKey = key): ColumnState[] {
   try {
@@ -159,12 +157,11 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const columnMenu = useRef<HTMLDivElement>(null)
   const draggedColumn = useRef<ColumnKey | null>(null)
   const [columnDrop, setColumnDrop] = useState<{ key: ColumnKey, before: boolean } | null>(null)
-  const [filters, setFilters] = useState<ColumnFilters>(emptyColumnFilters)
-  const [sort, setSort] = useState<SortState>({ key: 'personCode', direction: 'asc' })
-  const [filterMenu, setFilterMenu] = useState<ColumnKey | null>(null)
-  const [filterPosition, setFilterPosition] = useState({ top: 0, left: 0 })
-  const [filterSearch, setFilterSearch] = useState('')
-  const [pendingFilter, setPendingFilter] = useState<string[]>([])
+  const [filters, setFilters] = useState<GridFilterState>({})
+  const [sort, setSort] = useState<GridSortState>([{ id: 'personCode', direction: 'asc' }])
+  const [gridPage, setGridPage] = useState(1)
+  const [personTotal, setPersonTotal] = useState(0)
+  const [gridLoading, setGridLoading] = useState(false)
   const [shortcuts, setShortcuts] = useState<ShortcutMap>(() => {
     try { return { ...defaultShortcuts, ...JSON.parse(localStorage.getItem(shortcutKey) ?? '{}') } }
     catch { return defaultShortcuts }
@@ -172,6 +169,13 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const frameRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
   const contractStarted = useRef(false)
+  const modeRef = useRef(mode)
+  modeRef.current = mode
+  const skipGridRefresh = useRef(true)
+  const gridQueryRef = useRef<GridQuery>({ page: 1, pageSize: 100, search: '', filters: {}, sort: [{ id: 'personCode', direction: 'asc' }], language: fa ? 'fa' : 'en' })
+  const selectedIdRef = useRef(selectedId)
+  selectedIdRef.current = selectedId
+  gridQueryRef.current = { page: gridPage, pageSize: 100, search: '', filters, sort, language: fa ? 'fa' : 'en' }
 
   const selected = persons.find(x => x.id === selectedId)
   const dirty = mode !== 'view' && JSON.stringify(draft) !== original.current
@@ -186,19 +190,39 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     if (key === 'isActive') return person.isActive ? (fa ? 'فعال' : 'Active') : (fa ? 'غیرفعال' : 'Inactive')
     return String(person[key] ?? '')
   }, [fa])
-  const filtered = useMemo(() => {
-    const locale = language === 'fa' ? 'fa' : 'en'
-    const result = persons.filter(person => columns.every(column => filters[column.key] === null || filters[column.key]!.includes(columnValue(person, column.key))))
-    return [...result].sort((a, b) => {
-      const left = columnValue(a, sort.key)
-      const right = columnValue(b, sort.key)
-      const comparison = left.localeCompare(right, locale, { numeric: true })
-      return sort.direction === 'asc' ? comparison : -comparison
-    })
-  }, [persons, columns, filters, sort, language, columnValue])
-  const filterValues = useMemo(() => filterMenu === null ? [] : [...new Set(persons.map(person => columnValue(person, filterMenu)))].sort((a, b) => a.localeCompare(b, language === 'fa' ? 'fa' : 'en', { numeric: true })), [filterMenu, persons, columnValue, language])
-  const visibleFilterValues = filterValues.filter(value => value.toLocaleLowerCase(language === 'fa' ? 'fa' : 'en').includes(filterSearch.trim().toLocaleLowerCase(language === 'fa' ? 'fa' : 'en')))
+  const gridColumns = useMemo<ExcelGridColumn<Person>[]>(() => columns.map(column => ({
+    id: column.key, label: ({ personCode: fa ? 'کد' : 'Code', displayName: fa ? 'نام / عنوان' : 'Name', job: fa ? 'شغل' : 'Job', nationality: fa ? 'ملیت' : 'Nationality', mobile: fa ? 'موبایل' : 'Mobile', phone: fa ? 'تلفن' : 'Phone', isActive: fa ? 'وضعیت' : 'Status' })[column.key],
+    width: column.width, type: column.key === 'isActive' ? 'boolean' : 'text',
+    value: person => column.key === 'isActive' ? person.isActive : columnValue(person, column.key),
+    effectiveCellColor: column.key === 'isActive' ? (person: Person) => person.isActive ? '#e4f2ec' : '#eeeeee' : undefined,
+    colorAwareSort: column.key === 'isActive'
+  })), [columns, fa, columnValue])
+  const filtered = useMemo(() => demoMode ? applyGridFiltersAndSort(persons, gridColumns, filters, sort, language === 'fa' ? 'fa' : 'en') : persons, [demoMode, persons, gridColumns, filters, sort, language])
   const selectedIndex = Math.max(0, filtered.findIndex(x => x.id === selectedId))
+  const gridTotal = demoMode ? filtered.length : personTotal
+  const gridPageCount = Math.max(1, Math.ceil(gridTotal / 100))
+  const gridStart = demoMode ? (filtered.length ? 1 : 0) : gridTotal ? (gridPage - 1) * 100 + 1 : 0
+  const gridEnd = demoMode ? filtered.length : Math.min(gridTotal, gridPage * 100)
+
+  const loadGrid = useCallback(async (query = gridQueryRef.current) => {
+    if (demoMode) { setPersonTotal(demoPersons.length); return { items: demoPersons, total: demoPersons.length, page: 1, pageSize: 100 } }
+    const result = await apiRequest<GridPage<Person>>('/api/master-data/persons/grid', { method: 'POST', body: JSON.stringify(query) })
+    setPersons(result.items); setPersonTotal(result.total)
+    if (result.items.length && !result.items.some(person => person.id === selectedIdRef.current)) {
+      const next = result.items[0]
+      setSelectedId(next.id)
+      if (modeRef.current === 'view') { const value = copyDraft(next); setDraft(value); original.current = JSON.stringify(value) }
+    }
+    return result
+  }, [demoMode])
+  const loadGridFilterValues = useCallback(async (column: string, search: string): Promise<{ values: GridValue[], colors?: (string | null)[] }> => {
+    if (demoMode) {
+      const definition = gridColumns.find(item => item.id === column)
+      return { values: definition ? gridDistinctValues(persons, definition) : [] }
+    }
+    const result = await apiRequest<GridPage<Person>>('/api/master-data/persons/grid', { method: 'POST', body: JSON.stringify({ ...gridQueryRef.current, optionsColumn: column, optionsSearch: search }) })
+    return { values: result.filterValues ?? [], colors: result.colorValues }
+  }, [demoMode, gridColumns, persons])
 
   const load = useCallback(async (preferId?: string) => {
     setLoading(true); setError('')
@@ -210,18 +234,27 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
         return
       }
       const [people, refs] = await Promise.all([
-        api<PersonPage>('/api/master-data/persons?page=1&pageSize=500&includeInactive=true'),
+        loadGrid({ ...gridQueryRef.current, page: 1 }),
         api<Parameter[]>('/api/master-data/parameters')
       ])
-      setPersons(people.items); setParameters(refs)
-      const next = people.items.find(x => x.id === preferId) ?? people.items[0]
+      setGridPage(1); setParameters(refs)
+      const next = people.items.find(x => x.id === preferId) ?? (preferId ? await api<Person>(`/api/master-data/persons/${preferId}`).catch(() => undefined) : undefined) ?? people.items[0]
       setSelectedId(next?.id ?? '')
       if (next) { const value = copyDraft(next); setDraft(value); original.current = JSON.stringify(value) }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
     finally { setLoading(false) }
-  }, [demoMode])
+  }, [demoMode, loadGrid])
 
   useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    if (skipGridRefresh.current) { skipGridRefresh.current = false; return }
+    if (demoMode) return
+    const timer = window.setTimeout(() => {
+      setGridLoading(true)
+      void loadGrid().catch(e => setError(e instanceof Error ? e.message : String(e))).finally(() => setGridLoading(false))
+    }, 120)
+    return () => window.clearTimeout(timer)
+  }, [filters, sort, gridPage, fa, demoMode, loadGrid])
   useEffect(() => {
     if (demoMode || !hasPermission('brands.view')) return
     let alive = true
@@ -413,8 +446,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       }
       if (event.key === 'Escape') {
         event.preventDefault()
-        if (filterMenu !== null) setFilterMenu(null)
-        else window.dispatchEvent(new Event('close-active-form'))
+        window.dispatchEvent(new Event('close-active-form'))
         return
       }
       if (typing) return
@@ -430,7 +462,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     }
     document.addEventListener('keydown', keydown)
     return () => document.removeEventListener('keydown', keydown)
-  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, filterMenu, titleEntry, brandCreation])
+  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, titleEntry, brandCreation])
 
   function resizeStart(event: React.PointerEvent) {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -478,10 +510,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     if (mode !== 'view' && field) validateAndShow(field)
   }
 
-  function sortBy(key: ColumnKey) {
-    setSort(current => current.key === key ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' } : { key, direction: 'asc' })
-  }
-
   function columnDragOver(event: React.DragEvent<HTMLTableCellElement>, key: ColumnKey) {
     if (!draggedColumn.current) return
     event.preventDefault(); event.dataTransfer.dropEffect = 'move'
@@ -518,20 +546,13 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
 
   function toggleColumn(key: ColumnKey) {
     setColumns(current => current.map(column => column.key === key ? { ...column, visible: !column.visible } : column))
-    setFilters(current => ({ ...current, [key]: null }))
+    setFilters(current => { const next = { ...current }; delete next[key]; return next })
+    setGridPage(1)
   }
 
-  function openFilterMenu(key: ColumnKey, anchor: HTMLElement) {
-    const values = [...new Set(persons.map(person => columnValue(person, key)))]
-    const rect = anchor.getBoundingClientRect(), width = 320, height = 400
-    setFilterPosition({ top: Math.max(8, Math.min(rect.bottom + 2, window.innerHeight - height - 8)), left: Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)) })
-    setFilterMenu(key); setFilterSearch(''); setPendingFilter(filters[key] ?? values)
-  }
-
-  function applyFilter(key: ColumnKey) {
-    const allValues = [...new Set(persons.map(person => columnValue(person, key)))]
-    setFilters({ ...filters, [key]: pendingFilter.length === allValues.length ? null : [...pendingFilter] })
-    setFilterMenu(null)
+  function applyFilter(key: ColumnKey, filter?: GridFilterState[string]) {
+    setFilters(current => { const next = { ...current }; if (filter) next[key] = filter; else delete next[key]; return next })
+    setGridPage(1)
   }
 
   const disabled = mode === 'view'
@@ -610,20 +631,13 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     </section>
     <div className="split-handle" onPointerDown={resizeStart}><span /></div>
     <section className="person-grid-panel panel">
-      <div className="grid-toolbar"><div><h2>{fa ? 'فهرست اشخاص' : 'People'}</h2><span>{fa ? `${filtered.length} از ${persons.length} رکورد` : `${filtered.length} of ${persons.length} records`}</span></div><details className="column-picker" ref={columnPicker} open={columnMenuOpen}><summary aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>☷ {fa ? 'ستون‌ها' : 'Columns'}</summary></details></div>
+      <div className="grid-toolbar"><div><h2>{fa ? 'فهرست اشخاص' : 'People'}</h2><span>{fa ? `${gridStart} تا ${gridEnd} از ${gridTotal} رکورد` : `${gridStart}–${gridEnd} of ${gridTotal} records`}</span></div><div className="persons-grid-pager"><button type="button" disabled={gridPage <= 1 || gridLoading} onClick={() => setGridPage(page => page - 1)}>{fa ? 'قبلی' : 'Previous'}</button><span>{gridPage} / {gridPageCount}</span><button type="button" disabled={gridPage >= gridPageCount || gridLoading} onClick={() => setGridPage(page => page + 1)}>{fa ? 'بعدی' : 'Next'}</button></div><details className="column-picker" ref={columnPicker} open={columnMenuOpen}><summary aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>☷ {fa ? 'ستون‌ها' : 'Columns'}</summary></details></div>
       {columnMenuOpen && createPortal(<div ref={columnMenu} className="person-column-menu" dir={fa ? 'rtl' : 'ltr'} style={columnMenuPosition}>{columns.map(column => <label key={column.key}><input type="checkbox" checked={column.visible} disabled={column.visible && visibleColumns.length === 1} onChange={() => toggleColumn(column.key)} />{columnLabel(column.key)}</label>)}<button type="button" onClick={() => setColumns(defaultColumns)}>↺ {fa ? 'حالت پیش‌فرض' : 'Reset'}</button></div>, document.body)}
-      <div className="person-table-wrap"><table className="person-table excel-grid" style={{ minWidth: visibleColumns.reduce((sum, column) => sum + column.width, 0) }}><colgroup>{visibleColumns.map(column => <col key={column.key} style={{ width: column.width }} />)}</colgroup><thead>
-        <tr>{visibleColumns.map(column => <th key={column.key} data-column={column.key} className={columnDrop?.key === column.key ? `column-drop-${columnDrop.before ? 'before' : 'after'}` : undefined} onDragOver={event => columnDragOver(event, column.key)} onDrop={event => dropColumn(event, column.key)}><div className="column-heading"><button type="button" className="column-title" draggable onDragStart={event => { draggedColumn.current = column.key; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', column.key); setFilterMenu(null); setColumnMenuOpen(false) }} onDragEnd={() => { draggedColumn.current = null; setColumnDrop(null) }} onClick={() => sortBy(column.key)}>{columnLabel(column.key)}<span>{sort.key === column.key ? (sort.direction === 'asc' ? '▲' : '▼') : ''}</span></button><button type="button" className={`excel-filter-trigger ${filters[column.key] !== null ? 'active' : ''}`} aria-label={`${fa ? 'فیلتر ستون' : 'Filter column'} ${columnLabel(column.key)}`} onClick={event => filterMenu === column.key ? setFilterMenu(null) : openFilterMenu(column.key, event.currentTarget)}>▼</button></div>{filterMenu === column.key && <div className="excel-filter-menu" style={filterPosition}>
-          <button type="button" className="filter-command" onClick={() => { setSort({ key: column.key, direction: 'asc' }); setFilterMenu(null) }}><b>AZ↓</b><span>{fa ? 'مرتب‌سازی از کوچک به بزرگ' : 'Sort A to Z'}</span></button>
-          <button type="button" className="filter-command" onClick={() => { setSort({ key: column.key, direction: 'desc' }); setFilterMenu(null) }}><b>ZA↓</b><span>{fa ? 'مرتب‌سازی از بزرگ به کوچک' : 'Sort Z to A'}</span></button>
-          <button type="button" className="filter-command clear" disabled={filters[column.key] === null} onClick={() => { setFilters(current => ({ ...current, [column.key]: null })); setFilterMenu(null) }}>⊘ <span>{fa ? `پاک کردن فیلتر «${columnLabel(column.key)}»` : `Clear filter from “${columnLabel(column.key)}”`}</span></button>
-          <input className="filter-value-search" autoFocus value={filterSearch} onChange={event => setFilterSearch(event.target.value)} placeholder={fa ? 'جستجو…' : 'Search…'} />
-          <div className="filter-values"><label><input type="checkbox" checked={pendingFilter.length === filterValues.length} onChange={event => setPendingFilter(event.target.checked ? filterValues : [])} />{fa ? '(انتخاب همه)' : '(Select All)'}</label>{visibleFilterValues.map(value => <label key={value}><input type="checkbox" checked={pendingFilter.includes(value)} onChange={event => setPendingFilter(current => event.target.checked ? [...current, value] : current.filter(x => x !== value))} />{value || (fa ? '(خالی)' : '(Blanks)')}</label>)}</div>
-          <div className="filter-actions"><button type="button" className="primary" onClick={() => applyFilter(column.key)}>{fa ? 'تأیید' : 'OK'}</button><button type="button" onClick={() => setFilterMenu(null)}>{fa ? 'انصراف' : 'Cancel'}</button></div>
-        </div>}<i className="column-resizer" onPointerDown={event => resizeColumn(event, column.key)} /></th>)}</tr>
+      <div className="person-table-wrap"><ExcelGridFilterScope><table className="person-table excel-grid" style={{ minWidth: visibleColumns.reduce((sum, column) => sum + column.width, 0) }}><colgroup>{visibleColumns.map(column => <col key={column.key} style={{ width: column.width }} />)}</colgroup><thead>
+        <tr>{visibleColumns.map(column => <ExcelGridColumnHeader key={column.key} column={gridColumns.find(item => item.id === column.key)!} rows={persons} locale={fa ? 'fa' : 'en'} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.key]} sort={sort} onSort={next => { setSort(next); setGridPage(1) }} onApplyFilter={filter => applyFilter(column.key, filter)} loadFilterValues={search => loadGridFilterValues(column.key, search)} thProps={{ 'data-column': column.key, className: columnDrop?.key === column.key ? `column-drop-${columnDrop.before ? 'before' : 'after'}` : undefined, onDragOver: event => columnDragOver(event, column.key), onDrop: event => dropColumn(event, column.key) }} titleProps={{ draggable: true, onDragStart: event => { draggedColumn.current = column.key; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', column.key); setColumnMenuOpen(false) }, onDragEnd: () => { draggedColumn.current = null; setColumnDrop(null) } }} resizer={<i className="column-resizer" onPointerDown={event => resizeColumn(event, column.key)} />} />)}</tr>
       </thead><tbody>
-        {loading ? <tr><td colSpan={visibleColumns.length}>{fa ? 'در حال دریافت…' : 'Loading…'}</td></tr> : filtered.length ? filtered.map(person => <tr key={person.id} data-person-id={person.id} className={person.id === selectedId ? 'selected' : ''} onClick={() => mode === 'view' && setSelectedId(person.id)} onDoubleClick={beginEdit}>{visibleColumns.map(column => <td key={column.key}>{cell(person, column.key)}</td>)}</tr>) : <tr><td colSpan={visibleColumns.length}>{fa ? 'رکوردی یافت نشد.' : 'No records found.'}</td></tr>}
-      </tbody></table></div>
+        {loading || gridLoading ? <tr><td colSpan={visibleColumns.length}>{fa ? 'در حال دریافت…' : 'Loading…'}</td></tr> : filtered.length ? filtered.map(person => <tr key={person.id} data-person-id={person.id} className={person.id === selectedId ? 'selected' : ''} onClick={() => mode === 'view' && setSelectedId(person.id)} onDoubleClick={beginEdit}>{visibleColumns.map(column => <td key={column.key}>{cell(person, column.key)}</td>)}</tr>) : <tr><td colSpan={visibleColumns.length}>{fa ? 'رکوردی یافت نشد.' : 'No records found.'}</td></tr>}
+      </tbody></table></ExcelGridFilterScope></div>
       <div className="shortcut-bar">
         {mode === 'view' ? <>
           <Shortcut code={shortcuts.new} label={fa ? 'شخص جدید' : 'New'} onClick={beginNew} primary disabled={!hasPermission('persons.create')} />

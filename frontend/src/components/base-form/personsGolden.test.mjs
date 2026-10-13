@@ -5,6 +5,10 @@ import test from 'node:test'
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8')
 const golden = JSON.parse(read('./specs/persons.golden.v1.json'))
 const persons = read('../../PersonsPage.tsx')
+const excelHeader = read('./ExcelGridColumnHeader.tsx')
+const excelGrid = read('./excelGrid.ts')
+const laboratoryGrid = read('./BaseFormGridBoundary.tsx')
+const personsGridApi = read('../../../../src/YarnTrade.Api/Controllers/PersonsGridController.cs')
 const controls = read('../../DefinitionControls.tsx')
 const interaction = read('../../formInteraction.ts')
 const app = read('../../App.tsx')
@@ -34,20 +38,26 @@ test('Golden editor track proportions, rows, and responsive breakpoints remain a
 })
 
 test('Golden grid retains sorting, Excel filtering, column search, resize, ordering and visibility', () => {
-  for (const behavior of ['sortBy', 'openFilterMenu', 'applyFilter', 'filterSearch', 'Select All', 'columnDragOver', 'dropColumn', 'resizeColumn', 'toggleColumn']) {
-    if (behavior === 'Select All') assert.match(persons, /انتخاب همه|Select All/)
-    else assert.ok(persons.includes(behavior), `${behavior} remains in PersonsPage`)
-  }
+  for (const behavior of ['ExcelGridColumnHeader', 'applyGridFiltersAndSort', 'applyFilter', 'columnDragOver', 'dropColumn', 'resizeColumn', 'toggleColumn']) assert.ok(persons.includes(behavior), `${behavior} remains integrated in PersonsPage`)
+  for (const behavior of ['Sort Ascending', 'Sort Descending', 'Filter by Color', 'Select All', 'Cancel', 'gridDistinctValues', 'Top 10…', 'Above Average']) assert.ok(excelHeader.includes(behavior) || excelHeader.includes(behavior.replaceAll(' ', '')) || excelGrid.includes(behavior), `${behavior} remains in the shared grid`)
+  assert.match(excelHeader, /ExcelGridFilterScope/)
+  assert.match(excelHeader, /document\.addEventListener\('pointerdown', outside, true\)/)
+  assert.match(excelHeader, /document\.addEventListener\('keydown', escape, true\)/)
+  assert.match(laboratoryGrid, /ExcelGridColumnHeader/)
   assert.deepEqual(golden.sections.find(section => section.id === 'persons.grid').defaultColumns.map(column => column.id),
     ['personCode', 'displayName', 'job', 'nationality', 'mobile', 'phone', 'isActive'])
 })
 
-test('Search and counts keep their observed client-side scope explicit', () => {
-  assert.match(persons, /filterValues = useMemo/)
-  assert.match(persons, /filtered\.length.*persons\.length/)
+test('Search, filters, counts and paging run against the full server-side Persons query', () => {
+  assert.match(persons, /applyGridFiltersAndSort/)
+  assert.match(persons, /\/api\/master-data\/persons\/grid/)
+  assert.match(personsGridApi, /ApplyFilters\(query, filters, language\)/)
+  assert.match(personsGridApi, /CountAsync\(ct\)/)
+  assert.match(personsGridApi, /Skip\(\(page - 1\) \* pageSize\)\.Take\(pageSize\)/)
+  assert.match(laboratoryGrid, /remoteQuery\(\{ page, pageSize: 100/)
   const grid = golden.sections.find(section => section.id === 'persons.grid')
-  assert.equal(grid.capabilities.globalSearchAboveGrid, 'NOT IMPLEMENTED')
-  assert.equal(grid.capabilities.filteringAndCounts, 'client-side over the loaded persons collection')
+  assert.equal(grid.capabilities.globalSearchAboveGrid, 'server-side over the full Persons query')
+  assert.equal(grid.capabilities.filteringAndCounts, 'server-side over all Persons records')
 })
 
 test('Editor/grid splitter retains pointer resize bounds and per-user storage', () => {

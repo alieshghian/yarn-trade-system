@@ -10,4 +10,4 @@ export const createSyntheticPersons = (count: number): SyntheticPerson[] => Arra
     address: `نشانی مصنوعی شماره ${number}`, notes: index % 3 === 0 ? 'نمونهٔ خطای نمایشی ندارد.' : 'رکورد مصنوعی آزمایشگاه', isActive: index % 9 !== 0 }
 })
 
-export const laboratoryDatasetSizes = [100, 1000, 10000] as const
+export const laboratoryDatasetSizes = [100, 1000, 10000, 100000] as const

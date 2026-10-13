@@ -85,10 +85,10 @@
         "columnResize": "pointer; minimum width 80px",
         "columnOrdering": "drag and drop",
         "columnVisibility": true,
-        "globalSearchAboveGrid": "NOT IMPLEMENTED",
-        "filteringAndCounts": "client-side over the loaded persons collection"
+        "globalSearchAboveGrid": "server-side over the full Persons query",
+        "filteringAndCounts": "server-side over all Persons records"
       },
-      "count": "filtered.length of persons.length; not a server-wide total contract"
+      "count": "filtered total across all Persons records; returned page is capped at 100"
     },
     {
       "id": "persons.footer",

@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "package:color-sampler": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/Publish-ColorSamplerDownloads.ps1",
+    "build:release": "npm run package:color-sampler && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

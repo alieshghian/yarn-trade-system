@@ -83,6 +83,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<Brand>().Property(x => x.BrandCode).HasMaxLength(30);
         builder.Entity<Brand>().Property(x => x.BrandName).HasMaxLength(200);
         builder.Entity<Brand>().Property(x => x.Address).HasMaxLength(2000);
+        builder.Entity<Brand>().Property(x => x.Description).HasMaxLength(4000);
         builder.Entity<PersonBrand>().HasIndex(x => new { x.PersonId, x.BrandId }).IsUnique();
         builder.Entity<PersonBrand>().HasOne<Person>().WithMany(x => x.BrandLinks).HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<PersonBrand>().HasOne<Brand>().WithMany().HasForeignKey(x => x.BrandId).OnDelete(DeleteBehavior.Restrict);

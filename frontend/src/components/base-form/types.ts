@@ -2,7 +2,8 @@ import type { ReactNode } from 'react'
 
 export type BaseFormField = { id: string, sectionId: string, minTracks: number, span: number }
 export type BaseFormSectionDefinition = { id: string, kind: 'editor' | 'grid' | 'footer' }
-export type BaseFormDefinition = { id: string, sections: BaseFormSectionDefinition[], fields: BaseFormField[] }
+export type BaseFormAction = { id: string; code: string; label: Record<'fa' | 'en' | 'zh', string>; primary?: boolean; disabled?: boolean; required?: boolean; keys?: readonly string[]; iconOnly?: boolean }
+export type BaseFormDefinition = { id: string, sections: BaseFormSectionDefinition[], fields: BaseFormField[], actions?: BaseFormAction[] }
 
 // These extension points describe the next designer phase. They intentionally have no runtime UI yet.
 export type DesignerExtensionPoints = {
