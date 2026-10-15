@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
-export type BaseFormField = { id: string, sectionId: string, minTracks: number, span: number }
+// Requiredness is part of the developer-authored form definition, not a user setting.
+export type BaseFormField = { id: string, sectionId: string, minTracks: number, span: number, required?: boolean }
 export type BaseFormSectionDefinition = { id: string, kind: 'editor' | 'grid' | 'footer' }
 export type BaseFormAction = { id: string; code: string; label: Record<'fa' | 'en' | 'zh', string>; primary?: boolean; disabled?: boolean; required?: boolean; keys?: readonly string[]; iconOnly?: boolean }
 export type BaseFormDefinition = { id: string, sections: BaseFormSectionDefinition[], fields: BaseFormField[], actions?: BaseFormAction[] }

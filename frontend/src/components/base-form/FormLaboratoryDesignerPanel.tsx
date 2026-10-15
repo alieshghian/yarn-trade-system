@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Language } from '../../i18n'
-import { designerActionDimensionLimits, designerActionVisible, designerProperties, designerColorScope, designerEffectiveValues, designerElementAppearanceProperties, designerElementAppearanceValues, type DesignerAlignment, type DesignerAppearanceProperty, type DesignerDraft, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './designer'
+import { designerActionCode, designerActionDimensionLimits, designerActionLabel, designerActionVisible, designerProperties, designerColorScope, designerEffectiveValues, designerElementAppearanceProperties, designerElementAppearanceValues, type DesignerActionTextPart, type DesignerActionTextStyle, type DesignerAlignment, type DesignerAppearanceProperty, type DesignerDraft, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './designer'
 import type { BaseFormAction } from './types'
 import { ExcelColorPicker } from './ExcelColorPicker'
 
@@ -22,6 +22,8 @@ type Props = {
   onFilterPopupFontSizeChange: (size: number) => void
   gridSearchPosition: GridSearchPosition
   onGridSearchPositionChange: (position: GridSearchPosition) => void
+  buttonPressEffectEnabled: boolean
+  onButtonPressEffectChange: (enabled: boolean) => void
   onBeginFilterPopupFontSizeChange: () => void
   onCommitFilterPopupFontSizeChange: () => void
   selectedFieldIds: string[]
@@ -29,6 +31,8 @@ type Props = {
   actions: BaseFormAction[]
   onActionVisibilityChange: (id: string, visible: boolean) => void
   onSelectAction: (id: string) => void
+  onActionTextChange: (id: string, part: DesignerActionTextPart, value: string) => void
+  onActionTextPropertyChange: (ids: string[], part: DesignerActionTextPart, property: DesignerProperty, value: DesignerValue | undefined) => void
   onActionColorCommit: (property: DesignerProperty, value: DesignerValue | undefined) => void
   onActionColorPreview: (property: DesignerProperty, value: DesignerValue | undefined | null) => void
   onClearSelection: () => void
@@ -62,6 +66,8 @@ type Props = {
 }
 
 const propertyLabels: Record<DesignerProperty, [string, string, string]> = {
+  componentPopupBackground: ['زمینهٔ پنجره', 'Popup background', '弹窗背景'], componentPopupFontSize: ['قلم پنجره', 'Popup font size', '弹窗字号'],
+  componentAddBackground: ['زمینهٔ کلید +', 'Add button background', '添加按钮背景'], componentAddTextColor: ['رنگ علامت +', 'Add button text', '添加按钮文字'], componentAddWidth: ['عرض کلید +', 'Add button width', '添加按钮宽度'], componentAddHeight: ['ارتفاع کلید +', 'Add button height', '添加按钮高度'],
   appearancePreset: ['سبک ظاهری', 'Appearance preset', '外观样式'], borderWidth: ['ضخامت کادر', 'Border width', '边框宽度'], borderStyle: ['نوع کادر', 'Border style', '边框样式'],
   shadowOpacity: ['شدت سایه (%)', 'Shadow intensity (%)', '阴影强度 (%)'], shadowOffsetX: ['جهت افقی سایه', 'Shadow horizontal offset', '阴影横向偏移'], shadowOffsetY: ['جهت عمودی سایه', 'Shadow vertical offset', '阴影纵向偏移'], shadowBlur: ['محو شدن سایه', 'Shadow blur', '阴影模糊'], shadowSpread: ['گسترش سایه', 'Shadow spread', '阴影扩散'], shadowInset: ['سایهٔ داخلی', 'Inset shadow', '内阴影'],
   gradientEnabled: ['گرادیان فعال', 'Enable gradient', '启用渐变'], gradientStartColor: ['رنگ آغاز گرادیان', 'Gradient start', '渐变起始颜色'], gradientEndColor: ['رنگ پایان گرادیان', 'Gradient end', '渐变结束颜色'], gradientAngle: ['جهت گرادیان (درجه)', 'Gradient angle', '渐变角度'], paddingX: ['فاصلهٔ داخلی افقی', 'Horizontal padding', '水平内边距'], paddingY: ['فاصلهٔ داخلی عمودی', 'Vertical padding', '垂直内边距'],
@@ -70,10 +76,11 @@ const propertyLabels: Record<DesignerProperty, [string, string, string]> = {
   backgroundColor: ['پس‌زمینه', 'Background', '背景色'], textColor: ['متن', 'Text', '文字颜色'], labelColor: ['برچسب', 'Label', '标签颜色'], borderColor: ['حاشیه', 'Border', '边框颜色'], focusColor: ['تمرکز', 'Focus', '焦点颜色'], focusBackgroundColor: ['پس‌زمینهٔ فوکوس', 'Focus background', '焦点背景'], focusTextColor: ['متن فوکوس', 'Focus text', '焦点文字'], focusBorderColor: ['مرز فوکوس', 'Focus border', '焦点边框'], focusLabelColor: ['متن برچسب در فوکوس', 'Focused label text', '焦点标签文字'], hoverColor: ['شناوری', 'Hover', '悬停颜色'], selectedColor: ['انتخاب', 'Selected', '选中颜色'], disabledColor: ['غیرفعال', 'Disabled', '禁用颜色'], errorColor: ['خطا', 'Error', '错误颜色'], width: ['عرض', 'Width', '宽度'], height: ['ارتفاع', 'Height', '高度'], offsetX: ['موقعیت افقی', 'Horizontal position', '水平位置'], offsetY: ['موقعیت عمودی', 'Vertical position', '垂直位置']
 }
 const colorKeys: DesignerProperty[] = ['backgroundColor', 'textColor', 'labelColor', 'borderColor', 'hoverColor', 'selectedColor', 'disabledColor', 'errorColor']
+const isActionTextStyleProperty = (property: DesignerProperty): property is keyof DesignerActionTextStyle => ['fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'textAlign', 'lineHeight'].includes(property)
 const focusColorKeys: DesignerProperty[] = ['focusBackgroundColor', 'focusBorderColor', 'focusTextColor', 'focusLabelColor']
 const defaultColors: Record<string, string> = { backgroundColor: '#ffffff', textColor: '#202a31', labelColor: '#69747b', borderColor: '#d7dee2', focusColor: '#0e7490', focusBackgroundColor: '#ffffff', focusTextColor: '#202a31', focusBorderColor: '#0e7490', focusLabelColor: '#69747b', hoverColor: '#e9f4f5', selectedColor: '#d99a30', disabledColor: '#eef1f3', errorColor: '#c24141' }
 const appearanceLabels: Record<DesignerAppearanceProperty, [string, string, string]> = {
-  formBackground: ['پس‌زمینهٔ فرم', 'Form background', '表单背景'], formFrameBackground: ['پس‌زمینهٔ قاب فرم', 'Form frame background', '表单框架背景'], formFrameBorder: ['قاب بیرونی فرم', 'Form frame border', '表单框架边框'],
+  formBackground: ['پس‌زمینهٔ فرم', 'Form background', '表单背景'], formFrameBackground: ['پس‌زمینهٔ قاب فرم', 'Form frame background', '表单框架背景'], formFrameBorder: ['قاب بیرونی فرم', 'Form frame border', '表单框架边框'], entryFieldBackground: ['پس‌زمینهٔ فیلدها هنگام ورود اطلاعات', 'Entry-mode field background', '录入模式字段背景'],
   tableBackground: ['پس‌زمینهٔ جدول', 'Table background', '表格背景'], tableBorder: ['قاب جدول', 'Table frame', '表格边框'], tableTitleBackground: ['پس‌زمینهٔ عنوان جدول', 'Table title background', '表格标题背景'], tableTitleText: ['متن عنوان جدول', 'Table title text', '表格标题文字'],
   headerBackground: ['پس‌زمینهٔ سرستون', 'Header background', '表头背景'], headerText: ['متن سرستون', 'Header text', '表头文字'], headerBorder: ['مرز سرستون', 'Header border', '表头边框'], headerActiveBackground: ['سرستون مرتب‌شده', 'Sorted header background', '排序表头背景'], headerActiveText: ['متن سرستون مرتب‌شده', 'Sorted header text', '排序表头文字'],
   rowBackground: ['پس‌زمینهٔ ردیف', 'Row background', '行背景'], rowAlternateBackground: ['ردیف یکی‌درمیان', 'Alternate row', '交替行背景'], rowHoverBackground: ['ردیف هنگام اشاره', 'Row hover', '悬停行背景'], rowSelectedBackground: ['ردیف انتخاب‌شده', 'Selected row', '选中行背景'], cellText: ['متن سلول', 'Cell text', '单元格文字'], cellBackground: ['پس‌زمینهٔ سلول', 'Cell background', '单元格背景'], gridLine: ['خطوط شبکه', 'Grid lines', '网格线'],
@@ -82,7 +89,7 @@ const appearanceLabels: Record<DesignerAppearanceProperty, [string, string, stri
   actionBarBackground: ['پس‌زمینهٔ نوار عملیات', 'Action bar background', '操作栏背景'], actionBackground: ['پس‌زمینهٔ دکمهٔ عملیات', 'Action button background', '操作按钮背景'], actionText: ['متن دکمهٔ عملیات', 'Action button text', '操作按钮文字'], actionBorder: ['مرز دکمهٔ عملیات', 'Action button border', '操作按钮边框'], actionHoverBackground: ['دکمه هنگام اشاره', 'Action button hover', '悬停操作按钮'], actionDisabledBackground: ['دکمهٔ غیرفعال', 'Disabled action button', '禁用操作按钮']
 }
 const appearanceDefaults: Record<DesignerAppearanceProperty, string> = {
-  formBackground: '#ffffff', formFrameBackground: '#ffffff', formFrameBorder: '#dfe7e3',
+  formBackground: '#ffffff', formFrameBackground: '#ffffff', formFrameBorder: '#dfe7e3', entryFieldBackground: '#f4f6f5',
   tableBackground: '#ffffff', tableBorder: '#dfe7e3', tableTitleBackground: '#ffffff', tableTitleText: '#102a2a',
   headerBackground: '#f7f9f7', headerText: '#6f7f7c', headerBorder: '#dfe7e3', headerActiveBackground: '#e8f2ef', headerActiveText: '#217c73',
   rowBackground: '#ffffff', rowAlternateBackground: '#fbfcfb', rowHoverBackground: '#f3faf8', rowSelectedBackground: '#dcece8', cellText: '#263a38', cellBackground: '#ffffff', gridLine: '#e5ece9',
@@ -92,6 +99,7 @@ const appearanceDefaults: Record<DesignerAppearanceProperty, string> = {
 }
 const appearanceGroups: [string, string, DesignerAppearanceProperty[]][] = [
   ['form', 'فرم و قاب', ['formBackground', 'formFrameBackground', 'formFrameBorder']],
+  ['entry', 'حالت ورود اطلاعات', ['entryFieldBackground']],
   ['table', 'جدول', ['tableBackground', 'tableBorder', 'tableTitleBackground', 'tableTitleText']],
   ['header', 'هدر جدول', ['headerBackground', 'headerText', 'headerBorder', 'headerActiveBackground', 'headerActiveText']],
   ['rows', 'ردیف‌ها و سلول‌ها', ['rowBackground', 'rowAlternateBackground', 'rowHoverBackground', 'rowSelectedBackground', 'cellText', 'cellBackground', 'gridLine']],
@@ -103,10 +111,12 @@ const appearanceGroups: [string, string, DesignerAppearanceProperty[]][] = [
 export function FormLaboratoryDesignerPanel(props: Props) {
   const [orientation, setOrientation] = useState<DesignerLayoutOrientation>('horizontal')
   const [gap, setGap] = useState(12)
+  const [actionTextPart, setActionTextPart] = useState<'button' | DesignerActionTextPart>('button')
   const fa = props.language === 'fa'
   const zh = props.language === 'zh'
   const word = (faText: string, enText: string, zhText: string) => fa ? faText : zh ? zhText : enText
   const fieldIds = props.applyToAll ? props.fieldIds : props.selectedFieldIds
+  const componentFieldIds = fieldIds.filter(id => ['titleId', 'phone', 'mobile', 'address'].includes(id.split('::')[0]))
   const editingAction = props.selectedActionIds.length > 0
   const panelRef = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -134,23 +144,30 @@ export function FormLaboratoryDesignerPanel(props: Props) {
   const firstField = props.selectedFieldIds[0] ?? props.fieldIds[0]
   const storageKey = (id: string, property: DesignerProperty) => {
     const [baseId, part = 'field'] = id.split('::')
+    if (property.startsWith('component')) return `${baseId}::input`
     if (property === 'focusLabelColor') return `${baseId}::label`
     if (property === 'focusBackgroundColor' || property === 'focusTextColor' || property === 'focusBorderColor') return `${baseId}::input`
     if (designerElementAppearanceProperties.includes(property as typeof designerElementAppearanceProperties[number])) return `${baseId}::input`
     return property === 'width' || property === 'height' ? `${baseId}::${part === 'field' ? 'input' : part}` : part === 'field' ? baseId : `${baseId}::${part}`
   }
   const readValue = (id: string, key: DesignerProperty) => {
-    if (editingAction) return props.draft.actions?.[id]?.[key]
+    if (editingAction) {
+      if (actionTextPart !== 'button' && isActionTextStyleProperty(key)) return props.draft.actions?.[id]?.textStyles?.[actionTextPart]?.[key]
+      return props.draft.actions?.[id]?.[key]
+    }
     const primary = props.draft.overrides[storageKey(id, key)]?.[key]
     if (primary !== undefined) return primary
     return undefined
   }
-  const valuesFor = (key: DesignerProperty) => (editingAction ? props.selectedActionIds : fieldIds).map(id => readValue(id, key))
+  const valuesFor = (key: DesignerProperty) => (editingAction ? props.selectedActionIds : key.startsWith('component') ? componentFieldIds : fieldIds).map(id => readValue(id, key))
   const mixed = (key: DesignerProperty) => new Set(valuesFor(key).map(value => JSON.stringify(value))).size > 1
   const selectedNames = props.selectedFieldIds.map(id => props.fieldLabels[id.split('::')[0]] ?? id)
   const selectedGroupCount = new Set(props.selectedFieldIds.map(id => id.split('::')[0])).size
-  const value = (key: DesignerProperty, fallback: DesignerValue): DesignerValue => readValue(editingAction ? props.selectedActionIds[0] : firstField, key) ?? fallback
-  const edit = (key: DesignerProperty, next: DesignerValue | undefined) => props.onChange(key, next)
+  const value = (key: DesignerProperty, fallback: DesignerValue): DesignerValue => readValue(editingAction ? props.selectedActionIds[0] : key.startsWith('component') ? componentFieldIds[0] ?? firstField : firstField, key) ?? fallback
+  const edit = (key: DesignerProperty, next: DesignerValue | undefined) => {
+    if (editingAction && actionTextPart !== 'button' && isActionTextStyleProperty(key)) props.onActionTextPropertyChange(props.selectedActionIds, actionTextPart, key, next)
+    else props.onChange(key, next)
+  }
   const clear = (key: DesignerProperty) => <button type="button" className="designer-inherit-button" disabled={!editingEnabled || (!props.geometryEditable && ['width', 'height', 'offsetX', 'offsetY'].includes(key)) || valuesFor(key).every(v => v === undefined)} onClick={() => edit(key, undefined)}>{word('وراثت', 'Inherit', '继承')}</button>
   const scopeText = (key: DesignerProperty) => {
     const scope = designerColorScope(props.selectedFieldIds, key, props.fieldIds), labels = scope.part === 'label'
@@ -226,7 +243,14 @@ export function FormLaboratoryDesignerPanel(props: Props) {
     <div className="designer-panel-heading"><div><strong>{word('طراحی ظاهری', 'Visual design', '外观设计')}</strong><small aria-live="polite">{fieldNames}</small></div><button type="button" className="designer-close" aria-label={word('بستن پنل', 'Close panel', '关闭面板')} onClick={props.onCancel}>×</button></div>
     <div className="designer-selection-actions"><button type="button" aria-pressed={!props.applyToAll} onClick={() => props.onApplyToAllChange(false)}>{word('فیلدهای انتخابی', 'Selected fields', '所选字段')}</button><button type="button" aria-pressed={props.applyToAll} onClick={() => { props.onClearSelection(); props.onApplyToAllChange(true) }}>{word('همهٔ فیلدها', 'All fields', '全部字段')}</button><button type="button" onClick={props.onSelectAll}>{word('انتخاب همه', 'Select all', '全选')}</button><button type="button" onClick={props.onClearSelection}>{word('پاک‌کردن انتخاب', 'Clear selection', '清除选择')}</button></div>
     <small className="designer-selection-help">{props.applyToAll ? word('هر ویژگی روی تمام فیلدهای نمونه اعمال می‌شود.', 'Each property applies to every sample field.', '每个属性都应用于所有示例字段。') : word('با Ctrl/Meta+کلیک چند فیلد را انتخاب کنید؛ ویژگی‌ها روی همهٔ انتخاب‌ها اعمال می‌شوند.', 'Ctrl/Meta-click to select multiple fields; changes apply to every selected field.', '按 Ctrl/Meta 并单击可多选；更改将应用于所有选中字段。')}</small>
-    <details className="designer-action-section" open><summary>{word('دکمه‌های پایین', 'Bottom actions', '底部按钮')}</summary><div className="designer-action-list">{props.actions.map(action => <div className="designer-action-row" key={action.id}><input type="checkbox" aria-label={`${word('نمایش دکمه', 'Show action', '显示按钮')} ${action.label[props.language]}`} checked={designerActionVisible(props.draft, action)} disabled={action.required} onChange={event => props.onActionVisibilityChange(action.id, event.target.checked)} /><button type="button" aria-pressed={props.selectedActionIds.includes(action.id)} onClick={() => props.onSelectAction(action.id)}>{action.label[props.language]}</button><kbd>{action.code}</kbd>{action.required && <small>{word('ضروری', 'Required', '必需')}</small>}</div>)}</div></details>
+    <label className="designer-button-press-setting"><input type="checkbox" checked={props.buttonPressEffectEnabled} onChange={event => props.onButtonPressEffectChange(event.target.checked)} /><span>{word('جلوهٔ فرورفتن دکمه هنگام فشار', 'Pressed button effect', '按下按钮时显示凹陷效果')}</span></label>
+    <details className="designer-action-section" open><summary>{word('دکمه‌های پایین', 'Bottom actions', '底部按钮')}</summary><div className="designer-action-list">{props.actions.map(action => <div className="designer-action-row" key={action.id}><input type="checkbox" aria-label={`${word('نمایش دکمه', 'Show action', '显示按钮')} ${designerActionLabel(props.draft, action, props.language)}`} checked={designerActionVisible(props.draft, action)} disabled={action.required} onChange={event => props.onActionVisibilityChange(action.id, event.target.checked)} /><button type="button" aria-pressed={props.selectedActionIds.includes(action.id)} onClick={() => props.onSelectAction(action.id)}>{designerActionLabel(props.draft, action, props.language)}</button><kbd>{designerActionCode(props.draft, action)}</kbd>{action.required && <small>{word('ضروری', 'Required', '必需')}</small>}</div>)}</div>
+      {props.selectedActionIds.length === 1 && (() => { const action = props.actions.find(item => item.id === props.selectedActionIds[0]); if (!action) return null; return <div className="designer-action-text-fields">
+        <label>{word('میان‌بر', 'Shortcut', '快捷键')}<input dir="ltr" maxLength={32} value={designerActionCode(props.draft, action)} onChange={event => props.onActionTextChange(action.id, 'code', event.target.value)} /></label>
+        {(['fa', 'en', 'zh'] as const).map(locale => <label key={locale}>{locale === 'fa' ? word('عنوان فارسی', 'Persian label', '波斯语标签') : locale === 'en' ? word('عنوان انگلیسی', 'English label', '英语标签') : word('عنوان چینی', 'Chinese label', '中文标签')}<input maxLength={160} value={designerActionLabel(props.draft, action, locale)} onChange={event => props.onActionTextChange(action.id, locale, event.target.value)} /></label>)}
+        <small>{word('میان‌بر و عنوان هر زبان جداگانه ذخیره می‌شوند.', 'The shortcut and each language label are saved independently.', '快捷键和各语言标签分别保存。')}</small>
+      </div> })()}
+    </details>
     <section className="designer-layout-tools" hidden={editingAction || !props.geometryEditable} aria-label={word('چیدمان گروهی', 'Group layout', '组合布局')}>
       {selectedGroupCount > 1 && <>
         <label className="designer-layout-gap">{word('فیلد مرجع', 'Reference field', '参考字段')}<select aria-label={word('فیلد مرجع', 'Reference field', '参考字段')} value={props.referenceFieldId} onChange={event => props.onReferenceChange(event.target.value)}>{[...new Set(props.selectedFieldIds.filter(id => !id.endsWith('::label')).map(id => id.split('::')[0]))].map(id => <option key={id} value={id}>{props.fieldLabels[id]}</option>)}</select></label>
@@ -237,12 +261,13 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       {props.layoutStatus && <small role="alert">{props.layoutStatus}</small>}
       <div className="designer-layout-orientation"><button type="button" aria-pressed={orientation === 'horizontal'} onClick={() => setOrientation('horizontal')}>{word('افقی', 'Horizontal', '水平')}</button><button type="button" aria-pressed={orientation === 'vertical'} onClick={() => setOrientation('vertical')}>{word('عمودی', 'Vertical', '垂直')}</button></div>
       <label className="designer-layout-gap">{orientation === 'horizontal' ? word('فاصلهٔ افقی', 'Horizontal gap', '水平间距') : word('فاصلهٔ عمودی', 'Vertical gap', '垂直间距')}<input aria-label={orientation === 'horizontal' ? word('فاصلهٔ افقی', 'Horizontal gap', '水平间距') : word('فاصلهٔ عمودی', 'Vertical gap', '垂直间距')} type="number" min="0" max="300" step="1" value={gap} onChange={event => setGap(Math.max(0, Math.min(300, Number(event.target.value) || 0)))} /></label>
-      <div className="designer-layout-operations"><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('arrange', orientation, gap)}>{word('چیدمان', 'Arrange', '排列')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('align', orientation, gap)}>{word('تراز', 'Align', '对齐')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('equalSize', orientation, gap)}>{word('اندازه برابر', 'Equal size', '等尺寸')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('equalSpacing', orientation, gap)}>{word('فاصله برابر', 'Equal spacing', '等间距')}</button></div>
+      <div className="designer-layout-operations"><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('arrange', orientation, gap)}>{word('چیدمان', 'Arrange', '排列')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('align', orientation, gap)}>{word('تراز', 'Align', '对齐')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('equalWidth', orientation, gap)}>{word('عرض برابر', 'Equal width', '等宽')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('equalHeight', orientation, gap)}>{word('ارتفاع برابر', 'Equal height', '等高')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('equalSize', orientation, gap)}>{word('اندازه برابر', 'Equal size', '等尺寸')}</button><button type="button" disabled={selectedGroupCount < 2} onClick={() => props.onLayout('equalSpacing', orientation, gap)}>{word('فاصله برابر', 'Equal spacing', '等间距')}</button></div>
       <small>{word('اندازهٔ ورودی‌ها یکسان می‌شود؛ اندازهٔ برچسب‌ها مستقل می‌ماند.', 'Input sizes are matched; label sizes remain independent.', '输入尺寸将统一；标签尺寸保持独立。')}</small>
     </section>
     {!props.geometryEditable && <small>{word('برای تغییر اندازه و چیدمان به نمای دسکتاپ برگردید.', 'Return to Desktop to edit sizes and layout.', '返回桌面视图以编辑尺寸和布局。')}</small>}
     <fieldset className="designer-properties" disabled={!editingEnabled}>
       <legend>{editingAction ? word('ویژگی‌های دکمه', 'Button properties', '按钮属性') : word('ویژگی‌های فیلد', 'Field properties', '字段属性')}</legend>
+      {editingAction && <label className="designer-action-text-part">{word('قلم و حالت برای', 'Typography for', '文字样式应用于')}<select value={actionTextPart} onChange={event => setActionTextPart(event.target.value as typeof actionTextPart)}><option value="button">{word('کل دکمه', 'Whole button', '整个按钮')}</option><option value="code">{word('میان‌بر', 'Shortcut', '快捷键')}</option><option value="fa">{word('عنوان فارسی', 'Persian label', '波斯语标签')}</option><option value="en">{word('عنوان انگلیسی', 'English label', '英语标签')}</option><option value="zh">{word('عنوان چینی', 'Chinese label', '中文标签')}</option></select></label>}
       <div className="designer-typography-grid">
         {props.selectedFieldIds.length > 1 && designerProperties.some(key => mixed(key)) && <small className="designer-mixed-values" role="status">{word('بعضی ویژگی‌ها در انتخاب‌ها مقدارهای متفاوت دارند؛ برای تغییرشان یک مقدار تازه انتخاب کنید.', 'Some selected properties have mixed values; choose a value to apply it to all compatible selections.', '部分所选属性的值不同；选择新值后将应用于所有兼容项。')}</small>}
         <div className="designer-control-row"><label htmlFor="designer-font-family">{label('fontFamily')}</label><select id="designer-font-family" value={mixed('fontFamily') ? '' : String(value('fontFamily', 'inherit'))} onChange={event => edit('fontFamily', event.target.value === 'inherit' ? undefined : event.target.value)}><option value="" hidden>{word('مقدارهای متفاوت', 'Mixed values', '值不同')}</option><option value="inherit">{word('ارث‌بری از فرم', 'Inherit', '继承')}</option><option value="vazirmatn">Vazirmatn</option><option value="tahoma">Tahoma</option><option value="segoe">Segoe UI</option><option value="arial">Arial</option><option value="naskh">Noto Naskh</option></select>{clear('fontFamily')}</div>
@@ -267,6 +292,16 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       <details className="designer-color-group"><summary>{word('تنظیم گرادیان', 'Gradient settings', '渐变设置')}</summary><label className="designer-effect-check"><input id="designer-gradientEnabled" type="checkbox" checked={Boolean(effectValue('gradientEnabled', false))} onChange={event => props.onElementAppearanceCommit('gradientEnabled', event.target.checked)} />{label('gradientEnabled')}</label>{effectColor('gradientStartColor')}{effectColor('gradientEndColor')}{effectNumber('gradientAngle', 0, 360, 135)}</details>
       <details className="designer-color-group"><summary>{word('تنظیمات بیشتر ظاهری', 'More appearance settings', '更多外观设置')}</summary>{effectNumber('paddingX', 0, 40, 8)}{effectNumber('paddingY', 0, 40, editingAction ? 5 : 6)}<small>{word('قلم و رنگ‌های متن، زمینه و کادر از کنترل‌های مشترک همین پنل تنظیم می‌شوند.', 'Font and text, background and border colors use the shared panel controls.', '字体及文字、背景和边框颜色使用本面板的共享控件。')}</small></details>
     </div></details>}
+    {!editingAction && componentFieldIds.length > 0 && <>
+      <details className="designer-color-section" open><summary>{word('کلید + متصل به کامپوننت', 'Attached add button', '组件添加按钮')}</summary>
+        {(['componentAddWidth', 'componentAddHeight'] as const).map(key => <div className="designer-control-row" key={key}><label>{label(key)}</label><input type="number" min="20" max="120" value={mixed(key) ? '' : Number(value(key, key === 'componentAddWidth' ? 25 : 27))} onChange={event => edit(key, Number(event.target.value))} />{clear(key)}</div>)}
+        {(['componentAddBackground', 'componentAddTextColor'] as const).map(key => <div className="designer-control-row" key={key}><span>{label(key)}</span><ExcelColorPicker language={props.language} label={label(key)} mixed={mixed(key)} value={String(value(key, key === 'componentAddBackground' ? '#d8d8d8' : '#102a2a'))} onCommit={next => edit(key, next ?? undefined)} />{clear(key)}</div>)}
+      </details>
+      <details className="designer-color-section" open><summary>{word('پنجرهٔ زیر کامپوننت', 'Component popup', '组件弹窗')}</summary>
+        <div className="designer-control-row"><span>{label('componentPopupBackground')}</span><ExcelColorPicker language={props.language} label={label('componentPopupBackground')} mixed={mixed('componentPopupBackground')} value={String(value('componentPopupBackground', '#ffffff'))} onCommit={next => edit('componentPopupBackground', next ?? undefined)} />{clear('componentPopupBackground')}</div>
+        <div className="designer-control-row"><label>{label('componentPopupFontSize')}</label><input type="number" min="8" max="40" value={mixed('componentPopupFontSize') ? '' : Number(value('componentPopupFontSize', 15))} onChange={event => edit('componentPopupFontSize', Number(event.target.value))} />{clear('componentPopupFontSize')}</div>
+      </details>
+    </>}
     <details className="designer-color-section"><summary>{word('رنگ و ظاهر', 'Color and appearance', '颜色与外观')}</summary><div className="designer-color-groups">
       <details className="designer-color-group" open><summary>{word('جست‌وجو و فیلتر جدول', 'Grid search and filters', '表格搜索与筛选')}</summary><label className="designer-control-row" htmlFor="designer-filter-popup-font-size"><span>{word('اندازهٔ قلم پنجرهٔ فیلتر', 'Filter popup font size', '筛选弹窗字号')}</span><input id="designer-filter-popup-font-size" type="range" min="12" max="24" step="1" value={props.filterPopupFontSize} onPointerDown={props.onBeginFilterPopupFontSizeChange} onPointerUp={props.onCommitFilterPopupFontSizeChange} onKeyDown={props.onBeginFilterPopupFontSizeChange} onKeyUp={props.onCommitFilterPopupFontSizeChange} onBlur={props.onCommitFilterPopupFontSizeChange} onChange={event => props.onFilterPopupFontSizeChange(Number(event.target.value))} /><output>{props.filterPopupFontSize}px</output></label><label className="designer-control-row" htmlFor="designer-grid-search-position"><span>{word('جایگاه کادر جست‌وجو', 'Search box position', '搜索框位置')}</span><select id="designer-grid-search-position" value={props.gridSearchPosition} onChange={event => props.onGridSearchPositionChange(event.target.value as GridSearchPosition)}><option value="right">{word('راست', 'Right', '右')}</option><option value="center">{word('وسط', 'Center', '中')}</option><option value="left">{word('چپ', 'Left', '左')}</option></select></label></details>
       {!editingAction && <><details className="designer-color-group" open><summary>{word('رنگ ورودی‌ها', 'Input colors', '输入颜色')} · {scopeText('backgroundColor')}</summary>{colorKeys.filter(key => key !== 'labelColor').map(colorControl)}</details><details className="designer-color-group" open><summary>{word('رنگ برچسب‌ها', 'Label colors', '标签颜色')} · {scopeText('labelColor')}</summary>{colorControl('labelColor')}</details><details className="designer-color-group"><summary>{word('رنگ‌های حالت فوکوس', 'Focus-state colors', '焦点状态颜色')}</summary>{focusColorKeys.map(colorControl)}</details></>}

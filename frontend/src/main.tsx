@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
+import './components/base-form/formTheme.css'
 import App from './App'
 import { installFormInteraction } from './formInteraction'
 

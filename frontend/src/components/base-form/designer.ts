@@ -9,6 +9,7 @@ export const designerElementAppearanceProperties = ['appearancePreset', 'borderW
 export const designerProperties = [
   'fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'textAlign', 'lineHeight',
   'backgroundColor', 'textColor', 'labelColor', 'borderColor', 'focusColor', 'focusBackgroundColor', 'focusTextColor', 'focusBorderColor', 'focusLabelColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'selectedColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'errorColor',
+  'componentPopupBackground', 'componentPopupFontSize', 'componentAddBackground', 'componentAddTextColor', 'componentAddWidth', 'componentAddHeight',
   'width', 'height', 'offsetX', 'offsetY', ...designerElementAppearanceProperties
 ] as const
 
@@ -16,7 +17,22 @@ export type DesignerProperty = typeof designerProperties[number]
 export type DesignerValue = string | number | boolean
 export type DesignerPart = 'field' | 'label' | 'input'
 export type DesignerFieldOverride = Partial<Record<DesignerProperty, DesignerValue>>
-export type DesignerActionOverride = DesignerFieldOverride & { visible?: boolean }
+export type DesignerActionTextPart = 'code' | 'fa' | 'en' | 'zh'
+export type DesignerActionTextStyle = {
+  fontFamily?: string
+  fontSize?: number
+  fontWeight?: number
+  bold?: boolean
+  italic?: boolean
+  textAlign?: string
+  lineHeight?: number
+}
+export type DesignerActionOverride = DesignerFieldOverride & {
+  visible?: boolean
+  code?: string
+  labels?: Partial<Record<'fa' | 'en' | 'zh', string>>
+  textStyles?: Partial<Record<DesignerActionTextPart, DesignerActionTextStyle>>
+}
 export const designerAppearancePresets = {
   flat: { borderWidth: 1, borderStyle: 'solid', borderRadius: 6, shadowOpacity: 0 },
   raised: { borderWidth: 1, borderStyle: 'solid', borderRadius: 6, shadowOpacity: 24, shadowOffsetY: 3, shadowBlur: 2 },
@@ -32,7 +48,7 @@ export function designerElementAppearanceValues(values: DesignerFieldOverride): 
 }
 export const designerActionDimensionLimits = { width: { min: 48, max: 1000 }, height: { min: 24, max: 600 } } as const
 export const designerAppearanceProperties = [
-  'formBackground', 'formFrameBackground', 'formFrameBorder',
+  'formBackground', 'formFrameBackground', 'formFrameBorder', 'entryFieldBackground',
   'tableBackground', 'tableBorder', 'tableTitleBackground', 'tableTitleText',
   'headerBackground', 'headerText', 'headerBorder', 'headerActiveBackground', 'headerActiveText',
   'rowBackground', 'rowAlternateBackground', 'rowHoverBackground', 'rowSelectedBackground', 'cellText', 'cellBackground', 'gridLine',
@@ -49,6 +65,7 @@ export type DesignerDraft = {
   overrides: Record<string, DesignerFieldOverride>
   filterPopupFontSize?: number
   gridSearchPosition?: GridSearchPosition
+  buttonPressEffect?: boolean
   appearance?: DesignerAppearance
   defaults?: { input?: DesignerFieldOverride; label?: DesignerFieldOverride }
   actions?: Record<string, DesignerActionOverride>
@@ -64,9 +81,9 @@ export type DesignerHistoryAction =
   | { type: 'redo' }
   | { type: 'replace', draft: DesignerDraft }
 
-const colorProperties = new Set<DesignerProperty>(['backgroundColor', 'textColor', 'labelColor', 'borderColor', 'focusColor', 'focusBackgroundColor', 'focusTextColor', 'focusBorderColor', 'focusLabelColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'selectedColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'errorColor', 'gradientStartColor', 'gradientEndColor'])
+const colorProperties = new Set<DesignerProperty>(['componentPopupBackground', 'componentAddBackground', 'componentAddTextColor', 'backgroundColor', 'textColor', 'labelColor', 'borderColor', 'focusColor', 'focusBackgroundColor', 'focusTextColor', 'focusBorderColor', 'focusLabelColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'selectedColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'errorColor', 'gradientStartColor', 'gradientEndColor'])
 export const designerActionProperties: DesignerProperty[] = ['backgroundColor', 'textColor', 'borderColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'width', 'height', 'fontSize', 'fontWeight', 'fontFamily', 'bold', 'italic', 'textAlign', 'lineHeight', ...designerElementAppearanceProperties]
-const effectRanges: Partial<Record<DesignerProperty, readonly [number, number]>> = { borderWidth: [0, 12], shadowOpacity: [0, 100], shadowOffsetX: [-40, 40], shadowOffsetY: [-40, 40], shadowBlur: [0, 80], shadowSpread: [-20, 40], gradientAngle: [0, 360], paddingX: [0, 40], paddingY: [0, 40] }
+const effectRanges: Partial<Record<DesignerProperty, readonly [number, number]>> = { componentPopupFontSize: [8, 40], componentAddWidth: [20, 120], componentAddHeight: [20, 120], borderWidth: [0, 12], shadowOpacity: [0, 100], shadowOffsetX: [-40, 40], shadowOffsetY: [-40, 40], shadowBlur: [0, 80], shadowSpread: [-20, 40], gradientAngle: [0, 360], paddingX: [0, 40], paddingY: [0, 40] }
 const fontFamilies = new Set(['inherit', 'vazirmatn', 'tahoma', 'segoe', 'arial', 'naskh'])
 const fontWeights = new Set([300, 400, 500, 600, 700])
 const alignments = new Set(['start', 'center', 'end', 'left', 'right'])
@@ -74,7 +91,7 @@ const dimensions = new Set<DesignerProperty>(['width', 'height', 'offsetX', 'off
 const validPropertySet = new Set<string>(designerProperties)
 const validAppearancePropertySet = new Set<string>(designerAppearanceProperties)
 const appearanceVariables: Record<DesignerAppearanceProperty, string> = {
-  formBackground: '--lab-form-bg', formFrameBackground: '--lab-form-frame-bg', formFrameBorder: '--lab-form-frame-border',
+  formBackground: '--lab-form-bg', formFrameBackground: '--lab-form-frame-bg', formFrameBorder: '--lab-form-frame-border', entryFieldBackground: '--lab-entry-field-bg',
   tableBackground: '--lab-table-bg', tableBorder: '--lab-table-border', tableTitleBackground: '--lab-table-title-bg', tableTitleText: '--lab-table-title-text',
   headerBackground: '--lab-header-bg', headerText: '--lab-header-text', headerBorder: '--lab-header-border', headerActiveBackground: '--lab-header-active-bg', headerActiveText: '--lab-header-active-text',
   rowBackground: '--lab-row-bg', rowAlternateBackground: '--lab-row-alt-bg', rowHoverBackground: '--lab-row-hover-bg', rowSelectedBackground: '--lab-row-selected-bg', cellText: '--lab-cell-text', cellBackground: '--lab-cell-bg', gridLine: '--lab-grid-line',
@@ -143,6 +160,27 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(id) || !values || typeof values !== 'object' || Array.isArray(values)) continue
     const clean: DesignerActionOverride = {}
     if (typeof values.visible === 'boolean') clean.visible = values.visible
+    if (typeof values.code === 'string' && values.code.length <= 32) clean.code = values.code
+    if (values.labels && typeof values.labels === 'object' && !Array.isArray(values.labels)) {
+      const labels: NonNullable<DesignerActionOverride['labels']> = {}
+      for (const locale of ['fa', 'en', 'zh'] as const) if (typeof values.labels[locale] === 'string' && values.labels[locale].length <= 160) labels[locale] = values.labels[locale]
+      if (Object.keys(labels).length) clean.labels = labels
+    }
+    if (values.textStyles && typeof values.textStyles === 'object' && !Array.isArray(values.textStyles)) {
+      const textStyles: NonNullable<DesignerActionOverride['textStyles']> = {}
+      const styleProperties = ['fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'textAlign', 'lineHeight'] as const
+      for (const part of ['code', 'fa', 'en', 'zh'] as const) {
+        const source = values.textStyles[part]
+        if (!source || typeof source !== 'object' || Array.isArray(source)) continue
+        const style: DesignerActionTextStyle = {}
+        for (const property of styleProperties) {
+          const setting = source[property]
+          if (validValue(property, setting) && setting !== undefined) style[property] = setting as never
+        }
+        if (Object.keys(style).length) textStyles[part] = style
+      }
+      if (Object.keys(textStyles).length) clean.textStyles = textStyles
+    }
     for (const [name, value] of Object.entries(values)) {
       const property = name as DesignerProperty
       if (designerActionProperties.includes(property) && validValue(property, value) && value !== undefined) clean[property] = typeof value === 'string' && colorProperties.has(property) ? value.toLowerCase() : value
@@ -151,7 +189,8 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
   }
   const filterPopupFontSize = typeof candidate.filterPopupFontSize === 'number' && Number.isInteger(candidate.filterPopupFontSize) && candidate.filterPopupFontSize >= 12 && candidate.filterPopupFontSize <= 24 ? candidate.filterPopupFontSize : undefined
   const gridSearchPosition = candidate.gridSearchPosition && ['left', 'center', 'right'].includes(candidate.gridSearchPosition) ? candidate.gridSearchPosition : undefined
-  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }) }
+  const buttonPressEffect = typeof candidate.buttonPressEffect === 'boolean' ? candidate.buttonPressEffect : undefined
+  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }) }
 }
 
 export function setDesignerFilterPopupFontSize(draft: DesignerDraft, value: number | undefined): DesignerDraft {
@@ -165,6 +204,11 @@ export function setDesignerGridSearchPosition(draft: DesignerDraft, value: GridS
   if (value === draft.gridSearchPosition) return draft
   if (value === undefined) { const { gridSearchPosition: _position, ...rest } = draft; return rest }
   return { ...draft, gridSearchPosition: value }
+}
+
+export function setDesignerButtonPressEffect(draft: DesignerDraft, enabled: boolean): DesignerDraft {
+  if (enabled === draft.buttonPressEffect) return draft
+  return { ...draft, buttonPressEffect: enabled }
 }
 
 export function designerColorScope(selection: readonly string[], property: DesignerProperty, validFieldIds: readonly string[]) {
@@ -230,6 +274,62 @@ export function setDesignerActionProperty(draft: DesignerDraft, actionIds: reado
     else delete actions[id]
   }
   return { ...draft, actions }
+}
+
+export function setDesignerActionText(draft: DesignerDraft, actionId: string, part: DesignerActionTextPart, value: string | undefined): DesignerDraft {
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(actionId) || typeof value !== 'string' || value.length > (part === 'code' ? 32 : 160)) return draft
+  const actions = { ...draft.actions }, current = { ...actions[actionId] }
+  if (part === 'code') {
+    current.code = value
+  } else {
+    const labels = { ...current.labels }
+    labels[part] = value
+    if (Object.keys(labels).length) current.labels = labels
+    else delete current.labels
+  }
+  if (Object.keys(current).length) actions[actionId] = current
+  else delete actions[actionId]
+  return { ...draft, actions }
+}
+
+const actionTextStyleProperties = ['fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'textAlign', 'lineHeight'] as const
+export function setDesignerActionTextProperty(draft: DesignerDraft, actionIds: readonly string[], part: DesignerActionTextPart, property: DesignerProperty, value: unknown): DesignerDraft {
+  if (!actionTextStyleProperties.includes(property as typeof actionTextStyleProperties[number]) || !validValue(property, value)) return draft
+  const actions = { ...draft.actions }
+  for (const id of actionIds) {
+    if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(id)) continue
+    const current = { ...actions[id] }, textStyles = { ...current.textStyles }, style = { ...textStyles[part] }
+    if (value === undefined) delete style[property as keyof DesignerActionTextStyle]
+    else style[property as keyof DesignerActionTextStyle] = value as never
+    if (Object.keys(style).length) textStyles[part] = style
+    else delete textStyles[part]
+    if (Object.keys(textStyles).length) current.textStyles = textStyles
+    else delete current.textStyles
+    if (Object.keys(current).length) actions[id] = current
+    else delete actions[id]
+  }
+  return { ...draft, actions }
+}
+
+export function designerActionCode(draft: DesignerDraft, action: Pick<BaseFormAction, 'id' | 'code'>): string {
+  return draft.actions?.[action.id]?.code ?? action.code
+}
+
+export function designerActionLabel(draft: DesignerDraft, action: Pick<BaseFormAction, 'id' | 'label'>, language: 'fa' | 'en' | 'zh'): string {
+  return draft.actions?.[action.id]?.labels?.[language] ?? action.label[language]
+}
+
+export function designerActionTextStyle(draft: DesignerDraft, actionId: string, part: DesignerActionTextPart): Record<string, string | number> {
+  const values = draft.actions?.[actionId]?.textStyles?.[part] ?? {}
+  const style: Record<string, string | number> = {}
+  if (values.fontFamily && values.fontFamily !== 'inherit') style.fontFamily = safeFonts[String(values.fontFamily)]
+  if (values.fontSize !== undefined) style.fontSize = `${values.fontSize}px`
+  if (values.bold !== undefined) style.fontWeight = values.bold ? 700 : 400
+  else if (values.fontWeight !== undefined) style.fontWeight = values.fontWeight
+  if (values.italic !== undefined) style.fontStyle = values.italic ? 'italic' : 'normal'
+  if (values.textAlign !== undefined) style.textAlign = String(values.textAlign)
+  if (values.lineHeight !== undefined) style.lineHeight = values.lineHeight
+  return style
 }
 
 export function designerActionVisible(draft: DesignerDraft, action: Pick<BaseFormAction, 'id' | 'required'>): boolean {
@@ -394,7 +494,7 @@ export function anchorDesignerInputs(draft: DesignerDraft, anchors: readonly Des
 }
 
 export type DesignerLayoutOrientation = 'horizontal' | 'vertical'
-export type DesignerLayoutOperation = 'arrange' | 'align' | 'equalSize' | 'equalSpacing'
+export type DesignerLayoutOperation = 'arrange' | 'align' | 'equalSize' | 'equalWidth' | 'equalHeight' | 'equalSpacing'
 export type DesignerLayoutField = {
   id: string
   left: number
@@ -422,17 +522,16 @@ export function layoutDesignerFields(
     ? options.rtl ? b.right - a.right : a.left - b.left
     : a.top - b.top || (options.rtl ? b.right - a.right : a.left - b.left))
   const gap = Math.max(0, Math.min(300, options.gap))
-  const sizing = options.operation === 'arrange' || options.operation === 'equalSize'
-  const commonWidth = sizing ? Math.max(48, Math.min(1000, Math.floor(Math.min(...ordered.map(field => field.inputWidth))))) : 0
-  const commonHeight = sizing ? Math.max(24, Math.min(600, Math.floor(Math.min(...ordered.map(field => field.inputHeight))))) : 0
+  const sizeWidth = ['arrange', 'equalSize', 'equalWidth'].includes(options.operation)
+  const sizeHeight = ['arrange', 'equalSize', 'equalHeight'].includes(options.operation)
+  const commonWidth = sizeWidth ? Math.max(48, Math.min(1000, Math.floor(Math.min(...ordered.map(field => field.inputWidth))))) : 0
+  const commonHeight = sizeHeight ? Math.max(24, Math.min(600, Math.floor(Math.min(...ordered.map(field => field.inputHeight))))) : 0
   let next = draft
   const slots = ordered.map(field => {
-    const width = sizing ? commonWidth : field.inputWidth
-    const height = sizing ? commonHeight : field.inputHeight
-    if (sizing) {
-      next = setDesignerProperty(next, [`${field.id}::input`], 'width', width, validFieldIds)
-      next = setDesignerProperty(next, [`${field.id}::input`], 'height', height, validFieldIds)
-    }
+    const width = sizeWidth ? commonWidth : field.inputWidth
+    const height = sizeHeight ? commonHeight : field.inputHeight
+    if (sizeWidth) next = setDesignerProperty(next, [`${field.id}::input`], 'width', width, validFieldIds)
+    if (sizeHeight) next = setDesignerProperty(next, [`${field.id}::input`], 'height', height, validFieldIds)
     const groupWidth = Math.max(field.labelWidth, field.width + width - field.inputWidth)
     const groupHeight = Math.max(field.labelHeight, field.height + height - field.inputHeight)
     return {
@@ -531,6 +630,7 @@ export function designerHistoryReducer(state: DesignerHistory, action: DesignerH
 }
 
 const cssColorVariables: Partial<Record<DesignerProperty, string>> = {
+  componentPopupBackground: '--component-popup-bg', componentAddBackground: '--component-add-bg', componentAddTextColor: '--component-add-text',
   backgroundColor: '--lab-bg', textColor: '--lab-text', labelColor: '--lab-label', borderColor: '--lab-border',
   focusColor: '--lab-focus', focusBackgroundColor: '--lab-focus-bg', focusTextColor: '--lab-focus-text', focusBorderColor: '--lab-focus-border', focusLabelColor: '--lab-focus-label',
   hoverColor: '--lab-hover', hoverTextColor: '--lab-hover-text', hoverBorderColor: '--lab-hover-border', selectedColor: '--lab-selected', disabledColor: '--lab-disabled', disabledTextColor: '--lab-disabled-text', disabledBorderColor: '--lab-disabled-border', errorColor: '--lab-error'
@@ -549,6 +649,9 @@ export function designerStyleForField(draft: DesignerDraft, fieldId: string): Re
     const variable = cssColorVariables[property]
     if (variable && typeof value === 'string') style[variable] = value
   }
+  if (values.componentPopupFontSize !== undefined) style['--component-popup-font-size'] = `${values.componentPopupFontSize}px`
+  if (values.componentAddWidth !== undefined) style['--component-add-width'] = `${values.componentAddWidth}px`
+  if (values.componentAddHeight !== undefined) style['--component-add-height'] = `${values.componentAddHeight}px`
   if (values.fontFamily && values.fontFamily !== 'inherit') style['--lab-font'] = safeFonts[String(values.fontFamily)]
   if (values.fontSize !== undefined) style['--lab-font-size'] = String(values.fontSize) + 'px'
   if (values.fontWeight !== undefined) style['--lab-font-weight'] = String(values.fontWeight)
@@ -678,6 +781,19 @@ export function resizeCanvasInputs(canvas: DesignerCanvas, ids: readonly string[
     fields[id] = { ...field, input }
   }
   return { ...canvas, fields }
+}
+
+export const designerResizeHandles = ['left', 'right', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] as const
+export type DesignerResizeHandle = typeof designerResizeHandles[number]
+
+export function resizeCanvasHandle(canvas: DesignerCanvas, ids: readonly string[], handle: DesignerResizeHandle, dx: number, dy: number): DesignerCanvas {
+  let next = canvas
+  if (dx && (handle.includes('left') || handle.includes('right'))) next = resizeCanvasInputs(next, ids, handle.includes('left') ? 'left' : 'right', dx)
+  if (dy && (handle.includes('top') || handle.includes('bottom'))) next = resizeCanvasInputs(next, ids, handle.includes('top') ? 'top' : 'bottom', dy)
+  return ids.every(id => {
+    const before = canvas.fields[id]?.input, after = next.fields[id]?.input
+    return before === after || (before && after && before.left === after.left && before.top === after.top && before.width === after.width && before.height === after.height)
+  }) ? canvas : next
 }
 
 export function fieldGroupRect(field: DesignerCanvasField): DesignerRect {

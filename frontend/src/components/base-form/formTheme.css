@@ -1,0 +1,145 @@
+/* Shared visual defaults, taken from the Persons form. Designer values override
+   these tokens on individual laboratory controls. */
+:root {
+  --form-label-size:var(--field-label-size,13px);
+  --form-control-size:14px;
+  --form-table-size:13px;
+  --form-table-header-size:14px;
+  --form-table-row-height:33px;
+  --form-panel-title-size:14px;
+  --form-control-height:34px;
+  --form-action-min-width:82px;
+  --form-action-label-size:14px;
+  --form-action-key-size:12px;
+  --form-label-color:var(--ink);
+  --form-control-color:#193330;
+  --form-control-border:#d9e3df;
+  --form-disabled-fill:#f4f6f5;
+  --form-disabled-color:#51635f;
+}
+.person-form-grid label>span {font-size:var(--form-label-size)}
+.person-form-grid :is(input,select,textarea) {font-size:var(--form-control-size)}
+.person-table {font-size:var(--form-table-size)}
+.person-table td {height:var(--form-table-row-height)}
+.excel-grid .column-title {font-size:var(--form-table-header-size)}
+.shortcut-bar button {min-width:var(--form-action-min-width)}
+.shortcut-bar kbd {font-size:var(--form-action-key-size)}
+.shortcut-bar span {font-size:var(--form-action-label-size)}
+
+.form-laboratory-page .laboratory-editor {padding:0}
+.form-laboratory-page .form-laboratory-banner {padding:13px 18px 10px}
+.form-laboratory-page .laboratory-banner-title>strong {font-size:var(--form-panel-title-size);font-weight:700}
+.form-laboratory-page .laboratory-banner-title>span {font-size:10px;font-weight:400}
+.form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) {
+  padding:13px 18px 16px;gap:8px 12px;align-content:start;align-items:end;
+  grid-template-rows:auto minmax(calc(var(--form-label-size) * 1.65 + 3px + 56px),auto) auto auto;
+}
+.form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry)>.laboratory-designer-field {
+  padding:0;border:0;align-self:end;
+}
+.form-laboratory-page .laboratory-workspace.has-designer .laboratory-form-grid:not(.has-fixed-geometry)>.laboratory-designer-field {
+  padding-top:0;
+}
+.form-laboratory-page .laboratory-workspace.has-designer .laboratory-field-select {inset-block-start:0}
+.form-laboratory-page .laboratory-designer-field>label {gap:3px;font-weight:400}
+.form-laboratory-page .laboratory-designer-field>label>.designer-input-part {margin:0}
+.form-laboratory-page .laboratory-designer-field>label>span[id],
+.form-laboratory-page .laboratory-designer-field .designer-label-part {
+  margin:0;color:var(--lab-label,var(--lab-text,var(--form-label-color)));
+  font-family:var(--lab-font,var(--user-font-family));
+  font-size:var(--lab-font-size,var(--form-label-size));
+  font-weight:var(--lab-bold,var(--lab-font-weight,var(--field-label-weight,600)));
+  font-style:var(--lab-font-style,normal);line-height:var(--lab-line-height,var(--field-label-line-height,1.65));
+}
+.form-laboratory-page .laboratory-designer-field:not(.laboratory-shared-contact) :is(input,select,textarea) {
+  height:var(--lab-height,var(--form-control-height));padding:var(--lab-padding-y,6px) var(--lab-padding-x,9px);
+  border:var(--lab-border-width,1px) var(--lab-border-style,solid) var(--lab-border,var(--form-control-border));border-radius:var(--lab-radius,7px);
+  background:var(--lab-bg,#fff);color:var(--lab-text,var(--form-control-color));
+  font-family:var(--lab-font,var(--user-font-family));
+  font-size:var(--lab-font-size,var(--form-control-size));
+  font-weight:var(--lab-bold,var(--lab-font-weight,400));
+}
+.form-laboratory-page .laboratory-designer-field:not(.laboratory-shared-contact) :is(input,select,textarea):disabled {
+  background:var(--lab-disabled,var(--form-disabled-fill));
+  color:var(--lab-disabled-text,var(--lab-text,var(--form-disabled-color)));
+  border-color:var(--lab-disabled-border,#e4e9e7);opacity:1;
+}
+.form-laboratory-page .laboratory-designer-field textarea {height:var(--lab-height,var(--form-control-height))}
+.form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .designer-input-part>:is(input,select) {height:var(--lab-height,var(--form-control-height))!important}
+.form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .designer-input-part>textarea {height:var(--lab-height,var(--form-control-height))!important}
+.form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .lab-title .designer-input-part>select {height:var(--lab-height,36px)!important}
+.form-laboratory-page .laboratory-designer-field.lab-notes>label {gap:5px}
+.form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .lab-notes .designer-input-part>textarea {height:var(--lab-height,36px)!important}
+.form-laboratory-page .laboratory-grid {padding:0}
+.form-laboratory-page .base-form-shell {border:0;box-shadow:none}
+.form-laboratory-page .base-grid-boundary:not(.is-expanded) {border:0;border-radius:0;gap:0}
+.form-laboratory-page .base-grid-table .column-title {font-size:var(--form-table-header-size);font-weight:500}
+.form-laboratory-page .base-grid-virtual-wrap .base-grid-virtual-row td {
+  font-size:var(--form-table-size);font-weight:400;padding:6px 9px;
+}
+.form-laboratory-page .laboratory-footer {
+  display:flex;flex-direction:row;justify-content:center;align-items:center;
+  flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+  padding:6px 10px;gap:7px;min-height:54px;
+  background:var(--lab-action-bar-bg,var(--form-frame-fill));border-top:1px solid #c6d9d4;color:#172727;
+}
+.form-laboratory-page .laboratory-footer>.laboratory-action-button {display:contents}
+.form-laboratory-page .laboratory-workspace.has-designer .laboratory-footer>.laboratory-action-button {
+  display:inline-flex;flex:0 0 auto;align-items:center;
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button:not(.designer-edge-handle) {
+  flex:0 0 auto;width:var(--lab-width,var(--form-action-min-width));height:var(--lab-height,44.6px);
+  min-width:var(--lab-width,var(--form-action-min-width));min-height:0;max-width:none;
+  padding:var(--lab-padding-y,5px) var(--lab-padding-x,8px);gap:1px;
+  border-radius:var(--lab-radius,7px);box-shadow:var(--lab-shadow,none);
+  border:var(--lab-border-width,1px) var(--lab-border-style,solid) var(--lab-action-border,#cbd8d4);
+  background:var(--lab-action-bg,#fff);color:var(--lab-action-text,#314a47);opacity:1;
+  font-family:var(--lab-font,var(--user-font-family));
+  font-size:var(--lab-font-size,16px);
+  font-weight:var(--lab-bold,var(--lab-font-weight,400));
+  line-height:var(--lab-line-height,normal);
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button.primary:not(.designer-edge-handle) {
+  width:var(--lab-width,100px);min-width:var(--lab-width,100px);
+  background:var(--lab-action-bg,#347d70);color:var(--lab-action-text,#fff);border-color:var(--lab-action-border,#347d70);
+  font-size:var(--lab-font-size,12px);
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button:not(.designer-edge-handle)>kbd {
+  font-family:var(--lab-font,Consolas);
+  font-size:var(--lab-font-size,var(--form-action-key-size));
+  font-weight:var(--lab-bold,var(--lab-font-weight,600));line-height:var(--lab-line-height,1.2);
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button:not(.designer-edge-handle)>span {
+  font-size:var(--lab-font-size,var(--form-action-label-size));line-height:var(--lab-line-height,1.3);
+  white-space:nowrap;overflow-wrap:normal;
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button.is-icon-action>button:not(.designer-edge-handle) {
+  width:var(--lab-width,36px);min-width:var(--lab-width,36px);align-self:center;
+  height:var(--lab-height,36px);
+  background:var(--lab-action-bg,#f8fbfa);border-color:var(--lab-action-border,#b9cbc6);color:var(--lab-action-text,#172727);
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button.is-icon-action>button:not(.designer-edge-handle)>kbd {font-family:var(--lab-font,var(--user-font-family));font-size:var(--lab-font-size,16px);font-weight:var(--lab-bold,var(--lab-font-weight,400));line-height:normal}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button:not(.designer-edge-handle):disabled {
+  background:var(--lab-action-disabled-bg,var(--lab-action-bg,#fff));
+  color:var(--lab-action-disabled-text,var(--lab-action-text,#314a47));
+  border-color:var(--lab-action-disabled-border,var(--lab-action-border,#cbd8d4));opacity:1;
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button.primary:not(.designer-edge-handle):disabled {
+  background:var(--lab-action-disabled-bg,var(--lab-action-bg,#347d70));
+  color:var(--lab-action-disabled-text,var(--lab-action-text,#fff));border-color:var(--lab-action-disabled-border,var(--lab-action-border,#347d70));
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button.danger-shortcut:disabled {color:var(--lab-action-disabled-text,var(--lab-action-text,#a34436))}
+.form-laboratory-page .laboratory-footer .laboratory-action-button.is-icon-action>button:not(.designer-edge-handle):disabled {background:var(--lab-action-disabled-bg,var(--lab-action-bg,#f8fbfa));border-color:var(--lab-action-disabled-border,var(--lab-action-border,#b9cbc6));color:var(--lab-action-disabled-text,var(--lab-action-text,#172727))}
+.form-laboratory-page .laboratory-footer.is-entry-active {min-height:54px}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button.danger-shortcut {color:var(--lab-action-text,#a34436)}
+.form-laboratory-page .laboratory-footer .laboratory-action-button:not(.is-icon-action)>button:not(.primary):not(.designer-edge-handle):hover:not(:disabled) {
+  background:var(--lab-action-hover-bg,#f9fffd);border-color:var(--lab-action-hover-border,var(--lab-action-border,#6f9992));color:var(--lab-action-hover-text,var(--lab-action-text,#314a47));
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button.primary:not(.designer-edge-handle):hover:not(:disabled) {
+  background:var(--lab-action-hover-bg,#2c7165);border-color:var(--lab-action-hover-border,var(--lab-action-border,#2c7165));color:var(--lab-action-hover-text,var(--lab-action-text,#fff));
+}
+.form-laboratory-page .laboratory-footer .laboratory-action-button:not(.is-icon-action)>button.danger-shortcut:not(.primary):not(.designer-edge-handle):hover:not(:disabled) {color:var(--lab-action-hover-text,var(--lab-action-text,#a34436))}
+.designer-action-row.designer-action-row-all-visible {grid-template-columns:minmax(0,1fr) 42px 36px}
+@container laboratory-preview (max-width:900px) {
+  .form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) {grid-template-rows:none}
+}

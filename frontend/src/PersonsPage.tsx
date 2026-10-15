@@ -1,4 +1,8 @@
+import { NumberControl, formatInternationalNumber } from './components/base-form/NumberControl'
+import { PersonTitleControl, type PersonTitleOption } from './components/base-form/PersonTitleControl'
+import { functionKeyFromEvent } from './components/base-form/functionKeys'
 import { Field, Shortcut } from './DefinitionControls'
+import { defaultFormTheme } from './components/base-form/formTheme'
 import { ExcelGridColumnHeader, ExcelGridFilterScope } from './components/base-form/ExcelGridColumnHeader'
 import { applyGridFiltersAndSort, gridDistinctValues, type ExcelGridColumn, type GridFilterState, type GridPage, type GridQuery, type GridSortState, type GridValue } from './components/base-form/excelGrid'
 import BrandsPage, { type Brand, type BrandPage } from './BrandsPage'
@@ -31,7 +35,7 @@ const shortcutOptions = ['Space', 'Insert', 'Delete', 'F2', 'F3', 'F4', 'F6', 'F
 
 function shortcutMatches(event: KeyboardEvent, shortcut: string) {
   if (shortcut.startsWith('Ctrl+')) return event.ctrlKey && event.key.toUpperCase() === shortcut.slice(5).toUpperCase()
-  return shortcut === 'Space' ? event.code === 'Space' : event.key === shortcut
+  return shortcut === 'Space' ? event.code === 'Space' : /^F(?:[1-9]|1[0-2])$/.test(shortcut) ? functionKeyFromEvent(event) === shortcut : event.key === shortcut
 }
 
 const defaultColumns: ColumnState[] = [
@@ -81,19 +85,6 @@ const personPayload = (draft: PersonDraft) => ({
 
 const normalizeName = (value = '') => value.replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\u200c/g, ' ').trim().replace(/\s+/g, ' ').toLowerCase()
 
-function formatInternationalNumber(value: string) {
-  const match = value.match(/^\+(98|86)(\d+)$/)
-  if (!match) return value
-  const [, code, rest] = match
-  const groups = code === '98' ? [3, 3, 4] : code === '86' ? [3, 4, 4] : []
-  if (!groups.length) return `+${code} ${rest.replace(/(.{4})(?=.)/g, '$1 ')}`
-  const chunks: string[] = []
-  let offset = 0
-  for (const size of groups) { if (offset >= rest.length) break; chunks.push(rest.slice(offset, offset + size)); offset += size }
-  if (offset < rest.length) chunks.push(rest.slice(offset))
-  return `+${code} ${chunks.join(' ')}`
-}
-
 const demoParameters: Parameter[] = [
   { id: 'j1', parameterType: 'Job', code: 'CUSTOMER', nameFa: 'مشتری', nameEn: 'Customer' },
   { id: 'j2', parameterType: 'Job', code: 'SELLER', nameFa: 'فروشنده', nameEn: 'Seller' },
@@ -128,13 +119,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const [brandCreation, setBrandCreation] = useState(false)
   const brandSelection = useRef<HTMLSelectElement>(null)
   const [parameters, setParameters] = useState<Parameter[]>([])
-  const [titleEntry, setTitleEntry] = useState(false)
-  const [titleName, setTitleName] = useState('')
-  const [titleKind, setTitleKind] = useState<'' | 'Individual' | 'Company'>('')
-  const [titleError, setTitleError] = useState('')
-  const [titleSaving, setTitleSaving] = useState(false)
-  const [titlePosition, setTitlePosition] = useState<React.CSSProperties>({})
-  const titleInput = useRef<HTMLInputElement>(null)
   const [selectedId, setSelectedId] = useState<string>('')
   const [mode, setMode] = useState<Mode>('view')
   const [draft, setDraft] = useState<PersonDraft>(emptyDraft)
@@ -148,7 +132,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const columnKey = `persons-columns:${authenticatedUserId ?? userKey}`
   const legacyColumnKey = `persons-columns:${userKey}`
   const shortcutKey = `persons-shortcuts:${userKey}`
-  const [topHeight, setTopHeight] = useState(() => Number(localStorage.getItem(splitKey)) || 330)
+  const [topHeight, setTopHeight] = useState(() => Number(localStorage.getItem(splitKey)) || defaultFormTheme.editorHeight)
   const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns(columnKey, legacyColumnKey))
   const columnOwner = useRef(columnKey)
   const [columnMenuOpen, setColumnMenuOpen] = useState(false)
@@ -271,8 +255,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     reloadBrands(); window.addEventListener('brands-changed', reloadBrands)
     return () => { alive = false; window.removeEventListener('brands-changed', reloadBrands) }
   }, [demoMode])
-  useEffect(() => { if (titleEntry) titleInput.current?.focus() }, [titleEntry])
-  useEffect(() => { setTitleEntry(false) }, [mode])
   useEffect(() => {
     if (mode !== 'view' || !selected) return
     const value = copyDraft(selected); setDraft(value); original.current = JSON.stringify(value)
@@ -439,7 +421,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       if (frameRef.current?.closest('[aria-hidden="true"]')) return
       const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement
       if (mode !== 'view') {
-        if (titleEntry) return
         if (shortcutMatches(event, shortcuts.save)) { event.preventDefault(); void save() }
         if (event.key === 'Escape') { event.preventDefault(); cancel() }
         return
@@ -462,7 +443,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     }
     document.addEventListener('keydown', keydown)
     return () => document.removeEventListener('keydown', keydown)
-  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, titleEntry, brandCreation])
+  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, brandCreation])
 
   function resizeStart(event: React.PointerEvent) {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -577,25 +558,18 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     if (key === 'phone') return <span className="mono person-grid-phone" dir="ltr">{person.phone ? formatInternationalNumber(person.phone) : '—'}</span>
     return <span className={`person-status ${person.isActive ? 'active' : 'inactive'}`}>{person.isActive ? (fa ? 'فعال' : 'Active') : (fa ? 'غیرفعال' : 'Inactive')}</span>
   }
-  const changeTitle = (titleId: string) => setDraft(current => {
-    const personType = titlePersonType(titles.find(x => x.id === titleId)) ?? current.personType
+  const changeTitle = (titleId: string, knownPersonType?: PersonTitleOption['personType']) => setDraft(current => {
+    const personType = knownPersonType ?? titlePersonType(titles.find(x => x.id === titleId)) ?? current.personType
     return { ...current, titleId, personType }
   })
-  async function addTitle() {
-    if (titleSaving) return
-    const name = titleName.trim()
-    if (!name || !titleKind) { setTitleError(fa ? 'عنوان و نوع حقیقی یا حقوقی را وارد کنید.' : 'Enter a title and select its kind.'); (!name ? titleInput.current : formRef.current?.querySelector<HTMLElement>('[data-title-kind]'))?.focus(); return }
-    const normalized = normalizeName(name === 'آقا' ? 'آقای' : name)
-    if (titles.some(x => normalizeName(x.code === 'MR' ? 'آقای' : x.nameFa) === normalized)) { setTitleError(fa ? 'این عنوان قبلاً ثبت شده است.' : 'This title already exists.'); titleInput.current?.focus(); return }
-    setTitleSaving(true); setTitleError('')
-    try {
-      const title = demoMode
-        ? { id: crypto.randomUUID(), parameterType: 'Title' as const, code: `CUSTOM_${titleKind}`, nameFa: name, nameEn: name, personType: titleKind }
-        : await apiRequest<Parameter>('/api/master-data/parameters/titles', { method: 'POST', body: JSON.stringify({ name, personType: titleKind }) })
-      setParameters(current => [...current, title]); setDraft(current => ({ ...current, titleId: title.id, personType: titleKind })); setTitleEntry(false)
-      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[data-field="titleId"]')?.focus())
-    } catch (e) { setTitleError(e instanceof Error ? e.message : String(e)) }
-    finally { setTitleSaving(false) }
+  async function createPersonTitle(name: string): Promise<PersonTitleOption> {
+    // The title control only collects text; retain the current form's type internally.
+    const personType = draft.personType
+    const title: Parameter = demoMode
+      ? { id: crypto.randomUUID(), parameterType: 'Title', code: `CUSTOM_${crypto.randomUUID()}`, nameFa: name, nameEn: name, personType }
+      : await apiRequest<Parameter>('/api/master-data/parameters/titles', { method: 'POST', body: JSON.stringify({ name, personType }) })
+    setParameters(current => [...current, title])
+    return { id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? personType }
   }
 
   if (brandCreation) return <BrandsPage language={language} demoMode={demoMode} creation={{
@@ -613,9 +587,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       {error && <div className="form-message error-message">{error}</div>}{message && <div className="form-message success-message">{message}</div>}
       <div className={`person-form-grid ${mode !== 'view' ? 'editing' : ''}`} ref={formRef} onKeyDown={formKeyDown} onBlur={formBlur}>
         <Field className="person-code-field" label={fa ? 'کد شخص *' : 'Person code *'} error={fieldErrors.personCode}><input data-field="personCode" aria-invalid={Boolean(fieldErrors.personCode)} autoFocus={mode === 'new'} disabled={disabled || selected?.isContractPartner} maxLength={30} value={draft.personCode} onChange={e => set('personCode', e.target.value)} /></Field>
-        <Field className="person-title-field" label={fa ? 'عنوان *' : 'Title *'} error={fieldErrors.titleId}><div className="person-title-wrap"><button type="button" className="title-add-button" disabled={disabled || !hasPermission('persons.create')} aria-label={fa ? 'افزودن عنوان' : 'Add title'} aria-expanded={titleEntry} onClick={event => { const rect = event.currentTarget.parentElement!.getBoundingClientRect(); const width = Math.min(280, window.innerWidth - 24); setTitlePosition({ top: rect.bottom + 4, left: Math.max(12, Math.min(rect.right - width, window.innerWidth - width - 12)), width }); setTitleName(''); setTitleKind(''); setTitleError(''); setTitleEntry(current => !current) }}>+</button><select data-field="titleId" required aria-invalid={Boolean(fieldErrors.titleId)} disabled={disabled} value={draft.titleId} onChange={e => changeTitle(e.target.value)}>{titles.map(x => <option key={x.id} value={x.id}>{x.code === 'MR' && fa ? 'آقای' : parameterLabel(x)}</option>)}</select>
-          {titleEntry && <div className="person-title-entry" data-form-scope style={titlePosition} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') { event.preventDefault(); setTitleEntry(false); requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[data-field="titleId"]')?.focus()) } }}><input ref={titleInput} data-title-name aria-label={fa ? 'عنوان جدید' : 'New title'} maxLength={100} disabled={titleSaving} value={titleName} onChange={e => setTitleName(e.target.value)} placeholder={fa ? 'عنوان جدید' : 'New title'} /><select data-title-kind required aria-label={fa ? 'نوع عنوان' : 'Title kind'} disabled={titleSaving} value={titleKind} onChange={e => setTitleKind(e.target.value as typeof titleKind)}><option value="" disabled>{fa ? 'انتخاب نوع عنوان' : 'Select title kind'}</option><option value="Individual">{fa ? 'حقیقی' : 'Individual'}</option><option value="Company">{fa ? 'حقوقی' : 'Organization'}</option></select>{titleError && <small role="alert">{titleError}</small>}<div><button type="button" data-save-action disabled={titleSaving} onClick={() => void addTitle()}>{fa ? 'افزودن عنوان' : 'Add title'}</button><button type="button" disabled={titleSaving} onClick={() => setTitleEntry(false)}>{fa ? 'انصراف' : 'Cancel'}</button></div></div>}
-        </div></Field>
+        <Field className="person-title-field" label={fa ? 'عنوان *' : 'Title *'} error={fieldErrors.titleId}><PersonTitleControl value={draft.titleId ?? ''} options={titles.map(title => ({ id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? 'Company' }))} disabled={disabled} required invalid={Boolean(fieldErrors.titleId)} canCreate={hasPermission('persons.create')} fa={fa} language={language} onChange={changeTitle} onCreate={createPersonTitle} /></Field>
         {!organization && <Field className="person-first-name-field" compact label={fa ? 'نام' : 'First name'}><input data-field="firstName" disabled={disabled} value={draft.firstName} onChange={e => set('firstName', e.target.value)} /></Field>}
         <Field className={organization ? 'person-organization-field' : 'person-family-name-field'} label={organization ? (fa ? `نام ${selectedTitle?.nameFa ?? 'شرکت'} *` : `${selectedTitle?.nameEn ?? 'Organization'} name *`) : (fa ? 'نام خانوادگی *' : 'Family name *')} wide={organization} compact={!organization} error={fieldErrors.lastName}><input data-field="lastName" required aria-invalid={Boolean(fieldErrors.lastName)} disabled={disabled} value={draft.lastName} onChange={e => set('lastName', e.target.value)} /></Field>
         {organization && <Field className="person-director-field" label={fa ? `نام مدیر ${selectedTitle?.nameFa ?? 'شرکت'}` : `${selectedTitle?.nameEn ?? 'Organization'} director`}><input data-field="directorName" disabled={disabled} maxLength={200} value={draft.directorName} onChange={e => set('directorName', e.target.value)} /></Field>}
@@ -655,119 +627,5 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
         <details className="shortcut-settings"><summary title={fa ? 'شخصی‌سازی کلیدها' : 'Customize shortcuts'}>⚙</summary><div>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div></details>
       </div>
     </section>
-  </div>
-}
-function NumberControl({ field, label, primary, numbers, disabled, fa, onChange, suggestedCode = '', multiline = false }: { field: 'phone' | 'mobile' | 'address', label: string, primary: string, numbers: string[], disabled: boolean, fa: boolean, suggestedCode?: string, multiline?: boolean, onChange: (primary: string, numbers: string[]) => void }) {
-  const [open, setOpen] = useState(false)
-  const [adding, setAdding] = useState(false)
-  const [text, setText] = useState('')
-  const [entryRows, setEntryRows] = useState<{ id: number, code: string, text: string }[]>([])
-  const nextEntryId = useRef(0)
-  const entryInputs = useRef(new Map<number, HTMLInputElement | HTMLTextAreaElement>())
-  const entryCodes = useRef(new Map<number, HTMLInputElement>())
-  const [editingNumber, setEditingNumber] = useState<string | null>(null)
-  const [listPosition, setListPosition] = useState<React.CSSProperties>({})
-  const [pendingNumbers, setPendingNumbers] = useState(numbers)
-  const [pendingPrimary, setPendingPrimary] = useState(primary)
-  const input = useRef<HTMLInputElement>(null)
-  const wrapper = useRef<HTMLDivElement>(null)
-  const addButton = useRef<HTMLButtonElement>(null)
-  function openEmptyControl() {
-    if (!disabled && !primary.trim() && !open) addButton.current?.click()
-  }
-  function focusNextControl() {
-    requestAnimationFrame(() => {
-      const order = ['phone', 'mobile', 'address', 'notes']
-      const next = order[order.indexOf(field) + 1]
-      wrapper.current?.closest('.person-form-grid')?.querySelector<HTMLElement>(`[data-field="${next}"]`)?.focus()
-    })
-  }
-  function showList(event: React.MouseEvent<HTMLButtonElement>, startAdding = false) {
-    const wrapper = event.currentTarget.closest('.person-number-wrap')
-    const field = wrapper?.querySelector('.person-number-control') ?? event.currentTarget.closest('.person-number-control')
-    const rect = (field ?? event.currentTarget).getBoundingClientRect()
-    const viewportWidth = document.documentElement.clientWidth
-    const width = multiline ? rect.width : Math.min(360, viewportWidth - 24)
-    const left = Math.max(12, Math.min(multiline ? rect.right - width : rect.left, viewportWidth - width - 12))
-    setListPosition({ top: rect.bottom + 4, left, right: 'auto', width, maxHeight: Math.max(40, Math.min(180, window.innerHeight - rect.bottom - 20)) })
-    if (!open) { setPendingNumbers(numbers); setPendingPrimary(primary) }
-    if (!open) setEntryRows([])
-    if (startAdding && (!open || !entryRows.length)) setEntryRows([{ id: ++nextEntryId.current, code: suggestedCode, text: '' }])
-    setAdding(startAdding); setEditingNumber(null); setText(''); setOpen(true)
-  }
-  useEffect(() => { if (open && adding && !disabled) entryInputs.current.get(entryRows.at(-1)?.id ?? -1)?.focus() }, [open, adding, disabled, entryRows.length])
-  function add(code: string) {
-    if (disabled) return
-    setEntryRows(current => [...current, { id: ++nextEntryId.current, code, text: '' }])
-    setAdding(true)
-  }
-  function changeEntry(id: number, key: 'code' | 'text', value: string) { setEntryRows(current => current.map(row => row.id === id ? { ...row, [key]: value } : row)) }
-  function remove(value: string) { const next = pendingNumbers.filter(item => item !== value); setPendingNumbers(next); if (value === pendingPrimary) setPendingPrimary(next[0] ?? '') }
-  function edit(value: string, edited: string) {
-    if (!edited.trim() || pendingNumbers.some(item => item !== value && item === edited)) return
-    setPendingNumbers(current => current.map(item => item === value ? edited : item))
-    if (pendingPrimary === value) setPendingPrimary(edited)
-  }
-  function applyEdit() {
-    if (editingNumber === null || !text.trim()) return
-    const edited = text.trim()
-    if (pendingNumbers.some(item => item !== editingNumber && item === edited)) return
-    setPendingNumbers(current => current.map(item => item === editingNumber ? edited : item))
-    if (pendingPrimary === editingNumber) setPendingPrimary(edited)
-    setEditingNumber(null); setText('')
-  }
-  function confirm() {
-    if (disabled) return
-    let finalNumbers = pendingNumbers
-    let finalPrimary = pendingPrimary
-    const reject = (control: HTMLInputElement | HTMLTextAreaElement | null) => {
-      control?.setCustomValidity(fa ? 'این مورد نامعتبر یا تکراری است.' : 'This entry is invalid or duplicated.')
-      control?.reportValidity(); control?.focus()
-    }
-    if (editingNumber !== null) {
-      const edited = text.trim()
-      if (!edited || !/^\+?\d[\d\s-]*$/.test(edited) || finalNumbers.some(item => item !== editingNumber && item === edited)) { reject(input.current); return }
-      finalNumbers = finalNumbers.map(item => item === editingNumber ? edited : item)
-      if (finalPrimary === editingNumber) finalPrimary = edited
-    }
-    for (const row of entryRows) {
-      if (!row.text.trim()) continue
-      const prefix = row.code.trim().replace(/\s/g, '')
-      const digits = row.text.replace(/\D/g, '').replace(/^0+/, '')
-      if (!multiline && !/^\+\d{1,3}$/.test(prefix)) { reject(entryCodes.current.get(row.id) ?? null); return }
-      if (!multiline && !digits) { reject(entryInputs.current.get(row.id) ?? null); return }
-      const value = multiline ? row.text.trim() : `${prefix}${digits}`
-      if (finalNumbers.includes(value)) { reject(entryInputs.current.get(row.id) ?? null); return }
-      finalNumbers = [...finalNumbers, value]
-      finalPrimary = finalPrimary || value
-    }
-    onChange(finalPrimary, finalNumbers)
-    setEditingNumber(null); setOpen(false); setAdding(false); setText(''); setEntryRows([])
-    focusNextControl()
-  }
-  useEffect(() => {
-    if (!open || disabled) return
-    const confirmKey = (event: KeyboardEvent) => {
-      if (event.key !== 'F3' || event.altKey || event.ctrlKey || event.metaKey || wrapper.current?.closest('[aria-hidden="true"]')) return
-      const owner = event.target instanceof Element ? event.target.closest('.person-number-wrap') : null
-      if (owner && owner !== wrapper.current && owner.querySelector('.person-number-list')) return
-      // Run before the shared document capture handler that owns the main F3 save.
-      event.preventDefault(); event.stopImmediatePropagation()
-      if (!event.repeat) confirm()
-    }
-    window.addEventListener('keydown', confirmKey, true)
-    return () => window.removeEventListener('keydown', confirmKey, true)
-  })
-  return <div className="person-number-wrap" ref={wrapper} onInput={event => { if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.target.setCustomValidity('') }}>
-    <button ref={addButton} type="button" className="number-add-button" disabled={disabled} aria-label={`${fa ? 'افزودن شماره' : 'Add number'} ${label}`} aria-expanded={open && adding} onClick={event => disabled ? undefined : showList(event, true)}>+</button>
-    <div className={`person-number-control ${multiline ? 'address-control' : ''}`}>
-      {multiline ? <textarea data-field={field} aria-label={label} disabled={disabled} value={primary} readOnly rows={1} onFocus={openEmptyControl} /> : <input data-field={field} className="ltr-input number-display" aria-label={label} disabled={disabled} value={formatInternationalNumber(primary)} readOnly dir="ltr" onFocus={openEmptyControl} />}
-      <button type="button" className="number-chevron" aria-label={fa ? (multiline ? 'نمایش نشانی‌ها' : 'نمایش شماره‌ها') : 'Show list'} aria-expanded={open} onClick={event => open ? setOpen(false) : showList(event)} />
-    </div>
-    {open && <div className={`person-number-list ${multiline ? 'address-list' : 'phone-list'} ${adding ? 'adding' : ''}`} style={listPosition} dir={multiline ? 'rtl' : 'ltr'}>
-      {pendingNumbers.map(number => <div className="person-number-row" key={number}><button type="button" className={`person-primary ${pendingPrimary === number ? 'selected' : ''}`} onClick={() => setPendingPrimary(number)} aria-label={fa ? 'انتخاب مورد اصلی' : 'Set primary'}>{pendingPrimary === number ? '✓' : ''}</button>{multiline ? <textarea disabled={disabled} rows={2} value={number} onChange={e => edit(number, e.target.value)} /> : editingNumber === number ? <input ref={input} className="number-edit-input" dir="ltr" value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyEdit() } }} /> : <span className="number-row-value" dir="ltr">{formatInternationalNumber(number)}</span>}{!disabled && <>{!multiline && <button type="button" className="number-row-edit" onClick={() => { setEditingNumber(number); setAdding(false); setText(number) }} aria-label={fa ? 'ویرایش' : 'Edit'}>✎</button>}<button type="button" onClick={() => remove(number)} aria-label={fa ? 'حذف' : 'Remove'}>×</button></>}</div>)}
-      {!disabled && entryRows.map(row => <div key={row.id} className="person-number-row new-number-row" dir={multiline ? 'rtl' : 'ltr'}>{!multiline && <input ref={el => { if (el) entryCodes.current.set(row.id, el); else entryCodes.current.delete(row.id) }} className="dial-code-input" dir="ltr" aria-label={fa ? 'کد کشور' : 'Country code'} value={row.code} onChange={e => changeEntry(row.id, 'code', e.target.value)} placeholder={suggestedCode || '+98'} />}{multiline ? <textarea ref={el => { if (el) entryInputs.current.set(row.id, el); else entryInputs.current.delete(row.id) }} value={row.text} onChange={e => changeEntry(row.id, 'text', e.target.value)} aria-label={label} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(row.code) } }} /> : <input ref={el => { if (el) entryInputs.current.set(row.id, el); else entryInputs.current.delete(row.id) }} className="number-edit-input" dir="ltr" type="tel" value={row.text} onChange={e => changeEntry(row.id, 'text', e.target.value.replace(/\D/g, ''))} aria-label={label} placeholder={fa ? 'شماره جدید' : 'New number'} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(row.code) } }} />}<button type="button" className="number-row-add" aria-label={fa ? 'افزودن مورد' : 'Add entry'} onClick={() => add(row.code)}>+</button></div>)}
-      {!disabled && <button type="button" className="number-confirm" onClick={confirm}>{fa ? 'تأیید (F3)' : 'Apply (F3)'}</button>}
-    </div>}
   </div>
 }

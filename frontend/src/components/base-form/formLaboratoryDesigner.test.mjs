@@ -18,7 +18,7 @@ const panel = readFileSync(new URL('./FormLaboratoryDesignerPanel.tsx', import.m
 const app = readFileSync(new URL('../../App.tsx', import.meta.url), 'utf8')
 const picker = readFileSync(new URL('./ExcelColorPicker.tsx', import.meta.url), 'utf8')
 // Exercise the actual pure functions in the TSX file without a React/DOM test harness.
-const pickerMath = runInNewContext(stripTypeScriptTypes(picker.slice(picker.indexOf('const themeColors'), picker.indexOf('export function ExcelColorPicker'))).replace('export function colorPickerNavigation', 'function colorPickerNavigation') + '\n({ hexToHsv, hsvToHex, colorProposal, hsvProposal, honeycombColors, colorPickerNavigation })')
+const pickerMath = runInNewContext(stripTypeScriptTypes(picker.slice(picker.indexOf('const clamp'), picker.indexOf('export function ExcelColorPicker'))).replace(/^export\s+/gm, '') + '\n({ hexToHsv, hsvToHex, colorProposal, hsvProposal, honeycombColors, colorPickerNavigation })')
 import { designerActionDimensionLimits, designerActionStyle, designerActionVisible, designerColorScope, designerEffectiveValues, designerShortcutAction, setDesignerActionProperty, setDesignerActionVisibility, setDesignerColorProperty } from './designer.ts'
 
 const laboratoryActions = runInNewContext(stripTypeScriptTypes(page.slice(page.indexOf('const laboratoryDefinition'), page.indexOf('const columns'))) + '\nlaboratoryDefinition.actions')
@@ -139,8 +139,8 @@ test('context actions use existing panel controls and exclude incompatible color
 test('bottom bar represents reference actions once and retains required save metadata', () => {
   assert.deepEqual(Array.from(laboratoryActions, action => action.code), ['Space', 'Insert', 'Delete', 'Home', 'PgUp', '↑ ↓', 'PgDn', 'End', '⚙', 'F3', 'Esc'])
   assert.equal(new Set(laboratoryActions.map(action => action.id)).size, laboratoryActions.length)
-  assert.deepEqual(Array.from(laboratoryActions.filter(action => action.required), action => action.id), ['new-person', 'edit-person', 'demo-save'])
-  assert.match(page, /if \(designerOpen \|\| !action \|\| action.disabled \|\| !designerActionVisible/)
+  assert.deepEqual(Array.from(laboratoryActions.filter(action => action.required), action => action.id), ['new-person', 'edit-person', 'delete-person', 'demo-save', 'reset-sample'])
+  assert.match(page, /if \(designerOpen \|\| !action \|\| !designerActionVisible/)
   assert.match(panel, /disabled=\{action.required\}/)
 })
 
@@ -174,18 +174,19 @@ test('optional action visibility preserves styles through undo, redo, restore an
   assert.equal(validateDesignerDraft({ ...draft, actions: { invalid: { visible: 'false' } } }, formId, ids).actions, undefined)
 })
 
-test('shortcuts resolve only visible enabled actions and leave unavailable business actions disabled', () => {
+test('shortcuts respect optional visibility; mandatory visibility is independent of mode guards', () => {
   const draft = emptyDesignerDraft(formId)
   assert.equal(designerShortcutAction(draft, laboratoryActions, 'F3').id, 'demo-save')
   assert.equal(designerShortcutAction(draft, laboratoryActions, 'Escape').id, 'reset-sample')
-  assert.equal(designerShortcutAction(setDesignerActionVisibility(draft, { id: 'reset-sample' }, false), laboratoryActions, 'Escape'), undefined)
-  for (const key of [' ', 'Insert', 'Delete', 'Home', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'End']) assert.equal(designerShortcutAction(draft, laboratoryActions, key), undefined)
+  assert.equal(designerShortcutAction(setDesignerActionVisibility(draft, { id: 'reset-sample' }, false), laboratoryActions, 'Escape').id, 'reset-sample')
+  assert.equal(designerShortcutAction(setDesignerActionVisibility(draft, { id: 'next-page' }, false), laboratoryActions, 'PageDown'), undefined)
+  for (const key of [' ', 'Insert', 'Delete', 'Home', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'End']) assert.ok(designerShortcutAction(draft, laboratoryActions, key))
   assert.match(page, /target.matches\('input, select, textarea, \[contenteditable="true"\]'\)/)
   assert.match(page, /const shortcutKey = laboratoryDefinition.actions\?\.some/)
   assert.match(page, /event.stopPropagation\(\)[\s\S]*target.matches\('input, select, textarea/)
-  assert.match(page, /if \(action\) runAction\(action.id\)/)
+  assert.match(page, /if \(action\) runAction\(action.id, event.key\)/)
   assert.match(page, /target.closest\('\[role="dialog"\], \.excel-color-picker.is-open'\)/)
-  assert.doesNotMatch(page, /window.addEventListener\('keydown'/)
+  assert.match(page, /window.addEventListener\('keydown', startWithSpace, true\)/)
 })
 
 test('action numeric and pointer dimensions share limits without touching other action styles', () => {
@@ -216,7 +217,9 @@ test('color scopes resolve compatible selections independently for inputs and la
 })
 
 test('shared picker resets repeated confirmations and removes the compact palette behind More Colors', () => {
-  assert.match(picker, /activePickerToken = pickerToken.current\s+pointerAction.current = false/)
+  const openPicker = picker.slice(picker.indexOf('const openPicker ='), picker.indexOf('const closePicker ='))
+  assert.match(openPicker, /activePickerToken = pickerToken.current/)
+  assert.match(openPicker, /pointerAction.current = false/)
   assert.match(picker, /const popover = open && !dialogOpen/)
   assert.match(picker, /commitTarget.current = onCommit/)
   assert.match(picker, /if \(draft !== original\) commitTarget.current\(draft\)/)
@@ -249,7 +252,8 @@ test('HSV picker round-trips RGB, covers all primaries and retains achromatic po
   assert.match(picker, /hasPointerCapture\(event.pointerId\)/)
   assert.match(picker, /aria-orientation="vertical"/)
   assert.match(picker, /const hue = Math.round\(clamp\(\(event.clientX - rect.left\) \/ rect.width, 0, 1\) \* 360\)/)
-  assert.doesNotMatch(picker, /spectrumLightness|hexToHsl|hslToHex/)
+  assert.match(picker, /return \[hue, saturation, spectrumValue\]/)
+  assert.match(picker, /const chooseSpectrum = \(event: ReactPointerEvent<HTMLDivElement>\) => \{[\s\S]*?const next = hsvProposal\(\[hue, saturation, proposed\.hsv\[2\]\]\)/)
 })
 
 test('global color defaults stay sparse and preserve selected overrides and legacy drafts', () => {

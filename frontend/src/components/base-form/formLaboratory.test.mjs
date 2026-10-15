@@ -34,6 +34,7 @@ test('Laboratory loads synthetic data through its server endpoint, with a 100k o
   assert.match(laboratoryApi, /foreach \(var row in rows\)/)
   assert.match(data, /createSyntheticPersons/)
   assert.match(data, /laboratoryDatasetSizes = \[100, 1000, 10000, 100000\]/)
+  assert.match(lab, /useState<\(typeof laboratoryDatasetSizes\)\[number\]>\(100000\)/)
 })
 
 test('Stable laboratory IDs and shared composition are explicit', () => {
@@ -43,16 +44,31 @@ test('Stable laboratory IDs and shared composition are explicit', () => {
   assert.match(shell, /BaseFormSection/)
 })
 
-test('Laboratory responsive layout, splitter and server-paged DOM table are protected', () => {
+test('Laboratory responsive layout, splitter and virtual server-paged DOM table are protected', () => {
   assert.match(css, /\.laboratory-form-grid\{display:grid;grid-template-columns:repeat\(20,minmax\(0,1fr\)\)/)
   assert.match(css, /@media\(max-width:760px\)\{\.form-laboratory-banner/)
   assert.match(shell, /base-form-splitter/)
   assert.match(adapter, /pageSize: 100/)
-  assert.match(adapter, /remotePage\?\.items/)
+  assert.match(adapter, /aria-rowcount=/)
+  assert.match(adapter, /data-grid-index=/)
+  assert.match(lab, /remoteQueryScope=\{datasetSize\}/)
+  assert.match(adapter, /width: '100%'/)
+  assert.match(css, /\.base-grid-virtual-wrap\{direction:ltr;overflow-y:scroll;scrollbar-gutter:stable/)
 })
 
 test('Golden baseline and global F3 interaction remain independent', () => {
   assert.match(golden, /"baselineImmutable": true/)
   assert.match(interaction, /event\.key !== 'F3'/)
   assert.match(lab, /handleDesignerKey/)
+})
+
+test('Synthetic grid removes the server status note and supports multi-cell filter context actions', () => {
+  assert.doesNotMatch(adapter, /فیلتر و مرتب‌سازی در سرور انجام می‌شود|Filtering and sorting run on the server/)
+  assert.match(adapter, /event\.ctrlKey \|\| event\.metaKey/)
+  assert.match(adapter, /event\.shiftKey/)
+  assert.match(adapter, /selectedCells: selection/)
+  assert.match(adapter, /فقط مقادیر انتخاب‌شده/)
+  assert.match(adapter, /به‌جز مقادیر انتخاب‌شده/)
+  assert.match(adapter, /grouped\.set\(cell\.columnId, values\)/)
+  assert.match(css, /\.base-grid-table td\.is-cell-selected/)
 })
