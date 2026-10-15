@@ -26,3 +26,6 @@ work/
 *.bacpac
 **/App_Data/
 
+
+# CodeGraph local index
+.codegraph/
