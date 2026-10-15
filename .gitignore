@@ -29,3 +29,6 @@ work/
 
 # CodeGraph local index
 .codegraph/
+/artifacts/form-laboratory-chatgpt-review-2026-10-15.zip
+/frontend/public/downloads/win-x64/YarnTrade.ColorSampler.exe
+/frontend/public/downloads/win-x86/YarnTrade.ColorSampler.exe
