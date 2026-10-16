@@ -126,7 +126,8 @@ test('context targeting preserves included parts, groups and stable action IDs w
 
 test('context actions use existing panel controls and exclude incompatible color or sizing targets', () => {
   assert.match(page, /onContextMenu=\{openContextMenu\}/)
-  assert.match(page, /createPortal\(<div ref=\{contextMenuRef\}/)
+  assert.match(page, /createPortal\(<>\s*<div ref=\{contextMenuRef\}/)
+  assert.match(page, /ref=\{contextSubmenuRef\} className="designer-context-menu designer-context-submenu"/)
   assert.match(page, /if \(!action && !field\) \{ setContextMenu\(null\); return \}/)
   assert.match(page, /selection.every\(key => !key.endsWith\('::label'\)\)/)
   assert.match(page, /contextMenu.part !== 'label'/)
