@@ -81,11 +81,14 @@ test('storage access/read/write failures never crash or delete existing preferen
 })
 
 function actionHarness(overrides = {}) {
-  const state = { active: false, deleted: [], draft: { personCode: 'baseline' }, selected: null, navigation: null }
+  const state = { active: false, deleted: [], draft: { personCode: 'baseline', titleId: 'mr' }, selected: null, navigation: null, persistedTitles: null, titleSettings: null }
   const context = { ...designer, laboratoryDefinition: definition, history: { present: designer.emptyDesignerDraft(formId) },
     designerOpen: false, dataEntryActive: false, gridRecordCount: 100000, fa: false, language: 'en', selectedPerson: null,
     draft: state.draft, defaultPersonDraft: { personCode: 'default' }, emptyPersonDraft: () => ({ personCode: '' }),
     entryDraftBaseline: { current: null }, dataEntryActiveRef: { current: false }, formGridRef: { current: null },
+    labTitleSettings: { options: [], defaultId: 'mr', usedIds: [] }, validateRequiredFields: () => true,
+    persistLaboratoryTitleSettings: value => { state.persistedTitles = value },
+    setLabTitleSettings: value => { state.titleSettings = value },
     requestAnimationFrame: callback => callback(), window: { confirm: () => true, alert: () => {} },
     openDesigner: () => {}, setDataEntryActive: value => { state.active = value }, updateDraft: value => { state.draft = value },
     setSelectedPerson: value => { state.selected = value }, setDeletedCodes: update => { state.deleted = update(state.deleted) },
@@ -110,19 +113,22 @@ test('Save/Exit mode guards, cancellation baseline and synthetic-only Delete con
   assert.deepEqual(plain(harness.context.history.present), preferences)
   harness = actionHarness({ dataEntryActive: true })
   harness.runAction('demo-save'); assert.equal(harness.state.active, false); assert.deepEqual(harness.state.deleted, [])
+  assert.deepEqual(plain(harness.state.persistedTitles.usedIds), ['mr'])
+  assert.deepEqual(plain(harness.state.titleSettings), plain(harness.state.persistedTitles))
   assert.deepEqual(plain(harness.context.history.present), preferences)
   assert.doesNotMatch(page.slice(page.indexOf("    if (id === 'demo-save')"), page.indexOf('  runActionRef.current =')), /apiRequest|saveDesignerDraft|localStorage/)
 })
 
 test('saving designer settings handles unavailable localStorage without throwing', () => {
   const window = Object.defineProperty({}, 'localStorage', { get() { throw Error('blocked storage') } })
-  let status
+  let status, saveAttempts = 0
   const save = runInNewContext(slice(page, '  const saveDraft =', '  const resetSelected =') + '\nsaveDraft', {
     ...designer, window, authenticatedUserId: 'review', laboratoryDefinition: definition,
     history: { present: designer.emptyDesignerDraft(formId) }, fieldIds, editingBaseline: { current: null },
+    saveSessionDraft: () => { saveAttempts++; return designer.saveDesignerDraft(window.localStorage, 'review', formId, designer.emptyDesignerDraft(formId), fieldIds) },
     dispatchHistory: () => {}, fa: false, language: 'en', setSaveStatus: value => { status = value }
   })
-  assert.doesNotThrow(save); assert.equal(status, 'Local draft could not be saved.')
+  assert.doesNotThrow(save); assert.equal(status, 'Local draft could not be saved.'); assert.equal(saveAttempts, 1)
 })
 
 test('session deletion intersects personCode include/exclude/custom and other column filters', async () => {
