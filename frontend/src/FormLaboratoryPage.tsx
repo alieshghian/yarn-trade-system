@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import { createPortal, flushSync } from 'react-dom'
 import { Field, Shortcut } from './DefinitionControls'
 import { FormValueList } from './components/base-form/FormValueList'
 import { FormBuilderSandbox } from './components/base-form/FormBuilderSandbox'
+import { useDesignerSession } from './components/base-form/useDesignerSession'
 import type { PersonTitleOption } from './components/base-form/PersonTitleControl'
 import { BaseFormGridBoundary, type GridColumn } from './components/base-form/BaseFormGridBoundary'
 import { BaseFormShell } from './components/base-form/BaseFormShell'
@@ -13,7 +14,7 @@ import { ExcelColorPicker } from './components/base-form/ExcelColorPicker'
 import { laboratoryDatasetSizes, type SyntheticPerson } from './components/base-form/syntheticPersons'
 import { apiRequest } from './api'
 import { gridValueKey, type GridPage, type GridQuery } from './components/base-form/excelGrid'
-import { alignCanvasFields, designerActionCode, designerActionLabel, designerActionTextStyle, designerAppearanceStyle, existingCanvasCollisions, fieldGroupRect, moveCanvasFields, resizeCanvasHandle, designerResizeHandles, type DesignerResizeHandle, translateCanvasField, validateCanvasArrangement, captureDesignerPointer, createDesignerHistory, designerHistoryReducer, designerStyleForPart, layoutDesignerFields, loadDesignerDraft, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerActionText, setDesignerActionTextProperty, setDesignerAppearanceProperty, setDesignerButtonPressEffect, setDesignerFilterPopupFontSize, setDesignerGridSearchPosition, setDesignerProperty, stopDesignerHandleClick, type DesignerActionTextPart, type DesignerAppearanceProperty, type DesignerDraft, type DesignerCanvas, type DesignerRect, type DesignerAlignment, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './components/base-form/designer'
+import { alignCanvasFields, designerActionCode, designerActionLabel, designerActionTextStyle, designerAppearanceStyle, existingCanvasCollisions, fieldGroupRect, moveCanvasFields, resizeCanvasHandle, designerResizeHandles, type DesignerResizeHandle, translateCanvasField, validateCanvasArrangement, captureDesignerPointer, designerStyleForPart, layoutDesignerFields, loadDesignerDraft, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerActionText, setDesignerActionTextProperty, setDesignerAppearanceProperty, setDesignerButtonPressEffect, setDesignerFilterPopupFontSize, setDesignerGridSearchPosition, setDesignerProperty, stopDesignerHandleClick, type DesignerActionTextPart, type DesignerAppearanceProperty, type DesignerDraft, type DesignerCanvas, type DesignerRect, type DesignerAlignment, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './components/base-form/designer'
 import type { BaseFormDefinition } from './components/base-form/types'
 import type { Language } from './i18n'
 import { designerActionVisible, designerShortcutAction, setDesignerActionVisibility } from './components/base-form/designer'
@@ -216,11 +217,10 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const [gridRecordCount, setGridRecordCount] = useState(0)
   const entryDraftBaseline = useRef<typeof defaultPersonDraft | null>(null)
   const runActionRef = useRef<(id: string) => void>(() => {})
-  const [history, dispatchHistory] = useReducer(designerHistoryReducer, undefined, () => createDesignerHistory(loadLaboratoryDraft(authenticatedUserId)))
-  const [colorPreviewDraft, setColorPreviewDraft] = useState<DesignerDraft | null>(null)
-  const visibleDraft = colorPreviewDraft ?? history.present
-  const historyRef = useRef(history)
-  historyRef.current = history
+  const { history, dispatchHistory, historyRef, setPreviewDraft: setColorPreviewDraft, visibleDraft, editingBaseline, save: saveSessionDraft, undo: undoHistory, redo: redoHistory } = useDesignerSession({
+    formId: laboratoryDefinition.id, fieldIds, userId: authenticatedUserId,
+    initialDraftLoader: ({ userId }) => loadLaboratoryDraft(userId)
+  })
   const [designerOpen, setDesignerOpen] = useState(false)
   const [formsManagerOpen, setFormsManagerOpen] = useState(false)
   const designerOpenRef = useRef(designerOpen)
@@ -391,7 +391,6 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const [propertyRequest, setPropertyRequest] = useState<DesignerPropertyRequest>()
   const [applyToAll, setApplyToAll] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
-  const editingBaseline = useRef<DesignerDraft | null>(null)
   const formGridRef = useRef<HTMLDivElement | null>(null)
   const gestureCleanup = useRef<(() => void) | null>(null)
   const [frozenCanvas, setFrozenCanvas] = useState<DesignerCanvas | null>(null)
@@ -482,9 +481,6 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     setPropertyRequest(current => ({ sequence: (current?.sequence ?? 0) + 1, section, property }))
   }
   useEffect(() => {
-    const restored = loadLaboratoryDraft(authenticatedUserId)
-    dispatchHistory({ type: 'replace', draft: restored })
-    editingBaseline.current = null
     setSaveStatus('')
   }, [authenticatedUserId])
 
@@ -708,7 +704,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   }
   const saveDraft = () => {
     let saved = false
-    try { saved = saveDesignerDraft(window.localStorage, authenticatedUserId, laboratoryDefinition.id, history.present, fieldIds) }
+    try { saved = saveSessionDraft() }
     catch { /* Report unavailable storage through the existing save status. */ }
     if (saved) {
       editingBaseline.current = history.present
@@ -856,8 +852,8 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   }
   const rectStyle = (rect: DesignerRect | undefined): CSSProperties => rect ? { position: 'absolute', left: rect.left, top: rect.top, width: rect.width, height: rect.height, transform: 'none', margin: 0 } : {}
   const partStyle = (id: string, part: 'input' | 'label'): CSSProperties => ({ ...designerStyleForPart(visibleDraft, id, part), ...rectStyle(canvas?.fields[id]?.[part]) })
-  const undo = () => { if (propertyCommitTimer.current !== null) { window.clearTimeout(propertyCommitTimer.current); propertyCommitTimer.current = null } dispatchHistory({ type: 'commitTransaction' }); dispatchHistory({ type: 'undo' }) }
-  const redo = () => { if (propertyCommitTimer.current !== null) { window.clearTimeout(propertyCommitTimer.current); propertyCommitTimer.current = null } dispatchHistory({ type: 'commitTransaction' }); dispatchHistory({ type: 'redo' }) }
+  const undo = () => { if (propertyCommitTimer.current !== null) { window.clearTimeout(propertyCommitTimer.current); propertyCommitTimer.current = null } undoHistory() }
+  const redo = () => { if (propertyCommitTimer.current !== null) { window.clearTimeout(propertyCommitTimer.current); propertyCommitTimer.current = null } redoHistory() }
   const handleDesignerKey = (event: KeyboardEvent<HTMLDivElement>) => {
     const functionKey = functionKeyFromEvent(event.nativeEvent)
     if (functionKey === 'F8' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
