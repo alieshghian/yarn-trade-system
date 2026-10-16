@@ -64,6 +64,12 @@
   color:var(--lab-disabled-text,var(--lab-text,var(--form-disabled-color)));
   border-color:var(--lab-disabled-border,#e4e9e7);opacity:1;
 }
+.form-laboratory-page:not([data-entry-active]) .laboratory-designer-field:not(.laboratory-shared-contact) :is(input,select,textarea):disabled {
+  background:var(--lab-disabled,var(--cream,#f4f6f5));
+  color:var(--lab-text,var(--form-disabled-color));
+  border-color:var(--lab-border,#e4e9e7);
+  opacity:.8;
+}
 .form-laboratory-page .laboratory-designer-field textarea {height:var(--lab-height,var(--form-control-height))}
 .form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .designer-input-part>:is(input,select) {height:var(--lab-height,var(--form-control-height))!important}
 .form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .designer-input-part>textarea {height:var(--lab-height,var(--form-control-height))!important}
@@ -71,9 +77,11 @@
 .form-laboratory-page .laboratory-designer-field.lab-notes>label {gap:5px}
 .form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .lab-notes .designer-input-part>textarea {height:var(--lab-height,36px)!important}
 .form-laboratory-page .laboratory-grid {padding:0}
+.form-laboratory-page .base-grid-table {font-family:var(--lab-table-font-family,var(--user-font-family,inherit));font-size:var(--lab-table-font-size,var(--form-table-size))}
 .form-laboratory-page .base-form-shell {border:0;box-shadow:none}
 .form-laboratory-page .base-grid-boundary:not(.is-expanded) {border:0;border-radius:0;gap:0}
-.form-laboratory-page .base-grid-table .column-title {font-size:var(--form-table-header-size);font-weight:500}
+.form-laboratory-page .base-grid-table .column-title {font-family:var(--lab-table-font-family,var(--user-font-family,inherit));font-size:var(--lab-table-font-size,var(--form-table-header-size));font-weight:500}
+.form-laboratory-page .base-grid-table td.is-designer-bold {font-weight:700!important}
 .form-laboratory-page .base-grid-virtual-wrap .base-grid-virtual-row td {
   font-size:var(--form-table-size);font-weight:400;padding:6px 9px;
 }

@@ -9,14 +9,16 @@ import { functionKeyFromEvent } from './functionKeys'
 
 export type GridColumn<Row> = ExcelGridColumn<Row>
 type GridNavigationRequest = { sequence: number, command: 'first' | 'last' | 'previous' | 'next' | 'up' | 'down' }
-type Props<Row> = { rows: Row[], columns: GridColumn<Row>[], language: 'fa' | 'en' | 'zh', appearanceStyle?: CSSProperties, filterPopupFontSize?: number, remoteQuery?: (query: GridQuery, signal?: AbortSignal) => Promise<GridPage<Row>>, remoteQueryScope?: number | string, resetRequest?: number, navigationRequest?: GridNavigationRequest, gridSearchPosition?: GridSearchPosition, onRowSelectionChange?: (row: Row | null) => void, onTotalChange?: (total: number) => void }
+type GridTypography = { bold?: boolean; textColor?: string; backgroundColor?: string; borderColor?: string; fontFamily?: string; fontSize?: number }
+type Props<Row> = { rows: Row[], columns: GridColumn<Row>[], language: 'fa' | 'en' | 'zh', appearanceStyle?: CSSProperties, filterPopupFontSize?: number, remoteQuery?: (query: GridQuery, signal?: AbortSignal) => Promise<GridPage<Row>>, remoteQueryScope?: number | string, resetRequest?: number, navigationRequest?: GridNavigationRequest, gridSearchPosition?: GridSearchPosition, designerMode?: boolean, designerColumnStyles?: Record<string, GridTypography>, designerHeaderStyles?: Record<string, GridTypography>, onDesignerColumnSelect?: (columnId: string) => void, onDesignerContextMenu?: (target: 'header' | 'row' | 'search', columnId: string | undefined, left: number, top: number) => void, onRowSelectionChange?: (row: Row | null) => void, onTotalChange?: (total: number) => void }
 type SelectedCell = { key: string, rowKey: string, rowIndex: number, columnId: string, columnLabel: string, value: GridValue }
 type CellContextMenu = { activeCell: SelectedCell, selectedCells: SelectedCell[], left: number, top: number }
 
 const cellSelectionKey = (rowKey: string, columnId: string) => JSON.stringify([rowKey, columnId])
+const gridFontFamily = (font: string) => ({ inherit: 'inherit', vazirmatn: "'Vazirmatn',Tahoma,Arial,sans-serif", tahoma: 'Tahoma,Arial,sans-serif', segoe: "'Segoe UI',Tahoma,sans-serif", arial: 'Arial,sans-serif', naskh: "'Noto Naskh Arabic','B Nazanin',serif" }[font] ?? 'inherit')
 
 // Adapter boundary: shares the same typed Excel filtering and sorting used by the Persons grid.
-export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, language, appearanceStyle, filterPopupFontSize = 16, remoteQuery, remoteQueryScope, resetRequest = 0, navigationRequest, gridSearchPosition = 'right', onRowSelectionChange, onTotalChange }: Props<Row>) {
+export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, language, appearanceStyle, filterPopupFontSize = 16, remoteQuery, remoteQueryScope, resetRequest = 0, navigationRequest, gridSearchPosition = 'right', designerMode = false, designerColumnStyles, designerHeaderStyles, onDesignerColumnSelect, onDesignerContextMenu, onRowSelectionChange, onTotalChange }: Props<Row>) {
   const [columns, setColumns] = useState(() => initialColumns.map(column => ({ ...column, visible: true })))
   const [sort, setSort] = useState<GridSortState>()
   const [filters, setFilters] = useState<GridFilterState>({})
@@ -44,6 +46,7 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
   const searchInput = useRef<HTMLInputElement>(null)
   const cellMenuRef = useRef<HTMLDivElement>(null)
   const fa = language === 'fa'
+  useEffect(() => { if (designerMode) setCellMenu(null) }, [designerMode])
   useEffect(() => {
     const focusGridSearch = (event: KeyboardEvent) => {
       if (functionKeyFromEvent(event) !== 'F1' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || event.defaultPrevented) return
@@ -195,6 +198,7 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
   }
   const openCellMenu = (cell: SelectedCell, event: ReactMouseEvent<HTMLTableCellElement>) => {
     event.preventDefault(); event.stopPropagation()
+    if (designerMode) { setCellMenu(null); onDesignerContextMenu?.('row', cell.columnId, event.clientX, event.clientY); return }
     setSelectedRow(cell.rowKey)
     const selection = selectedCells.some(item => item.key === cell.key) ? selectedCells : [cell]
     if (selection !== selectedCells) { setSelectedCells(selection); setSelectionAnchor(cell) }
@@ -298,7 +302,7 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
       <div className="grid-title-row">
         <div className="grid-title-area"><h2>{fa ? 'جدول دادهٔ مصنوعی' : 'Synthetic data table'}</h2><span>{fa ? `${total ? range.first + 1 : 0} تا ${Math.min(total, remoteQuery ? range.last : total)} از ${total} رکورد` : `${total ? range.first + 1 : 0}–${Math.min(total, remoteQuery ? range.last : total)} of ${total} records`}</span></div>
       </div>
-      <div className="grid-search-panel" style={{ order: searchOrder }}>
+      <div className="grid-search-panel" style={{ order: searchOrder }} onContextMenu={designerMode ? event => { event.preventDefault(); event.stopPropagation(); onDesignerContextMenu?.('search', undefined, event.clientX, event.clientY) } : undefined}>
         <label className="grid-search-control"><input ref={searchInput} type="search" aria-label={fa ? 'جست‌وجو در دادهٔ مصنوعی' : 'Search synthetic data'} value={searchDraft} onChange={event => setSearchDraft(event.target.value)} placeholder={fa ? 'جست‌وجو… (F1)' : language === 'zh' ? '搜索… (F1)' : 'Search… (F1)'} /></label>
         <button type="button" className="grid-search-reverse" aria-label={fa ? `وارونه‌سازی نتیجهٔ جست‌وجو: ${reverseSearch ? 'فعال' : 'غیرفعال'}` : `Reverse search results: ${reverseSearch ? 'on' : 'off'}`} title={fa ? `وارونه‌سازی نتیجهٔ جست‌وجو: ${reverseSearch ? 'فعال' : 'غیرفعال'}` : `Reverse search results: ${reverseSearch ? 'on' : 'off'}`} aria-pressed={reverseSearch} disabled={!searchDraft.trim()} onClick={() => setReverseSearch(value => !value)}>
           <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.5 8.5A8.5 8.5 0 0 0 5 5.1L3 7.2M3 3.5v3.8h3.8M3.5 15.5A8.5 8.5 0 0 0 19 18.9l2-2.1m0 3.7v-3.8h-3.8"/><path d="M8 9.2h8M8 12h8M8 14.8h5"/></svg>
@@ -314,7 +318,7 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
       <ExcelGridFilterScope key={resetRequest}>
         <table className="person-table excel-grid base-grid-table" dir={fa ? 'rtl' : 'ltr'} aria-rowcount={remoteQuery ? activeCache?.total === undefined ? -1 : total + 1 : undefined} style={{ minWidth: visible.reduce((sum, column) => sum + column.width, 0), ...(remoteQuery ? { width: '100%', tableLayout: 'fixed', '--virtual-row-height': `${rowHeight}px` } as CSSProperties : {}) }}>
           {remoteQuery && <colgroup>{visible.map(column => <col key={column.id} style={{ width: column.width }} />)}</colgroup>}
-          <thead ref={tableHeader}><tr>{visible.map(column => <ExcelGridColumnHeader key={column.id} column={column} rows={filtered} locale={language} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.id]} sort={sort} filterPopupFontSize={filterPopupFontSize} onSort={setSort} loadFilterValues={remoteQuery ? query => loadFilterValues(column.id, query) : undefined} onApplyFilter={filter => applyFilter(column.id, filter)} thProps={{ className: sort?.some(item => item.id === column.id) ? 'is-sorted' : undefined }} resizer={<span className="base-grid-resizer" onPointerDown={event => resize(column.id, event)} />} />)}</tr></thead>
+          <thead ref={tableHeader}><tr>{visible.map(column => { const style = designerHeaderStyles?.[column.id]; return <ExcelGridColumnHeader key={column.id} column={column} rows={filtered} locale={language} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.id]} sort={sort} filterPopupFontSize={filterPopupFontSize} onSort={setSort} loadFilterValues={remoteQuery ? query => loadFilterValues(column.id, query) : undefined} onApplyFilter={filter => applyFilter(column.id, filter)} titleProps={{ style: { fontWeight: style?.bold ? 700 : undefined, color: style?.textColor, fontFamily: style?.fontFamily ? gridFontFamily(style.fontFamily) : undefined, fontSize: style?.fontSize ? `${style.fontSize}px` : undefined } }} thProps={{ className: sort?.some(item => item.id === column.id) ? 'is-sorted' : undefined, style: { backgroundColor: style?.backgroundColor, borderColor: style?.borderColor }, onClickCapture: designerMode ? event => { event.preventDefault(); event.stopPropagation(); onDesignerColumnSelect?.(column.id) } : undefined, onContextMenu: designerMode ? event => { event.preventDefault(); event.stopPropagation(); onDesignerContextMenu?.('header', column.id, event.clientX, event.clientY) } : undefined }} resizer={<span className="base-grid-resizer" onPointerDown={event => resize(column.id, event)} />} /> })}</tr></thead>
           <tbody>
             {remoteQuery && range.start > 0 && <tr className="base-grid-virtual-spacer" aria-hidden="true"><td colSpan={visible.length} style={{ height: range.start * rowHeight }} /></tr>}
             {(remoteQuery ? Array.from({ length: range.end - range.start }, (_, offset) => ({ row: activeCache?.row(range.start + offset), index: range.start + offset })) : filtered.map((row, index) => ({ row, index }))).map(({ row, index }, offset) => {
@@ -326,7 +330,8 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
                   if (!row) return <td key={column.id}><span className="base-grid-row-placeholder" aria-hidden="true">…</span></td>
                   const cell = makeSelectedCell(row, key, index, column)
                   const isSelected = selectedCells.some(item => item.key === cell.key)
-                  return <td key={column.id} className={isSelected ? 'is-cell-selected' : undefined} aria-selected={isSelected || undefined} title={fa ? 'برای انتخاب چند سلول Ctrl+کلیک کنید؛ با Shift+کلیک بازهٔ بارگذاری‌شدهٔ همان ستون انتخاب می‌شود.' : 'Ctrl-click to select multiple cells; Shift-click selects a loaded range in the same column.'} onClick={event => selectCell(cell, event)} onContextMenu={event => openCellMenu(cell, event)}>{String(cell.value ?? '—')}</td>
+                  const style = designerColumnStyles?.[column.id]
+                  return <td key={column.id} style={designerMode ? { color: style?.textColor, backgroundColor: style?.backgroundColor, fontFamily: style?.fontFamily ? gridFontFamily(style.fontFamily) : undefined, fontSize: style?.fontSize ? `${style.fontSize}px` : undefined } : undefined} className={[isSelected ? 'is-cell-selected' : '', designerMode && style?.bold ? 'is-designer-bold' : ''].filter(Boolean).join(' ') || undefined} aria-selected={isSelected || undefined} title={fa ? 'برای انتخاب چند سلول Ctrl+کلیک کنید؛ با Shift+کلیک بازهٔ بارگذاری‌شدهٔ همان ستون انتخاب می‌شود.' : 'Ctrl-click to select multiple cells; Shift-click selects a loaded range in the same column.'} onClick={event => selectCell(cell, event)} onContextMenu={event => openCellMenu(cell, event)}>{String(cell.value ?? '—')}</td>
                 })}
               </tr>
             })}

@@ -14,7 +14,7 @@ import { ExcelColorPicker } from './components/base-form/ExcelColorPicker'
 import { laboratoryDatasetSizes, type SyntheticPerson } from './components/base-form/syntheticPersons'
 import { apiRequest } from './api'
 import { gridValueKey, type GridPage, type GridQuery } from './components/base-form/excelGrid'
-import { alignCanvasFields, designerActionCode, designerActionLabel, designerActionTextStyle, designerAppearanceStyle, existingCanvasCollisions, fieldGroupRect, moveCanvasFields, resizeCanvasHandle, designerResizeHandles, type DesignerResizeHandle, translateCanvasField, validateCanvasArrangement, captureDesignerPointer, designerStyleForPart, layoutDesignerFields, loadDesignerDraft, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerActionText, setDesignerActionTextProperty, setDesignerAppearanceProperty, setDesignerButtonPressEffect, setDesignerFilterPopupFontSize, setDesignerGridSearchPosition, setDesignerProperty, stopDesignerHandleClick, type DesignerActionTextPart, type DesignerAppearanceProperty, type DesignerDraft, type DesignerCanvas, type DesignerRect, type DesignerAlignment, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './components/base-form/designer'
+import { alignCanvasFields, designerActionCode, designerActionLabel, designerActionTextStyle, designerAppearanceStyle, existingCanvasCollisions, fieldGroupRect, moveCanvasFields, resizeCanvasHandle, designerResizeHandles, type DesignerResizeHandle, translateCanvasField, validateCanvasArrangement, captureDesignerPointer, designerStyleForPart, layoutDesignerFields, loadDesignerDraft, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerActionText, setDesignerActionTextProperty, setDesignerAppearanceProperty, setDesignerButtonPressEffect, setDesignerFilterPopupFontSize, setDesignerGridSearchPosition, setDesignerTableColumnStyle, setDesignerTableHeaderStyle, setDesignerTableFont, setDesignerProperty, stopDesignerHandleClick, type DesignerActionTextPart, type DesignerAppearanceProperty, type DesignerDraft, type DesignerCanvas, type DesignerRect, type DesignerAlignment, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './components/base-form/designer'
 import type { BaseFormDefinition } from './components/base-form/types'
 import type { Language } from './i18n'
 import { designerActionVisible, designerShortcutAction, setDesignerActionVisibility } from './components/base-form/designer'
@@ -386,8 +386,12 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   }
   const [selection, setSelection] = useState<string[]>([])
   const [actionSelection, setActionSelection] = useState<string[]>([])
-  const [contextMenu, setContextMenu] = useState<{ left: number, top: number, part: 'input' | 'label' | 'action' } | null>(null)
+  const [contextMenu, setContextMenu] = useState<{ left: number, top: number, part: 'input' | 'label' | 'action' | 'grid', gridTarget?: 'header' | 'row' | 'search', columnId?: string } | null>(null)
+  const [gridSubmenu, setGridSubmenu] = useState<'header' | 'column' | null>(null)
+  const [gridFormatDialog, setGridFormatDialog] = useState<null | { scope: 'header' | 'column'; mode: 'font' | 'color'; id: string; label: string; base: DesignerDraft; fontFamily: string; fontSize: number; bold: boolean; color: string; colorProperty: 'textColor' | 'backgroundColor' | 'borderColor' }>(null)
+  const [selectedTableColumnId, setSelectedTableColumnId] = useState<string>()
   const contextMenuRef = useRef<HTMLDivElement>(null)
+  const contextSubmenuRef = useRef<HTMLDivElement>(null)
   const [propertyRequest, setPropertyRequest] = useState<DesignerPropertyRequest>()
   const [applyToAll, setApplyToAll] = useState(false)
   const [saveStatus, setSaveStatus] = useState('')
@@ -409,7 +413,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   }, [contextMenu, designerOpen])
   useEffect(() => {
     if (!contextMenu) return
-    const outside = (event: PointerEvent) => { if (!contextMenuRef.current?.contains(event.target as Node)) setContextMenu(null) }
+    const outside = (event: PointerEvent) => { const target = event.target as Node; if (!contextMenuRef.current?.contains(target) && !contextSubmenuRef.current?.contains(target)) setContextMenu(null) }
     const escape = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setContextMenu(null) }
     }
@@ -476,8 +480,9 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     else { setActionSelection([]); setSelection(current => contextDesignerSelection(current, `${field}::${part}`)) }
     setContextMenu({ left: event.clientX, top: event.clientY, part: action ? 'action' : part! })
   }
-  const requestProperty = (section: DesignerPropertyRequest['section'], property?: DesignerProperty) => {
+  const requestProperty = (section: DesignerPropertyRequest['section'], property?: DesignerPropertyRequest['property']) => {
     setContextMenu(null)
+    setGridSubmenu(null)
     setPropertyRequest(current => ({ sequence: (current?.sequence ?? 0) + 1, section, property }))
   }
   useEffect(() => {
@@ -565,6 +570,53 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   }
   const updateFilterPopupFontSize = (value: number) => { dispatchHistory({ type: 'change', draft: setDesignerFilterPopupFontSize(historyRef.current.present, value) }); setSaveStatus('') }
   const updateGridSearchPosition = (value: GridSearchPosition) => { dispatchHistory({ type: 'change', draft: setDesignerGridSearchPosition(historyRef.current.present, value) }); setSaveStatus('') }
+  const updateTableFont = (property: 'family' | 'size', value: string | number) => { dispatchHistory({ type: 'change', draft: setDesignerTableFont(historyRef.current.present, property, value) }); setSaveStatus('') }
+  const updateTableColumnStyle = (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => { dispatchHistory({ type: 'change', draft: setDesignerTableColumnStyle(historyRef.current.present, id, property, value) }); setSaveStatus('') }
+  const updateTableHeaderStyle = (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'borderColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => { dispatchHistory({ type: 'change', draft: setDesignerTableHeaderStyle(historyRef.current.present, id, property, value) }); setSaveStatus('') }
+  const previewTableStyleColor = (target: 'column' | 'header', id: string, color: string | undefined | null, property: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => { const update = (draft: DesignerDraft) => target === 'column' ? setDesignerTableColumnStyle(draft, id, 'textColor', color ?? undefined) : setDesignerTableHeaderStyle(draft, id, property, color ?? undefined); setColorPreviewDraft(color == null ? null : update(historyRef.current.present)) }
+  const commitTableStyleColor = (target: 'column' | 'header', id: string, color: string | undefined, property: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => { setColorPreviewDraft(null); dispatchHistory({ type: 'change', draft: target === 'column' ? setDesignerTableColumnStyle(historyRef.current.present, id, 'textColor', color) : setDesignerTableHeaderStyle(historyRef.current.present, id, property, color) }); setSaveStatus('') }
+  const previewTableColumnBackgroundColor = (id: string, color: string | undefined | null) => setColorPreviewDraft(color == null ? null : setDesignerTableColumnStyle(historyRef.current.present, id, 'backgroundColor', color))
+  const commitTableColumnBackgroundColor = (id: string, color: string | undefined) => { setColorPreviewDraft(null); dispatchHistory({ type: 'change', draft: setDesignerTableColumnStyle(historyRef.current.present, id, 'backgroundColor', color) }); setSaveStatus('') }
+  const buildGridFormatDraft = (dialog: NonNullable<typeof gridFormatDialog>) => {
+    let next = dialog.base
+    if (dialog.mode === 'font') {
+      if (dialog.scope === 'column') {
+        next = setDesignerTableColumnStyle(next, dialog.id, 'fontFamily', dialog.fontFamily === 'inherit' ? undefined : dialog.fontFamily)
+        next = setDesignerTableColumnStyle(next, dialog.id, 'fontSize', dialog.fontSize)
+        next = setDesignerTableColumnStyle(next, dialog.id, 'bold', dialog.bold)
+      } else {
+        next = setDesignerTableHeaderStyle(next, dialog.id, 'fontFamily', dialog.fontFamily === 'inherit' ? undefined : dialog.fontFamily)
+        next = setDesignerTableHeaderStyle(next, dialog.id, 'fontSize', dialog.fontSize)
+        next = setDesignerTableHeaderStyle(next, dialog.id, 'bold', dialog.bold)
+      }
+    }
+    return dialog.scope === 'column'
+      ? setDesignerTableColumnStyle(next, dialog.id, 'textColor', dialog.color)
+      : setDesignerTableHeaderStyle(next, dialog.id, dialog.colorProperty, dialog.color)
+  }
+  const openGridFormatDialog = (scope: 'header' | 'column', id: string, label: string, mode: 'font' | 'color', colorProperty: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => {
+    const base = historyRef.current.present
+    const style = scope === 'column' ? base.tableColumns?.[id] : base.tableHeaders?.[id]
+    const fallbackColor = colorProperty === 'backgroundColor' ? '#f7f9f7' : colorProperty === 'borderColor' ? '#dfe7e3' : '#263a38'
+    const currentColor = scope === 'header' ? base.tableHeaders?.[id]?.[colorProperty] : base.tableColumns?.[id]?.textColor
+    const next = { scope, id, label, mode, base, fontFamily: style?.fontFamily ?? 'inherit', fontSize: style?.fontSize ?? base.tableFont?.size ?? 13, bold: style?.bold ?? false, color: currentColor ?? fallbackColor, colorProperty }
+    setContextMenu(null); setGridSubmenu(null); setGridFormatDialog(next); setColorPreviewDraft(buildGridFormatDraft(next))
+  }
+  const updateGridFormatDialog = (patch: Partial<NonNullable<typeof gridFormatDialog>>) => {
+    if (!gridFormatDialog) return
+    const next = { ...gridFormatDialog, ...patch }
+    setGridFormatDialog(next); setColorPreviewDraft(buildGridFormatDraft(next))
+  }
+  const cancelGridFormatDialog = () => { setColorPreviewDraft(null); setGridFormatDialog(null) }
+  const applyGridFormatDialog = () => { if (!gridFormatDialog) return; dispatchHistory({ type: 'change', draft: buildGridFormatDraft(gridFormatDialog) }); setColorPreviewDraft(null); setGridFormatDialog(null); setSaveStatus('') }
+  const handleGridFormatColorCommit = (color: string | undefined) => {
+    if (!gridFormatDialog) return
+    const next = { ...gridFormatDialog, color: color ?? gridFormatDialog.color }
+    if (next.mode === 'color') { dispatchHistory({ type: 'change', draft: buildGridFormatDraft(next) }); setColorPreviewDraft(null); setGridFormatDialog(null); setSaveStatus('') }
+    else updateGridFormatDialog({ color: next.color })
+  }
+  const selectGridDesignerColumn = (columnId: string) => setSelectedTableColumnId(columnId)
+  const openGridDesignerContextMenu = (target: 'header' | 'row' | 'search', columnId: string | undefined, left: number, top: number) => { if (!designerOpen) return; setSelectedTableColumnId(columnId); setGridSubmenu(null); setContextMenu({ left, top, part: 'grid', gridTarget: target, columnId }) }
   const commitActionColor = (property: DesignerProperty, value: DesignerValue | undefined) => {
     setColorPreviewDraft(null)
     if (propertyCommitTimer.current !== null) { window.clearTimeout(propertyCommitTimer.current); propertyCommitTimer.current = null; dispatchHistory({ type: 'commitTransaction' }) }
@@ -924,6 +976,8 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const contextColors = contextMenu?.part === 'action' || (contextMenu?.part === 'input' ? contextInputs : contextLabels)
   const contextSize = contextMenu?.part === 'action' || (contextMenu?.part === 'input' && contextInputs)
   const contextLayout = !actionSelection.length && contextInputs && selectedDesignerInputs(selection, fieldIds).length > 1 && Boolean(canvas)
+  const selectedTableColumn = selectedTableColumnId ? columns.find(column => column.id === selectedTableColumnId) : undefined
+  const selectedTableHeader = selectedTableColumn
   const footerActions = (laboratoryDefinition.actions ?? []).filter(action => designerActionVisible(visibleDraft, action))
   return <div className="form-laboratory-page" dir={fa ? 'rtl' : 'ltr'} data-form-laboratory data-synthetic-only="true" data-entry-active={dataEntryActive || undefined} data-designer-active={designerOpen || undefined} data-button-press-effect={history.present.buttonPressEffect !== false ? "true" : "false"} onKeyDown={handleDesignerKey} onContextMenu={openContextMenu}>
     {import.meta.env.DEV && <div><button type="button" onClick={() => setFormsManagerOpen(true)}>{fa ? 'مدیریت فرم‌ها' : language === 'zh' ? '表单管理' : 'Form management'}</button></div>}
@@ -932,7 +986,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     <div ref={formFrameRef} className="laboratory-form-frame" data-preview-device={previewDevice} data-preview-width={previewWidth} dir={fa ? 'rtl' : 'ltr'} style={{ width: previewFitToPage && previewDevice === 'desktop' ? '100%' : previewWidth, height: previewHeight ?? undefined, minHeight: previewHeight ?? undefined, left: previewOffset.x, top: previewOffset.y }}>
     <header ref={formBannerRef} className="form-laboratory-banner"><div className="laboratory-banner-title"><strong>{title}</strong><span>{fa ? 'محیط مستقل با دادهٔ قطعی و مصنوعی؛ هیچ API اشخاصی فراخوانی نمی‌شود.' : language === 'zh' ? '独立的确定性合成数据环境；不会调用人员 API。' : 'Independent deterministic synthetic data; no Persons API is called.'}</span></div><div className="laboratory-banner-actions"><div className="laboratory-device-toolbar" role="group" aria-label={fa ? 'پیش‌نمایش دستگاه' : 'Device preview'}>{(Object.keys(previewWidths) as PreviewDevice[]).map(device => <button key={device} type="button" aria-pressed={previewDevice === device} onClick={() => { setPreviewDevice(device); setPreviewFitToPage(device === 'desktop'); setPreviewWidth(previewWidths[device]); setPreviewHeight(null); setPreviewOffset({ x: 0, y: 0 }) }} title={previewWidths[device] + 'px'}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">{device === 'desktop' ? <><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M12 17v4M7 21h10" /></> : <><rect x={device === 'tablet' ? 5 : 7} y="2" width={device === 'tablet' ? 14 : 10} height="20" rx="2" /><path d="M11 19h2" /></>}</svg>{fa ? ({ desktop: 'دسکتاپ', tablet: 'تبلت', mobile: 'موبایل' })[device] : ({ desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' })[device]}</button>)}{previewDevice === 'mobile' && <select aria-label={fa ? 'عرض موبایل' : 'Mobile width'} value={previewWidth === 320 || previewWidth === 390 ? previewWidth : 'custom'} onChange={event => { const width = Number(event.target.value); if (width) { setPreviewFitToPage(false); setPreviewWidth(width); setPreviewOffset(current => ({ ...current, x: 0 })) } }}><option value="custom">{fa ? 'اندازهٔ دلخواه' : 'Custom width'}</option><option value="390">390px</option><option value="320">320px</option></select>}</div><label>{fa ? 'اندازهٔ داده' : language === 'zh' ? '数据量' : 'Dataset size'}<select value={datasetSize} onChange={event => setDatasetSize(Number(event.target.value) as typeof datasetSize)}>{laboratoryDatasetSizes.map(size => <option key={size} value={size}>{size.toLocaleString()}</option>)}</select></label><button type="button" className="laboratory-history-button" aria-label={fa ? 'واگرد' : 'Undo'} title="Ctrl+Z" disabled={!history.past.length} onClick={undo}>↶</button><button type="button" className="laboratory-history-button" aria-label={fa ? 'ازنو' : 'Redo'} title="Ctrl+Y" disabled={!history.future.length} onClick={redo}>↷</button><button type="button" className="laboratory-designer-toggle" aria-label={settingsLabel} title={settingsLabel} aria-expanded={designerOpen} aria-controls="form-laboratory-designer" onClick={openDesigner}>⚙</button></div></header>
     <div className={"laboratory-workspace" + (designerOpen ? " has-designer" : "")}>
-      {designerOpen && <FormLaboratoryDesignerPanel geometryEditable={geometryEditable} propertyRequest={propertyRequest} onElementAppearanceCommit={commitElementAppearance} onElementAppearancePreview={previewElementAppearance} onFinishPropertyChange={finishPropertyChange} language={language} draft={visibleDraft} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} onFilterPopupFontSizeChange={updateFilterPopupFontSize} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} onGridSearchPositionChange={updateGridSearchPosition} buttonPressEffectEnabled={history.present.buttonPressEffect !== false} onButtonPressEffectChange={updateButtonPressEffect} onBeginFilterPopupFontSizeChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitFilterPopupFontSizeChange={() => dispatchHistory({ type: 'commitTransaction' })} selectedFieldIds={selection} selectedActionIds={actionSelection} actions={laboratoryDefinition.actions ?? []} onActionVisibilityChange={changeActionVisibility} onSelectAction={id => { setSelection([]); setActionSelection([id]); setApplyToAll(false) }} onActionTextChange={updateActionText} onActionTextPropertyChange={updateActionTextProperty} onActionColorCommit={commitActionColor} onActionColorPreview={previewActionColor} onClearSelection={() => { setSelection([]); setActionSelection([]) }} fieldIds={fieldIds} fieldLabels={Object.fromEntries(fieldIds.map(id => [id, labels[id][language]]))} applyToAll={applyToAll} canSave={Boolean(authenticatedUserId)} saveStatus={saveStatus} onApplyToAllChange={setApplyToAll} onChange={updateProperty} onColorCommit={commitColorProperty} onColorPreview={previewColorProperty} onAppearanceColorCommit={commitAppearanceColor} onAppearanceColorPreview={previewAppearanceColor} onBeginColorChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitColorChange={() => dispatchHistory({ type: 'commitTransaction' })} onUndo={undo} onRedo={redo} canUndo={history.past.length > 0} canRedo={history.future.length > 0} onResetSelected={resetSelected} onResetAll={resetAll} onSave={saveDraft} onCancel={cancelDesigner} onSelectAll={() => { setActionSelection([]); setSelection(fieldIds.map(id => `${id}::input`)) }} onLayout={applyLayout} onAlign={applyAlignment} referenceFieldId={referenceId} onReferenceChange={setReferenceId} layoutStatus={layoutStatus} />}
+      {designerOpen && <FormLaboratoryDesignerPanel geometryEditable={geometryEditable} propertyRequest={propertyRequest} onElementAppearanceCommit={commitElementAppearance} onElementAppearancePreview={previewElementAppearance} onFinishPropertyChange={finishPropertyChange} language={language} draft={visibleDraft} onTableFontChange={updateTableFont} selectedTableColumn={selectedTableColumn ? { id: selectedTableColumn.id, label: selectedTableColumn.label, style: visibleDraft.tableColumns?.[selectedTableColumn.id] } : undefined} selectedTableHeader={selectedTableHeader ? { id: selectedTableHeader.id, label: selectedTableHeader.label, style: visibleDraft.tableHeaders?.[selectedTableHeader.id] } : undefined} onTableColumnStyleChange={updateTableColumnStyle} onTableHeaderStyleChange={updateTableHeaderStyle} onTableColumnColorCommit={(id, color) => commitTableStyleColor('column', id, color)} onTableColumnColorPreview={(id, color) => previewTableStyleColor('column', id, color)} onTableColumnBackgroundColorCommit={commitTableColumnBackgroundColor} onTableColumnBackgroundColorPreview={previewTableColumnBackgroundColor} onTableHeaderColorCommit={(id, property, color) => commitTableStyleColor('header', id, color, property)} onTableHeaderColorPreview={(id, property, color) => previewTableStyleColor('header', id, color, property)} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} onFilterPopupFontSizeChange={updateFilterPopupFontSize} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} onGridSearchPositionChange={updateGridSearchPosition} buttonPressEffectEnabled={history.present.buttonPressEffect !== false} onButtonPressEffectChange={updateButtonPressEffect} onBeginFilterPopupFontSizeChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitFilterPopupFontSizeChange={() => dispatchHistory({ type: 'commitTransaction' })} selectedFieldIds={selection} selectedActionIds={actionSelection} actions={laboratoryDefinition.actions ?? []} onActionVisibilityChange={changeActionVisibility} onSelectAction={id => { setSelection([]); setActionSelection([id]); setApplyToAll(false) }} onActionTextChange={updateActionText} onActionTextPropertyChange={updateActionTextProperty} onActionColorCommit={commitActionColor} onActionColorPreview={previewActionColor} onClearSelection={() => { setSelection([]); setActionSelection([]) }} fieldIds={fieldIds} fieldLabels={Object.fromEntries(fieldIds.map(id => [id, labels[id][language]]))} applyToAll={applyToAll} canSave={Boolean(authenticatedUserId)} saveStatus={saveStatus} onApplyToAllChange={setApplyToAll} onChange={updateProperty} onColorCommit={commitColorProperty} onColorPreview={previewColorProperty} onAppearanceColorCommit={commitAppearanceColor} onAppearanceColorPreview={previewAppearanceColor} onBeginColorChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitColorChange={() => dispatchHistory({ type: 'commitTransaction' })} onUndo={undo} onRedo={redo} canUndo={history.past.length > 0} canRedo={history.future.length > 0} onResetSelected={resetSelected} onResetAll={resetAll} onSave={saveDraft} onCancel={cancelDesigner} onSelectAll={() => { setActionSelection([]); setSelection(fieldIds.map(id => `${id}::input`)) }} onLayout={applyLayout} onAlign={applyAlignment} referenceFieldId={referenceId} onReferenceChange={setReferenceId} layoutStatus={layoutStatus} />}
     <BaseFormShell formId={laboratoryDefinition.id} initialHeaderRef={formBannerRef}
       editor={<div className="person-editor panel laboratory-editor" style={appearanceStyle}><div ref={formGridRef} className={'person-form-grid laboratory-form-grid' + (canvas ? ' has-fixed-geometry' : '')} style={canvas ? { width: canvas.width, height: canvas.height, minWidth: canvas.width } : undefined} data-section-id="laboratory.editor" onClick={event => { if (designerOpen && event.target === event.currentTarget) setSelection([]) }}>
         {renderField('personCode', 'lab-person-code', <input aria-label={labels.personCode[language]} value={draft.personCode} disabled={!dataEntryActive} onChange={event => update('personCode', event.target.value)} />)}
@@ -948,7 +1002,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
         {renderField('notes', 'lab-notes', <input type="text" data-field="notes" aria-label={labels.notes[language]} placeholder={fa ? 'نمونهٔ حالت عادی' : 'Normal state example'} value={draft.notes} disabled={!dataEntryActive} onChange={event => update('notes', event.target.value)} />)}
         {renderField('errorExample', 'lab-error', <input aria-label={labels.errorExample[language]} aria-invalid="true" defaultValue="نمونه" />, fa ? 'دادهٔ آزمایشی نامعتبر است.' : 'Synthetic validation example.')}
       </div>{!canvas && geometryEditable && <div className="designer-canvas-spacer" aria-hidden="true" style={canvasStyle} />}</div>}
-      grid={<div className="person-grid-panel panel laboratory-grid"><BaseFormGridBoundary rows={[]} columns={columns} language={language} appearanceStyle={appearanceStyle} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} remoteQuery={remoteGridQuery} remoteQueryScope={datasetSize} resetRequest={gridResetRequest} navigationRequest={navigationRequest} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} onRowSelectionChange={setSelectedPerson} onTotalChange={setGridRecordCount} /></div>}
+      grid={<div className="person-grid-panel panel laboratory-grid"><BaseFormGridBoundary rows={[]} columns={columns} language={language} appearanceStyle={appearanceStyle} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} remoteQuery={remoteGridQuery} remoteQueryScope={datasetSize} resetRequest={gridResetRequest} navigationRequest={navigationRequest} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} designerMode={designerOpen} designerColumnStyles={visibleDraft.tableColumns} designerHeaderStyles={visibleDraft.tableHeaders} onDesignerColumnSelect={selectGridDesignerColumn} onDesignerContextMenu={openGridDesignerContextMenu} onRowSelectionChange={setSelectedPerson} onTotalChange={setGridRecordCount} /></div>}
       footer={<div className={`shortcut-bar laboratory-footer${dataEntryActive ? ' is-entry-active' : ''}`} dir={fa ? 'rtl' : 'ltr'} role="group" aria-label={fa ? 'دکمه‌های پایین فرم' : 'Form actions'} aria-live="polite" style={appearanceStyle}>{footerActions.map(action => {
         const disabled = !designerOpen && actionDisabled(action)
         return <span key={action.id} data-action-id={action.id} className={'laboratory-action-button' + (action.iconOnly ? ' is-icon-action' : '') + (designerOpen && actionSelection.includes(action.id) ? ' designer-part-selected' : '')} style={designerActionStyle(visibleDraft, action.id) as CSSProperties} title={disabled ? action.id === 'edit-person' ? (fa ? 'برای ویرایش باید جدول رکورد داشته باشد.' : 'The table must contain records to edit.') : fa ? 'این کلید در حالت فعلی فرم قابل استفاده نیست.' : 'This action is unavailable in the current form mode.' : undefined} onClickCapture={event => {
@@ -961,7 +1015,26 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     />
     </div>
     </div></div>
-    {designerOpen && contextMenu && createPortal(<div ref={contextMenuRef} className="designer-context-menu" role="menu" aria-label="ویژگی‌های انتخاب" dir="rtl" style={{ left: contextMenu.left, top: contextMenu.top }} onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation() }}>
+    {designerOpen && contextMenu && createPortal(<><div ref={contextMenuRef} className="designer-context-menu" role="menu" aria-label="ویژگی‌های انتخاب" dir="rtl" style={{ left: contextMenu.left, top: contextMenu.top }} onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation() }}>
+      {contextMenu.part === 'grid' ? <>
+        {contextMenu.gridTarget === 'header' ? <>
+          <strong>تنظیم سرستون «{columns.find(column => column.id === contextMenu.columnId)?.label ?? ''}»</strong>
+          <button type="button" role="menuitem" aria-haspopup="menu" aria-expanded={gridSubmenu === 'header'} onMouseEnter={() => setGridSubmenu('header')} onClick={() => setGridSubmenu('header')}>تغییرات هدر <span aria-hidden="true">‹</span></button>
+          <button type="button" role="menuitem" aria-haspopup="menu" aria-expanded={gridSubmenu === 'column'} onMouseEnter={() => setGridSubmenu('column')} onClick={() => setGridSubmenu('column')}>تغییرات داده‌های ستون <span aria-hidden="true">‹</span></button>
+        </> : <>
+        <strong>{contextMenu.gridTarget === 'search' ? 'تنظیمات جست‌وجوی جدول' : 'تنظیمات جدول و ردیف'}</strong>
+        <button type="button" role="menuitem" onClick={() => requestProperty('tableTypography')}>قلم و اندازهٔ کل جدول</button>
+        {contextMenu.gridTarget === 'row' && <>
+          <button type="button" role="menuitem" onClick={() => requestProperty('appearance', 'rowBackground')}>رنگ ردیف‌های جدول</button>
+          <button type="button" role="menuitem" onClick={() => requestProperty('appearance', 'rowAlternateBackground')}>رنگ ردیف‌های یکی‌درمیان</button>
+          <button type="button" role="menuitem" onClick={() => requestProperty('appearance', 'cellText')}>رنگ متن سلول‌ها</button>
+        </>}
+        {contextMenu.gridTarget === 'search' && <>
+          <button type="button" role="menuitem" onClick={() => requestProperty('appearance', 'searchBackground')}>رنگ پس‌زمینهٔ جست‌وجو</button>
+          <button type="button" role="menuitem" onClick={() => requestProperty('appearance', 'searchBorder')}>رنگ کادر جست‌وجو</button>
+        </>}
+        </>}
+      </> : <>
       {contextColors && <>
         {contextMenu.part !== 'label' && <button type="button" role="menuitem" onClick={() => requestProperty('color', 'backgroundColor')}>تغییر رنگ پس‌زمینه</button>}
         <button type="button" role="menuitem" onClick={() => requestProperty('color', contextMenu.part === 'label' ? 'labelColor' : 'textColor')}>تغییر رنگ متن</button>
@@ -980,6 +1053,30 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
       {contextLayout && <button type="button" role="menuitem" onClick={() => requestProperty('spacing')}>فاصله‌گذاری</button>}
       <button type="button" role="menuitem" onClick={() => requestProperty('more')}>تنظیمات بیشتر</button>
       <button type="button" role="menuitem" onClick={() => { setContextMenu(null); resetSelected() }}>بازنشانی به پیش‌فرض</button>
-    </div>, document.body)}
+      </>}
+    </div>
+    {contextMenu.part === 'grid' && contextMenu.gridTarget === 'header' && gridSubmenu && contextMenu.columnId && <div ref={contextSubmenuRef} className="designer-context-menu designer-context-submenu" role="menu" aria-label={gridSubmenu === 'header' ? 'تنظیمات ظاهری هدر' : 'تنظیمات داده‌های ستون'} dir="rtl" style={{ left: Math.max(8, Math.min(window.innerWidth - 228, contextMenu.left > 236 ? contextMenu.left - 228 : contextMenu.left + 220)), top: Math.max(8, Math.min(window.innerHeight - 300, contextMenu.top)) }} onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation() }}>
+      {gridSubmenu === 'header' ? <>
+        <strong>تغییرات هدر</strong>
+        <button type="button" role="menuitem" onClick={() => requestProperty('tableHeaderTypography', 'headerColor')}>رنگ متن هدر…</button>
+        <button type="button" role="menuitem" onClick={() => requestProperty('tableHeaderTypography', 'headerBackgroundColor')}>رنگ پس‌زمینهٔ این هدر…</button>
+        <button type="button" role="menuitem" onClick={() => requestProperty('tableHeaderTypography', 'headerBorderColor')}>رنگ کادر این هدر…</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('header', contextMenu.columnId!, columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'font')}>قلم و اندازهٔ هدر…</button>
+        <button type="button" role="menuitemcheckbox" aria-checked={Boolean(visibleDraft.tableHeaders?.[contextMenu.columnId]?.bold)} onClick={() => updateTableHeaderStyle(contextMenu.columnId!, 'bold', !visibleDraft.tableHeaders?.[contextMenu.columnId!]?.bold)}>{visibleDraft.tableHeaders?.[contextMenu.columnId]?.bold ? 'برداشتن حالت درشت هدر' : 'درشت‌کردن هدر'}</button>
+      </> : <>
+        <strong>تغییرات داده‌های ستون</strong>
+        <button type="button" role="menuitemcheckbox" aria-checked={Boolean(visibleDraft.tableColumns?.[contextMenu.columnId]?.bold)} onClick={() => updateTableColumnStyle(contextMenu.columnId!, 'bold', !visibleDraft.tableColumns?.[contextMenu.columnId!]?.bold)}>{visibleDraft.tableColumns?.[contextMenu.columnId]?.bold ? 'برداشتن حالت درشت ستون' : 'درشت‌کردن داده‌های ستون'}</button>
+        <button type="button" role="menuitem" onClick={() => requestProperty('tableTypography', 'columnColor')}>رنگ متن داده‌های ستون…</button>
+        <button type="button" role="menuitem" onClick={() => requestProperty('tableTypography', 'columnBackgroundColor')}>رنگ پس‌زمینهٔ سلول‌های ستون…</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('column', contextMenu.columnId!, columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'font')}>قلم و اندازهٔ داده‌های ستون…</button>
+      </>}
+    </div>}
+    </>, document.body)}
+    {designerOpen && gridFormatDialog && createPortal(<div className="designer-grid-format-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) cancelGridFormatDialog() }}><section className="designer-grid-format-dialog" role="dialog" aria-modal="true" aria-labelledby="designer-grid-format-title" dir={fa ? 'rtl' : 'ltr'} onMouseDown={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') cancelGridFormatDialog() }}>
+      <header><h2 id="designer-grid-format-title">{gridFormatDialog.mode === 'font' ? (fa ? `قلم — ${gridFormatDialog.scope === 'header' ? 'سرستون' : 'داده‌های ستون'}: ${gridFormatDialog.label}` : `Font — ${gridFormatDialog.scope === 'header' ? 'Header' : 'Column data'}: ${gridFormatDialog.label}`) : (fa ? `رنگ — ${gridFormatDialog.label}` : `Color — ${gridFormatDialog.label}`)}</h2><button type="button" aria-label={fa ? 'بستن' : 'Close'} onClick={cancelGridFormatDialog}>×</button></header>
+      {gridFormatDialog.mode === 'font' && <div className="designer-grid-font-fields"><label>{fa ? 'قلم' : 'Font'}<select value={gridFormatDialog.fontFamily} onChange={event => updateGridFormatDialog({ fontFamily: event.target.value })}>{[['inherit', 'پیش‌فرض', 'Default'], ['vazirmatn', 'وزیرمتن', 'Vazirmatn'], ['tahoma', 'Tahoma', 'Tahoma'], ['segoe', 'Segoe UI', 'Segoe UI'], ['arial', 'Arial', 'Arial'], ['naskh', 'نسخ', 'Naskh']].map(([id, faName, enName]) => <option key={id} value={id}>{fa ? faName : enName}</option>)}</select></label><label>{fa ? 'حالت قلم' : 'Font style'}<select value={gridFormatDialog.bold ? 'bold' : 'regular'} onChange={event => updateGridFormatDialog({ bold: event.target.value === 'bold' })}><option value="regular">{fa ? 'معمولی' : 'Regular'}</option><option value="bold">{fa ? 'درشت' : 'Bold'}</option></select></label><label>{fa ? 'اندازه' : 'Size'}<input type="number" min="8" max="40" value={Number.isFinite(gridFormatDialog.fontSize) ? gridFormatDialog.fontSize : ''} onChange={event => updateGridFormatDialog({ fontSize: Number(event.target.value) })} onBlur={event => updateGridFormatDialog({ fontSize: Math.max(8, Math.min(40, Number(event.currentTarget.value) || 8)) })} /></label><div className="designer-grid-format-color"><span>{fa ? 'رنگ قلم' : 'Font color'}</span><ExcelColorPicker language={language} label={fa ? 'رنگ قلم' : 'Font color'} value={gridFormatDialog.color} onPreview={color => setColorPreviewDraft(buildGridFormatDraft(color == null ? gridFormatDialog : { ...gridFormatDialog, color }))} onCommit={handleGridFormatColorCommit} /></div><div className="designer-grid-format-preview" style={{ fontFamily: ({ inherit: 'inherit', vazirmatn: "'Vazirmatn',Tahoma,Arial,sans-serif", tahoma: 'Tahoma,Arial,sans-serif', segoe: "'Segoe UI',Tahoma,sans-serif", arial: 'Arial,sans-serif', naskh: "'Noto Naskh Arabic','B Nazanin',serif" } as Record<string, string>)[gridFormatDialog.fontFamily], fontSize: `${gridFormatDialog.fontSize}px`, fontWeight: gridFormatDialog.bold ? 700 : 400, color: gridFormatDialog.color }}>{fa ? 'پیش‌نمایش متن جدول' : 'Table text preview'}</div></div>}
+      {gridFormatDialog.mode === 'color' && <div className="designer-grid-format-color-only"><span>{fa ? 'رنگ جدید را انتخاب کنید' : 'Choose a new color'}</span><ExcelColorPicker key={`${gridFormatDialog.scope}-${gridFormatDialog.id}-${gridFormatDialog.colorProperty}`} language={language} label={fa ? 'انتخاب رنگ' : 'Choose color'} value={gridFormatDialog.color} autoOpen onPreview={color => setColorPreviewDraft(buildGridFormatDraft(color == null ? gridFormatDialog : { ...gridFormatDialog, color }))} onCommit={handleGridFormatColorCommit} /></div>}
+      <footer><button type="button" onClick={cancelGridFormatDialog}>{fa ? 'لغو' : 'Cancel'}</button>{gridFormatDialog.mode === 'font' && <button type="button" className="primary" onClick={applyGridFormatDialog}>{fa ? 'تأیید' : 'OK'}</button>}</footer>
+    </section></div>, document.body)}
   </div>
 }

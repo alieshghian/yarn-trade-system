@@ -58,6 +58,7 @@ export const designerAppearanceProperties = [
 ] as const
 export type DesignerAppearanceProperty = typeof designerAppearanceProperties[number]
 export type DesignerAppearance = Partial<Record<DesignerAppearanceProperty, string>>
+export type DesignerTableColumnStyle = { bold?: boolean; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number }
 export type DesignerDraft = {
   format: typeof designerDraftFormat
   schemaVersion: typeof designerDraftVersion
@@ -65,6 +66,9 @@ export type DesignerDraft = {
   overrides: Record<string, DesignerFieldOverride>
   filterPopupFontSize?: number
   gridSearchPosition?: GridSearchPosition
+  tableFont?: { family?: string; size?: number }
+  tableColumns?: Record<string, DesignerTableColumnStyle>
+  tableHeaders?: Record<string, DesignerTableHeaderStyle>
   buttonPressEffect?: boolean
   appearance?: DesignerAppearance
   defaults?: { input?: DesignerFieldOverride; label?: DesignerFieldOverride }
@@ -72,6 +76,7 @@ export type DesignerDraft = {
   canvas?: DesignerCanvas
 }
 export type GridSearchPosition = 'left' | 'center' | 'right'
+export type DesignerTableHeaderStyle = DesignerTableColumnStyle & { backgroundColor?: string; borderColor?: string }
 export type DesignerHistory = { present: DesignerDraft, past: DesignerDraft[], future: DesignerDraft[], transactionStart?: DesignerDraft }
 export type DesignerHistoryAction =
   | { type: 'change', draft: DesignerDraft }
@@ -189,8 +194,36 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
   }
   const filterPopupFontSize = typeof candidate.filterPopupFontSize === 'number' && Number.isInteger(candidate.filterPopupFontSize) && candidate.filterPopupFontSize >= 12 && candidate.filterPopupFontSize <= 24 ? candidate.filterPopupFontSize : undefined
   const gridSearchPosition = candidate.gridSearchPosition && ['left', 'center', 'right'].includes(candidate.gridSearchPosition) ? candidate.gridSearchPosition : undefined
+  const tableFont: NonNullable<DesignerDraft['tableFont']> = {}
+  if (candidate.tableFont && typeof candidate.tableFont === 'object') {
+    if (typeof candidate.tableFont.family === 'string' && fontFamilies.has(candidate.tableFont.family)) tableFont.family = candidate.tableFont.family
+    if (typeof candidate.tableFont.size === 'number' && Number.isFinite(candidate.tableFont.size) && candidate.tableFont.size >= 8 && candidate.tableFont.size <= 40) tableFont.size = candidate.tableFont.size
+  }
+  const tableColumns: NonNullable<DesignerDraft['tableColumns']> = {}
+  if (candidate.tableColumns && typeof candidate.tableColumns === 'object' && !Array.isArray(candidate.tableColumns)) for (const [id, value] of Object.entries(candidate.tableColumns)) {
+    if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(id) || !value || typeof value !== 'object' || Array.isArray(value)) continue
+    const style: DesignerTableColumnStyle = {}
+    if (typeof value.bold === 'boolean') style.bold = value.bold
+    if (typeof value.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.textColor)) style.textColor = value.textColor.toLowerCase()
+    if (typeof value.backgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.backgroundColor)) style.backgroundColor = value.backgroundColor.toLowerCase()
+    if (typeof value.fontFamily === 'string' && fontFamilies.has(value.fontFamily)) style.fontFamily = value.fontFamily
+    if (typeof value.fontSize === 'number' && Number.isFinite(value.fontSize) && value.fontSize >= 8 && value.fontSize <= 40) style.fontSize = value.fontSize
+    if (Object.keys(style).length) tableColumns[id] = style
+  }
+  const tableHeaders: NonNullable<DesignerDraft['tableHeaders']> = {}
+  if (candidate.tableHeaders && typeof candidate.tableHeaders === 'object' && !Array.isArray(candidate.tableHeaders)) for (const [id, value] of Object.entries(candidate.tableHeaders)) {
+    if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(id) || !value || typeof value !== 'object' || Array.isArray(value)) continue
+    const style: DesignerTableHeaderStyle = {}
+    if (typeof value.bold === 'boolean') style.bold = value.bold
+    if (typeof value.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.textColor)) style.textColor = value.textColor.toLowerCase()
+    if (typeof value.backgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.backgroundColor)) style.backgroundColor = value.backgroundColor.toLowerCase()
+    if (typeof value.borderColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.borderColor)) style.borderColor = value.borderColor.toLowerCase()
+    if (typeof value.fontFamily === 'string' && fontFamilies.has(value.fontFamily)) style.fontFamily = value.fontFamily
+    if (typeof value.fontSize === 'number' && Number.isFinite(value.fontSize) && value.fontSize >= 8 && value.fontSize <= 40) style.fontSize = value.fontSize
+    if (Object.keys(style).length) tableHeaders[id] = style
+  }
   const buttonPressEffect = typeof candidate.buttonPressEffect === 'boolean' ? candidate.buttonPressEffect : undefined
-  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }) }
+  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(Object.keys(tableFont).length ? { tableFont } : {}), ...(Object.keys(tableColumns).length ? { tableColumns } : {}), ...(Object.keys(tableHeaders).length ? { tableHeaders } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }) }
 }
 
 export function setDesignerFilterPopupFontSize(draft: DesignerDraft, value: number | undefined): DesignerDraft {
@@ -204,6 +237,31 @@ export function setDesignerGridSearchPosition(draft: DesignerDraft, value: GridS
   if (value === draft.gridSearchPosition) return draft
   if (value === undefined) { const { gridSearchPosition: _position, ...rest } = draft; return rest }
   return { ...draft, gridSearchPosition: value }
+}
+
+export function setDesignerTableFont(draft: DesignerDraft, property: 'family' | 'size', value: string | number): DesignerDraft {
+  if (property === 'family' ? typeof value !== 'string' || !fontFamilies.has(value) : typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) return draft
+  return { ...draft, tableFont: { ...draft.tableFont, [property]: value } }
+}
+
+export function setDesignerTableColumnStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableColumnStyle, value: string | number | boolean | undefined): DesignerDraft {
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (property === 'bold' ? typeof value !== 'boolean' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  const tableColumns = { ...draft.tableColumns }, style = { ...tableColumns[columnId] }
+  if (value === undefined) delete style[property]
+  else style[property] = (property === 'textColor' || property === 'backgroundColor' ? String(value).toLowerCase() : value) as never
+  if (!Object.keys(style).length) delete tableColumns[columnId]
+  else tableColumns[columnId] = style
+  return { ...draft, tableColumns }
+}
+
+export function setDesignerTableHeaderStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableHeaderStyle, value: string | number | boolean | undefined): DesignerDraft {
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (property === 'bold' ? typeof value !== 'boolean' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  const tableHeaders = { ...draft.tableHeaders }, style = { ...tableHeaders[columnId] }
+  if (value === undefined) delete style[property]
+  else style[property] = (property === 'textColor' || property === 'backgroundColor' || property === 'borderColor' ? String(value).toLowerCase() : value) as never
+  if (!Object.keys(style).length) delete tableHeaders[columnId]
+  else tableHeaders[columnId] = style
+  return { ...draft, tableHeaders }
 }
 
 export function setDesignerButtonPressEffect(draft: DesignerDraft, enabled: boolean): DesignerDraft {
@@ -385,6 +443,8 @@ export function designerAppearanceStyle(draft: DesignerDraft): Record<string, st
     const value = draft.appearance?.[property]
     if (value) style[appearanceVariables[property]] = value
   }
+  if (draft.tableFont?.family) style['--lab-table-font-family'] = safeFonts[draft.tableFont.family] ?? 'inherit'
+  if (draft.tableFont?.size !== undefined) style['--lab-table-font-size'] = `${draft.tableFont.size}px`
   return style
 }
 

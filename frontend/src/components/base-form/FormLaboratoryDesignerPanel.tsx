@@ -9,8 +9,8 @@ import { supportsSandboxPreset } from './formBuilderSandboxState'
 
 export type DesignerPropertyRequest = {
   sequence: number
-  section: 'color' | 'size' | 'font' | 'align' | 'textAlign' | 'spacing' | 'more' | 'appearance' | 'borders' | 'shadow' | 'gradient' | 'appearanceMore'
-  property?: DesignerProperty
+  section: 'color' | 'size' | 'font' | 'align' | 'textAlign' | 'spacing' | 'more' | 'appearance' | 'tableTypography' | 'tableHeaderTypography' | 'borders' | 'shadow' | 'gradient' | 'appearanceMore'
+  property?: DesignerProperty | DesignerAppearanceProperty | 'columnColor' | 'columnBackgroundColor' | 'columnFontFamily' | 'columnFontSize' | 'headerColor' | 'headerBackgroundColor' | 'headerBorderColor' | 'fontFamily' | 'fontSize'
 }
 
 type Props = {
@@ -21,6 +21,17 @@ type Props = {
   onFinishPropertyChange: () => void
   language: Language
   draft: DesignerDraft
+  onTableFontChange: (property: 'family' | 'size', value: string | number) => void
+  selectedTableColumn?: { id: string; label: string; style?: { bold?: boolean; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number } }
+  selectedTableHeader?: { id: string; label: string; style?: { bold?: boolean; textColor?: string; backgroundColor?: string; borderColor?: string; fontFamily?: string; fontSize?: number } }
+  onTableColumnStyleChange: (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => void
+  onTableHeaderStyleChange: (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'borderColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => void
+  onTableColumnColorCommit: (id: string, color: string | undefined) => void
+  onTableColumnColorPreview: (id: string, color: string | undefined | null) => void
+  onTableColumnBackgroundColorCommit: (id: string, color: string | undefined) => void
+  onTableColumnBackgroundColorPreview: (id: string, color: string | undefined | null) => void
+  onTableHeaderColorCommit: (id: string, property: 'textColor' | 'backgroundColor' | 'borderColor', color: string | undefined) => void
+  onTableHeaderColorPreview: (id: string, property: 'textColor' | 'backgroundColor' | 'borderColor', color: string | undefined | null) => void
   filterPopupFontSize: number
   onFilterPopupFontSizeChange: (size: number) => void
   gridSearchPosition: GridSearchPosition
@@ -156,24 +167,57 @@ export function FormLaboratoryDesignerPanel(props: Props) {
   const componentFieldIds = fieldIds.filter(id => ['titleId', 'phone', 'mobile', 'address'].includes(id.split('::')[0]))
   const editingAction = props.selectedActionIds.length > 0
   const panelRef = useRef<HTMLElement>(null)
+  const openDetailsAncestors = (element: HTMLElement | null, panel: HTMLElement) => {
+    for (let parent = element; parent && parent !== panel; parent = parent.parentElement) {
+      if (parent instanceof HTMLDetailsElement) parent.open = true
+    }
+  }
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel || !props.selectedTableColumn) return
+    openDetailsAncestors(panel.querySelector('#designer-table-typography'), panel)
+    openDetailsAncestors(panel.querySelector('#designer-table-header-typography'), panel)
+  }, [props.selectedTableColumn?.id])
   useEffect(() => {
     const request = props.propertyRequest, panel = panelRef.current
     if (!request || !panel) return
     if (request.section === 'color') {
       const control = panel.querySelector<HTMLElement>(`${editingAction ? '.designer-action-colors ' : ''}[data-designer-color-property="${request.property}"]`)
       if (!control) return
-      for (let parent = control.parentElement; parent && parent !== panel; parent = parent.parentElement) {
-        if (parent instanceof HTMLDetailsElement) parent.open = true
-      }
+      openDetailsAncestors(control, panel)
       control.scrollIntoView({ block: 'nearest' })
       control.querySelector<HTMLButtonElement>('.excel-color-trigger')?.click()
       return
     }
+    if (request.section === 'appearance' && request.property) {
+      const control = panel.querySelector<HTMLElement>(`[data-designer-appearance-property="${request.property}"]`)
+      if (!control) return
+      openDetailsAncestors(control, panel)
+      control.scrollIntoView({ block: 'nearest' }); control.querySelector<HTMLButtonElement>('.excel-color-trigger')?.click(); return
+    }
+    if (request.section === 'tableTypography') {
+      const group = panel.querySelector<HTMLDetailsElement>('#designer-table-typography')
+      openDetailsAncestors(group, panel)
+      const controlId = request.property === 'columnColor' ? '#designer-table-column-color' : request.property === 'columnBackgroundColor' ? '#designer-table-column-background-color' : request.property === 'columnFontFamily' ? '#designer-column-font-family' : request.property === 'columnFontSize' ? '#designer-column-font-size' : '#designer-table-font-family'
+      const control = panel.querySelector<HTMLElement>(controlId)
+      control?.scrollIntoView({ block: 'nearest' })
+      if (request.property === 'columnColor' || request.property === 'columnBackgroundColor') control?.querySelector<HTMLButtonElement>('.excel-color-trigger')?.click()
+      else control?.focus()
+      return
+    }
+    if (request.section === 'tableHeaderTypography') {
+      const group = panel.querySelector<HTMLDetailsElement>('#designer-table-header-typography')
+      openDetailsAncestors(group, panel)
+      const controlId = request.property === 'headerColor' ? '#designer-table-header-color' : request.property === 'headerBackgroundColor' ? '#designer-table-header-background-color' : request.property === 'headerBorderColor' ? '#designer-table-header-border-color' : request.property === 'fontSize' ? '#designer-table-header-font-size' : '#designer-table-header-font-family'
+      const control = panel.querySelector<HTMLElement>(controlId)
+      control?.scrollIntoView({ block: 'nearest' })
+      if (request.property === 'headerColor' || request.property === 'headerBackgroundColor' || request.property === 'headerBorderColor') control?.querySelector<HTMLButtonElement>('.excel-color-trigger')?.click()
+      else control?.focus()
+      return
+    }
     const selectors = { size: '#designer-width', font: '#designer-font-size', align: '.designer-layout-operations button:not(:disabled)', textAlign: '#designer-text-align', spacing: '.designer-layout-gap input', more: '.designer-properties select:not(:disabled)', appearance: '#designer-appearance-preset', borders: '#designer-effect-borderWidth', shadow: '#designer-effect-shadowOpacity', gradient: '#designer-gradientEnabled', appearanceMore: '#designer-effect-paddingX' }
     const control = panel.querySelector<HTMLElement>(selectors[request.section])
-    for (let parent = control?.parentElement; parent && parent !== panel; parent = parent.parentElement) {
-      if (parent instanceof HTMLDetailsElement) parent.open = true
-    }
+    openDetailsAncestors(control ?? null, panel)
     control?.scrollIntoView({ block: 'nearest' })
     control?.focus()
   }, [props.propertyRequest])
@@ -237,7 +281,7 @@ export function FormLaboratoryDesignerPanel(props: Props) {
   const appearanceControl = (key: DesignerAppearanceProperty) => {
     const labelText = appearanceLabels[key][props.language === 'fa' ? 0 : props.language === 'zh' ? 2 : 1]
     const current = props.draft.appearance?.[key] ?? appearanceDefaults[key]
-    return <div className="designer-color-control" key={key}><div className="designer-color-label"><span>{labelText}</span><ExcelColorPicker language={props.language} label={labelText} value={current} onPreview={next => props.onAppearanceColorPreview(key, next)} onCommit={next => props.onAppearanceColorCommit(key, next)} /></div><button type="button" className="designer-inherit-button" disabled={!props.draft.appearance?.[key]} onClick={() => props.onAppearanceColorCommit(key, undefined)}>{word('پیش‌فرض', 'Default', '默认')}</button></div>
+    return <div className="designer-color-control" key={key} data-designer-appearance-property={key}><div className="designer-color-label"><span>{labelText}</span><ExcelColorPicker language={props.language} label={labelText} value={current} onPreview={next => props.onAppearanceColorPreview(key, next)} onCommit={next => props.onAppearanceColorCommit(key, next)} /></div><button type="button" className="designer-inherit-button" disabled={!props.draft.appearance?.[key]} onClick={() => props.onAppearanceColorCommit(key, undefined)}>{word('پیش‌فرض', 'Default', '默认')}</button></div>
   }
   const label = (key: DesignerProperty) => propertyLabels[key][props.language === 'fa' ? 0 : props.language === 'zh' ? 2 : 1]
   const fieldNames = editingAction ? props.actions.filter(a => props.selectedActionIds.includes(a.id)).map(a => a.label[props.language]).join('، ') : props.applyToAll ? word('همهٔ فیلدها', 'All fields', '全部字段') : selectedNames.length ? selectedNames.join('، ') : word('همه فیلدها و برچسب‌ها', 'All inputs and labels', '全部输入和标签')
@@ -379,6 +423,7 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       <details className="designer-color-group" open><summary>{word('جست‌وجو و فیلتر جدول', 'Grid search and filters', '表格搜索与筛选')}</summary><label className="designer-control-row" htmlFor="designer-filter-popup-font-size"><span>{word('اندازهٔ قلم پنجرهٔ فیلتر', 'Filter popup font size', '筛选弹窗字号')}</span><input id="designer-filter-popup-font-size" type="range" min="12" max="24" step="1" value={props.filterPopupFontSize} onPointerDown={props.onBeginFilterPopupFontSizeChange} onPointerUp={props.onCommitFilterPopupFontSizeChange} onKeyDown={props.onBeginFilterPopupFontSizeChange} onKeyUp={props.onCommitFilterPopupFontSizeChange} onBlur={props.onCommitFilterPopupFontSizeChange} onChange={event => props.onFilterPopupFontSizeChange(Number(event.target.value))} /><output>{props.filterPopupFontSize}px</output></label><label className="designer-control-row" htmlFor="designer-grid-search-position"><span>{word('جایگاه کادر جست‌وجو', 'Search box position', '搜索框位置')}</span><select id="designer-grid-search-position" value={props.gridSearchPosition} onChange={event => props.onGridSearchPositionChange(event.target.value as GridSearchPosition)}><option value="right">{word('راست', 'Right', '右')}</option><option value="center">{word('وسط', 'Center', '中')}</option><option value="left">{word('چپ', 'Left', '左')}</option></select></label></details>
       {!editingAction && <><details className="designer-color-group" open><summary>{word('رنگ ورودی‌ها', 'Input colors', '输入颜色')} · {scopeText('backgroundColor')}</summary>{colorKeys.filter(key => key !== 'labelColor').map(colorControl)}</details><details className="designer-color-group" open><summary>{word('رنگ برچسب‌ها', 'Label colors', '标签颜色')} · {scopeText('labelColor')}</summary>{colorControl('labelColor')}</details><details className="designer-color-group"><summary>{word('رنگ‌های حالت فوکوس', 'Focus-state colors', '焦点状态颜色')}</summary>{focusColorKeys.map(colorControl)}</details></>}
       {editingAction && <details className="designer-color-group designer-action-colors" open><summary>{word('رنگ دکمهٔ انتخاب‌شده', 'Selected action colors', '所选按钮颜色')} · {fieldNames}</summary>{(['backgroundColor', 'textColor', 'borderColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor'] as DesignerProperty[]).map(actionColorControl)}</details>}
+      <details className="designer-color-group" id="designer-table-typography"><summary>{word('قلم جدول و ستون', 'Table and column typography', '表格与列字体')}</summary><div className="designer-control-row"><label htmlFor="designer-table-font-family">{word('قلم کل جدول', 'Table font', '表格字体')}</label><select id="designer-table-font-family" value={props.draft.tableFont?.family ?? 'inherit'} onChange={event => props.onTableFontChange('family', event.target.value)}>{[['inherit', 'پیش‌فرض'], ['vazirmatn', 'وزیرمتن'], ['tahoma', 'Tahoma'], ['segoe', 'Segoe UI'], ['arial', 'Arial'], ['naskh', 'نسخ']].map(([id, faName]) => <option key={id} value={id}>{fa ? faName : id}</option>)}</select></div><div className="designer-control-row"><label htmlFor="designer-table-font-size">{word('اندازهٔ قلم جدول', 'Table font size', '表格字号')}</label><input id="designer-table-font-size" type="number" min="8" max="40" value={props.draft.tableFont?.size ?? 13} onChange={event => props.onTableFontChange('size', Number(event.target.value))} /></div>{props.selectedTableColumn && <><strong>{word('داده‌های ستون:', 'Column data:', '列数据：')} {props.selectedTableColumn.label}</strong><div className="designer-control-row"><label htmlFor="designer-column-font-family">{word('قلم داده‌های ستون', 'Column data font', '列数据字体')}</label><select id="designer-column-font-family" value={props.selectedTableColumn.style?.fontFamily ?? 'inherit'} onChange={event => props.onTableColumnStyleChange(props.selectedTableColumn!.id, 'fontFamily', event.target.value)}>{[['inherit', 'پیش‌فرض'], ['vazirmatn', 'وزیرمتن'], ['tahoma', 'Tahoma'], ['segoe', 'Segoe UI'], ['arial', 'Arial'], ['naskh', 'نسخ']].map(([id, faName]) => <option key={id} value={id}>{fa ? faName : id}</option>)}</select></div><div className="designer-control-row"><label htmlFor="designer-column-font-size">{word('اندازهٔ قلم داده‌های ستون', 'Column data font size', '列数据字号')}</label><input id="designer-column-font-size" type="number" min="8" max="40" value={props.selectedTableColumn.style?.fontSize ?? 13} onChange={event => props.onTableColumnStyleChange(props.selectedTableColumn!.id, 'fontSize', Number(event.target.value))} /></div><label className="designer-effect-check"><input id="designer-table-column-bold" type="checkbox" checked={props.selectedTableColumn.style?.bold ?? false} onChange={event => props.onTableColumnStyleChange(props.selectedTableColumn!.id, 'bold', event.target.checked)} />{word('متن داده‌های ستون درشت', 'Bold column data', '列数据加粗')}</label><div id="designer-table-column-color" className="designer-color-control"><div className="designer-color-label"><span>{word('رنگ متن داده‌های ستون', 'Column data text color', '列数据文字颜色')}</span><ExcelColorPicker language={props.language} label={word('رنگ متن داده‌های ستون', 'Column data text color', '列数据文字颜色')} value={props.selectedTableColumn.style?.textColor ?? '#263a38'} onPreview={color => props.onTableColumnColorPreview(props.selectedTableColumn!.id, color)} onCommit={color => props.onTableColumnColorCommit(props.selectedTableColumn!.id, color)} /></div></div><div id="designer-table-column-background-color" className="designer-color-control"><div className="designer-color-label"><span>{word('پس‌زمینهٔ سلول‌های دادهٔ ستون', 'Column data cell background', '列数据单元格背景')}</span><ExcelColorPicker language={props.language} label={word('پس‌زمینهٔ سلول‌های دادهٔ ستون', 'Column data cell background', '列数据单元格背景')} value={props.selectedTableColumn.style?.backgroundColor ?? '#ffffff'} onPreview={color => props.onTableColumnBackgroundColorPreview(props.selectedTableColumn!.id, color)} onCommit={color => props.onTableColumnBackgroundColorCommit(props.selectedTableColumn!.id, color)} /></div></div></>}</details><details className="designer-color-group" id="designer-table-header-typography"><summary>{word('قلم سرستون', 'Header typography', '表头字体')}</summary>{props.selectedTableHeader ? <><strong>{word('سرستون انتخاب‌شده:', 'Selected header:', '选中表头：')} {props.selectedTableHeader.label}</strong><div className="designer-control-row"><label htmlFor="designer-table-header-font-family">{word('قلم سرستون', 'Header font', '表头字体')}</label><select id="designer-table-header-font-family" value={props.selectedTableHeader.style?.fontFamily ?? 'inherit'} onChange={event => props.onTableHeaderStyleChange(props.selectedTableHeader!.id, 'fontFamily', event.target.value)}>{[['inherit', 'پیش‌فرض'], ['vazirmatn', 'وزیرمتن'], ['tahoma', 'Tahoma'], ['segoe', 'Segoe UI'], ['arial', 'Arial'], ['naskh', 'نسخ']].map(([id, faName]) => <option key={id} value={id}>{fa ? faName : id}</option>)}</select></div><div className="designer-control-row"><label htmlFor="designer-table-header-font-size">{word('اندازهٔ قلم سرستون', 'Header font size', '表头字号')}</label><input id="designer-table-header-font-size" type="number" min="8" max="40" value={props.selectedTableHeader.style?.fontSize ?? 13} onChange={event => props.onTableHeaderStyleChange(props.selectedTableHeader!.id, 'fontSize', Number(event.target.value))} /></div><label className="designer-effect-check"><input id="designer-table-header-bold" type="checkbox" checked={props.selectedTableHeader.style?.bold ?? false} onChange={event => props.onTableHeaderStyleChange(props.selectedTableHeader!.id, 'bold', event.target.checked)} />{word('متن سرستون درشت', 'Bold header text', '表头文字加粗')}</label><div id="designer-table-header-color" className="designer-color-control"><div className="designer-color-label"><span>{word('رنگ متن سرستون', 'Header text color', '表头文字颜色')}</span><ExcelColorPicker language={props.language} label={word('رنگ متن سرستون', 'Header text color', '表头文字颜色')} value={props.selectedTableHeader.style?.textColor ?? '#263a38'} onPreview={color => props.onTableHeaderColorPreview(props.selectedTableHeader!.id, 'textColor', color)} onCommit={color => props.onTableHeaderColorCommit(props.selectedTableHeader!.id, 'textColor', color)} /></div></div><div id="designer-table-header-background-color" className="designer-color-control"><div className="designer-color-label"><span>{word('پس‌زمینهٔ این سرستون', 'Header background', '表头背景')}</span><ExcelColorPicker language={props.language} label={word('پس‌زمینهٔ این سرستون', 'Header background', '表头背景')} value={props.selectedTableHeader.style?.backgroundColor ?? '#f7f9f7'} onPreview={color => props.onTableHeaderColorPreview(props.selectedTableHeader!.id, 'backgroundColor', color)} onCommit={color => props.onTableHeaderColorCommit(props.selectedTableHeader!.id, 'backgroundColor', color)} /></div></div><div id="designer-table-header-border-color" className="designer-color-control"><div className="designer-color-label"><span>{word('کادر این سرستون', 'Header border', '表头边框')}</span><ExcelColorPicker language={props.language} label={word('کادر این سرستون', 'Header border', '表头边框')} value={props.selectedTableHeader.style?.borderColor ?? '#dfe7e3'} onPreview={color => props.onTableHeaderColorPreview(props.selectedTableHeader!.id, 'borderColor', color)} onCommit={color => props.onTableHeaderColorCommit(props.selectedTableHeader!.id, 'borderColor', color)} /></div></div></> : <small>{word('برای انتخاب سرستون، روی آن کلیک کنید.', 'Click a header to select it.', '点击表头以选择。')}</small>}</details>
       {appearanceGroups.map(([id, faLabel, keys]) => <details className="designer-color-group" key={id}><summary>{fa ? faLabel : appearanceLabels[keys[0]][1]}</summary>{(editingAction && id === 'actions' ? keys.filter(key => key === 'actionBarBackground') : keys).map(appearanceControl)}</details>)}
       <small className="designer-color-note">{word('رنگ عمومی پیش‌فرض مشترک است؛ رنگ اختصاصی هر عنصر حفظ می‌شود. برای برگشت، «بازگشت به رنگ عمومی» را بزنید.', 'Global colors are shared defaults; individual overrides stay intact. Use Reset to global to inherit again.', '全局颜色是共享默认值；独立设置会保留。使用恢复全局再次继承。')}</small>
     </div></details>

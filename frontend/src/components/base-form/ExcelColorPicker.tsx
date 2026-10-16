@@ -13,6 +13,7 @@ type Props = {
   value: string
   disabled?: boolean
   mixed?: boolean
+  autoOpen?: boolean
   onCommit: (value: ColorValue) => void
   onPreview?: (value: ColorValue | null) => void
 }
@@ -198,7 +199,7 @@ export function colorPickerNavigation(stage: PickerStage, action: 'open' | 'more
   return 'closed'
 }
 
-export function ExcelColorPicker({ language, label, value, disabled = false, mixed = false, onCommit, onPreview }: Props) {
+export function ExcelColorPicker({ language, label, value, disabled = false, mixed = false, autoOpen = false, onCommit, onPreview }: Props) {
   const fa = language === 'fa'
   const zh = language === 'zh'
   const word = (faText: string, enText: string, zhText: string) => fa ? faText : zh ? zhText : enText
@@ -211,6 +212,7 @@ export function ExcelColorPicker({ language, label, value, disabled = false, mix
   const [proposed, setProposed] = useState<ColorProposal>(() => colorProposal(value))
   const draft = proposed.color
   const previewActive = useRef(false)
+  const autoOpenUsed = useRef(false)
   const updateHoverPreview = (color: ColorValue | null) => { setHoveredColor(color); if (previewActive.current) onPreview?.(color === null ? draft : color) }
   const [spectrumHue, spectrumSaturation, spectrumValue] = proposed.hsv
   const [lightnessHue, lightnessSaturation, lightness] = proposed.hsl
@@ -267,6 +269,7 @@ export function ExcelColorPicker({ language, label, value, disabled = false, mix
     setRecentColors(mergeRecentColors(readRecentColors(), value))
     navigate('open')
   }
+  useEffect(() => { if (autoOpen && !autoOpenUsed.current) { autoOpenUsed.current = true; openPicker() } }, [autoOpen])
   const closePicker = () => {
     windowsSamplerActive.current = false
     if (samplerCustomEditing.current) { samplerCustomEditing.current = false; finishWindowsColorSampler() }
