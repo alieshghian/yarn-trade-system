@@ -216,6 +216,19 @@ test('color scopes resolve compatible selections independently for inputs and la
   assert.deepEqual(designerColorScope(['firstName::input', 'lastName::field', 'address::label'], 'textColor', ids).targets, ['firstName::input', 'lastName::input'])
 })
 
+test('palette hover and confirmed colors remain visible on disabled laboratory preview fields', () => {
+  const theme = readFileSync(new URL('./formTheme.css', import.meta.url), 'utf8')
+  assert.match(picker, /onMouseEnter: \(\) => updateHoverPreview\(color\)/)
+  assert.match(picker, /onMouseLeave: \(\) => updateHoverPreview\(null\)/)
+  assert.match(page, /onColorPreview=\{previewColorProperty\}/)
+  assert.match(page, /onColorCommit=\{commitColorProperty\}/)
+  assert.match(page, /setColorPreviewDraft\(setDesignerColorProperty\(historyRef\.current\.present,/)
+  assert.match(page, /const partStyle = .*designerStyleForPart\(visibleDraft, id, part\)/)
+  assert.match(theme, /background:var\(--lab-disabled,var\(--lab-bg,var\(--form-disabled-fill\)\)\)/)
+  assert.match(theme, /\.form-laboratory-page\[data-designer-active="true"\] \.laboratory-designer-field:not\(\.laboratory-shared-contact\) :is\(input,select,textarea\):disabled \{\s*background:var\(--lab-bg,/)
+  assert.match(theme, /\.laboratory-shared-contact \.designer-input-part \.person-number-control \{\s*background:var\(--lab-bg,/)
+})
+
 test('shared picker resets repeated confirmations and removes the compact palette behind More Colors', () => {
   const openPicker = picker.slice(picker.indexOf('const openPicker ='), picker.indexOf('const closePicker ='))
   assert.match(openPicker, /activePickerToken = pickerToken.current/)
