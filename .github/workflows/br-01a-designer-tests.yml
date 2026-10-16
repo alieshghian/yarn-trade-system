@@ -1,0 +1,68 @@
+name: BR-01A Designer checks
+
+on:
+  push:
+    branches:
+      - review/br-01a-designer-session
+    paths:
+      - frontend/src/**
+      - frontend/package-lock.json
+      - .github/workflows/br-01a-designer-tests.yml
+  pull_request:
+    branches:
+      - master
+    paths:
+      - frontend/src/**
+      - frontend/package-lock.json
+      - .github/workflows/br-01a-designer-tests.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: br-01a-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  designer-checks:
+    name: Focused tests and TypeScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+        shell: bash
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install locked frontend dependencies
+        id: deps
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Designer and Laboratory regression tests
+        if: ${{ steps.deps.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          tests=(
+            src/components/base-form/formLaboratoryDesigner.test.mjs
+            src/components/base-form/formLaboratory.test.mjs
+            src/components/base-form/formLaboratoryActions.test.mjs
+            src/components/base-form/designerResize.test.mjs
+          )
+          if [ -f src/components/base-form/designerSession.test.mjs ]; then
+            tests+=(src/components/base-form/designerSession.test.mjs)
+          fi
+          node --test "${tests[@]}"
+
+      - name: Frontend TypeScript typecheck
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: npx tsc --noEmit -p tsconfig.app.json
