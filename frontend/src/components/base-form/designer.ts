@@ -7,7 +7,7 @@ export const designerHistoryLimit = 50
 export const designerElementAppearanceProperties = ['appearancePreset', 'borderWidth', 'borderStyle', 'borderRadius', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY', 'shadowBlur', 'shadowSpread', 'shadowInset', 'gradientEnabled', 'gradientStartColor', 'gradientEndColor', 'gradientAngle', 'paddingX', 'paddingY'] as const
 
 export const designerProperties = [
-  'fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'textAlign', 'lineHeight',
+  'fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'underline', 'strikeThrough', 'script', 'textAlign', 'lineHeight',
   'backgroundColor', 'textColor', 'labelColor', 'borderColor', 'focusColor', 'focusBackgroundColor', 'focusTextColor', 'focusBorderColor', 'focusLabelColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'selectedColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'errorColor',
   'componentPopupBackground', 'componentPopupFontSize', 'componentAddBackground', 'componentAddTextColor', 'componentAddWidth', 'componentAddHeight',
   'width', 'height', 'offsetX', 'offsetY', ...designerElementAppearanceProperties
@@ -24,6 +24,10 @@ export type DesignerActionTextStyle = {
   fontWeight?: number
   bold?: boolean
   italic?: boolean
+  underline?: 'single' | 'double'
+  strikeThrough?: boolean
+  script?: 'superscript' | 'subscript'
+  textColor?: string
   textAlign?: string
   lineHeight?: number
 }
@@ -58,7 +62,7 @@ export const designerAppearanceProperties = [
 ] as const
 export type DesignerAppearanceProperty = typeof designerAppearanceProperties[number]
 export type DesignerAppearance = Partial<Record<DesignerAppearanceProperty, string>>
-export type DesignerTableColumnStyle = { bold?: boolean; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number }
+export type DesignerTableColumnStyle = { bold?: boolean; italic?: boolean; underline?: 'single' | 'double'; strikeThrough?: boolean; script?: 'superscript' | 'subscript'; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number }
 export type DesignerDraft = {
   format: typeof designerDraftFormat
   schemaVersion: typeof designerDraftVersion
@@ -67,6 +71,7 @@ export type DesignerDraft = {
   filterPopupFontSize?: number
   gridSearchPosition?: GridSearchPosition
   tableFont?: { family?: string; size?: number }
+  tableHeaderHeight?: number
   tableColumns?: Record<string, DesignerTableColumnStyle>
   tableHeaders?: Record<string, DesignerTableHeaderStyle>
   buttonPressEffect?: boolean
@@ -87,9 +92,9 @@ export type DesignerHistoryAction =
   | { type: 'replace', draft: DesignerDraft }
 
 const colorProperties = new Set<DesignerProperty>(['componentPopupBackground', 'componentAddBackground', 'componentAddTextColor', 'backgroundColor', 'textColor', 'labelColor', 'borderColor', 'focusColor', 'focusBackgroundColor', 'focusTextColor', 'focusBorderColor', 'focusLabelColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'selectedColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'errorColor', 'gradientStartColor', 'gradientEndColor'])
-export const designerActionProperties: DesignerProperty[] = ['backgroundColor', 'textColor', 'borderColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'width', 'height', 'fontSize', 'fontWeight', 'fontFamily', 'bold', 'italic', 'textAlign', 'lineHeight', ...designerElementAppearanceProperties]
+export const designerActionProperties: DesignerProperty[] = ['backgroundColor', 'textColor', 'borderColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'width', 'height', 'fontSize', 'fontWeight', 'fontFamily', 'bold', 'italic', 'underline', 'strikeThrough', 'script', 'textAlign', 'lineHeight', ...designerElementAppearanceProperties]
 const effectRanges: Partial<Record<DesignerProperty, readonly [number, number]>> = { componentPopupFontSize: [8, 40], componentAddWidth: [20, 120], componentAddHeight: [20, 120], borderWidth: [0, 12], shadowOpacity: [0, 100], shadowOffsetX: [-40, 40], shadowOffsetY: [-40, 40], shadowBlur: [0, 80], shadowSpread: [-20, 40], gradientAngle: [0, 360], paddingX: [0, 40], paddingY: [0, 40] }
-const fontFamilies = new Set(['inherit', 'vazirmatn', 'tahoma', 'segoe', 'arial', 'naskh'])
+const fontFamilies = new Set(['inherit', 'vazirmatn', 'tahoma', 'segoe', 'arial', 'naskh', 'aptos', 'calibri', 'cambria', 'consolas', 'courier', 'georgia', 'times', 'verdana'])
 const fontWeights = new Set([300, 400, 500, 600, 700])
 const alignments = new Set(['start', 'center', 'end', 'left', 'right'])
 const dimensions = new Set<DesignerProperty>(['width', 'height', 'offsetX', 'offsetY'])
@@ -124,7 +129,9 @@ function validValue(property: DesignerProperty, value: unknown): value is Design
   if (property === 'borderRadius') return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
   if (dimensions.has(property)) return typeof value === 'number' && Number.isFinite(value) && value >= (property === 'width' || property === 'height' ? 16 : -10000) && value <= (property === 'width' || property === 'height' ? 1200 : 10000)
   if (property === 'textAlign') return typeof value === 'string' && alignments.has(value)
-  if (property === 'bold' || property === 'italic') return typeof value === 'boolean'
+  if (property === 'bold' || property === 'italic' || property === 'strikeThrough') return typeof value === 'boolean'
+  if (property === 'underline') return value === 'single' || value === 'double'
+  if (property === 'script') return value === 'superscript' || value === 'subscript'
   return false
 }
 
@@ -194,6 +201,7 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
   }
   const filterPopupFontSize = typeof candidate.filterPopupFontSize === 'number' && Number.isInteger(candidate.filterPopupFontSize) && candidate.filterPopupFontSize >= 12 && candidate.filterPopupFontSize <= 24 ? candidate.filterPopupFontSize : undefined
   const gridSearchPosition = candidate.gridSearchPosition && ['left', 'center', 'right'].includes(candidate.gridSearchPosition) ? candidate.gridSearchPosition : undefined
+  const tableHeaderHeight = typeof candidate.tableHeaderHeight === 'number' && Number.isFinite(candidate.tableHeaderHeight) && candidate.tableHeaderHeight >= 28 && candidate.tableHeaderHeight <= 120 ? Math.round(candidate.tableHeaderHeight) : undefined
   const tableFont: NonNullable<DesignerDraft['tableFont']> = {}
   if (candidate.tableFont && typeof candidate.tableFont === 'object') {
     if (typeof candidate.tableFont.family === 'string' && fontFamilies.has(candidate.tableFont.family)) tableFont.family = candidate.tableFont.family
@@ -204,6 +212,14 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(id) || !value || typeof value !== 'object' || Array.isArray(value)) continue
     const style: DesignerTableColumnStyle = {}
     if (typeof value.bold === 'boolean') style.bold = value.bold
+    if (typeof value.italic === 'boolean') style.italic = value.italic
+    if (value.underline === 'single' || value.underline === 'double') style.underline = value.underline
+    if (typeof value.strikeThrough === 'boolean') style.strikeThrough = value.strikeThrough
+    if (value.script === 'superscript' || value.script === 'subscript') style.script = value.script
+    if (typeof value.italic === 'boolean') style.italic = value.italic
+    if (value.underline === 'single' || value.underline === 'double') style.underline = value.underline
+    if (typeof value.strikeThrough === 'boolean') style.strikeThrough = value.strikeThrough
+    if (value.script === 'superscript' || value.script === 'subscript') style.script = value.script
     if (typeof value.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.textColor)) style.textColor = value.textColor.toLowerCase()
     if (typeof value.backgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.backgroundColor)) style.backgroundColor = value.backgroundColor.toLowerCase()
     if (typeof value.fontFamily === 'string' && fontFamilies.has(value.fontFamily)) style.fontFamily = value.fontFamily
@@ -215,6 +231,14 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(id) || !value || typeof value !== 'object' || Array.isArray(value)) continue
     const style: DesignerTableHeaderStyle = {}
     if (typeof value.bold === 'boolean') style.bold = value.bold
+    if (typeof value.italic === 'boolean') style.italic = value.italic
+    if (value.underline === 'single' || value.underline === 'double') style.underline = value.underline
+    if (typeof value.strikeThrough === 'boolean') style.strikeThrough = value.strikeThrough
+    if (value.script === 'superscript' || value.script === 'subscript') style.script = value.script
+    if (typeof value.italic === 'boolean') style.italic = value.italic
+    if (value.underline === 'single' || value.underline === 'double') style.underline = value.underline
+    if (typeof value.strikeThrough === 'boolean') style.strikeThrough = value.strikeThrough
+    if (value.script === 'superscript' || value.script === 'subscript') style.script = value.script
     if (typeof value.textColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.textColor)) style.textColor = value.textColor.toLowerCase()
     if (typeof value.backgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.backgroundColor)) style.backgroundColor = value.backgroundColor.toLowerCase()
     if (typeof value.borderColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.borderColor)) style.borderColor = value.borderColor.toLowerCase()
@@ -223,7 +247,7 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (Object.keys(style).length) tableHeaders[id] = style
   }
   const buttonPressEffect = typeof candidate.buttonPressEffect === 'boolean' ? candidate.buttonPressEffect : undefined
-  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(Object.keys(tableFont).length ? { tableFont } : {}), ...(Object.keys(tableColumns).length ? { tableColumns } : {}), ...(Object.keys(tableHeaders).length ? { tableHeaders } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }) }
+  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(tableHeaderHeight !== undefined ? { tableHeaderHeight } : {}), ...(Object.keys(tableFont).length ? { tableFont } : {}), ...(Object.keys(tableColumns).length ? { tableColumns } : {}), ...(Object.keys(tableHeaders).length ? { tableHeaders } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }) }
 }
 
 export function setDesignerFilterPopupFontSize(draft: DesignerDraft, value: number | undefined): DesignerDraft {
@@ -244,8 +268,14 @@ export function setDesignerTableFont(draft: DesignerDraft, property: 'family' | 
   return { ...draft, tableFont: { ...draft.tableFont, [property]: value } }
 }
 
+export function setDesignerTableHeaderHeight(draft: DesignerDraft, value: number | undefined): DesignerDraft {
+  if (value !== undefined && (!Number.isFinite(value) || value < 28 || value > 120)) return draft
+  if (value === undefined) { const { tableHeaderHeight: _height, ...rest } = draft; return rest }
+  return { ...draft, tableHeaderHeight: Math.round(value) }
+}
+
 export function setDesignerTableColumnStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableColumnStyle, value: string | number | boolean | undefined): DesignerDraft {
-  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (property === 'bold' ? typeof value !== 'boolean' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
   const tableColumns = { ...draft.tableColumns }, style = { ...tableColumns[columnId] }
   if (value === undefined) delete style[property]
   else style[property] = (property === 'textColor' || property === 'backgroundColor' ? String(value).toLowerCase() : value) as never
@@ -255,7 +285,7 @@ export function setDesignerTableColumnStyle(draft: DesignerDraft, columnId: stri
 }
 
 export function setDesignerTableHeaderStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableHeaderStyle, value: string | number | boolean | undefined): DesignerDraft {
-  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (property === 'bold' ? typeof value !== 'boolean' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
   const tableHeaders = { ...draft.tableHeaders }, style = { ...tableHeaders[columnId] }
   if (value === undefined) delete style[property]
   else style[property] = (property === 'textColor' || property === 'backgroundColor' || property === 'borderColor' ? String(value).toLowerCase() : value) as never
@@ -350,7 +380,7 @@ export function setDesignerActionText(draft: DesignerDraft, actionId: string, pa
   return { ...draft, actions }
 }
 
-const actionTextStyleProperties = ['fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'textAlign', 'lineHeight'] as const
+const actionTextStyleProperties = ['fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'underline', 'strikeThrough', 'script', 'textColor', 'textAlign', 'lineHeight'] as const
 export function setDesignerActionTextProperty(draft: DesignerDraft, actionIds: readonly string[], part: DesignerActionTextPart, property: DesignerProperty, value: unknown): DesignerDraft {
   if (!actionTextStyleProperties.includes(property as typeof actionTextStyleProperties[number]) || !validValue(property, value)) return draft
   const actions = { ...draft.actions }
@@ -385,6 +415,10 @@ export function designerActionTextStyle(draft: DesignerDraft, actionId: string, 
   if (values.bold !== undefined) style.fontWeight = values.bold ? 700 : 400
   else if (values.fontWeight !== undefined) style.fontWeight = values.fontWeight
   if (values.italic !== undefined) style.fontStyle = values.italic ? 'italic' : 'normal'
+  if (values.textColor !== undefined) style.color = values.textColor
+  if (values.underline || values.strikeThrough) style.textDecorationLine = [values.underline ? 'underline' : '', values.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ')
+  if (values.underline === 'double') style.textDecorationStyle = 'double'
+  if (values.script) { style.verticalAlign = values.script === 'superscript' ? 'super' : 'sub'; style.fontSize = `${Number(values.fontSize ?? 14) * 0.75}px` }
   if (values.textAlign !== undefined) style.textAlign = String(values.textAlign)
   if (values.lineHeight !== undefined) style.lineHeight = values.lineHeight
   return style
@@ -717,6 +751,9 @@ export function designerStyleForField(draft: DesignerDraft, fieldId: string): Re
   if (values.fontWeight !== undefined) style['--lab-font-weight'] = String(values.fontWeight)
   if (values.bold !== undefined) style['--lab-bold'] = values.bold ? '700' : '400'
   if (values.italic !== undefined) style['--lab-font-style'] = values.italic ? 'italic' : 'normal'
+  if (values.underline || values.strikeThrough) style['--lab-text-decoration'] = [values.underline ? 'underline' : '', values.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ')
+  if (values.underline === 'double') style['--lab-text-decoration-style'] = 'double'
+  if (values.script) { style['--lab-script-size'] = '0.75em'; style['--lab-script-align'] = values.script === 'superscript' ? 'super' : 'sub' }
   if (values.textAlign !== undefined) style['--lab-text-align'] = String(values.textAlign)
   if (values.lineHeight !== undefined) style['--lab-line-height'] = String(values.lineHeight)
   if (values.width !== undefined) style['--lab-width'] = `${values.width}px`

@@ -394,8 +394,8 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .person-editor .person-title-entry .number-confirm{padding:4px 10px;border:1px solid var(--lab-action-bg,#347d70);border-radius:5px;background:var(--lab-action-bg,#347d70);color:#fff;font-size:12px}
 .person-editor .person-title-entry .number-cancel{padding:4px 10px;border:1px solid #cbd8d4;border-radius:5px;background:#fff;color:#314a47;font-size:12px}
 .person-editor .person-form-grid.editing .person-title-wrap>.title-add-button{background:#f4f6f5}
-.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.lab-title .person-title-wrap>.title-add-button{background-color:var(--lab-entry-field-bg,var(--lab-bg,var(--cream,#f8faf8)))!important}
-.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.lab-title .person-title-entry .title-new-row>.number-edit-input:not(:focus){background-color:var(--lab-entry-field-bg,var(--lab-bg,var(--cream,#f8faf8)))!important}
+.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.lab-title .person-title-wrap>.title-add-button{background-color:var(--lab-entry-field-bg,#d8d8d8)!important}
+.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.lab-title .person-title-entry .title-new-row>.number-edit-input:not(:focus){background-color:var(--lab-entry-field-bg,#d8d8d8)!important}
 .form-laboratory-page .laboratory-form-grid>.laboratory-designer-field.lab-title .person-title-wrap>select:not(:focus){color:var(--muted)!important}
 .form-laboratory-page .person-title-entry.laboratory-title-manager{background-color:#fff!important;background-image:none!important;opacity:1;backdrop-filter:none;isolation:isolate}
 .person-editor .person-title-entry.laboratory-title-manager>.laboratory-title-options{display:flex;flex-direction:column;gap:4px;max-height:150px;overflow:auto;padding:2px}
@@ -462,11 +462,11 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 /* Designer variables belong to the grouped field, with separate attached-button/popup controls. */
 #root .person-number-wrap[data-designer-mode]{pointer-events:none}
 #root .form-laboratory-page[data-designer-active] .designer-input-part>:is(input,select,textarea){pointer-events:none;user-select:none}
-#root .form-laboratory-page:not([data-entry-active]) .person-number-wrap[data-standard-list]>.person-number-control{background:var(--lab-disabled,var(--cream,#f4f6f5))!important;opacity:.8}
-#root .form-laboratory-page:not([data-entry-active]) .person-number-wrap[data-standard-list]>.number-add-button{background:var(--component-add-bg,var(--lab-disabled,var(--cream,#f4f6f5)))!important;opacity:.8}
+#root .form-laboratory-page:not([data-entry-active]) .person-number-wrap[data-standard-list]>.person-number-control{background-color:var(--lab-bg,var(--lab-disabled,var(--form-disabled-fill,#f4f6f5)))!important;opacity:.8}
+#root .form-laboratory-page:not([data-entry-active]) .person-number-wrap[data-standard-list]>.number-add-button{background:var(--component-add-bg,var(--lab-bg,var(--lab-disabled,var(--form-disabled-fill,#f4f6f5))))!important;opacity:.8}
 #root .form-laboratory-page:not([data-entry-active]) .person-number-wrap[data-standard-list] .person-number-control>:is(input,textarea){color:var(--lab-text,var(--muted))!important}
-#root .form-laboratory-page[data-entry-active] .person-number-wrap[data-standard-list]>.person-number-control{background:var(--lab-entry-field-bg,var(--lab-bg,#d8d8d8))!important}
-#root .form-laboratory-page[data-entry-active] .person-number-wrap[data-standard-list]>.number-add-button{background:var(--component-add-bg,var(--lab-entry-field-bg,var(--lab-bg,#d8d8d8)))!important}
+#root .form-laboratory-page[data-entry-active] .person-number-wrap[data-standard-list]>.person-number-control{background:var(--lab-entry-field-bg,#d8d8d8)!important}
+#root .form-laboratory-page[data-entry-active] .person-number-wrap[data-standard-list]>.number-add-button{background:var(--component-add-bg,var(--lab-entry-field-bg,#d8d8d8))!important}
 #root .form-laboratory-page[data-entry-active] .person-number-wrap[data-standard-list]:focus-within>.person-number-control{background:var(--lab-focus-bg,var(--editable-field-focus-fill,#fbffdf))!important}
 #root .form-laboratory-page[data-entry-active] .person-number-wrap[data-standard-list]:focus-within>.number-add-button{background:var(--component-add-bg,var(--lab-focus-bg,var(--editable-field-focus-fill,#fbffdf)))!important}
 #root .designer-input-part>.person-number-wrap[data-standard-list]{width:100%;height:var(--lab-height,auto);min-width:0}
@@ -614,6 +614,7 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .laboratory-designer-field:not(.laboratory-shared-contact) :is(input,select,textarea):focus:not([aria-invalid='true']):not(:invalid){background-color:var(--lab-focus-bg,var(--lab-bg,var(--cream,#fff)))!important;color:var(--lab-focus-text,var(--lab-text,var(--ink)))!important;border-color:var(--lab-focus-border,var(--lab-focus,var(--teal)))!important;outline-color:var(--lab-focus-border,var(--lab-focus,var(--teal)))!important;outline:var(--designer-input-outline,2px solid var(--lab-focus-border,var(--lab-focus,var(--teal))))!important;box-shadow:0 0 0 1px var(--lab-focus-border,var(--lab-focus,var(--teal)))!important}
 .laboratory-designer-field:focus-within>label,.laboratory-designer-field:focus-within>label>span{color:var(--lab-focus-label,var(--lab-label,var(--muted)))}
 .laboratory-designer-field:not(.laboratory-shared-contact) :is(input,select,textarea):disabled{background-color:var(--lab-disabled,var(--cream));color:var(--lab-text,var(--muted));opacity:.8}
+#root .form-laboratory-page[data-designer-active] .laboratory-form-grid>.laboratory-designer-field .designer-input-part[style*="--lab-bg:"] :is(input,select,textarea){background-color:var(--lab-bg)!important}
 .laboratory-designer-field .invalid-field :is(input,select,textarea){border-color:var(--lab-error,var(--red))}
 .laboratory-designer-field .field-error{color:var(--lab-error,var(--red))}
 @media(max-width:760px){.laboratory-banner-actions{justify-content:space-between}}
@@ -751,10 +752,10 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .form-laboratory-page .laboratory-footer .laboratory-action-button>.designer-edge-handle{min-width:0;min-height:0;margin:0;padding:0;border:0;background:transparent;color:var(--teal);box-shadow:none}
 .laboratory-footer.is-entry-active{min-height:80px;box-sizing:border-box}
 /* Use one configurable fill for every editable laboratory field and the shared contact controls. */
-.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field :is(input,select,textarea):not(:disabled):not([readonly]):not(:focus){background-color:var(--lab-entry-field-bg,var(--lab-bg,var(--cream,#f8faf8)))!important}
-.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.laboratory-shared-contact .person-number-wrap>:is(.number-add-button,.person-number-control){background-color:var(--lab-entry-field-bg,var(--lab-bg,var(--cream,#f8faf8)))!important}
+.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field :is(input,select,textarea):not(:focus){background-color:var(--lab-entry-field-bg,#d8d8d8)!important}
+.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.laboratory-shared-contact .person-number-wrap>:is(.number-add-button,.person-number-control){background-color:var(--lab-entry-field-bg,#d8d8d8)!important}
 .form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.laboratory-shared-contact .person-number-control>:is(input,textarea){background-color:transparent!important}
-.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.laboratory-shared-contact .new-number-row>:is(input,textarea):not(:focus){background-color:var(--lab-entry-field-bg,var(--lab-bg,var(--cream,#f8faf8)))!important}
+.form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.laboratory-shared-contact .new-number-row>:is(input,textarea):not(:focus){background-color:var(--lab-entry-field-bg,#d8d8d8)!important}
 .form-laboratory-page[data-entry-active="true"] .laboratory-form-grid>.laboratory-designer-field.laboratory-shared-contact .person-number-wrap:focus-within>:is(.number-add-button,.person-number-control){background-color:var(--lab-focus-bg,var(--editable-field-focus-fill,#fbffdf))!important}
 .form-laboratory-page .laboratory-action-button.is-icon-action>button:not(.designer-edge-handle)>span{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden;white-space:nowrap}
 .form-laboratory-page .laboratory-action-button.is-icon-action kbd{font-size:22px}
@@ -779,6 +780,57 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .designer-grid-format-dialog>footer{justify-content:flex-start;margin-block-start:18px;padding-block-start:12px;border-block-start:1px solid var(--line,#dfe7e3)}
 .designer-grid-format-dialog>footer button{min-width:88px;padding:8px 14px;border:1px solid var(--line,#dfe7e3);border-radius:6px;background:var(--cream,#fff);color:inherit;cursor:pointer}
 .designer-grid-format-dialog>footer .primary{background:var(--teal,#217c73);color:#fff}
+.designer-grid-format-dialog{width:min(615px,calc(100vw - 32px));min-height:min(410px,calc(100vh - 32px));padding:13px 14px;border-radius:11px;box-shadow:0 16px 44px #102a2a35}
+.designer-grid-format-dialog>header{cursor:move;touch-action:none;user-select:none}
+.designer-grid-format-dialog>header button{cursor:pointer}
+.designer-grid-format-dialog .designer-grid-font-list option:disabled{color:#9aa6a3;background:#f1f3f2}
+.form-laboratory-page,.designer-grid-format-dialog{font-synthesis:weight style}
+.form-laboratory-page .base-grid-table .column-title{color:var(--lab-header-text,#536763)}
+.designer-grid-color-picker-host{position:fixed;inset-inline-start:50%;top:50%;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;z-index:0}
+.designer-grid-color-picker-host .excel-color-trigger{width:1px;height:1px;padding:0;border:0}
+.designer-header-format-scope,.designer-header-height-controls{display:flex;align-items:center;gap:5px;padding:4px 7px;border-block:1px solid var(--line,#dfe7e3);font-size:12px}
+.designer-header-format-scope button,.designer-header-height-controls button{min-height:27px;padding:3px 7px;border:1px solid var(--line,#dfe7e3);border-radius:5px;background:var(--paper,#fff);color:var(--ink,#102a2a);font:inherit;cursor:pointer}
+.designer-header-format-scope button[aria-pressed="true"]{border-color:var(--teal,#217c73);background:#eaf4f1;color:var(--teal,#217c73)}
+.designer-header-height-controls span{margin-inline-end:auto}
+.form-laboratory-page .base-grid-table.is-designer-mode thead th{position:relative}
+.form-laboratory-page .base-grid-table.is-designer-mode thead th::after{position:absolute;z-index:3;inset-inline:0;bottom:-3px;height:7px;content:"";cursor:row-resize;touch-action:none}
+.form-laboratory-page [data-designer-active="true"] .base-grid-table th.is-designer-column-selected{box-shadow:inset 0 0 0 2px var(--teal,#247b71);background-image:linear-gradient(#247b7118,#247b7118)}
+.designer-grid-format-dialog>header{margin-block-end:10px;padding-block-end:10px}
+.designer-grid-format-dialog>header button{width:34px;height:34px;border:1px solid var(--line,#dfe7e3);border-radius:5px;line-height:1}
+.designer-grid-format-tabs{display:flex;gap:3px;margin-block-end:10px;border-block-end:1px solid var(--line,#dfe7e3)}
+.designer-grid-format-tabs button{min-width:82px;min-height:34px;padding:5px 14px;border:1px solid transparent;border-block-end:2px solid var(--teal,#217c73);background:var(--cream,#fff);color:var(--ink,#102a2a);font:inherit;font-weight:600}
+.designer-grid-format-normal{display:flex;justify-content:flex-end;margin-block-end:10px}
+.designer-grid-format-normal label,.designer-grid-format-effects label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.designer-grid-format-normal input,.designer-grid-format-effects input{accent-color:var(--teal,#217c73)}
+.designer-grid-font-fields{grid-template-columns:minmax(0,1.35fr) minmax(0,.8fr) minmax(92px,.7fr);gap:10px;align-items:start}
+.designer-grid-font-list{display:grid;grid-template-rows:auto 1fr;gap:6px;min-width:0}
+.designer-grid-font-list select{height:132px;min-height:0;padding:3px;border-radius:2px}
+.designer-grid-font-list select option{padding:2px 4px}
+.designer-grid-font-list:nth-child(3){grid-template-rows:auto 34px 1fr}
+.designer-grid-font-list:nth-child(3) select{height:106px}
+.designer-grid-font-options{display:grid;grid-template-columns:minmax(140px,.6fr) minmax(220px,1fr);gap:14px;align-items:end;margin-block-start:12px;padding-block-end:12px;border-block-end:1px solid var(--line,#dfe7e3)}
+.designer-grid-format-underline{display:grid;gap:6px;align-content:start;font-size:13px}
+.designer-grid-format-underline select{height:34px;box-sizing:border-box;padding:5px 8px;border:1px solid var(--line,#dfe7e3);border-radius:5px;background:var(--cream,#fff);color:var(--ink,#102a2a);font:inherit}
+.designer-grid-format-color{display:flex;flex-direction:column;align-items:flex-start;gap:6px;font-size:13px}
+.designer-grid-format-color .excel-color-picker{align-self:stretch}
+.designer-grid-format-color .excel-color-trigger{min-height:34px;min-width:150px;justify-content:flex-start}
+.designer-grid-font-bottom{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:14px;margin-block-start:12px}
+.designer-grid-format-effects{display:grid;gap:6px;min-height:78px;margin:0;padding:7px 10px;border:1px solid var(--line,#dfe7e3);font-size:12px}
+.designer-grid-format-effects legend{padding-inline:4px}
+.designer-grid-format-preview-wrap{display:grid;grid-template-rows:auto 1fr;gap:6px;font-size:13px}
+.designer-grid-format-preview{min-height:76px;display:grid;place-items:center;box-sizing:border-box;padding:10px;border-radius:0;font-size:16px}
+.designer-grid-format-dialog>footer{justify-content:flex-end;gap:10px;margin-block-start:18px;padding-block-start:12px}
+.designer-grid-format-dialog>footer button{min-width:108px;min-height:42px;padding:8px 18px;border-radius:7px;font:inherit}
+.designer-grid-format-dialog>footer .primary{order:2}
+.designer-grid-format-dialog>footer button:not(.primary){order:1}
+@media(max-width:640px){.designer-grid-format-dialog{min-height:0;padding:12px}.designer-grid-font-fields{grid-template-columns:1fr 1fr}.designer-grid-font-list:first-child{grid-column:1/-1}.designer-grid-font-list:first-child select{height:112px}.designer-grid-font-fields{gap:8px}.designer-grid-font-options,.designer-grid-font-bottom{grid-template-columns:1fr}}
+.designer-grid-format-dialog :is(input:not([type="checkbox"]),select),.designer-grid-format-dialog .excel-color-trigger{border:1.5px solid #9eafab!important}
+.designer-grid-format-dialog :is(input:not([type="checkbox"]),select,.excel-color-trigger):focus-visible{outline:2px solid var(--teal,#217c73);outline-offset:1px;border-color:var(--teal,#217c73)!important}
+.designer-grid-format-dialog .designer-grid-format-preview,.designer-grid-format-dialog .designer-grid-format-effects{border-color:#aebbb8}
+.designer-open-font-dialog{margin-block-start:7px;padding:6px 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+.form-laboratory-page .laboratory-form-grid>.laboratory-designer-field>span{font-family:var(--lab-font,var(--user-font-family,inherit));font-size:var(--lab-script-size,var(--lab-font-size,inherit));font-weight:var(--lab-bold,var(--lab-font-weight,inherit));font-style:var(--lab-font-style,normal);text-decoration-line:var(--lab-text-decoration,none);text-decoration-style:var(--lab-text-decoration-style,solid);vertical-align:var(--lab-script-align,baseline)}
+.form-laboratory-page .laboratory-form-grid>.laboratory-designer-field .designer-input-part>:is(input,select,textarea){font-family:var(--lab-font,var(--user-font-family,inherit));font-size:var(--lab-script-size,var(--lab-font-size,inherit));font-weight:var(--lab-bold,var(--lab-font-weight,inherit));font-style:var(--lab-font-style,normal);text-decoration-line:var(--lab-text-decoration,none);text-decoration-style:var(--lab-text-decoration-style,solid);vertical-align:var(--lab-script-align,baseline)}
+.form-laboratory-page .laboratory-footer .laboratory-action-button>button:not(.designer-edge-handle){text-decoration-line:var(--lab-text-decoration,none);text-decoration-style:var(--lab-text-decoration-style,solid)}
 .designer-action-section{padding:7px 0;border-block:1px solid var(--line);margin-block:8px}
 .designer-action-section>summary{font-size:12px;font-weight:600;cursor:pointer}
 .designer-action-list{display:grid;gap:4px;margin-top:7px}

@@ -9,16 +9,16 @@ import { functionKeyFromEvent } from './functionKeys'
 
 export type GridColumn<Row> = ExcelGridColumn<Row>
 type GridNavigationRequest = { sequence: number, command: 'first' | 'last' | 'previous' | 'next' | 'up' | 'down' }
-type GridTypography = { bold?: boolean; textColor?: string; backgroundColor?: string; borderColor?: string; fontFamily?: string; fontSize?: number }
-type Props<Row> = { rows: Row[], columns: GridColumn<Row>[], language: 'fa' | 'en' | 'zh', appearanceStyle?: CSSProperties, filterPopupFontSize?: number, remoteQuery?: (query: GridQuery, signal?: AbortSignal) => Promise<GridPage<Row>>, remoteQueryScope?: number | string, resetRequest?: number, navigationRequest?: GridNavigationRequest, gridSearchPosition?: GridSearchPosition, designerMode?: boolean, designerColumnStyles?: Record<string, GridTypography>, designerHeaderStyles?: Record<string, GridTypography>, onDesignerColumnSelect?: (columnId: string) => void, onDesignerContextMenu?: (target: 'header' | 'row' | 'search', columnId: string | undefined, left: number, top: number) => void, onRowSelectionChange?: (row: Row | null) => void, onTotalChange?: (total: number) => void }
+type GridTypography = { bold?: boolean; italic?: boolean; underline?: 'single' | 'double'; strikeThrough?: boolean; script?: 'superscript' | 'subscript'; textColor?: string; backgroundColor?: string; borderColor?: string; fontFamily?: string; fontSize?: number }
+type Props<Row> = { rows: Row[], columns: GridColumn<Row>[], language: 'fa' | 'en' | 'zh', appearanceStyle?: CSSProperties, filterPopupFontSize?: number, remoteQuery?: (query: GridQuery, signal?: AbortSignal) => Promise<GridPage<Row>>, remoteQueryScope?: number | string, resetRequest?: number, navigationRequest?: GridNavigationRequest, gridSearchPosition?: GridSearchPosition, designerMode?: boolean, designerHeaderHeight?: number, onDesignerHeaderHeightChange?: (height: number, phase: 'start' | 'change' | 'end') => void, designerColumnStyles?: Record<string, GridTypography>, designerHeaderStyles?: Record<string, GridTypography>, designerSelectedColumnIds?: string[], onDesignerColumnSelect?: (columnId: string, toggle: boolean) => void, onDesignerContextMenu?: (target: 'header' | 'row' | 'search', columnId: string | undefined, left: number, top: number) => void, onRowSelectionChange?: (row: Row | null) => void, onTotalChange?: (total: number) => void }
 type SelectedCell = { key: string, rowKey: string, rowIndex: number, columnId: string, columnLabel: string, value: GridValue }
 type CellContextMenu = { activeCell: SelectedCell, selectedCells: SelectedCell[], left: number, top: number }
 
 const cellSelectionKey = (rowKey: string, columnId: string) => JSON.stringify([rowKey, columnId])
-const gridFontFamily = (font: string) => ({ inherit: 'inherit', vazirmatn: "'Vazirmatn',Tahoma,Arial,sans-serif", tahoma: 'Tahoma,Arial,sans-serif', segoe: "'Segoe UI',Tahoma,sans-serif", arial: 'Arial,sans-serif', naskh: "'Noto Naskh Arabic','B Nazanin',serif" }[font] ?? 'inherit')
+const gridFontFamily = (font: string) => ({ inherit: 'inherit', vazirmatn: "'Vazirmatn',Tahoma,Arial,sans-serif", tahoma: 'Tahoma,Arial,sans-serif', segoe: "'Segoe UI',Tahoma,sans-serif", arial: 'Arial,sans-serif', naskh: "'Noto Naskh Arabic','B Nazanin',serif", aptos: 'Aptos,Arial,sans-serif', calibri: 'Calibri,Arial,sans-serif', cambria: 'Cambria,serif', consolas: 'Consolas,monospace', courier: "'Courier New',monospace", georgia: 'Georgia,serif', times: "'Times New Roman',serif", verdana: 'Verdana,sans-serif' }[font] ?? 'inherit')
 
 // Adapter boundary: shares the same typed Excel filtering and sorting used by the Persons grid.
-export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, language, appearanceStyle, filterPopupFontSize = 16, remoteQuery, remoteQueryScope, resetRequest = 0, navigationRequest, gridSearchPosition = 'right', designerMode = false, designerColumnStyles, designerHeaderStyles, onDesignerColumnSelect, onDesignerContextMenu, onRowSelectionChange, onTotalChange }: Props<Row>) {
+export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, language, appearanceStyle, filterPopupFontSize = 16, remoteQuery, remoteQueryScope, resetRequest = 0, navigationRequest, gridSearchPosition = 'right', designerMode = false, designerHeaderHeight = 42, onDesignerHeaderHeightChange, designerColumnStyles, designerHeaderStyles, designerSelectedColumnIds = [], onDesignerColumnSelect, onDesignerContextMenu, onRowSelectionChange, onTotalChange }: Props<Row>) {
   const [columns, setColumns] = useState(() => initialColumns.map(column => ({ ...column, visible: true })))
   const [sort, setSort] = useState<GridSortState>()
   const [filters, setFilters] = useState<GridFilterState>({})
@@ -42,6 +42,7 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
   const boundary = useRef<HTMLDivElement>(null)
   const firstRow = useRef<HTMLTableRowElement>(null)
   const tableHeader = useRef<HTMLTableSectionElement>(null)
+  const headerHeightDrag = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null)
   const [cellMenu, setCellMenu] = useState<CellContextMenu | null>(null)
   const searchInput = useRef<HTMLInputElement>(null)
   const cellMenuRef = useRef<HTMLDivElement>(null)
@@ -150,6 +151,38 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
     const move = (next: PointerEvent) => setColumns(current => current.map(column => column.id === id ? { ...column, width: Math.max(80, width + next.clientX - start) } : column))
     const end = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end) }
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', end)
+  }
+  const startHeaderHeightResize = (event: ReactPointerEvent<HTMLTableSectionElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (!designerMode || event.button !== 0 || event.clientY < rect.bottom - 7) return
+    event.preventDefault(); event.stopPropagation()
+    headerHeightDrag.current = { pointerId: event.pointerId, startY: event.clientY, startHeight: designerHeaderHeight }
+    try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* Pointer capture is unavailable in embedded browsers. */ }
+    onDesignerHeaderHeightChange?.(designerHeaderHeight, 'start')
+  }
+  const moveHeaderHeightResize = (event: ReactPointerEvent<HTMLTableSectionElement>) => {
+    const drag = headerHeightDrag.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    onDesignerHeaderHeightChange?.(Math.max(28, Math.min(120, drag.startHeight + event.clientY - drag.startY)), 'change')
+  }
+  const endHeaderHeightResize = (event: ReactPointerEvent<HTMLTableSectionElement>) => {
+    if (headerHeightDrag.current?.pointerId !== event.pointerId) return
+    headerHeightDrag.current = null
+    onDesignerHeaderHeightChange?.(designerHeaderHeight, 'end')
+  }
+  const handleDesignerHeaderKeys = (event: React.KeyboardEvent<HTMLTableSectionElement>) => {
+    if (!designerMode) return
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault(); event.stopPropagation()
+      onDesignerHeaderHeightChange?.(Math.max(28, Math.min(120, designerHeaderHeight + (event.key === 'ArrowUp' ? -2 : 2))), 'change')
+      return
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      const columnId = (event.target as HTMLElement).closest<HTMLElement>('[data-column]')?.dataset.column ?? designerSelectedColumnIds.at(-1)
+      if (!columnId) return
+      event.preventDefault(); event.stopPropagation()
+      setColumns(current => current.map(column => column.id === columnId ? { ...column, width: Math.max(80, Math.min(1200, column.width + (event.key === 'ArrowRight' ? 8 : -8))) } : column))
+    }
   }
   const applyFilter = (id: string, filter: GridFilterState[string]) => setFilters(current => { const next = { ...current }; if (filter) next[id] = filter; else delete next[id]; return next })
   const filterSelection = (menu: CellContextMenu, mode: 'include' | 'exclude') => {
@@ -316,9 +349,13 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
     </div>
     <div ref={tableWrap} className={`base-grid-table-wrap${remoteQuery ? ' base-grid-virtual-wrap' : ''}`} data-virtual-metrics={activeCache ? JSON.stringify({ requests: activeCache.metrics.requests, peakConcurrent: activeCache.metrics.peakConcurrent, cachedPages: activeCache.cacheSize, loads: activeCache.metrics.completed }) : undefined} tabIndex={remoteQuery ? 0 : undefined} aria-label={fa ? 'ردیف‌های جدول' : 'Table rows'} onScroll={remoteQuery ? event => { const top = event.currentTarget.scrollTop; setViewport(current => current.top === top ? current : { ...current, top }) } : undefined}>
       <ExcelGridFilterScope key={resetRequest}>
-        <table className="person-table excel-grid base-grid-table" dir={fa ? 'rtl' : 'ltr'} aria-rowcount={remoteQuery ? activeCache?.total === undefined ? -1 : total + 1 : undefined} style={{ minWidth: visible.reduce((sum, column) => sum + column.width, 0), ...(remoteQuery ? { width: '100%', tableLayout: 'fixed', '--virtual-row-height': `${rowHeight}px` } as CSSProperties : {}) }}>
+        <table className={`person-table excel-grid base-grid-table${designerMode ? ' is-designer-mode' : ''}`} dir={fa ? 'rtl' : 'ltr'} aria-rowcount={remoteQuery ? activeCache?.total === undefined ? -1 : total + 1 : undefined} style={{ minWidth: visible.reduce((sum, column) => sum + column.width, 0), ...(remoteQuery ? { width: '100%', tableLayout: 'fixed', '--virtual-row-height': `${rowHeight}px` } as CSSProperties : {}) }}>
           {remoteQuery && <colgroup>{visible.map(column => <col key={column.id} style={{ width: column.width }} />)}</colgroup>}
-          <thead ref={tableHeader}><tr>{visible.map(column => { const style = designerHeaderStyles?.[column.id]; return <ExcelGridColumnHeader key={column.id} column={column} rows={filtered} locale={language} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.id]} sort={sort} filterPopupFontSize={filterPopupFontSize} onSort={setSort} loadFilterValues={remoteQuery ? query => loadFilterValues(column.id, query) : undefined} onApplyFilter={filter => applyFilter(column.id, filter)} titleProps={{ style: { fontWeight: style?.bold ? 700 : undefined, color: style?.textColor, fontFamily: style?.fontFamily ? gridFontFamily(style.fontFamily) : undefined, fontSize: style?.fontSize ? `${style.fontSize}px` : undefined } }} thProps={{ className: sort?.some(item => item.id === column.id) ? 'is-sorted' : undefined, style: { backgroundColor: style?.backgroundColor, borderColor: style?.borderColor }, onClickCapture: designerMode ? event => { event.preventDefault(); event.stopPropagation(); onDesignerColumnSelect?.(column.id) } : undefined, onContextMenu: designerMode ? event => { event.preventDefault(); event.stopPropagation(); onDesignerContextMenu?.('header', column.id, event.clientX, event.clientY) } : undefined }} resizer={<span className="base-grid-resizer" onPointerDown={event => resize(column.id, event)} />} /> })}</tr></thead>
+          <thead ref={tableHeader} tabIndex={designerMode ? 0 : undefined} aria-label={designerMode ? (fa ? 'تغییر ارتفاع سرستون: با موس لبهٔ پایین را بکشید؛ بالا و پایین ارتفاع و چپ و راست عرض ستون را تغییر می‌دهند.' : 'Resize the header: drag its bottom edge; arrows change height or column width.') : undefined} style={designerMode ? { height: designerHeaderHeight } : undefined} onPointerDown={startHeaderHeightResize} onPointerMove={moveHeaderHeightResize} onPointerUp={endHeaderHeightResize} onPointerCancel={endHeaderHeightResize} onKeyDown={handleDesignerHeaderKeys}><tr style={designerMode ? { height: designerHeaderHeight } : undefined}>{visible.map(column => {
+            const style = designerHeaderStyles?.[column.id]
+            const decoration = [style?.underline ? 'underline' : '', style?.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ')
+            return <ExcelGridColumnHeader key={column.id} column={column} rows={filtered} locale={language} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.id]} sort={sort} filterPopupFontSize={filterPopupFontSize} onSort={setSort} loadFilterValues={remoteQuery ? query => loadFilterValues(column.id, query) : undefined} onApplyFilter={filter => applyFilter(column.id, filter)} titleProps={{ style: { fontWeight: style?.bold === undefined ? undefined : style.bold ? 700 : 400, fontStyle: style?.italic === undefined ? undefined : style.italic ? 'italic' : 'normal', textDecorationLine: decoration || undefined, textDecorationStyle: style?.underline === 'double' ? 'double' : undefined, verticalAlign: style?.script === 'superscript' ? 'super' : style?.script === 'subscript' ? 'sub' : undefined, color: style?.textColor, fontFamily: style?.fontFamily ? gridFontFamily(style.fontFamily) : undefined, fontSize: style?.fontSize ? `${style.script ? style.fontSize * 0.75 : style.fontSize}px` : undefined } }} thProps={{ 'data-column': column.id, className: [sort?.some(item => item.id === column.id) ? 'is-sorted' : '', designerMode && designerSelectedColumnIds.includes(column.id) ? 'is-designer-column-selected' : ''].filter(Boolean).join(' ') || undefined, title: designerMode ? (fa ? 'برای انتخاب چند ستون Ctrl یا Command را نگه دارید و سرستون را کلیک کنید.' : 'Ctrl/Command-click headers to select multiple columns.') : undefined, style: { '--lab-header-bg': style?.backgroundColor, '--lab-header-text': style?.textColor, borderColor: style?.borderColor } as CSSProperties, onClickCapture: designerMode ? event => { event.preventDefault(); event.stopPropagation(); onDesignerColumnSelect?.(column.id, event.ctrlKey || event.metaKey) } : undefined, onContextMenu: designerMode ? event => { event.preventDefault(); event.stopPropagation(); onDesignerContextMenu?.('header', column.id, event.clientX, event.clientY) } : undefined }} resizer={<span className="base-grid-resizer" onPointerDown={event => resize(column.id, event)} />} />
+          })}</tr></thead>
           <tbody>
             {remoteQuery && range.start > 0 && <tr className="base-grid-virtual-spacer" aria-hidden="true"><td colSpan={visible.length} style={{ height: range.start * rowHeight }} /></tr>}
             {(remoteQuery ? Array.from({ length: range.end - range.start }, (_, offset) => ({ row: activeCache?.row(range.start + offset), index: range.start + offset })) : filtered.map((row, index) => ({ row, index }))).map(({ row, index }, offset) => {
@@ -331,7 +368,8 @@ export function BaseFormGridBoundary<Row>({ rows, columns: initialColumns, langu
                   const cell = makeSelectedCell(row, key, index, column)
                   const isSelected = selectedCells.some(item => item.key === cell.key)
                   const style = designerColumnStyles?.[column.id]
-                  return <td key={column.id} style={designerMode ? { color: style?.textColor, backgroundColor: style?.backgroundColor, fontFamily: style?.fontFamily ? gridFontFamily(style.fontFamily) : undefined, fontSize: style?.fontSize ? `${style.fontSize}px` : undefined } : undefined} className={[isSelected ? 'is-cell-selected' : '', designerMode && style?.bold ? 'is-designer-bold' : ''].filter(Boolean).join(' ') || undefined} aria-selected={isSelected || undefined} title={fa ? 'برای انتخاب چند سلول Ctrl+کلیک کنید؛ با Shift+کلیک بازهٔ بارگذاری‌شدهٔ همان ستون انتخاب می‌شود.' : 'Ctrl-click to select multiple cells; Shift-click selects a loaded range in the same column.'} onClick={event => selectCell(cell, event)} onContextMenu={event => openCellMenu(cell, event)}>{String(cell.value ?? '—')}</td>
+                  const decoration = [style?.underline ? 'underline' : '', style?.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ')
+                  return <td key={column.id} style={designerMode ? { color: style?.textColor, backgroundColor: style?.backgroundColor, fontFamily: style?.fontFamily ? gridFontFamily(style.fontFamily) : undefined, fontSize: style?.fontSize ? `${style.fontSize}px` : undefined, fontWeight: style?.bold === undefined ? undefined : style.bold ? 700 : 400, fontStyle: style?.italic === undefined ? undefined : style.italic ? 'italic' : 'normal', textDecorationLine: decoration || undefined, textDecorationStyle: style?.underline === 'double' ? 'double' : undefined } : undefined} className={[isSelected ? 'is-cell-selected' : '', designerMode && style?.bold ? 'is-designer-bold' : ''].filter(Boolean).join(' ') || undefined} aria-selected={isSelected || undefined} title={fa ? 'برای انتخاب چند سلول Ctrl+کلیک کنید؛ با Shift+کلیک بازهٔ بارگذاری‌شدهٔ همان ستون انتخاب می‌شود.' : 'Ctrl-click to select multiple cells; Shift-click selects a loaded range in the same column.'} onClick={event => selectCell(cell, event)} onContextMenu={event => openCellMenu(cell, event)}><span style={designerMode && style?.script ? { verticalAlign: style.script === 'superscript' ? 'super' : 'sub', fontSize: '0.75em' } : undefined}>{String(cell.value ?? '—')}</span></td>
                 })}
               </tr>
             })}

@@ -4,7 +4,7 @@ import { stripTypeScriptTypes } from 'node:module'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
 import { contextDesignerSelection, designerAppearancePresets, designerElementAppearanceValues } from './designer.ts'
-import { alignCanvasFields, anchorDesignerInputs, captureDesignerPointer, createDesignerHistory, designerAppearanceStyle, designerHistoryReducer, designerStorageKey, designerStyleForField, designerStyleForPart, emptyDesignerDraft, existingCanvasCollisions, layoutDesignerFields, loadDesignerDraft, moveDesignerFieldGroup, resizeCanvasInputs, resizeDesignerEdge, resizeDesignerInputs, resizeDesignerWidth, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerAppearanceProperty, setDesignerProperty, stopDesignerHandleClick, validateDesignerDraft } from './designer.ts'
+import { alignCanvasFields, anchorDesignerInputs, captureDesignerPointer, createDesignerHistory, designerAppearanceStyle, designerHistoryReducer, designerStorageKey, designerStyleForField, designerStyleForPart, emptyDesignerDraft, existingCanvasCollisions, layoutDesignerFields, loadDesignerDraft, moveDesignerFieldGroup, resizeCanvasInputs, resizeDesignerEdge, resizeDesignerInputs, resizeDesignerWidth, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerAppearanceProperty, setDesignerProperty, setDesignerTableHeaderHeight, stopDesignerHandleClick, validateDesignerDraft } from './designer.ts'
 
 const formId = 'form-laboratory.persons-synthetic'
 const ids = ['personCode', 'firstName', 'lastName', 'address']
@@ -22,6 +22,78 @@ const pickerMath = runInNewContext(stripTypeScriptTypes(picker.slice(picker.inde
 import { designerActionDimensionLimits, designerActionStyle, designerActionVisible, designerColorScope, designerEffectiveValues, designerShortcutAction, setDesignerActionProperty, setDesignerActionVisibility, setDesignerColorProperty } from './designer.ts'
 
 const laboratoryActions = runInNewContext(stripTypeScriptTypes(page.slice(page.indexOf('const laboratoryDefinition'), page.indexOf('const columns'))) + '\nlaboratoryDefinition.actions')
+
+test('field palette restoration removes old fills once, preserves other settings and backs up the original', () => {
+  const stored = { ...emptyDesignerDraft(formId), overrides: { 'firstName::input': { backgroundColor: '#f8cbad', disabledColor: '#d8d8d8', fontSize: 19 }, 'firstName::label': { textColor: '#112233' } }, appearance: { entryFieldBackground: '#ffffff', headerBackground: '#123456' } }
+  const values = new Map()
+  let saved, saves = 0
+  const load = runInNewContext(stripTypeScriptTypes(page.slice(page.indexOf('function loadLaboratoryColorBaseline'), page.indexOf('const previewWidths'))) + '\nloadLaboratoryColorBaseline', {
+    loadLaboratoryDraft: () => saved ?? stored, laboratoryDefinition: { id: formId }, fieldIds: ids,
+    window: { localStorage: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) } },
+    saveDesignerDraft: (_storage, _user, _form, next) => { saved = next; saves++; return true }
+  })
+  const restored = load('owner')
+  assert.equal(restored.overrides['firstName::input'].backgroundColor, undefined)
+  assert.equal(restored.overrides['firstName::input'].fontSize, 19)
+  assert.equal(restored.defaults.input.backgroundColor, '#f4f6f5')
+  assert.equal(restored.appearance.entryFieldBackground, '#d8d8d8')
+  assert.equal(restored.appearance.headerBackground, '#123456')
+  assert.deepEqual(JSON.parse([...values.entries()].find(([key]) => key.endsWith(':previous-draft'))[1]), stored)
+  saved.overrides['firstName::input'].backgroundColor = '#abcdef'
+  assert.equal(load('owner').overrides['firstName::input'].backgroundColor, '#abcdef')
+  assert.equal(saves, 1)
+})
+
+test('designer suspends entry without losing unsaved data and restores it when closed', () => {
+  const entered = { personCode: 'unsaved-entry' }, displayed = { personCode: 'display-record' }
+  let current = entered
+  const context = {
+    draft: entered, defaultPersonDraft: displayed, entryDraftBaseline: { current: displayed },
+    designerEntrySnapshot: { current: null }, dataEntryActiveRef: { current: true }, designerOpenRef: { current: false }, designerOpen: false,
+    editingBaseline: { current: null }, history: { present: emptyDesignerDraft(formId) },
+    formGridRef: { current: { querySelectorAll: () => [{ setCustomValidity: value => assert.equal(value, '') }] } },
+    updateDraft: next => { current = next }, setDataEntryActive: value => { context.active = value },
+    setFrozenCanvas: () => {}, setDesignerOpen: update => { context.designerOpen = update(context.designerOpen) }
+  }
+  const open = runInNewContext(stripTypeScriptTypes(page.slice(page.indexOf('  const restoreDesignerEntry ='), page.indexOf('  const cancelDesigner ='))) + '\nopenDesigner', context)
+  open()
+  assert.equal(current, displayed)
+  assert.equal(context.dataEntryActiveRef.current, false)
+  assert.equal(context.active, false)
+  assert.equal(context.designerEntrySnapshot.current, entered)
+  assert.equal(context.history.present.formId, formId)
+  open()
+  assert.equal(current, entered)
+  assert.equal(context.dataEntryActiveRef.current, true)
+  assert.equal(context.designerEntrySnapshot.current, null)
+})
+
+test('field validation is inactive during design and display but remains active during entry', () => {
+  let checks = 0
+  const context = { designerOpenRef: { current: true }, dataEntryActiveRef: { current: true },
+    laboratoryDefinition: { fields: [{ id: 'firstName', required: true }] } }
+  const validate = runInNewContext(stripTypeScriptTypes(page.slice(page.indexOf('  const validateRequiredField ='), page.indexOf('  const validateRequiredFields ='))) + '\nvalidateRequiredField', context)
+  const control = { setCustomValidity: () => {}, checkValidity: () => { checks++; return true } }
+  assert.equal(validate('firstName', control), true)
+  context.designerOpenRef.current = false; context.dataEntryActiveRef.current = false
+  assert.equal(validate('firstName', control), true)
+  assert.equal(checks, 0)
+  context.dataEntryActiveRef.current = true
+  assert.equal(validate('firstName', control), true)
+  assert.equal(checks, 1)
+})
+
+test('table header height persists and its designer controls render live font styles without the blank color modal', () => {
+  const draft = setDesignerTableHeaderHeight(emptyDesignerDraft(formId), 58)
+  assert.equal(draft.tableHeaderHeight, 58)
+  assert.equal(validateDesignerDraft(draft, formId, ids).tableHeaderHeight, 58)
+  assert.equal(setDesignerTableHeaderHeight(draft, 121), draft)
+  assert.match(page, /gridFormatDialog\?\.mode === 'font'/)
+  assert.match(page, /gridFormatDialog\?\.mode === 'color'/)
+  assert.match(page, /onDesignerHeaderHeightChange=\{updateTableHeaderHeight\}/)
+  assert.match(page, /setTableStyle\(next, id, 'italic', dialog\.italic\)/)
+  assert.doesNotMatch(page, /fontSynthesis:\s*'none'/)
+})
 
 test('picker has one navigation state: each Back moves one stage and More always starts Standard', () => {
   const navigate = pickerMath.colorPickerNavigation
@@ -126,7 +198,8 @@ test('context targeting preserves included parts, groups and stable action IDs w
 
 test('context actions use existing panel controls and exclude incompatible color or sizing targets', () => {
   assert.match(page, /onContextMenu=\{openContextMenu\}/)
-  assert.match(page, /createPortal\(<div ref=\{contextMenuRef\}/)
+  assert.match(page, /createPortal\(<><div ref=\{contextMenuRef\}/)
+  assert.match(page, /<div ref=\{contextSubmenuRef\}/)
   assert.match(page, /if \(!action && !field\) \{ setContextMenu\(null\); return \}/)
   assert.match(page, /selection.every\(key => !key.endsWith\('::label'\)\)/)
   assert.match(page, /contextMenu.part !== 'label'/)
@@ -225,7 +298,7 @@ test('palette hover and confirmed colors remain visible on disabled laboratory p
   assert.match(page, /setColorPreviewDraft\(setDesignerColorProperty\(historyRef\.current\.present,/)
   assert.match(page, /const partStyle = .*designerStyleForPart\(visibleDraft, id, part\)/)
   assert.match(theme, /background:var\(--lab-disabled,var\(--lab-bg,var\(--form-disabled-fill\)\)\)/)
-  assert.match(theme, /\.form-laboratory-page\[data-designer-active="true"\] \.laboratory-designer-field:not\(\.laboratory-shared-contact\) :is\(input,select,textarea\):disabled \{\s*background:var\(--lab-bg,/)
+  assert.match(theme, /#root \.form-laboratory-page:not\(\[data-entry-active\]\) \.laboratory-designer-field:not\(\.laboratory-shared-contact\) \.designer-input-part>:is\(input,select,textarea\) \{\s*background-color:var\(--lab-bg,/)
   assert.match(theme, /\.laboratory-shared-contact \.designer-input-part \.person-number-control \{\s*background:var\(--lab-bg,/)
 })
 

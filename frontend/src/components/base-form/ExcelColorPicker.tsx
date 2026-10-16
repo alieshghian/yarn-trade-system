@@ -16,6 +16,7 @@ type Props = {
   autoOpen?: boolean
   onCommit: (value: ColorValue) => void
   onPreview?: (value: ColorValue | null) => void
+  onCancel?: () => void
 }
 
 // Colors sampled from the user's Excel reference; each column contains its base and five shades.
@@ -199,7 +200,7 @@ export function colorPickerNavigation(stage: PickerStage, action: 'open' | 'more
   return 'closed'
 }
 
-export function ExcelColorPicker({ language, label, value, disabled = false, mixed = false, autoOpen = false, onCommit, onPreview }: Props) {
+export function ExcelColorPicker({ language, label, value, disabled = false, mixed = false, autoOpen = false, onCommit, onPreview, onCancel }: Props) {
   const fa = language === 'fa'
   const zh = language === 'zh'
   const word = (faText: string, enText: string, zhText: string) => fa ? faText : zh ? zhText : enText
@@ -277,6 +278,7 @@ export function ExcelColorPicker({ language, label, value, disabled = false, mix
     previewActive.current = false
     setProposed(colorProposal(original))
     onPreview?.(null)
+    onCancel?.()
     navigate('close')
     if (activePickerToken === pickerToken.current) activePickerToken = null
   }

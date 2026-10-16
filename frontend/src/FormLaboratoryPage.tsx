@@ -14,7 +14,7 @@ import { ExcelColorPicker } from './components/base-form/ExcelColorPicker'
 import { laboratoryDatasetSizes, type SyntheticPerson } from './components/base-form/syntheticPersons'
 import { apiRequest } from './api'
 import { gridValueKey, type GridPage, type GridQuery } from './components/base-form/excelGrid'
-import { alignCanvasFields, designerActionCode, designerActionLabel, designerActionTextStyle, designerAppearanceStyle, existingCanvasCollisions, fieldGroupRect, moveCanvasFields, resizeCanvasHandle, designerResizeHandles, type DesignerResizeHandle, translateCanvasField, validateCanvasArrangement, captureDesignerPointer, designerStyleForPart, layoutDesignerFields, loadDesignerDraft, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerActionText, setDesignerActionTextProperty, setDesignerAppearanceProperty, setDesignerButtonPressEffect, setDesignerFilterPopupFontSize, setDesignerGridSearchPosition, setDesignerTableColumnStyle, setDesignerTableHeaderStyle, setDesignerTableFont, setDesignerProperty, stopDesignerHandleClick, type DesignerActionTextPart, type DesignerAppearanceProperty, type DesignerDraft, type DesignerCanvas, type DesignerRect, type DesignerAlignment, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './components/base-form/designer'
+import { alignCanvasFields, designerActionCode, designerActionLabel, designerActionTextStyle, designerAppearanceStyle, existingCanvasCollisions, fieldGroupRect, moveCanvasFields, resizeCanvasHandle, designerResizeHandles, type DesignerResizeHandle, translateCanvasField, validateCanvasArrangement, captureDesignerPointer, designerStyleForPart, layoutDesignerFields, loadDesignerDraft, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerActionText, setDesignerActionTextProperty, setDesignerAppearanceProperty, setDesignerButtonPressEffect, setDesignerFilterPopupFontSize, setDesignerGridSearchPosition, setDesignerTableColumnStyle, setDesignerTableHeaderStyle, setDesignerTableHeaderHeight, setDesignerTableFont, setDesignerProperty, stopDesignerHandleClick, type DesignerActionTextPart, type DesignerAppearanceProperty, type DesignerDraft, type DesignerCanvas, type DesignerRect, type DesignerAlignment, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './components/base-form/designer'
 import type { BaseFormDefinition } from './components/base-form/types'
 import type { Language } from './i18n'
 import { designerActionVisible, designerShortcutAction, setDesignerActionVisibility } from './components/base-form/designer'
@@ -114,6 +114,30 @@ function loadLaboratoryDraft(userId?: string): DesignerDraft {
     return next
   } catch { return stored }
 }
+function loadLaboratoryColorBaseline(userId?: string): DesignerDraft {
+  const stored = loadLaboratoryDraft(userId)
+  let storage: Storage | undefined
+  try { storage = window.localStorage } catch { /* Use the corrected session palette without storage. */ }
+  const key = `yarn-trade:form-lab-field-palette:v1:${encodeURIComponent(userId ?? '')}:${laboratoryDefinition.id}`
+  try { if (userId && storage?.getItem(key) === 'restored') return stored } catch { /* Restore only the field fills below. */ }
+  const clearFill = (values: DesignerDraft['overrides'][string] = {}) => {
+    const { backgroundColor: _background, disabledColor: _disabled, componentAddBackground: _add, ...rest } = values
+    return rest
+  }
+  const overrides = Object.fromEntries(Object.entries(stored.overrides).map(([id, values]) => [id, id.endsWith('::label') ? values : clearFill(values)]))
+  const next: DesignerDraft = {
+    ...stored, overrides,
+    defaults: { ...stored.defaults, input: { ...clearFill(stored.defaults?.input), backgroundColor: '#f4f6f5' } },
+    appearance: { ...stored.appearance, entryFieldBackground: '#d8d8d8' }
+  }
+  if (userId && storage) {
+    try {
+      if (!storage.getItem(`${key}:previous-draft`)) storage.setItem(`${key}:previous-draft`, JSON.stringify(stored))
+      if (saveDesignerDraft(storage, userId, laboratoryDefinition.id, next, fieldIds)) storage.setItem(key, 'restored')
+    } catch { /* Keep the corrected session usable if persistence is blocked. */ }
+  }
+  return next
+}
 const previewWidths = { desktop: 1440, tablet: 768, mobile: 390 } as const
 type PreviewDevice = keyof typeof previewWidths
 type PreviewFramePreferences = { device: PreviewDevice, width: number, height: number | null, fitToPage: boolean }
@@ -165,9 +189,16 @@ const jobLabels: Record<(typeof jobOptionIds)[number], Record<Language, string>>
   customer: { fa: 'مشتری', en: 'Customer', zh: '客户' }, seller: { fa: 'فروشنده', en: 'Seller', zh: '销售方' },
   supplier: { fa: 'تأمین‌کننده', en: 'Supplier', zh: '供应商' }, partner: { fa: 'شریک', en: 'Partner', zh: '合作伙伴' }
 }
+// Browser font synthesis supplies these faces when an installed family lacks a separate font file.
+const gridFontStyleSupport: Record<string, { bold: boolean; italic: boolean }> = Object.fromEntries(
+  ['inherit', 'vazirmatn', 'tahoma', 'segoe', 'arial', 'naskh', 'aptos', 'calibri', 'cambria', 'consolas', 'courier', 'georgia', 'times', 'verdana'].map(family => [family, { bold: true, italic: true }])
+)
 
 export default function FormLaboratoryPage({ language, authenticatedUserId }: { language: Language, authenticatedUserId?: string }) {
   const fa = language === 'fa'
+  const gridWord = (faText: string, enText: string, zhText: string) => fa ? faText : language === 'zh' ? zhText : enText
+  const gridFonts = [['inherit', 'پیش‌فرض', 'Default', '默认'], ['vazirmatn', 'وزیرمتن', 'Vazirmatn', 'Vazirmatn'], ['tahoma', 'Tahoma', 'Tahoma', 'Tahoma'], ['segoe', 'Segoe UI', 'Segoe UI', 'Segoe UI'], ['arial', 'Arial', 'Arial', 'Arial'], ['naskh', 'نسخ', 'Naskh', 'Naskh'], ['aptos', 'Aptos', 'Aptos', 'Aptos'], ['calibri', 'Calibri', 'Calibri', 'Calibri'], ['cambria', 'Cambria', 'Cambria', 'Cambria'], ['consolas', 'Consolas', 'Consolas', 'Consolas'], ['courier', 'Courier New', 'Courier New', 'Courier New'], ['georgia', 'Georgia', 'Georgia', 'Georgia'], ['times', 'Times New Roman', 'Times New Roman', 'Times New Roman'], ['verdana', 'Verdana', 'Verdana', 'Verdana']] as const
+  const gridFontSizes = [8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72]
   const [datasetSize, setDatasetSize] = useState<(typeof laboratoryDatasetSizes)[number]>(100000)
   const [labTitleSettings, setLabTitleSettings] = useState<LaboratoryTitleSettings>(readLaboratoryTitleSettings)
   const labTitles = labTitleSettings.options
@@ -216,10 +247,11 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const [selectedPerson, setSelectedPerson] = useState<SyntheticPerson | null>(null)
   const [gridRecordCount, setGridRecordCount] = useState(0)
   const entryDraftBaseline = useRef<typeof defaultPersonDraft | null>(null)
+  const designerEntrySnapshot = useRef<typeof defaultPersonDraft | null>(null)
   const runActionRef = useRef<(id: string) => void>(() => {})
   const { history, dispatchHistory, historyRef, setPreviewDraft: setColorPreviewDraft, visibleDraft, editingBaseline, save: saveSessionDraft, undo: undoHistory, redo: redoHistory } = useDesignerSession({
     formId: laboratoryDefinition.id, fieldIds, userId: authenticatedUserId,
-    initialDraftLoader: ({ userId }) => loadLaboratoryDraft(userId)
+    initialDraftLoader: ({ userId }) => loadLaboratoryColorBaseline(userId)
   })
   const [designerOpen, setDesignerOpen] = useState(false)
   const [formsManagerOpen, setFormsManagerOpen] = useState(false)
@@ -388,8 +420,14 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const [actionSelection, setActionSelection] = useState<string[]>([])
   const [contextMenu, setContextMenu] = useState<{ left: number, top: number, part: 'input' | 'label' | 'action' | 'grid', gridTarget?: 'header' | 'row' | 'search', columnId?: string } | null>(null)
   const [gridSubmenu, setGridSubmenu] = useState<'header' | 'column' | null>(null)
-  const [gridFormatDialog, setGridFormatDialog] = useState<null | { scope: 'header' | 'column'; mode: 'font' | 'color'; id: string; label: string; base: DesignerDraft; fontFamily: string; fontSize: number; bold: boolean; color: string; colorProperty: 'textColor' | 'backgroundColor' | 'borderColor' }>(null)
-  const [selectedTableColumnId, setSelectedTableColumnId] = useState<string>()
+  const [gridFormatDialog, setGridFormatDialogState] = useState<null | { scope: 'header' | 'column' | 'field' | 'label' | 'action'; mode: 'font' | 'color'; id: string; targetIds?: string[]; actionPart?: DesignerActionTextPart | 'button'; label: string; base: DesignerDraft; fontFamily: string; fontSize: number; bold: boolean; italic: boolean; underline: 'none' | 'single' | 'double'; strikeThrough: boolean; script: 'none' | 'superscript' | 'subscript'; normalFont: boolean; color: string; colorProperty: 'textColor' | 'backgroundColor' | 'borderColor' }>(null)
+  const latestGridFormatDialog = useRef(gridFormatDialog)
+  const setGridFormatDialog = (next: typeof gridFormatDialog) => { latestGridFormatDialog.current = next; setGridFormatDialogState(next) }
+  const [selectedTableColumnIds, setSelectedTableColumnIds] = useState<string[]>([])
+  const [headerStyleScope, setHeaderStyleScope] = useState<'selected' | 'all'>('selected')
+  const [gridFormatDialogOffset, setGridFormatDialogOffset] = useState({ x: 0, y: 0 })
+  const gridFormatDialogRef = useRef<HTMLElement | null>(null)
+  const gridFormatDialogDrag = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number; baseLeft: number; baseTop: number; width: number; height: number } | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const contextSubmenuRef = useRef<HTMLDivElement>(null)
   const [propertyRequest, setPropertyRequest] = useState<DesignerPropertyRequest>()
@@ -483,6 +521,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const requestProperty = (section: DesignerPropertyRequest['section'], property?: DesignerPropertyRequest['property']) => {
     setContextMenu(null)
     setGridSubmenu(null)
+    if (section === 'font') { openSelectedTextFormatDialog(); return }
     setPropertyRequest(current => ({ sequence: (current?.sequence ?? 0) + 1, section, property }))
   }
   useEffect(() => {
@@ -571,43 +610,102 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const updateFilterPopupFontSize = (value: number) => { dispatchHistory({ type: 'change', draft: setDesignerFilterPopupFontSize(historyRef.current.present, value) }); setSaveStatus('') }
   const updateGridSearchPosition = (value: GridSearchPosition) => { dispatchHistory({ type: 'change', draft: setDesignerGridSearchPosition(historyRef.current.present, value) }); setSaveStatus('') }
   const updateTableFont = (property: 'family' | 'size', value: string | number) => { dispatchHistory({ type: 'change', draft: setDesignerTableFont(historyRef.current.present, property, value) }); setSaveStatus('') }
-  const updateTableColumnStyle = (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => { dispatchHistory({ type: 'change', draft: setDesignerTableColumnStyle(historyRef.current.present, id, property, value) }); setSaveStatus('') }
-  const updateTableHeaderStyle = (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'borderColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => { dispatchHistory({ type: 'change', draft: setDesignerTableHeaderStyle(historyRef.current.present, id, property, value) }); setSaveStatus('') }
-  const previewTableStyleColor = (target: 'column' | 'header', id: string, color: string | undefined | null, property: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => { const update = (draft: DesignerDraft) => target === 'column' ? setDesignerTableColumnStyle(draft, id, 'textColor', color ?? undefined) : setDesignerTableHeaderStyle(draft, id, property, color ?? undefined); setColorPreviewDraft(color == null ? null : update(historyRef.current.present)) }
-  const commitTableStyleColor = (target: 'column' | 'header', id: string, color: string | undefined, property: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => { setColorPreviewDraft(null); dispatchHistory({ type: 'change', draft: target === 'column' ? setDesignerTableColumnStyle(historyRef.current.present, id, 'textColor', color) : setDesignerTableHeaderStyle(historyRef.current.present, id, property, color) }); setSaveStatus('') }
-  const previewTableColumnBackgroundColor = (id: string, color: string | undefined | null) => setColorPreviewDraft(color == null ? null : setDesignerTableColumnStyle(historyRef.current.present, id, 'backgroundColor', color))
-  const commitTableColumnBackgroundColor = (id: string, color: string | undefined) => { setColorPreviewDraft(null); dispatchHistory({ type: 'change', draft: setDesignerTableColumnStyle(historyRef.current.present, id, 'backgroundColor', color) }); setSaveStatus('') }
+  const updateTableHeaderHeight = (height: number, phase: 'start' | 'change' | 'end') => {
+    if (phase === 'start') { dispatchHistory({ type: 'beginTransaction' }); return }
+    if (phase === 'end') { dispatchHistory({ type: 'commitTransaction' }); return }
+    dispatchHistory({ type: 'change', draft: setDesignerTableHeaderHeight(historyRef.current.present, height) }); setSaveStatus('')
+  }
+  const setTableHeaderHeight = (height: number) => { dispatchHistory({ type: 'change', draft: setDesignerTableHeaderHeight(historyRef.current.present, height) }); setSaveStatus('') }
+  const updateTableColumnStyle = (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => { let next = historyRef.current.present; for (const target of selectedTableColumnIds.includes(id) ? selectedTableColumnIds : [id]) next = setDesignerTableColumnStyle(next, target, property, value); dispatchHistory({ type: 'change', draft: next }); setSaveStatus('') }
+  const updateTableHeaderStyle = (id: string, property: 'bold' | 'textColor' | 'backgroundColor' | 'borderColor' | 'fontFamily' | 'fontSize', value: string | number | boolean | undefined) => { let next = historyRef.current.present; for (const target of activeGridHeaderIds(id)) next = setDesignerTableHeaderStyle(next, target, property, value); dispatchHistory({ type: 'change', draft: next }); setSaveStatus('') }
+  const previewTableStyleColor = (target: 'column' | 'header', id: string, color: string | undefined | null, property: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => { let next = historyRef.current.present; const ids = target === 'header' ? activeGridHeaderIds(id) : selectedTableColumnIds.includes(id) ? selectedTableColumnIds : [id]; for (const targetId of ids) next = target === 'column' ? setDesignerTableColumnStyle(next, targetId, property === 'backgroundColor' ? 'backgroundColor' : 'textColor', color ?? undefined) : setDesignerTableHeaderStyle(next, targetId, property, color ?? undefined); setColorPreviewDraft(color == null ? null : next) }
+  const commitTableStyleColor = (target: 'column' | 'header', id: string, color: string | undefined, property: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => { setColorPreviewDraft(null); let next = historyRef.current.present; const ids = target === 'header' ? activeGridHeaderIds(id) : selectedTableColumnIds.includes(id) ? selectedTableColumnIds : [id]; for (const targetId of ids) next = target === 'column' ? setDesignerTableColumnStyle(next, targetId, property === 'backgroundColor' ? 'backgroundColor' : 'textColor', color) : setDesignerTableHeaderStyle(next, targetId, property, color); dispatchHistory({ type: 'change', draft: next }); setSaveStatus('') }
+  const previewTableColumnBackgroundColor = (id: string, color: string | undefined | null) => { let next = historyRef.current.present; for (const target of selectedTableColumnIds.includes(id) ? selectedTableColumnIds : [id]) next = setDesignerTableColumnStyle(next, target, 'backgroundColor', color ?? undefined); setColorPreviewDraft(color == null ? null : next) }
+  const commitTableColumnBackgroundColor = (id: string, color: string | undefined) => { setColorPreviewDraft(null); let next = historyRef.current.present; for (const target of selectedTableColumnIds.includes(id) ? selectedTableColumnIds : [id]) next = setDesignerTableColumnStyle(next, target, 'backgroundColor', color); dispatchHistory({ type: 'change', draft: next }); setSaveStatus('') }
   const buildGridFormatDraft = (dialog: NonNullable<typeof gridFormatDialog>) => {
     let next = dialog.base
     if (dialog.mode === 'font') {
-      if (dialog.scope === 'column') {
-        next = setDesignerTableColumnStyle(next, dialog.id, 'fontFamily', dialog.fontFamily === 'inherit' ? undefined : dialog.fontFamily)
-        next = setDesignerTableColumnStyle(next, dialog.id, 'fontSize', dialog.fontSize)
-        next = setDesignerTableColumnStyle(next, dialog.id, 'bold', dialog.bold)
+      if (dialog.scope === 'column' || dialog.scope === 'header') {
+        const setTableStyle = dialog.scope === 'column' ? setDesignerTableColumnStyle : setDesignerTableHeaderStyle
+        for (const id of dialog.targetIds ?? [dialog.id]) {
+          next = setTableStyle(next, id, 'fontFamily', dialog.fontFamily === 'inherit' ? undefined : dialog.fontFamily)
+          next = setTableStyle(next, id, 'fontSize', dialog.fontSize)
+          next = setTableStyle(next, id, 'bold', dialog.bold)
+          next = setTableStyle(next, id, 'italic', dialog.italic)
+          next = setTableStyle(next, id, 'underline', dialog.underline === 'none' ? undefined : dialog.underline)
+          next = setTableStyle(next, id, 'strikeThrough', dialog.strikeThrough)
+          next = setTableStyle(next, id, 'script', dialog.script === 'none' ? undefined : dialog.script)
+        }
+      } else if (dialog.scope === 'action') {
+        const setActionStyle = (property: DesignerProperty, value: string | number | boolean | undefined) => {
+          next = dialog.actionPart && dialog.actionPart !== 'button'
+            ? setDesignerActionTextProperty(next, dialog.targetIds ?? [], dialog.actionPart, property, value)
+            : setDesignerActionProperty(next, dialog.targetIds ?? [], property, value)
+        }
+        setActionStyle('fontFamily', dialog.fontFamily === 'inherit' ? undefined : dialog.fontFamily)
+        setActionStyle('fontSize', dialog.fontSize)
+        setActionStyle('bold', dialog.bold)
+        setActionStyle('italic', dialog.italic)
+        setActionStyle('underline', dialog.underline === 'none' ? undefined : dialog.underline)
+        setActionStyle('strikeThrough', dialog.strikeThrough)
+        setActionStyle('script', dialog.script === 'none' ? undefined : dialog.script)
       } else {
-        next = setDesignerTableHeaderStyle(next, dialog.id, 'fontFamily', dialog.fontFamily === 'inherit' ? undefined : dialog.fontFamily)
-        next = setDesignerTableHeaderStyle(next, dialog.id, 'fontSize', dialog.fontSize)
-        next = setDesignerTableHeaderStyle(next, dialog.id, 'bold', dialog.bold)
+        const setFieldStyle = (property: DesignerProperty, value: string | number | boolean | undefined) => { next = setDesignerProperty(next, dialog.targetIds ?? [dialog.id], property, value, fieldIds) }
+        setFieldStyle('fontFamily', dialog.fontFamily === 'inherit' ? undefined : dialog.fontFamily)
+        setFieldStyle('fontSize', dialog.fontSize)
+        setFieldStyle('bold', dialog.bold)
+        setFieldStyle('italic', dialog.italic)
+        setFieldStyle('underline', dialog.underline === 'none' ? undefined : dialog.underline)
+        setFieldStyle('strikeThrough', dialog.strikeThrough)
+        setFieldStyle('script', dialog.script === 'none' ? undefined : dialog.script)
       }
     }
-    return dialog.scope === 'column'
-      ? setDesignerTableColumnStyle(next, dialog.id, 'textColor', dialog.color)
-      : setDesignerTableHeaderStyle(next, dialog.id, dialog.colorProperty, dialog.color)
+    if (dialog.scope === 'column') { for (const id of dialog.targetIds ?? [dialog.id]) next = setDesignerTableColumnStyle(next, id, dialog.colorProperty === 'backgroundColor' ? 'backgroundColor' : 'textColor', dialog.color); return next }
+    if (dialog.scope === 'header') { for (const id of dialog.targetIds ?? [dialog.id]) next = setDesignerTableHeaderStyle(next, id, dialog.colorProperty, dialog.color); return next }
+    if (dialog.scope === 'action') return dialog.actionPart && dialog.actionPart !== 'button'
+      ? setDesignerActionTextProperty(next, dialog.targetIds ?? [], dialog.actionPart, 'textColor', dialog.color)
+      : setDesignerActionProperty(next, dialog.targetIds ?? [], 'textColor', dialog.color)
+    return setDesignerProperty(next, dialog.targetIds ?? [dialog.id], 'textColor', dialog.color, fieldIds)
   }
-  const openGridFormatDialog = (scope: 'header' | 'column', id: string, label: string, mode: 'font' | 'color', colorProperty: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => {
+  const previewGridFormatColor = (color: string | undefined | null) => {
+    const dialog = latestGridFormatDialog.current
+    if (!dialog || (dialog.mode === 'color' && color === null)) { setColorPreviewDraft(null); return }
+    setColorPreviewDraft(buildGridFormatDraft(color == null ? dialog : { ...dialog, color }))
+  }
+  const openGridFormatDialog = (scope: 'header' | 'column', columnIds: string | string[], label: string, mode: 'font' | 'color', colorProperty: 'textColor' | 'backgroundColor' | 'borderColor' = 'textColor') => {
+    const targetIds = [...new Set(typeof columnIds === 'string' ? [columnIds] : columnIds)]
+    if (!targetIds.length) return
+    const id = targetIds[0]
     const base = historyRef.current.present
     const style = scope === 'column' ? base.tableColumns?.[id] : base.tableHeaders?.[id]
     const fallbackColor = colorProperty === 'backgroundColor' ? '#f7f9f7' : colorProperty === 'borderColor' ? '#dfe7e3' : '#263a38'
-    const currentColor = scope === 'header' ? base.tableHeaders?.[id]?.[colorProperty] : base.tableColumns?.[id]?.textColor
-    const next = { scope, id, label, mode, base, fontFamily: style?.fontFamily ?? 'inherit', fontSize: style?.fontSize ?? base.tableFont?.size ?? 13, bold: style?.bold ?? false, color: currentColor ?? fallbackColor, colorProperty }
-    setContextMenu(null); setGridSubmenu(null); setGridFormatDialog(next); setColorPreviewDraft(buildGridFormatDraft(next))
+    const currentColor = scope === 'header' ? base.tableHeaders?.[id]?.[colorProperty] : base.tableColumns?.[id]?.[colorProperty === 'backgroundColor' ? 'backgroundColor' : 'textColor']
+    const next = { scope, id, targetIds, label: targetIds.length > 1 ? `${label} (+${targetIds.length - 1})` : label, mode, base, fontFamily: style?.fontFamily ?? 'inherit', fontSize: style?.fontSize ?? base.tableFont?.size ?? 13, bold: style?.bold ?? false, italic: style?.italic ?? false, underline: (style?.underline ?? 'none') as 'none' | 'single' | 'double', strikeThrough: style?.strikeThrough ?? false, script: (style?.script ?? 'none') as 'none' | 'superscript' | 'subscript', normalFont: false, color: currentColor ?? fallbackColor, colorProperty }
+    setGridFormatDialogOffset({ x: 0, y: 0 }); setContextMenu(null); setGridSubmenu(null); setGridFormatDialog(next); setColorPreviewDraft(buildGridFormatDraft(next))
+  }
+  const openTextFormatDialog = (scope: 'field' | 'label' | 'action', label: string, actionPart: DesignerActionTextPart | 'button' = 'button') => {
+    const base = historyRef.current.present
+    const targetIds = scope === 'action' ? actionSelection : [...new Set((applyToAll ? fieldIds : selection).map(id => scope === 'label' && !id.endsWith('::label') ? `${id.split('::')[0]}::label` : id))]
+    if (!targetIds.length) return
+    const id = targetIds[0]
+    const style = scope === 'action' && actionPart !== 'button' ? base.actions?.[id]?.textStyles?.[actionPart] : scope === 'action' ? base.actions?.[id] : base.overrides[id]
+    const next = { scope, id, targetIds, actionPart, label, mode: 'font' as const, base, fontFamily: String(style?.fontFamily ?? 'inherit'), fontSize: Number(style?.fontSize ?? 13), bold: Boolean(style?.bold), italic: Boolean(style?.italic), underline: (style?.underline ?? 'none') as 'none' | 'single' | 'double', strikeThrough: Boolean(style?.strikeThrough), script: (style?.script ?? 'none') as 'none' | 'superscript' | 'subscript', normalFont: false, color: String(style?.textColor ?? '#263a38'), colorProperty: 'textColor' as const }
+    setGridFormatDialogOffset({ x: 0, y: 0 }); setContextMenu(null); setGridSubmenu(null); setGridFormatDialog(next); setColorPreviewDraft(buildGridFormatDraft(next))
+  }
+  const openSelectedTextFormatDialog = (actionPart: DesignerActionTextPart | 'button' = 'button') => {
+    if (actionSelection.length) return openTextFormatDialog('action', laboratoryDefinition.actions?.find(action => action.id === actionSelection[0])?.label[language] ?? '', actionPart)
+    const target = selection[0]
+    if (!target) return
+    const labelTarget = target.endsWith('::label') || contextMenu?.part === 'label'
+    const fieldId = target.split('::')[0]
+    openTextFormatDialog(labelTarget ? 'label' : 'field', labels[fieldId]?.[language] ?? fieldId)
   }
   const updateGridFormatDialog = (patch: Partial<NonNullable<typeof gridFormatDialog>>) => {
     if (!gridFormatDialog) return
-    const next = { ...gridFormatDialog, ...patch }
+    const next = { ...gridFormatDialog, ...patch, normalFont: patch.normalFont ?? (Object.keys(patch).some(key => key !== 'normalFont') ? false : gridFormatDialog.normalFont) }
     setGridFormatDialog(next); setColorPreviewDraft(buildGridFormatDraft(next))
   }
-  const cancelGridFormatDialog = () => { setColorPreviewDraft(null); setGridFormatDialog(null) }
+  const cancelGridFormatDialog = () => { setColorPreviewDraft(null); setGridFormatDialog(null); setGridFormatDialogOffset({ x: 0, y: 0 }); gridFormatDialogDrag.current = null }
   const applyGridFormatDialog = () => { if (!gridFormatDialog) return; dispatchHistory({ type: 'change', draft: buildGridFormatDraft(gridFormatDialog) }); setColorPreviewDraft(null); setGridFormatDialog(null); setSaveStatus('') }
   const handleGridFormatColorCommit = (color: string | undefined) => {
     if (!gridFormatDialog) return
@@ -615,8 +713,8 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     if (next.mode === 'color') { dispatchHistory({ type: 'change', draft: buildGridFormatDraft(next) }); setColorPreviewDraft(null); setGridFormatDialog(null); setSaveStatus('') }
     else updateGridFormatDialog({ color: next.color })
   }
-  const selectGridDesignerColumn = (columnId: string) => setSelectedTableColumnId(columnId)
-  const openGridDesignerContextMenu = (target: 'header' | 'row' | 'search', columnId: string | undefined, left: number, top: number) => { if (!designerOpen) return; setSelectedTableColumnId(columnId); setGridSubmenu(null); setContextMenu({ left, top, part: 'grid', gridTarget: target, columnId }) }
+  const selectGridDesignerColumn = (columnId: string, toggle: boolean) => setSelectedTableColumnIds(current => toggle ? current.includes(columnId) ? current.filter(id => id !== columnId) : [...current, columnId] : [columnId])
+  const openGridDesignerContextMenu = (target: 'header' | 'row' | 'search', columnId: string | undefined, left: number, top: number) => { if (!designerOpen) return; if (columnId) setSelectedTableColumnIds(current => current.includes(columnId) ? current : [columnId]); else setSelectedTableColumnIds([]); setGridSubmenu(null); setContextMenu({ left, top, part: 'grid', gridTarget: target, columnId }) }
   const commitActionColor = (property: DesignerProperty, value: DesignerValue | undefined) => {
     setColorPreviewDraft(null)
     if (propertyCommitTimer.current !== null) { window.clearTimeout(propertyCommitTimer.current); propertyCommitTimer.current = null; dispatchHistory({ type: 'commitTransaction' }) }
@@ -649,6 +747,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     return action.id === 'demo-save' || (['edit-person', 'delete-person', 'first-record', 'last-record', 'previous-page', 'next-page', 'browse-records'].includes(action.id) && gridRecordCount === 0)
   }
   const validateRequiredField = (id: string, control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement) => {
+    if (designerOpenRef.current || !dataEntryActiveRef.current) { control.setCustomValidity(''); return true }
     const field = laboratoryDefinition.fields.find(item => item.id === id)
     if (!field?.required) return true
     control.setCustomValidity('')
@@ -685,7 +784,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     dataEntryActiveRef.current = true
     setDataEntryActive(true)
     updateDraft(nextDraft)
-    requestAnimationFrame(() => formGridRef.current?.querySelector<HTMLInputElement>('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus())
+    requestAnimationFrame(() => { if (dataEntryActiveRef.current && !designerOpenRef.current) formGridRef.current?.querySelector<HTMLInputElement>('input:not([disabled]), select:not([disabled]), textarea:not([disabled])')?.focus() })
   }
   const runAction = (id: string, key?: string) => {
     const action = laboratoryDefinition.actions?.find(item => item.id === id)
@@ -742,7 +841,24 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     }
   }
   runActionRef.current = runAction
+  const restoreDesignerEntry = () => {
+    if (!designerEntrySnapshot.current) return
+    updateDraft(designerEntrySnapshot.current)
+    designerEntrySnapshot.current = null
+    dataEntryActiveRef.current = true
+    setDataEntryActive(true)
+  }
   const openDesigner = () => {
+    if (!designerOpen) {
+      designerOpenRef.current = true
+      if (dataEntryActiveRef.current) {
+        designerEntrySnapshot.current = draft
+        updateDraft(entryDraftBaseline.current ?? defaultPersonDraft)
+        dataEntryActiveRef.current = false
+        setDataEntryActive(false)
+      }
+      formGridRef.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea').forEach(control => control.setCustomValidity(''))
+    } else restoreDesignerEntry()
     if (!designerOpen && editingBaseline.current === null) editingBaseline.current = history.present
     setFrozenCanvas(null)
     setDesignerOpen(value => !value)
@@ -751,6 +867,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     if (editingBaseline.current) dispatchHistory({ type: 'replace', draft: editingBaseline.current })
     else dispatchHistory({ type: 'replace', draft: history.present })
     editingBaseline.current = null
+    restoreDesignerEntry()
     setDesignerOpen(false)
     setSaveStatus('')
   }
@@ -959,7 +1076,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     const fieldLabel = labels[id][language]
     return <div key={id} className={'laboratory-designer-field ' + layoutClass + (selection.some(key => key.startsWith(`${id}::`)) ? ' is-selected' : '')} data-field-id={id} style={canvas?.fields[id]?.error ? { '--canvas-error-left': canvas.fields[id].error!.left + 'px', '--canvas-error-top': canvas.fields[id].error!.top + 'px', '--canvas-error-width': canvas.fields[id].error!.width + 'px', '--canvas-error-height': canvas.fields[id].error!.height + 'px' } as CSSProperties : undefined} role="group" aria-label={fieldLabel}>
       <button type="button" className="laboratory-field-select" style={rectStyle(canvas?.fields[id]?.select)} aria-label={(fa ? 'انتخاب فیلد ' : language === 'zh' ? '选择字段 ' : 'Select field ') + fieldLabel} aria-pressed={selected} onClick={event => selectField(id, event)}>{selected ? '✓' : '+'}</button>
-      <Field label={fieldLabel} labelId={`laboratory-label-${id}`} labelContent={<span className={'designer-label-part' + (labelSelected ? ' designer-part-selected' : '')} style={partStyle(id, 'label')} onClick={event => { if (designerOpen) { event.stopPropagation(); if ((event.target as HTMLElement).closest('button')) { return } selectField(id, event, 'label') } }}>{fieldLabel}{required && <span aria-hidden="true"> *</span>}{labelSelected && <>{geometryEditable && <button type="button" className="designer-move-handle" aria-label="Move label" onClick={stopDesignerHandleClick} onPointerDown={event => beginFieldMove(event, `${id}::label`, 'label')}>↕</button>}<span className="designer-type-tools"><button type="button" aria-label="Decrease label font size" onClick={event => { event.stopPropagation(); updateDirectProperty(`${id}::label`, 'fontSize', Math.max(8, Number((history.present.overrides[`${id}::label`]?.fontSize ?? 14)) - 1)) }}>A−</button><button type="button" aria-label="Increase label font size" onClick={event => { event.stopPropagation(); updateDirectProperty(`${id}::label`, 'fontSize', Math.min(40, Number((history.present.overrides[`${id}::label`]?.fontSize ?? 14)) + 1)) }}>A+</button><button type="button" aria-label="Toggle label bold" onClick={event => { event.stopPropagation(); updateDirectProperty(`${id}::label`, 'bold', !(history.present.overrides[`${id}::label`]?.bold ?? false)) }}>B</button><ExcelColorPicker language={language} label="Label color" value={String(designerEffectiveValues(visibleDraft, id, 'label').textColor ?? getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() ?? '#71817e')} onPreview={value => previewColorProperty('labelColor', value, [`${id}::label`])} onCommit={value => commitColorProperty('labelColor', value, [`${id}::label`])} /></span></>}</span>} controlContent={<span className={'designer-input-part' + (inputSelected ? ' designer-part-selected' : '')} style={partStyle(id, 'input')} onClick={event => { if (designerOpen) { event.stopPropagation(); if ((event.target as HTMLElement).closest('button')) { return } event.preventDefault(); selectField(id, event, 'input') } }}>{React.isValidElement(control) ? React.cloneElement(control as React.ReactElement<any>, { style: { ...designerStyleForPart(visibleDraft, id, 'input') as CSSProperties, ...((control as React.ReactElement<{ style?: CSSProperties }>).props.style ?? {}) }, ...(typeof control.type === 'string' ? { 'data-field': id, ...(required ? { required: true, 'aria-required': true, onInput: (event: React.FormEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => event.currentTarget.setCustomValidity(''), onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => validateRequiredField(id, event.currentTarget) } : {}) } : { required, designerMode: designerOpen }) }) : control}{inputSelected && geometryEditable && <><button type="button" className="designer-move-handle" aria-label="Move input" onClick={stopDesignerHandleClick} onPointerDown={event => beginFieldMove(event, `${id}::input`, 'input')}>↕</button>{designerResizeHandles.map(edge => <button key={edge} type="button" className={`designer-edge-handle designer-edge-${edge}`} aria-label={`Resize input ${edge}`} title={fa ? `تغییر اندازه ${edge}؛ کلیدهای جهت‌دار، Shift برای ۱۰ پیکسل` : `Resize ${edge}: arrows; Shift for 10 pixels`} onKeyDown={event => handleInputResizeKey(event, id, edge)} onClick={stopDesignerHandleClick} onPointerDown={event => beginInputResize(event, id, edge)} />)}</>}</span>} error={error} style={designerStyleForPart(visibleDraft, id, 'field') as CSSProperties}>{control}</Field>
+      <Field label={fieldLabel} labelId={`laboratory-label-${id}`} labelContent={<span className={'designer-label-part' + (labelSelected ? ' designer-part-selected' : '')} style={partStyle(id, 'label')} onClick={event => { if (designerOpen) { event.stopPropagation(); if ((event.target as HTMLElement).closest('button')) { return } selectField(id, event, 'label') } }}>{fieldLabel}{required && <span aria-hidden="true"> *</span>}{labelSelected && <>{geometryEditable && <button type="button" className="designer-move-handle" aria-label="Move label" onClick={stopDesignerHandleClick} onPointerDown={event => beginFieldMove(event, `${id}::label`, 'label')}>↕</button>}<span className="designer-type-tools"><button type="button" aria-label="Decrease label font size" onClick={event => { event.stopPropagation(); updateDirectProperty(`${id}::label`, 'fontSize', Math.max(8, Number((history.present.overrides[`${id}::label`]?.fontSize ?? 14)) - 1)) }}>A−</button><button type="button" aria-label="Increase label font size" onClick={event => { event.stopPropagation(); updateDirectProperty(`${id}::label`, 'fontSize', Math.min(40, Number((history.present.overrides[`${id}::label`]?.fontSize ?? 14)) + 1)) }}>A+</button><button type="button" aria-label="Toggle label bold" onClick={event => { event.stopPropagation(); updateDirectProperty(`${id}::label`, 'bold', !(history.present.overrides[`${id}::label`]?.bold ?? false)) }}>B</button><ExcelColorPicker language={language} label="Label color" value={String(designerEffectiveValues(visibleDraft, id, 'label').textColor ?? getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() ?? '#71817e')} onPreview={value => previewColorProperty('labelColor', value, [`${id}::label`])} onCommit={value => commitColorProperty('labelColor', value, [`${id}::label`])} /></span></>}</span>} controlContent={<span className={'designer-input-part' + (inputSelected ? ' designer-part-selected' : '')} style={partStyle(id, 'input')} onClick={event => { if (designerOpen) { event.stopPropagation(); if ((event.target as HTMLElement).closest('button')) { return } event.preventDefault(); selectField(id, event, 'input') } }}>{React.isValidElement(control) ? React.cloneElement(control as React.ReactElement<any>, { style: { ...designerStyleForPart(visibleDraft, id, 'input') as CSSProperties, ...((control as React.ReactElement<{ style?: CSSProperties }>).props.style ?? {}) }, ...(typeof control.type === 'string' ? { 'data-field': id, ...(required ? { required: !designerOpen, 'aria-required': !designerOpen, onInput: (event: React.FormEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => event.currentTarget.setCustomValidity(''), onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => { if (!(event.relatedTarget instanceof Element && event.relatedTarget.closest('.laboratory-designer-toggle, .laboratory-designer-pane'))) validateRequiredField(id, event.currentTarget) } } : {}) } : { required, designerMode: designerOpen }) }) : control}{inputSelected && geometryEditable && <><button type="button" className="designer-move-handle" aria-label="Move input" onClick={stopDesignerHandleClick} onPointerDown={event => beginFieldMove(event, `${id}::input`, 'input')}>↕</button>{designerResizeHandles.map(edge => <button key={edge} type="button" className={`designer-edge-handle designer-edge-${edge}`} aria-label={`Resize input ${edge}`} title={fa ? `تغییر اندازه ${edge}؛ کلیدهای جهت‌دار، Shift برای ۱۰ پیکسل` : `Resize ${edge}: arrows; Shift for 10 pixels`} onKeyDown={event => handleInputResizeKey(event, id, edge)} onClick={stopDesignerHandleClick} onPointerDown={event => beginInputResize(event, id, edge)} />)}</>}</span>} error={error} style={designerStyleForPart(visibleDraft, id, 'field') as CSSProperties}>{control}</Field>
     </div>
   }
   const title = fa ? 'آزمایشگاه فرم‌ها' : language === 'zh' ? '表单实验室' : 'Form Laboratory'
@@ -976,7 +1093,31 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const contextColors = contextMenu?.part === 'action' || (contextMenu?.part === 'input' ? contextInputs : contextLabels)
   const contextSize = contextMenu?.part === 'action' || (contextMenu?.part === 'input' && contextInputs)
   const contextLayout = !actionSelection.length && contextInputs && selectedDesignerInputs(selection, fieldIds).length > 1 && Boolean(canvas)
+  const selectedTableColumnId = selectedTableColumnIds[0]
   const selectedTableColumn = selectedTableColumnId ? columns.find(column => column.id === selectedTableColumnId) : undefined
+  const activeGridColumnIds = (id?: string) => id ? selectedTableColumnIds.includes(id) ? selectedTableColumnIds : [id] : []
+  const activeGridHeaderIds = (id?: string) => headerStyleScope === 'all' ? columns.map(column => column.id) : activeGridColumnIds(id)
+  const changeTableHeaderHeight = (delta: number) => {
+    updateDraftState(setDesignerTableHeaderHeight(historyRef.current.present, Math.max(28, Math.min(120, (historyRef.current.present.tableHeaderHeight ?? 42) + delta))))
+    setContextMenu(null); setGridSubmenu(null)
+  }
+  const handleGridDialogHeaderPointerDown = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return
+    const pointerId = event.pointerId
+    const rect = gridFormatDialogRef.current?.getBoundingClientRect()
+    if (!rect) return
+    gridFormatDialogDrag.current = { pointerId, startX: event.clientX, startY: event.clientY, originX: gridFormatDialogOffset.x, originY: gridFormatDialogOffset.y, baseLeft: rect.left - gridFormatDialogOffset.x, baseTop: rect.top - gridFormatDialogOffset.y, width: rect.width, height: rect.height }
+    event.currentTarget.setPointerCapture(pointerId)
+    event.preventDefault()
+  }
+  const handleGridDialogHeaderPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    const drag = gridFormatDialogDrag.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    const x = drag.originX + event.clientX - drag.startX
+    const y = drag.originY + event.clientY - drag.startY
+    setGridFormatDialogOffset({ x: Math.max(16 - drag.baseLeft, Math.min(x, window.innerWidth - 16 - drag.baseLeft - drag.width)), y: Math.max(16 - drag.baseTop, Math.min(y, window.innerHeight - 16 - drag.baseTop - drag.height)) })
+  }
+  const handleGridDialogHeaderPointerEnd = (event: React.PointerEvent<HTMLElement>) => { if (gridFormatDialogDrag.current?.pointerId === event.pointerId) gridFormatDialogDrag.current = null }
   const selectedTableHeader = selectedTableColumn
   const footerActions = (laboratoryDefinition.actions ?? []).filter(action => designerActionVisible(visibleDraft, action))
   return <div className="form-laboratory-page" dir={fa ? 'rtl' : 'ltr'} data-form-laboratory data-synthetic-only="true" data-entry-active={dataEntryActive || undefined} data-designer-active={designerOpen || undefined} data-button-press-effect={history.present.buttonPressEffect !== false ? "true" : "false"} onKeyDown={handleDesignerKey} onContextMenu={openContextMenu}>
@@ -986,7 +1127,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     <div ref={formFrameRef} className="laboratory-form-frame" data-preview-device={previewDevice} data-preview-width={previewWidth} dir={fa ? 'rtl' : 'ltr'} style={{ width: previewFitToPage && previewDevice === 'desktop' ? '100%' : previewWidth, height: previewHeight ?? undefined, minHeight: previewHeight ?? undefined, left: previewOffset.x, top: previewOffset.y }}>
     <header ref={formBannerRef} className="form-laboratory-banner"><div className="laboratory-banner-title"><strong>{title}</strong><span>{fa ? 'محیط مستقل با دادهٔ قطعی و مصنوعی؛ هیچ API اشخاصی فراخوانی نمی‌شود.' : language === 'zh' ? '独立的确定性合成数据环境；不会调用人员 API。' : 'Independent deterministic synthetic data; no Persons API is called.'}</span></div><div className="laboratory-banner-actions"><div className="laboratory-device-toolbar" role="group" aria-label={fa ? 'پیش‌نمایش دستگاه' : 'Device preview'}>{(Object.keys(previewWidths) as PreviewDevice[]).map(device => <button key={device} type="button" aria-pressed={previewDevice === device} onClick={() => { setPreviewDevice(device); setPreviewFitToPage(device === 'desktop'); setPreviewWidth(previewWidths[device]); setPreviewHeight(null); setPreviewOffset({ x: 0, y: 0 }) }} title={previewWidths[device] + 'px'}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">{device === 'desktop' ? <><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M12 17v4M7 21h10" /></> : <><rect x={device === 'tablet' ? 5 : 7} y="2" width={device === 'tablet' ? 14 : 10} height="20" rx="2" /><path d="M11 19h2" /></>}</svg>{fa ? ({ desktop: 'دسکتاپ', tablet: 'تبلت', mobile: 'موبایل' })[device] : ({ desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' })[device]}</button>)}{previewDevice === 'mobile' && <select aria-label={fa ? 'عرض موبایل' : 'Mobile width'} value={previewWidth === 320 || previewWidth === 390 ? previewWidth : 'custom'} onChange={event => { const width = Number(event.target.value); if (width) { setPreviewFitToPage(false); setPreviewWidth(width); setPreviewOffset(current => ({ ...current, x: 0 })) } }}><option value="custom">{fa ? 'اندازهٔ دلخواه' : 'Custom width'}</option><option value="390">390px</option><option value="320">320px</option></select>}</div><label>{fa ? 'اندازهٔ داده' : language === 'zh' ? '数据量' : 'Dataset size'}<select value={datasetSize} onChange={event => setDatasetSize(Number(event.target.value) as typeof datasetSize)}>{laboratoryDatasetSizes.map(size => <option key={size} value={size}>{size.toLocaleString()}</option>)}</select></label><button type="button" className="laboratory-history-button" aria-label={fa ? 'واگرد' : 'Undo'} title="Ctrl+Z" disabled={!history.past.length} onClick={undo}>↶</button><button type="button" className="laboratory-history-button" aria-label={fa ? 'ازنو' : 'Redo'} title="Ctrl+Y" disabled={!history.future.length} onClick={redo}>↷</button><button type="button" className="laboratory-designer-toggle" aria-label={settingsLabel} title={settingsLabel} aria-expanded={designerOpen} aria-controls="form-laboratory-designer" onClick={openDesigner}>⚙</button></div></header>
     <div className={"laboratory-workspace" + (designerOpen ? " has-designer" : "")}>
-      {designerOpen && <FormLaboratoryDesignerPanel geometryEditable={geometryEditable} propertyRequest={propertyRequest} onElementAppearanceCommit={commitElementAppearance} onElementAppearancePreview={previewElementAppearance} onFinishPropertyChange={finishPropertyChange} language={language} draft={visibleDraft} onTableFontChange={updateTableFont} selectedTableColumn={selectedTableColumn ? { id: selectedTableColumn.id, label: selectedTableColumn.label, style: visibleDraft.tableColumns?.[selectedTableColumn.id] } : undefined} selectedTableHeader={selectedTableHeader ? { id: selectedTableHeader.id, label: selectedTableHeader.label, style: visibleDraft.tableHeaders?.[selectedTableHeader.id] } : undefined} onTableColumnStyleChange={updateTableColumnStyle} onTableHeaderStyleChange={updateTableHeaderStyle} onTableColumnColorCommit={(id, color) => commitTableStyleColor('column', id, color)} onTableColumnColorPreview={(id, color) => previewTableStyleColor('column', id, color)} onTableColumnBackgroundColorCommit={commitTableColumnBackgroundColor} onTableColumnBackgroundColorPreview={previewTableColumnBackgroundColor} onTableHeaderColorCommit={(id, property, color) => commitTableStyleColor('header', id, color, property)} onTableHeaderColorPreview={(id, property, color) => previewTableStyleColor('header', id, color, property)} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} onFilterPopupFontSizeChange={updateFilterPopupFontSize} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} onGridSearchPositionChange={updateGridSearchPosition} buttonPressEffectEnabled={history.present.buttonPressEffect !== false} onButtonPressEffectChange={updateButtonPressEffect} onBeginFilterPopupFontSizeChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitFilterPopupFontSizeChange={() => dispatchHistory({ type: 'commitTransaction' })} selectedFieldIds={selection} selectedActionIds={actionSelection} actions={laboratoryDefinition.actions ?? []} onActionVisibilityChange={changeActionVisibility} onSelectAction={id => { setSelection([]); setActionSelection([id]); setApplyToAll(false) }} onActionTextChange={updateActionText} onActionTextPropertyChange={updateActionTextProperty} onActionColorCommit={commitActionColor} onActionColorPreview={previewActionColor} onClearSelection={() => { setSelection([]); setActionSelection([]) }} fieldIds={fieldIds} fieldLabels={Object.fromEntries(fieldIds.map(id => [id, labels[id][language]]))} applyToAll={applyToAll} canSave={Boolean(authenticatedUserId)} saveStatus={saveStatus} onApplyToAllChange={setApplyToAll} onChange={updateProperty} onColorCommit={commitColorProperty} onColorPreview={previewColorProperty} onAppearanceColorCommit={commitAppearanceColor} onAppearanceColorPreview={previewAppearanceColor} onBeginColorChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitColorChange={() => dispatchHistory({ type: 'commitTransaction' })} onUndo={undo} onRedo={redo} canUndo={history.past.length > 0} canRedo={history.future.length > 0} onResetSelected={resetSelected} onResetAll={resetAll} onSave={saveDraft} onCancel={cancelDesigner} onSelectAll={() => { setActionSelection([]); setSelection(fieldIds.map(id => `${id}::input`)) }} onLayout={applyLayout} onAlign={applyAlignment} referenceFieldId={referenceId} onReferenceChange={setReferenceId} layoutStatus={layoutStatus} />}
+      {designerOpen && <FormLaboratoryDesignerPanel geometryEditable={geometryEditable} propertyRequest={propertyRequest} onElementAppearanceCommit={commitElementAppearance} onElementAppearancePreview={previewElementAppearance} onFinishPropertyChange={finishPropertyChange} language={language} draft={visibleDraft} onTableFontChange={updateTableFont} selectedTableColumn={selectedTableColumn ? { id: selectedTableColumn.id, label: selectedTableColumn.label, style: visibleDraft.tableColumns?.[selectedTableColumn.id] } : undefined} selectedTableHeader={selectedTableHeader ? { id: selectedTableHeader.id, label: selectedTableHeader.label, style: visibleDraft.tableHeaders?.[selectedTableHeader.id] } : undefined} tableHeaderScope={headerStyleScope} onTableHeaderScopeChange={setHeaderStyleScope} tableHeaderHeight={visibleDraft.tableHeaderHeight ?? 42} onTableHeaderHeightChange={setTableHeaderHeight} onTableColumnStyleChange={updateTableColumnStyle} onTableHeaderStyleChange={updateTableHeaderStyle} onTableColumnColorCommit={(id, color) => commitTableStyleColor('column', id, color)} onTableColumnColorPreview={(id, color) => previewTableStyleColor('column', id, color)} onTableColumnBackgroundColorCommit={commitTableColumnBackgroundColor} onTableColumnBackgroundColorPreview={previewTableColumnBackgroundColor} onTableHeaderColorCommit={(id, property, color) => commitTableStyleColor('header', id, color, property)} onTableHeaderColorPreview={(id, property, color) => previewTableStyleColor('header', id, color, property)} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} onFilterPopupFontSizeChange={updateFilterPopupFontSize} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} onGridSearchPositionChange={updateGridSearchPosition} buttonPressEffectEnabled={history.present.buttonPressEffect !== false} onButtonPressEffectChange={updateButtonPressEffect} onBeginFilterPopupFontSizeChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitFilterPopupFontSizeChange={() => dispatchHistory({ type: 'commitTransaction' })} selectedFieldIds={selection} selectedActionIds={actionSelection} actions={laboratoryDefinition.actions ?? []} onActionVisibilityChange={changeActionVisibility} onSelectAction={id => { setSelection([]); setActionSelection([id]); setApplyToAll(false) }} onActionTextChange={updateActionText} onActionTextPropertyChange={updateActionTextProperty} onActionColorCommit={commitActionColor} onActionColorPreview={previewActionColor} onClearSelection={() => { setSelection([]); setActionSelection([]) }} fieldIds={fieldIds} fieldLabels={Object.fromEntries(fieldIds.map(id => [id, labels[id][language]]))} applyToAll={applyToAll} canSave={Boolean(authenticatedUserId)} saveStatus={saveStatus} onApplyToAllChange={setApplyToAll} onChange={updateProperty} onOpenFontFormatDialog={part => openSelectedTextFormatDialog(part)} onColorCommit={commitColorProperty} onColorPreview={previewColorProperty} onAppearanceColorCommit={commitAppearanceColor} onAppearanceColorPreview={previewAppearanceColor} onBeginColorChange={() => dispatchHistory({ type: 'beginTransaction' })} onCommitColorChange={() => dispatchHistory({ type: 'commitTransaction' })} onUndo={undo} onRedo={redo} canUndo={history.past.length > 0} canRedo={history.future.length > 0} onResetSelected={resetSelected} onResetAll={resetAll} onSave={saveDraft} onCancel={cancelDesigner} onSelectAll={() => { setActionSelection([]); setSelection(fieldIds.map(id => `${id}::input`)) }} onLayout={applyLayout} onAlign={applyAlignment} referenceFieldId={referenceId} onReferenceChange={setReferenceId} layoutStatus={layoutStatus} />}
     <BaseFormShell formId={laboratoryDefinition.id} initialHeaderRef={formBannerRef}
       editor={<div className="person-editor panel laboratory-editor" style={appearanceStyle}><div ref={formGridRef} className={'person-form-grid laboratory-form-grid' + (canvas ? ' has-fixed-geometry' : '')} style={canvas ? { width: canvas.width, height: canvas.height, minWidth: canvas.width } : undefined} data-section-id="laboratory.editor" onClick={event => { if (designerOpen && event.target === event.currentTarget) setSelection([]) }}>
         {renderField('personCode', 'lab-person-code', <input aria-label={labels.personCode[language]} value={draft.personCode} disabled={!dataEntryActive} onChange={event => update('personCode', event.target.value)} />)}
@@ -1002,7 +1143,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
         {renderField('notes', 'lab-notes', <input type="text" data-field="notes" aria-label={labels.notes[language]} placeholder={fa ? 'نمونهٔ حالت عادی' : 'Normal state example'} value={draft.notes} disabled={!dataEntryActive} onChange={event => update('notes', event.target.value)} />)}
         {renderField('errorExample', 'lab-error', <input aria-label={labels.errorExample[language]} aria-invalid="true" defaultValue="نمونه" />, fa ? 'دادهٔ آزمایشی نامعتبر است.' : 'Synthetic validation example.')}
       </div>{!canvas && geometryEditable && <div className="designer-canvas-spacer" aria-hidden="true" style={canvasStyle} />}</div>}
-      grid={<div className="person-grid-panel panel laboratory-grid"><BaseFormGridBoundary rows={[]} columns={columns} language={language} appearanceStyle={appearanceStyle} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} remoteQuery={remoteGridQuery} remoteQueryScope={datasetSize} resetRequest={gridResetRequest} navigationRequest={navigationRequest} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} designerMode={designerOpen} designerColumnStyles={visibleDraft.tableColumns} designerHeaderStyles={visibleDraft.tableHeaders} onDesignerColumnSelect={selectGridDesignerColumn} onDesignerContextMenu={openGridDesignerContextMenu} onRowSelectionChange={setSelectedPerson} onTotalChange={setGridRecordCount} /></div>}
+      grid={<div className="person-grid-panel panel laboratory-grid"><BaseFormGridBoundary rows={[]} columns={columns} language={language} appearanceStyle={appearanceStyle} filterPopupFontSize={history.present.filterPopupFontSize ?? 16} remoteQuery={remoteGridQuery} remoteQueryScope={datasetSize} resetRequest={gridResetRequest} navigationRequest={navigationRequest} gridSearchPosition={history.present.gridSearchPosition ?? 'right'} designerMode={designerOpen} designerHeaderHeight={visibleDraft.tableHeaderHeight ?? 42} onDesignerHeaderHeightChange={updateTableHeaderHeight} designerColumnStyles={visibleDraft.tableColumns} designerHeaderStyles={visibleDraft.tableHeaders} designerSelectedColumnIds={selectedTableColumnIds} onDesignerColumnSelect={selectGridDesignerColumn} onDesignerContextMenu={openGridDesignerContextMenu} onRowSelectionChange={setSelectedPerson} onTotalChange={setGridRecordCount} /></div>}
       footer={<div className={`shortcut-bar laboratory-footer${dataEntryActive ? ' is-entry-active' : ''}`} dir={fa ? 'rtl' : 'ltr'} role="group" aria-label={fa ? 'دکمه‌های پایین فرم' : 'Form actions'} aria-live="polite" style={appearanceStyle}>{footerActions.map(action => {
         const disabled = !designerOpen && actionDisabled(action)
         return <span key={action.id} data-action-id={action.id} className={'laboratory-action-button' + (action.iconOnly ? ' is-icon-action' : '') + (designerOpen && actionSelection.includes(action.id) ? ' designer-part-selected' : '')} style={designerActionStyle(visibleDraft, action.id) as CSSProperties} title={disabled ? action.id === 'edit-person' ? (fa ? 'برای ویرایش باید جدول رکورد داشته باشد.' : 'The table must contain records to edit.') : fa ? 'این کلید در حالت فعلی فرم قابل استفاده نیست.' : 'This action is unavailable in the current form mode.' : undefined} onClickCapture={event => {
@@ -1058,25 +1199,47 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
     {contextMenu.part === 'grid' && contextMenu.gridTarget === 'header' && gridSubmenu && contextMenu.columnId && <div ref={contextSubmenuRef} className="designer-context-menu designer-context-submenu" role="menu" aria-label={gridSubmenu === 'header' ? 'تنظیمات ظاهری هدر' : 'تنظیمات داده‌های ستون'} dir="rtl" style={{ left: Math.max(8, Math.min(window.innerWidth - 228, contextMenu.left > 236 ? contextMenu.left - 228 : contextMenu.left + 220)), top: Math.max(8, Math.min(window.innerHeight - 300, contextMenu.top)) }} onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation() }}>
       {gridSubmenu === 'header' ? <>
         <strong>تغییرات هدر</strong>
-        <button type="button" role="menuitem" onClick={() => requestProperty('tableHeaderTypography', 'headerColor')}>رنگ متن هدر…</button>
-        <button type="button" role="menuitem" onClick={() => requestProperty('tableHeaderTypography', 'headerBackgroundColor')}>رنگ پس‌زمینهٔ این هدر…</button>
-        <button type="button" role="menuitem" onClick={() => requestProperty('tableHeaderTypography', 'headerBorderColor')}>رنگ کادر این هدر…</button>
-        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('header', contextMenu.columnId!, columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'font')}>قلم و اندازهٔ هدر…</button>
-        <button type="button" role="menuitemcheckbox" aria-checked={Boolean(visibleDraft.tableHeaders?.[contextMenu.columnId]?.bold)} onClick={() => updateTableHeaderStyle(contextMenu.columnId!, 'bold', !visibleDraft.tableHeaders?.[contextMenu.columnId!]?.bold)}>{visibleDraft.tableHeaders?.[contextMenu.columnId]?.bold ? 'برداشتن حالت درشت هدر' : 'درشت‌کردن هدر'}</button>
+        <div className="designer-header-format-scope" role="group" aria-label="محدودهٔ تغییرات هدر"><button type="button" aria-pressed={headerStyleScope === 'selected'} onClick={() => setHeaderStyleScope('selected')}>فقط این سرستون</button><button type="button" aria-pressed={headerStyleScope === 'all'} onClick={() => setHeaderStyleScope('all')}>همهٔ سرستون‌ها</button></div>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('header', activeGridHeaderIds(contextMenu.columnId), columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'color', 'textColor')}>رنگ متن هدر…</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('header', activeGridHeaderIds(contextMenu.columnId), columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'color', 'backgroundColor')}>رنگ پس‌زمینهٔ هدر…</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('header', activeGridHeaderIds(contextMenu.columnId), columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'color', 'borderColor')}>رنگ کادر هدر…</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('header', activeGridHeaderIds(contextMenu.columnId), columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'font')}>قلم و اندازهٔ هدر…</button>
+        <button type="button" role="menuitemcheckbox" aria-checked={activeGridHeaderIds(contextMenu.columnId).every(id => Boolean(visibleDraft.tableHeaders?.[id]?.bold))} onClick={() => { const ids = activeGridHeaderIds(contextMenu.columnId); const value = !ids.every(id => Boolean(visibleDraft.tableHeaders?.[id]?.bold)); let next = historyRef.current.present; for (const id of ids) next = setDesignerTableHeaderStyle(next, id, 'bold', value); dispatchHistory({ type: 'change', draft: next }); setSaveStatus('') }}>{activeGridHeaderIds(contextMenu.columnId).every(id => Boolean(visibleDraft.tableHeaders?.[id]?.bold)) ? 'برداشتن حالت درشت هدرها' : 'درشت‌کردن هدرها'}</button>
+        <div className="designer-header-height-controls"><span>ارتفاع سرستون: {visibleDraft.tableHeaderHeight ?? 42}px</span><button type="button" aria-label="کاهش ارتفاع سرستون" onClick={() => changeTableHeaderHeight(-2)}>−</button><button type="button" aria-label="افزایش ارتفاع سرستون" onClick={() => changeTableHeaderHeight(2)}>＋</button></div>
       </> : <>
         <strong>تغییرات داده‌های ستون</strong>
-        <button type="button" role="menuitemcheckbox" aria-checked={Boolean(visibleDraft.tableColumns?.[contextMenu.columnId]?.bold)} onClick={() => updateTableColumnStyle(contextMenu.columnId!, 'bold', !visibleDraft.tableColumns?.[contextMenu.columnId!]?.bold)}>{visibleDraft.tableColumns?.[contextMenu.columnId]?.bold ? 'برداشتن حالت درشت ستون' : 'درشت‌کردن داده‌های ستون'}</button>
-        <button type="button" role="menuitem" onClick={() => requestProperty('tableTypography', 'columnColor')}>رنگ متن داده‌های ستون…</button>
-        <button type="button" role="menuitem" onClick={() => requestProperty('tableTypography', 'columnBackgroundColor')}>رنگ پس‌زمینهٔ سلول‌های ستون…</button>
-        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('column', contextMenu.columnId!, columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'font')}>قلم و اندازهٔ داده‌های ستون…</button>
+        <button type="button" role="menuitemcheckbox" aria-checked={activeGridColumnIds(contextMenu.columnId).every(id => Boolean(visibleDraft.tableColumns?.[id]?.bold))} onClick={() => { const ids = activeGridColumnIds(contextMenu.columnId); const value = !ids.every(id => Boolean(visibleDraft.tableColumns?.[id]?.bold)); let next = historyRef.current.present; for (const id of ids) next = setDesignerTableColumnStyle(next, id, 'bold', value); dispatchHistory({ type: 'change', draft: next }); setSaveStatus('') }}>{activeGridColumnIds(contextMenu.columnId).every(id => Boolean(visibleDraft.tableColumns?.[id]?.bold)) ? 'برداشتن حالت درشت ستون‌ها' : 'درشت‌کردن داده‌های ستون'}</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('column', activeGridColumnIds(contextMenu.columnId), columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'color', 'textColor')}>رنگ متن داده‌های ستون…</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('column', activeGridColumnIds(contextMenu.columnId), columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'color', 'backgroundColor')}>رنگ پس‌زمینهٔ سلول‌های ستون…</button>
+        <button type="button" role="menuitem" onClick={() => openGridFormatDialog('column', activeGridColumnIds(contextMenu.columnId), columns.find(column => column.id === contextMenu.columnId)?.label ?? '', 'font')}>قلم و اندازهٔ داده‌های ستون…</button>
       </>}
     </div>}
     </>, document.body)}
-    {designerOpen && gridFormatDialog && createPortal(<div className="designer-grid-format-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) cancelGridFormatDialog() }}><section className="designer-grid-format-dialog" role="dialog" aria-modal="true" aria-labelledby="designer-grid-format-title" dir={fa ? 'rtl' : 'ltr'} onMouseDown={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') cancelGridFormatDialog() }}>
-      <header><h2 id="designer-grid-format-title">{gridFormatDialog.mode === 'font' ? (fa ? `قلم — ${gridFormatDialog.scope === 'header' ? 'سرستون' : 'داده‌های ستون'}: ${gridFormatDialog.label}` : `Font — ${gridFormatDialog.scope === 'header' ? 'Header' : 'Column data'}: ${gridFormatDialog.label}`) : (fa ? `رنگ — ${gridFormatDialog.label}` : `Color — ${gridFormatDialog.label}`)}</h2><button type="button" aria-label={fa ? 'بستن' : 'Close'} onClick={cancelGridFormatDialog}>×</button></header>
-      {gridFormatDialog.mode === 'font' && <div className="designer-grid-font-fields"><label>{fa ? 'قلم' : 'Font'}<select value={gridFormatDialog.fontFamily} onChange={event => updateGridFormatDialog({ fontFamily: event.target.value })}>{[['inherit', 'پیش‌فرض', 'Default'], ['vazirmatn', 'وزیرمتن', 'Vazirmatn'], ['tahoma', 'Tahoma', 'Tahoma'], ['segoe', 'Segoe UI', 'Segoe UI'], ['arial', 'Arial', 'Arial'], ['naskh', 'نسخ', 'Naskh']].map(([id, faName, enName]) => <option key={id} value={id}>{fa ? faName : enName}</option>)}</select></label><label>{fa ? 'حالت قلم' : 'Font style'}<select value={gridFormatDialog.bold ? 'bold' : 'regular'} onChange={event => updateGridFormatDialog({ bold: event.target.value === 'bold' })}><option value="regular">{fa ? 'معمولی' : 'Regular'}</option><option value="bold">{fa ? 'درشت' : 'Bold'}</option></select></label><label>{fa ? 'اندازه' : 'Size'}<input type="number" min="8" max="40" value={Number.isFinite(gridFormatDialog.fontSize) ? gridFormatDialog.fontSize : ''} onChange={event => updateGridFormatDialog({ fontSize: Number(event.target.value) })} onBlur={event => updateGridFormatDialog({ fontSize: Math.max(8, Math.min(40, Number(event.currentTarget.value) || 8)) })} /></label><div className="designer-grid-format-color"><span>{fa ? 'رنگ قلم' : 'Font color'}</span><ExcelColorPicker language={language} label={fa ? 'رنگ قلم' : 'Font color'} value={gridFormatDialog.color} onPreview={color => setColorPreviewDraft(buildGridFormatDraft(color == null ? gridFormatDialog : { ...gridFormatDialog, color }))} onCommit={handleGridFormatColorCommit} /></div><div className="designer-grid-format-preview" style={{ fontFamily: ({ inherit: 'inherit', vazirmatn: "'Vazirmatn',Tahoma,Arial,sans-serif", tahoma: 'Tahoma,Arial,sans-serif', segoe: "'Segoe UI',Tahoma,sans-serif", arial: 'Arial,sans-serif', naskh: "'Noto Naskh Arabic','B Nazanin',serif" } as Record<string, string>)[gridFormatDialog.fontFamily], fontSize: `${gridFormatDialog.fontSize}px`, fontWeight: gridFormatDialog.bold ? 700 : 400, color: gridFormatDialog.color }}>{fa ? 'پیش‌نمایش متن جدول' : 'Table text preview'}</div></div>}
-      {gridFormatDialog.mode === 'color' && <div className="designer-grid-format-color-only"><span>{fa ? 'رنگ جدید را انتخاب کنید' : 'Choose a new color'}</span><ExcelColorPicker key={`${gridFormatDialog.scope}-${gridFormatDialog.id}-${gridFormatDialog.colorProperty}`} language={language} label={fa ? 'انتخاب رنگ' : 'Choose color'} value={gridFormatDialog.color} autoOpen onPreview={color => setColorPreviewDraft(buildGridFormatDraft(color == null ? gridFormatDialog : { ...gridFormatDialog, color }))} onCommit={handleGridFormatColorCommit} /></div>}
-      <footer><button type="button" onClick={cancelGridFormatDialog}>{fa ? 'لغو' : 'Cancel'}</button>{gridFormatDialog.mode === 'font' && <button type="button" className="primary" onClick={applyGridFormatDialog}>{fa ? 'تأیید' : 'OK'}</button>}</footer>
+    {designerOpen && gridFormatDialog?.mode === 'font' && createPortal(<div className="designer-grid-format-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) cancelGridFormatDialog() }}><section ref={gridFormatDialogRef} className="designer-grid-format-dialog" role="dialog" aria-modal="true" aria-labelledby="designer-grid-format-title" dir={fa ? 'rtl' : 'ltr'} style={{ transform: `translate3d(${gridFormatDialogOffset.x}px, ${gridFormatDialogOffset.y}px, 0)` }} onMouseDown={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') cancelGridFormatDialog() }}>
+      <header onPointerDown={handleGridDialogHeaderPointerDown} onPointerMove={handleGridDialogHeaderPointerMove} onPointerUp={handleGridDialogHeaderPointerEnd} onPointerCancel={handleGridDialogHeaderPointerEnd}><h2 id="designer-grid-format-title">{gridFormatDialog.mode === 'font' ? (fa ? `قلم — ${gridFormatDialog.scope === 'header' ? 'سرستون' : gridFormatDialog.scope === 'column' ? 'داده‌های ستون' : gridFormatDialog.scope === 'label' ? 'برچسب' : gridFormatDialog.scope === 'action' ? 'دکمه' : 'فیلد'}: ${gridFormatDialog.label}` : `Font — ${gridFormatDialog.scope === 'header' ? 'Header' : gridFormatDialog.scope === 'column' ? 'Column data' : gridFormatDialog.scope === 'label' ? 'Label' : gridFormatDialog.scope === 'action' ? 'Button' : 'Field'}: ${gridFormatDialog.label}`) : (fa ? `رنگ — ${gridFormatDialog.label}` : `Color — ${gridFormatDialog.label}`)}</h2><button type="button" aria-label={fa ? 'بستن' : 'Close'} onClick={cancelGridFormatDialog}>×</button></header>
+      {gridFormatDialog.mode === 'font' && <>
+        <div className="designer-grid-format-tabs" role="tablist" aria-label={gridWord('دسته‌های قالب‌بندی', 'Formatting categories', '格式类别')}><button type="button" role="tab" aria-selected="true">{gridWord('قلم', 'Font', '字体')}</button></div>
+        <div className="designer-grid-format-normal"><label><input type="checkbox" checked={gridFormatDialog.normalFont} onChange={event => updateGridFormatDialog(event.target.checked ? { normalFont: true, fontFamily: 'inherit', fontSize: gridFormatDialog.base.tableFont?.size ?? 13, bold: false, italic: false, underline: 'none', strikeThrough: false, script: 'none', color: '#263a38' } : { normalFont: false })} />{gridWord('قلم معمولی', 'Normal font', '常规字体')}</label></div>
+        <div className="designer-grid-font-fields">
+          <label className="designer-grid-font-list">{gridWord('قلم', 'Font', '字体')}<select size={7} aria-label={gridWord('قلم', 'Font', '字体')} value={gridFormatDialog.fontFamily} onChange={event => { const support = gridFontStyleSupport[event.target.value] ?? { bold: false, italic: false }; updateGridFormatDialog({ fontFamily: event.target.value, bold: support.bold && gridFormatDialog.bold, italic: support.italic && gridFormatDialog.italic }) }}>{gridFonts.map(([id, faName, enName, zhName]) => <option key={id} value={id}>{gridWord(faName, enName, zhName)}</option>)}</select></label>
+          <label className="designer-grid-font-list">{gridWord('حالت قلم', 'Font style', '字形')}<select size={4} aria-label={gridWord('حالت قلم', 'Font style', '字形')} value={gridFormatDialog.bold ? gridFormatDialog.italic ? 'bold-italic' : 'bold' : gridFormatDialog.italic ? 'italic' : 'regular'} onChange={event => updateGridFormatDialog({ bold: event.target.value === 'bold' || event.target.value === 'bold-italic', italic: event.target.value === 'italic' || event.target.value === 'bold-italic' })}><option value="regular">{gridWord('معمولی', 'Regular', '常规')}</option><option value="italic" disabled={!gridFontStyleSupport[gridFormatDialog.fontFamily]?.italic}>{gridWord('ایتالیک', 'Italic', '斜体')}{!gridFontStyleSupport[gridFormatDialog.fontFamily]?.italic ? ` — ${gridWord('پشتیبانی نمی‌شود', 'unavailable', '不可用')}` : ''}</option><option value="bold" disabled={!gridFontStyleSupport[gridFormatDialog.fontFamily]?.bold}>{gridWord('درشت', 'Bold', '粗体')}{!gridFontStyleSupport[gridFormatDialog.fontFamily]?.bold ? ` — ${gridWord('پشتیبانی نمی‌شود', 'unavailable', '不可用')}` : ''}</option><option value="bold-italic" disabled={!gridFontStyleSupport[gridFormatDialog.fontFamily]?.bold || !gridFontStyleSupport[gridFormatDialog.fontFamily]?.italic}>{gridWord('درشت ایتالیک', 'Bold Italic', '粗斜体')}{!gridFontStyleSupport[gridFormatDialog.fontFamily]?.italic || !gridFontStyleSupport[gridFormatDialog.fontFamily]?.bold ? ` — ${gridWord('پشتیبانی نمی‌شود', 'unavailable', '不可用')}` : ''}</option></select></label>
+          <label className="designer-grid-font-list">{gridWord('اندازه', 'Size', '字号')}<input type="number" min="8" max="40" value={Number.isFinite(gridFormatDialog.fontSize) ? gridFormatDialog.fontSize : ''} onChange={event => updateGridFormatDialog({ fontSize: Number(event.target.value) })} onBlur={event => updateGridFormatDialog({ fontSize: Math.max(8, Math.min(40, Number(event.currentTarget.value) || 8)) })} /><select size={7} aria-label={gridWord('اندازه', 'Size', '字号')} value={gridFontSizes.includes(gridFormatDialog.fontSize) ? gridFormatDialog.fontSize : ''} onChange={event => updateGridFormatDialog({ fontSize: Number(event.target.value) })}>{gridFontSizes.map(size => <option key={size} value={size}>{size}</option>)}</select></label>
+        </div>
+        <div className="designer-grid-font-options">
+          <label className="designer-grid-format-underline">{gridWord('زیرخط', 'Underline', '下划线')}<select value={gridFormatDialog.underline} onChange={event => updateGridFormatDialog({ underline: event.target.value as 'none' | 'single' | 'double' })}><option value="none">{gridWord('بدون', 'None', '无')}</option><option value="single">{gridWord('تک', 'Single', '单线')}</option><option value="double">{gridWord('دوتایی', 'Double', '双线')}</option></select></label>
+          <div className="designer-grid-format-color"><span>{gridWord('رنگ قلم', 'Color', '颜色')}</span><ExcelColorPicker language={language} label={gridWord('رنگ قلم', 'Font color', '字体颜色')} value={gridFormatDialog.color} onPreview={previewGridFormatColor} onCommit={handleGridFormatColorCommit} /></div>
+        </div>
+        <div className="designer-grid-font-bottom">
+          <fieldset className="designer-grid-format-effects"><legend>{gridWord('جلوه‌ها', 'Effects', '效果')}</legend>
+            <label><input type="checkbox" checked={gridFormatDialog.strikeThrough} onChange={event => updateGridFormatDialog({ strikeThrough: event.target.checked })} />{gridWord('خط‌خورده', 'Strikethrough', '删除线')}</label>
+            <label><input type="checkbox" checked={gridFormatDialog.script === 'superscript'} onChange={event => updateGridFormatDialog({ script: event.target.checked ? 'superscript' : 'none' })} />{gridWord('بالانویس', 'Superscript', '上标')}</label>
+            <label><input type="checkbox" checked={gridFormatDialog.script === 'subscript'} onChange={event => updateGridFormatDialog({ script: event.target.checked ? 'subscript' : 'none' })} />{gridWord('پایین‌نویس', 'Subscript', '下标')}</label>
+          </fieldset>
+          <div className="designer-grid-format-preview-wrap"><span>{gridWord('پیش‌نمایش', 'Preview', '预览')}</span><div className="designer-grid-format-preview" style={{ fontFamily: ({ inherit: 'inherit', vazirmatn: "'Vazirmatn',Tahoma,Arial,sans-serif", tahoma: 'Tahoma,Arial,sans-serif', segoe: "'Segoe UI',Tahoma,sans-serif", arial: 'Arial,sans-serif', naskh: "'Noto Naskh Arabic','B Nazanin',serif", aptos: 'Aptos,Arial,sans-serif', calibri: 'Calibri,Arial,sans-serif', cambria: 'Cambria,serif', consolas: 'Consolas,monospace', courier: "'Courier New',monospace", georgia: 'Georgia,serif', times: "'Times New Roman',serif", verdana: 'Verdana,sans-serif' } as Record<string, string>)[gridFormatDialog.fontFamily], fontSize: `${gridFormatDialog.fontSize}px`, fontWeight: gridFormatDialog.bold ? 700 : 400, fontStyle: gridFormatDialog.italic ? 'italic' : 'normal', color: gridFormatDialog.color, textDecorationLine: [gridFormatDialog.underline !== 'none' ? 'underline' : '', gridFormatDialog.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ') || 'none', textDecorationStyle: gridFormatDialog.underline === 'double' ? 'double' : 'solid' }}>{gridFormatDialog.script === 'superscript' ? <sup>{gridWord('نمونهٔ قلم', 'Font sample', '字体示例')}</sup> : gridFormatDialog.script === 'subscript' ? <sub>{gridWord('نمونهٔ قلم', 'Font sample', '字体示例')}</sub> : gridWord('نمونهٔ قلم', 'Font sample', '字体示例')}</div></div>
+        </div>
+      </>}
+      <footer><button type="button" onClick={cancelGridFormatDialog}>{fa ? 'لغو' : 'Cancel'}</button><button type="button" className="primary" onClick={applyGridFormatDialog}>{fa ? 'تأیید' : 'OK'}</button></footer>
     </section></div>, document.body)}
+    {designerOpen && gridFormatDialog?.mode === 'color' && <div className="designer-grid-color-picker-host" aria-hidden="true"><ExcelColorPicker key={`${gridFormatDialog.scope}-${gridFormatDialog.targetIds?.join(',')}-${gridFormatDialog.colorProperty}`} language={language} label={gridWord('انتخاب رنگ', 'Choose color', '选择颜色')} value={gridFormatDialog.color} autoOpen onPreview={previewGridFormatColor} onCommit={handleGridFormatColorCommit} onCancel={cancelGridFormatDialog} /></div>}
   </div>
 }
