@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, us
 import { createPortal, flushSync } from 'react-dom'
 import { Field, Shortcut } from './DefinitionControls'
 import { FormValueList } from './components/base-form/FormValueList'
+import { FormBuilderSandbox } from './components/base-form/FormBuilderSandbox'
 import type { PersonTitleOption } from './components/base-form/PersonTitleControl'
 import { BaseFormGridBoundary, type GridColumn } from './components/base-form/BaseFormGridBoundary'
 import { BaseFormShell } from './components/base-form/BaseFormShell'
@@ -221,6 +222,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const historyRef = useRef(history)
   historyRef.current = history
   const [designerOpen, setDesignerOpen] = useState(false)
+  const [formsManagerOpen, setFormsManagerOpen] = useState(false)
   const designerOpenRef = useRef(designerOpen)
   designerOpenRef.current = designerOpen
   const [gridResetRequest, setGridResetRequest] = useState(0)
@@ -424,6 +426,7 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   }, [contextMenu])
   useLayoutEffect(() => {
     const focusGridSearch = (event: globalThis.KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && event.target.closest('[data-form-builder-sandbox]')) return
       const roots = [...document.querySelectorAll<HTMLElement>('[data-form-laboratory]')]
       const root = roots.find(item => item.getClientRects().length > 0 && getComputedStyle(item).visibility !== 'hidden')
       if (!root) return
@@ -927,6 +930,8 @@ export default function FormLaboratoryPage({ language, authenticatedUserId }: { 
   const contextLayout = !actionSelection.length && contextInputs && selectedDesignerInputs(selection, fieldIds).length > 1 && Boolean(canvas)
   const footerActions = (laboratoryDefinition.actions ?? []).filter(action => designerActionVisible(visibleDraft, action))
   return <div className="form-laboratory-page" dir={fa ? 'rtl' : 'ltr'} data-form-laboratory data-synthetic-only="true" data-entry-active={dataEntryActive || undefined} data-designer-active={designerOpen || undefined} data-button-press-effect={history.present.buttonPressEffect !== false ? "true" : "false"} onKeyDown={handleDesignerKey} onContextMenu={openContextMenu}>
+    {import.meta.env.DEV && <div><button type="button" onClick={() => setFormsManagerOpen(true)}>{fa ? 'مدیریت فرم‌ها' : language === 'zh' ? '表单管理' : 'Form management'}</button></div>}
+    {import.meta.env.DEV && formsManagerOpen && <FormBuilderSandbox language={language} onClose={() => setFormsManagerOpen(false)} />}
     <div ref={formFrameAreaRef} className="laboratory-form-frame-area" role="region" aria-label={fa ? 'فضای فرم؛ برای تغییر اندازه موس را به لبه‌های بیرونی ببرید و برای جابه‌جایی نوار عنوان را بکشید.' : 'Form workspace. Move the pointer to an outer edge to resize; drag the title bar to move.'} tabIndex={0} onPointerMove={handlePreviewPointerMove} onPointerLeave={event => { if (!previewInteractionRef.current) event.currentTarget.style.cursor = '' }} onPointerDown={beginPreviewPointer} onKeyDown={handlePreviewKeyDown}>
     <div ref={formFrameRef} className="laboratory-form-frame" data-preview-device={previewDevice} data-preview-width={previewWidth} dir={fa ? 'rtl' : 'ltr'} style={{ width: previewFitToPage && previewDevice === 'desktop' ? '100%' : previewWidth, height: previewHeight ?? undefined, minHeight: previewHeight ?? undefined, left: previewOffset.x, top: previewOffset.y }}>
     <header ref={formBannerRef} className="form-laboratory-banner"><div className="laboratory-banner-title"><strong>{title}</strong><span>{fa ? 'محیط مستقل با دادهٔ قطعی و مصنوعی؛ هیچ API اشخاصی فراخوانی نمی‌شود.' : language === 'zh' ? '独立的确定性合成数据环境；不会调用人员 API。' : 'Independent deterministic synthetic data; no Persons API is called.'}</span></div><div className="laboratory-banner-actions"><div className="laboratory-device-toolbar" role="group" aria-label={fa ? 'پیش‌نمایش دستگاه' : 'Device preview'}>{(Object.keys(previewWidths) as PreviewDevice[]).map(device => <button key={device} type="button" aria-pressed={previewDevice === device} onClick={() => { setPreviewDevice(device); setPreviewFitToPage(device === 'desktop'); setPreviewWidth(previewWidths[device]); setPreviewHeight(null); setPreviewOffset({ x: 0, y: 0 }) }} title={previewWidths[device] + 'px'}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6">{device === 'desktop' ? <><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M12 17v4M7 21h10" /></> : <><rect x={device === 'tablet' ? 5 : 7} y="2" width={device === 'tablet' ? 14 : 10} height="20" rx="2" /><path d="M11 19h2" /></>}</svg>{fa ? ({ desktop: 'دسکتاپ', tablet: 'تبلت', mobile: 'موبایل' })[device] : ({ desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' })[device]}</button>)}{previewDevice === 'mobile' && <select aria-label={fa ? 'عرض موبایل' : 'Mobile width'} value={previewWidth === 320 || previewWidth === 390 ? previewWidth : 'custom'} onChange={event => { const width = Number(event.target.value); if (width) { setPreviewFitToPage(false); setPreviewWidth(width); setPreviewOffset(current => ({ ...current, x: 0 })) } }}><option value="custom">{fa ? 'اندازهٔ دلخواه' : 'Custom width'}</option><option value="390">390px</option><option value="320">320px</option></select>}</div><label>{fa ? 'اندازهٔ داده' : language === 'zh' ? '数据量' : 'Dataset size'}<select value={datasetSize} onChange={event => setDatasetSize(Number(event.target.value) as typeof datasetSize)}>{laboratoryDatasetSizes.map(size => <option key={size} value={size}>{size.toLocaleString()}</option>)}</select></label><button type="button" className="laboratory-history-button" aria-label={fa ? 'واگرد' : 'Undo'} title="Ctrl+Z" disabled={!history.past.length} onClick={undo}>↶</button><button type="button" className="laboratory-history-button" aria-label={fa ? 'ازنو' : 'Redo'} title="Ctrl+Y" disabled={!history.future.length} onClick={redo}>↷</button><button type="button" className="laboratory-designer-toggle" aria-label={settingsLabel} title={settingsLabel} aria-expanded={designerOpen} aria-controls="form-laboratory-designer" onClick={openDesigner}>⚙</button></div></header>

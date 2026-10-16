@@ -891,3 +891,43 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .form-laboratory-page .laboratory-footer button:disabled:not(.designer-edge-handle){background:var(--lab-action-disabled-bg,var(--lab-action-bg,#fff));color:var(--lab-action-disabled-text,var(--lab-action-text,var(--muted)));border-color:var(--lab-action-disabled-border,var(--lab-action-border,var(--line)));opacity:.55}
 .form-laboratory-page .laboratory-footer button[data-create-action='true']:not(.designer-edge-handle){background:var(--lab-action-bg,var(--editable-focus-fill,#fcffd9));color:var(--lab-action-text,#384b30);border-color:var(--lab-action-border,#cbd6a1)}
 .form-laboratory-page .laboratory-footer button[data-create-action='true']:not(.designer-edge-handle):hover{background:var(--lab-action-hover-bg,#f3f7c7);border-color:var(--lab-action-hover-border,var(--lab-action-border,#aab976))}
+
+/* Form Designer component library: presentation only, scoped to the existing panel. */
+.laboratory-designer-panel .designer-component-library{min-width:0;border:1px solid var(--line);border-radius:7px;background:var(--cream)}
+.laboratory-designer-panel .designer-component-library>summary{padding:8px 9px;color:var(--ink);font-size:12px;font-weight:700;cursor:pointer}
+.laboratory-designer-panel .designer-component-library-content{display:grid;gap:8px;padding:0 8px 8px}
+.laboratory-designer-panel .designer-component-search{display:grid;gap:4px;color:var(--muted);font-size:10px}
+.laboratory-designer-panel .designer-component-search input{width:100%;min-height:30px;padding:5px 7px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);font:inherit}
+.laboratory-designer-panel .designer-component-library-notice{margin:0;padding:7px;border-inline-start:3px solid var(--teal);border-radius:4px;background:var(--paper);color:var(--muted);font-size:10px;line-height:1.5}
+.laboratory-designer-panel .designer-component-category{display:grid;gap:5px;min-width:0}
+.laboratory-designer-panel .designer-component-category h4{margin:0;color:var(--ink);font-size:11px}
+.laboratory-designer-panel .designer-component-items{display:grid;gap:5px}
+.laboratory-designer-panel .designer-component-entry{display:grid;gap:3px;min-width:0;padding:4px;border:1px solid var(--line);border-radius:5px;background:var(--paper)}
+.laboratory-designer-panel .designer-component-item,.laboratory-designer-panel .designer-component-preset{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 7px;min-width:0;padding:5px;border:1px solid transparent;border-radius:4px;background:transparent;color:var(--ink);font:inherit;text-align:start;cursor:pointer}
+.laboratory-designer-panel .designer-component-item[aria-pressed=true],.laboratory-designer-panel .designer-component-preset[aria-pressed=true]{border-color:var(--teal);background:color-mix(in srgb,var(--teal) 10%,var(--paper))}
+.laboratory-designer-panel .designer-component-item code,.laboratory-designer-panel .designer-component-preset code,.laboratory-designer-panel .designer-component-details code{color:var(--muted);font-size:9px;overflow-wrap:anywhere}
+.laboratory-designer-panel .designer-component-item small{grid-column:1/-1;color:#9a5b12;font-size:9px}
+.laboratory-designer-panel .designer-component-preset{margin-inline-start:12px;border-inline-start:2px solid var(--line);font-size:10px}
+.laboratory-designer-panel .designer-component-details{display:grid;gap:6px;min-width:0;padding:8px;border:1px solid var(--line);border-radius:5px;background:var(--paper);overflow-wrap:anywhere}
+.laboratory-designer-panel .designer-component-details dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 8px;margin:0;font-size:10px}
+.laboratory-designer-panel .designer-component-details dt{color:var(--muted)}
+.laboratory-designer-panel .designer-component-details dd{min-width:0;margin:0;color:var(--ink)}
+.laboratory-designer-panel .designer-component-library button:focus-visible,.laboratory-designer-panel .designer-component-search input:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+
+/* Independent development form manager; no laboratory selectors are overridden. */
+.form-builder-manager{position:fixed;inset:0;z-index:20000;padding:16px;background:rgb(15 30 30 / .45);display:grid;place-items:center;text-align:start}
+.form-builder-manager .builder-dialog{width:min(1280px,100%);max-height:100%;min-width:0;overflow:auto;box-sizing:border-box;padding:16px;border-radius:10px;display:grid;gap:12px;background:var(--paper,#fff);color:var(--ink,#123);font:14px var(--user-font-family,inherit)}
+.form-builder-manager .builder-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;min-width:0;margin:0}
+.form-builder-manager fieldset{border:1px solid var(--line,#ddd);border-radius:7px;padding:10px}
+.form-builder-manager .builder-toolbar label{display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:0}
+.form-builder-manager :is(input,select,button){box-sizing:border-box;max-width:100%;min-height:30px;border:1px solid var(--line,#ddd);border-radius:5px;padding:4px 8px;background:var(--paper,#fff);color:var(--ink,#123);font:inherit}
+.form-builder-manager button{cursor:pointer}.form-builder-manager button:disabled{opacity:.45;cursor:not-allowed}
+.form-builder-manager :is(input,select,button):focus-visible{outline:2px solid var(--teal,#168579);outline-offset:1px}
+.form-builder-manager code{overflow-wrap:anywhere;font-size:11px}.form-builder-manager small{color:var(--muted,#567);line-height:1.5}
+.form-builder-manager .builder-library{padding:8px;border:1px solid var(--line,#ddd);border-radius:7px}.form-builder-manager .builder-library summary{cursor:pointer;font-weight:700;margin-block-end:8px}
+.form-builder-manager .builder-library-entry{padding:5px;border:1px solid var(--line,#ddd);border-radius:5px}
+.form-builder-manager .builder-canvas{display:flex;align-items:flex-start;gap:12px;min-height:320px;padding:12px;overflow:auto;border:1px solid var(--line,#ddd);border-radius:6px;background:var(--cream,#f5f8f7)}
+.form-builder-manager .builder-panel{box-sizing:border-box;flex:none;overflow:auto;max-width:none;padding:10px;border:2px solid var(--line,#ddd);border-radius:6px;background:var(--paper,#fff)}
+.form-builder-manager .builder-panel>header{display:flex;align-items:center;gap:8px;margin-block-end:8px}.form-builder-manager .builder-panel>header button[aria-pressed=true]{border-color:var(--teal,#168579)}
+.form-builder-manager .builder-panel-children{display:flex;align-items:flex-start;margin-block-start:10px}.form-builder-manager .builder-panel-fields{position:relative;background:var(--cream,#f5f8f7)}
+.form-builder-manager input[type=number]{width:90px}

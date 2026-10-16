@@ -47,6 +47,8 @@ export type FormSchemaField = BaseFormField & {
 
 export type FormSchemaSectionPurpose = 'operational' | 'reporting' | 'calculations' | 'details' | 'custom'
 export type FormSchemaSection = BaseFormSectionDefinition & {
+  parentId?: string | null
+  initialSize?: { width: number; height: number }
   purpose?: FormSchemaSectionPurpose
   title?: FormLocalizedText
   description?: FormLocalizedText
@@ -159,6 +161,7 @@ export type FormSchemaBase = Omit<BaseFormDefinition, 'sections' | 'fields' | 'a
   permissions?: FormSchemaPermissions
   settings?: FormSchemaSettings
   templateFormId?: string
+  layout?: { direction: 'horizontal' | 'vertical'; gap?: number }
   menuPlacement?: { menuId?: string; order?: number }
 }
 
@@ -167,4 +170,6 @@ export type ReportingFormSchema = FormSchemaBase & { mode: 'reporting'; tables: 
 export type HybridFormSchema = FormSchemaBase & { mode: 'hybrid'; tables: [FormSchemaTable, ...FormSchemaTable[]] }
 /** Legacy name retained for schemas created before the mode was named hybrid. */
 export type CombinedFormSchema = FormSchemaBase & { mode: 'combined'; tables: [FormSchemaTable, ...FormSchemaTable[]] }
-export type FormSchema = OperationalFormSchema | ReportingFormSchema | HybridFormSchema | CombinedFormSchema
+/** An unfinished form can be empty, including reporting and hybrid drafts. */
+export type FormSchemaDraft = FormSchemaBase & { status: 'draft'; mode: FormSchemaMode }
+export type FormSchema = OperationalFormSchema | ReportingFormSchema | HybridFormSchema | CombinedFormSchema | FormSchemaDraft

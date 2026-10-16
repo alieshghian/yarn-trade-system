@@ -3,6 +3,9 @@ import type { Language } from '../../i18n'
 import { designerActionCode, designerActionDimensionLimits, designerActionLabel, designerActionVisible, designerProperties, designerColorScope, designerEffectiveValues, designerElementAppearanceProperties, designerElementAppearanceValues, type DesignerActionTextPart, type DesignerActionTextStyle, type DesignerAlignment, type DesignerAppearanceProperty, type DesignerDraft, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './designer'
 import type { BaseFormAction } from './types'
 import { ExcelColorPicker } from './ExcelColorPicker'
+import { getFormComponentById, getFormComponentPresets, getFormComponents, type FormComponentCategory } from './componentRegistry'
+import { FormBuilderSandbox } from './FormBuilderSandbox'
+import { supportsSandboxPreset } from './formBuilderSandboxState'
 
 export type DesignerPropertyRequest = {
   sequence: number
@@ -112,9 +115,43 @@ export function FormLaboratoryDesignerPanel(props: Props) {
   const [orientation, setOrientation] = useState<DesignerLayoutOrientation>('horizontal')
   const [gap, setGap] = useState(12)
   const [actionTextPart, setActionTextPart] = useState<'button' | DesignerActionTextPart>('button')
+  const [componentLibraryQuery, setComponentLibraryQuery] = useState('')
+  const [selectedLibraryItem, setSelectedLibraryItem] = useState<{ kind: 'component' | 'preset'; id: string } | null>(null)
+  const [sandboxRequest, setSandboxRequest] = useState<{ presetId?: string } | null>(null)
   const fa = props.language === 'fa'
   const zh = props.language === 'zh'
   const word = (faText: string, enText: string, zhText: string) => fa ? faText : zh ? zhText : enText
+  const libraryComponents = getFormComponents().filter(component => component.designerSelectable)
+  const libraryPresets = getFormComponentPresets()
+  const categoryTitle = (category: FormComponentCategory) => category === 'input'
+    ? word('ورودی', 'Inputs', '输入')
+    : category === 'table'
+      ? word('جدول', 'Tables', '表格')
+      : category === 'layout'
+        ? word('چیدمان', 'Layout', '布局')
+        : category === 'action'
+          ? word('عملیات', 'Actions', '操作')
+          : word('پشتیبان', 'Support', '辅助')
+  const labelPolicyTitle = (policy: 'editable' | 'fixed' | 'none') => policy === 'editable'
+    ? word('قابل ویرایش', 'Editable', '可编辑')
+    : policy === 'fixed'
+      ? word('ثابت', 'Fixed', '固定')
+      : word('بدون برچسب', 'No label', '无标签')
+  const libraryQuery = componentLibraryQuery.trim().toLocaleLowerCase()
+  const libraryCategories: FormComponentCategory[] = ['input', 'table', 'layout', 'action', 'support']
+  const libraryGroups = libraryCategories.map(category => ({
+    category,
+    components: libraryComponents.map(component => {
+      const presets = libraryPresets.filter(preset => preset.componentId === component.id)
+      const componentMatches = !libraryQuery || [component.id, component.exportName, component.title[props.language]].some(value => value.toLocaleLowerCase().includes(libraryQuery))
+      const matchingPresets = presets.filter(preset => !libraryQuery || [preset.id, preset.title[props.language]].some(value => value.toLocaleLowerCase().includes(libraryQuery)))
+      return { component, presets: componentMatches ? presets : matchingPresets }
+    }).filter(({ component, presets }) => component.category === category && (!libraryQuery || presets.length > 0 || [component.id, component.exportName, component.title[props.language]].some(value => value.toLocaleLowerCase().includes(libraryQuery))))
+  })).filter(group => group.components.length > 0)
+  const selectedPreset = selectedLibraryItem?.kind === 'preset' ? libraryPresets.find(preset => preset.id === selectedLibraryItem.id) : undefined
+  const selectedComponent = selectedLibraryItem?.kind === 'component'
+    ? getFormComponentById(selectedLibraryItem.id)
+    : selectedPreset ? getFormComponentById(selectedPreset.componentId) : undefined
   const fieldIds = props.applyToAll ? props.fieldIds : props.selectedFieldIds
   const componentFieldIds = fieldIds.filter(id => ['titleId', 'phone', 'mobile', 'address'].includes(id.split('::')[0]))
   const editingAction = props.selectedActionIds.length > 0
@@ -243,6 +280,42 @@ export function FormLaboratoryDesignerPanel(props: Props) {
     <div className="designer-panel-heading"><div><strong>{word('طراحی ظاهری', 'Visual design', '外观设计')}</strong><small aria-live="polite">{fieldNames}</small></div><button type="button" className="designer-close" aria-label={word('بستن پنل', 'Close panel', '关闭面板')} onClick={props.onCancel}>×</button></div>
     <div className="designer-selection-actions"><button type="button" aria-pressed={!props.applyToAll} onClick={() => props.onApplyToAllChange(false)}>{word('فیلدهای انتخابی', 'Selected fields', '所选字段')}</button><button type="button" aria-pressed={props.applyToAll} onClick={() => { props.onClearSelection(); props.onApplyToAllChange(true) }}>{word('همهٔ فیلدها', 'All fields', '全部字段')}</button><button type="button" onClick={props.onSelectAll}>{word('انتخاب همه', 'Select all', '全选')}</button><button type="button" onClick={props.onClearSelection}>{word('پاک‌کردن انتخاب', 'Clear selection', '清除选择')}</button></div>
     <small className="designer-selection-help">{props.applyToAll ? word('هر ویژگی روی تمام فیلدهای نمونه اعمال می‌شود.', 'Each property applies to every sample field.', '每个属性都应用于所有示例字段。') : word('با Ctrl/Meta+کلیک چند فیلد را انتخاب کنید؛ ویژگی‌ها روی همهٔ انتخاب‌ها اعمال می‌شوند.', 'Ctrl/Meta-click to select multiple fields; changes apply to every selected field.', '按 Ctrl/Meta 并单击可多选；更改将应用于所有选中字段。')}</small>
+    <details className="designer-component-library" open>
+      <summary>{word('کتابخانه کامپوننت‌ها', 'Component library', '组件库')}</summary>
+      <div className="designer-component-library-content">
+        <label className="designer-component-search"><span>{word('جست‌وجوی نام یا شناسه', 'Search name or ID', '搜索名称或 ID')}</span><input type="search" dir="auto" value={componentLibraryQuery} onChange={event => setComponentLibraryQuery(event.target.value)} placeholder={word('نام یا شناسه کامپوننت', 'Component name or ID', '组件名称或 ID')} /></label>
+        <p className="designer-component-library-notice">{import.meta.env.DEV ? word('تلفن فقط به فرم آزمایشی مستقل افزوده می‌شود؛ سایر Adapterها آماده نیستند.', 'Phone can be added only to the independent sandbox; other adapters are not ready.', '电话仅可添加到独立试验表单；其他适配器尚未就绪。') : word('افزودن واقعی کامپوننت‌ها در مرحلهٔ بعد فعال می‌شود.', 'Adding components will be enabled in a later phase.', '组件的实际添加将在后续阶段启用。')}</p>
+        {import.meta.env.DEV && <button type="button" onClick={() => setSandboxRequest({})}>{word('مدیریت فرم‌ها', 'Form management', '表单管理')}</button>}
+        {libraryGroups.length ? libraryGroups.map(group => <section className="designer-component-category" key={group.category} aria-label={categoryTitle(group.category)}>
+          <h4>{categoryTitle(group.category)}</h4>
+          <div className="designer-component-items">
+            {group.components.map(({ component, presets }) => <div className="designer-component-entry" key={component.id}>
+              <button type="button" className="designer-component-item" aria-pressed={selectedLibraryItem?.kind === 'component' && selectedLibraryItem.id === component.id} onClick={() => setSelectedLibraryItem({ kind: 'component', id: component.id })}>
+                <span>{component.title[props.language]}</span><code dir="ltr">{component.id}</code>
+                {component.adapterRequired && <small>{word('نیازمند Adapter', 'Adapter required', '需要适配器')}</small>}
+              </button>
+              {presets.map(preset => <button type="button" className="designer-component-preset" key={preset.id} aria-pressed={selectedLibraryItem?.kind === 'preset' && selectedLibraryItem.id === preset.id} onClick={() => setSelectedLibraryItem({ kind: 'preset', id: preset.id })}>
+                <span>{preset.title[props.language]}</span><code dir="ltr">{preset.id}</code>
+              </button>)}
+            </div>)}
+          </div>
+        </section>) : <small>{word('موردی با این جست‌وجو پیدا نشد.', 'No matching components found.', '未找到匹配的组件。')}</small>}
+        {selectedComponent && <section className="designer-component-details" aria-live="polite">
+          <strong>{selectedPreset?.title[props.language] ?? selectedComponent.title[props.language]}</strong>
+          <code dir="ltr">{selectedPreset?.id ?? selectedComponent.id}</code>
+          <dl>
+            <dt>{word('کامپوننت', 'Component', '组件')}</dt><dd>{selectedComponent.title[props.language]} · <code dir="ltr">{selectedComponent.exportName}</code></dd>
+            <dt>{word('دسته', 'Category', '类别')}</dt><dd>{categoryTitle(selectedComponent.category)}</dd>
+            <dt>{word('سیاست برچسب', 'Label policy', '标签策略')}</dt><dd>{labelPolicyTitle(selectedPreset?.labelPolicy ?? selectedComponent.labelPolicy)}</dd>
+            <dt>{word('نوع فرم', 'Form types', '表单类型')}</dt><dd dir="ltr">{(selectedPreset?.allowedFormTypes ?? selectedComponent.allowedFormTypes).join(', ')}</dd>
+            <dt>{word('Adapter', 'Adapter', '适配器')}</dt><dd>{selectedComponent.adapterRequired ? word('لازم است', 'Required', '必需') : word('لازم نیست', 'Not required', '不需要')}</dd>
+          </dl>
+          {import.meta.env.DEV && <button type="button" disabled={!selectedPreset || !supportsSandboxPreset(selectedPreset)} onClick={() => {
+            if (selectedPreset && supportsSandboxPreset(selectedPreset)) setSandboxRequest({ presetId: selectedPreset.id })
+          }}>{selectedPreset && supportsSandboxPreset(selectedPreset) ? word('افزودن تلفن به فرم آزمایشی', 'Add Phone to sandbox form', '向试验表单添加电话') : word('Adapter آماده نیست', 'Adapter not ready', '适配器尚未就绪')}</button>}
+        </section>}
+      </div>
+    </details>
     <label className="designer-button-press-setting"><input type="checkbox" checked={props.buttonPressEffectEnabled} onChange={event => props.onButtonPressEffectChange(event.target.checked)} /><span>{word('جلوهٔ فرورفتن دکمه هنگام فشار', 'Pressed button effect', '按下按钮时显示凹陷效果')}</span></label>
     <details className="designer-action-section" open><summary>{word('دکمه‌های پایین', 'Bottom actions', '底部按钮')}</summary><div className="designer-action-list">{props.actions.map(action => <div className="designer-action-row" key={action.id}><input type="checkbox" aria-label={`${word('نمایش دکمه', 'Show action', '显示按钮')} ${designerActionLabel(props.draft, action, props.language)}`} checked={designerActionVisible(props.draft, action)} disabled={action.required} onChange={event => props.onActionVisibilityChange(action.id, event.target.checked)} /><button type="button" aria-pressed={props.selectedActionIds.includes(action.id)} onClick={() => props.onSelectAction(action.id)}>{designerActionLabel(props.draft, action, props.language)}</button><kbd>{designerActionCode(props.draft, action)}</kbd>{action.required && <small>{word('ضروری', 'Required', '必需')}</small>}</div>)}</div>
       {props.selectedActionIds.length === 1 && (() => { const action = props.actions.find(item => item.id === props.selectedActionIds[0]); if (!action) return null; return <div className="designer-action-text-fields">
@@ -315,5 +388,6 @@ export function FormLaboratoryDesignerPanel(props: Props) {
     <span className="designer-screen-reader" aria-live="polite">{word('فیلدهای انتخاب‌شده:', 'Selected fields:', '所选字段：')} {fieldNames}</span>
     <span className="designer-screen-reader">{designerProperties.length} {word('ویژگی قابل تنظیم', 'editable properties', '项可编辑属性')}</span>
   </aside>
+  {import.meta.env.DEV && sandboxRequest && <FormBuilderSandbox language={props.language} initialPresetId={sandboxRequest.presetId} onClose={() => setSandboxRequest(null)} />}
   </div>
 }
