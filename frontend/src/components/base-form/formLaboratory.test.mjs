@@ -58,7 +58,12 @@ test('Laboratory responsive layout, splitter and virtual server-paged DOM table 
 
 test('Golden baseline and global F3 interaction remain independent', () => {
   assert.match(golden, /"baselineImmutable": true/)
-  assert.match(interaction, /event\.key !== 'F3'/)
+  const keyNavigationHandler = interaction.slice(interaction.indexOf('const keydown ='), interaction.indexOf('const invokeSave ='))
+  const saveHandlers = interaction.slice(interaction.indexOf('const invokeSave ='), interaction.indexOf("root.addEventListener('keydown', saveKeydown"))
+  assert.match(keyNavigationHandler, /functionKeyFromEvent\(event\) === 'F3'\) return/)
+  assert.match(saveHandlers, /functionKeyFromEvent\(event\) !== 'F3'/)
+  assert.match(saveHandlers, /!button\.disabled && button\.getClientRects\(\)\.length > 0/)
+  assert.match(saveHandlers, /save\?\.click\(\)/)
   assert.match(lab, /handleDesignerKey/)
 })
 
