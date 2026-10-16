@@ -60,9 +60,23 @@
   font-weight:var(--lab-bold,var(--lab-font-weight,400));
 }
 .form-laboratory-page .laboratory-designer-field:not(.laboratory-shared-contact) :is(input,select,textarea):disabled {
-  background:var(--lab-disabled,var(--form-disabled-fill));
+  background:var(--lab-disabled,var(--lab-bg,var(--form-disabled-fill)));
   color:var(--lab-disabled-text,var(--lab-text,var(--form-disabled-color)));
-  border-color:var(--lab-disabled-border,#e4e9e7);opacity:1;
+  border-color:var(--lab-disabled-border,var(--lab-border,#e4e9e7));opacity:1;
+}
+/* Keep normal field colors visible while designing synthetic data whose inputs
+   remain disabled; real data-entry state and disabled-color overrides stay intact. */
+.form-laboratory-page[data-designer-active="true"] .laboratory-designer-field:not(.laboratory-shared-contact) :is(input,select,textarea):disabled {
+  background:var(--lab-bg,var(--lab-disabled,var(--form-disabled-fill)));
+  color:var(--lab-text,var(--lab-disabled-text,var(--form-disabled-color)));
+  border-color:var(--lab-border,var(--lab-disabled-border,#e4e9e7));
+}
+/* Composite controls (title/number lists) paint their own background rather than
+   the nested disabled input; use inherited Designer tokens on that surface. */
+.form-laboratory-page .laboratory-shared-contact .designer-input-part .person-number-control {
+  background:var(--lab-bg,var(--form-disabled-fill));
+  color:var(--lab-text,var(--form-disabled-color));
+  border-color:var(--lab-border,var(--form-control-border));
 }
 .form-laboratory-page .laboratory-designer-field textarea {height:var(--lab-height,var(--form-control-height))}
 .form-laboratory-page .laboratory-form-grid:not(.has-fixed-geometry) .designer-input-part>:is(input,select) {height:var(--lab-height,var(--form-control-height))!important}
