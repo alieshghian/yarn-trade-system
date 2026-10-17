@@ -861,7 +861,8 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .laboratory-form-frame>.laboratory-workspace{flex:1 1 auto;width:100%;min-width:0;min-height:0}
 .laboratory-form-frame>.laboratory-workspace>.base-form-shell{min-width:0;min-height:0;height:100%;overflow:auto;grid-template-rows:minmax(160px,var(--base-form-editor-track,1.43fr)) 9px minmax(160px,1fr) auto}
 .laboratory-form-frame .base-grid-table-wrap{min-width:0;overscroll-behavior:contain}
-.laboratory-form-frame .laboratory-editor .laboratory-form-grid{grid-template-columns:repeat(20,minmax(0,1fr))}
+.laboratory-form-frame .laboratory-editor .laboratory-form-grid:not([data-schema-columns]){grid-template-columns:repeat(20,minmax(0,1fr))}
+.laboratory-form-grid[data-schema-columns]{grid-template-columns:repeat(var(--form-schema-grid-columns,20),minmax(0,1fr))}
 .laboratory-form-frame:not([data-preview-device=desktop]) :is(.designer-input-part,.designer-label-part){display:block;max-width:100%;min-width:0;transform:none}
 .laboratory-form-frame:not([data-preview-device=desktop]) .designer-label-part{height:auto;overflow-wrap:anywhere}
 .laboratory-form-frame:not([data-preview-device=desktop]) .designer-input-part>:is(input,select,textarea){max-width:100%;min-height:max(24px,var(--lab-height,24px))!important}
