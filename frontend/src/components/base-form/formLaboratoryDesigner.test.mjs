@@ -3,6 +3,65 @@ import { readFileSync } from 'node:fs'
 import { stripTypeScriptTypes } from 'node:module'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
+import { resizeCanvasHandle, resizeCanvasDimension, attachDesignerDocument, centerCanvasRows } from './designer.ts'
+
+test('persistent row centering keeps input widths and gaps and survives resize validation and Undo',()=>{
+ const field=(left,top,width)=>({input:{left,top,width,height:40},label:{left:left+width-60,top:top-25,width:60,height:18}})
+ const canvas={width:900,height:300,fields:{a:field(20,50,200),b:field(250,50,250),c:field(20,160,500)}}
+ const centered=centerCanvasRows(canvas,['a','b','c'])
+ for(const ids of [['a','b'],['c']]){const left=Math.min(...ids.map(id=>centered.fields[id].input.left)),right=Math.max(...ids.map(id=>centered.fields[id].input.left+centered.fields[id].input.width));assert.equal(left,900-right)}
+ assert.equal(centered.fields.b.input.left-centered.fields.a.input.left-centered.fields.a.input.width,30)
+ assert.equal(centered.fields.a.input.width,200)
+ const resized=centerCanvasRows(resizeCanvasHandle(centered,['b'],'left',-30,0,{horizontal:true}))
+ assert.equal(resized.fields.a.input.left,centered.fields.a.input.left)
+ assert.deepEqual(validateDesignerDraft({...emptyDesignerDraft('center'),canvas:centered},'center',['a','b','c']).canvas.centeredFieldIds,['a','b','c'])
+ const history=createDesignerHistory({...emptyDesignerDraft('center'),canvas})
+ assert.deepEqual(designerHistoryReducer(designerHistoryReducer(history,{type:'change',draft:{...history.present,canvas:centered}}),{type:'undo'}).present.canvas,canvas)
+})
+
+test('paired resize keeps selection buttons anchored to their own input rather than its label edge',()=>{
+ const field=(left,width)=>({input:{left,top:60,width,height:40},label:{left:left+width-60,top:30,width:60,height:18},select:{left:left+4,top:32,width:19,height:18}})
+ const canvas={width:650,height:240,fields:{a:field(12,250),b:field(282,250)}}
+ const next=resizeCanvasHandle(canvas,['b'],'left',-170,0,{horizontal:true})
+ assert.equal(next.fields.a.input.width,80)
+ assert.equal(next.fields.a.select.left,16,'shrinking neighbour keeps its button at the unchanged left edge')
+ assert.equal(next.fields.b.select.left,next.fields.b.input.left+4)
+ assert.equal(next.fields.a.label.left,canvas.fields.a.label.left-170,'label still follows its right anchor')
+ assert.deepEqual(canvas.fields.a.select,{left:16,top:32,width:19,height:18})
+})
+
+test('coupled physical resizing preserves horizontal and vertical gaps, outer span, limits and unrelated fields',()=>{
+ const field=(left,top,width,height)=>({input:{left,top,width,height},label:{left:left+width-70,top:top-25,width:70,height:18}})
+ const horizontal={width:700,height:400,fields:{a:field(20,40,180,80),b:field(220,40,160,80),c:field(450,230,100,60)}}
+ const moved=resizeCanvasHandle(horizontal,['a'],'right',40,0,{horizontal:true})
+ assert.equal(moved.fields.a.input.width,220);assert.equal(moved.fields.b.input.width,120)
+ assert.equal(moved.fields.b.input.left-(moved.fields.a.input.left+moved.fields.a.input.width),20)
+ assert.equal(moved.fields.b.input.left+moved.fields.b.input.width,380)
+ assert.deepEqual(moved.fields.c,horizontal.fields.c)
+ assert.deepEqual(resizeCanvasHandle(horizontal,['b'],'left',40,0,{horizontal:true}),moved)
+ assert.deepEqual(resizeCanvasDimension(horizontal,['a'],'width',220,{horizontal:true}),moved)
+ const min=resizeCanvasHandle(horizontal,['a'],'right',900,0,{horizontal:true})
+ assert.ok(min.fields.b.input.width>=48);assert.equal(min.fields.b.input.left+min.fields.b.input.width,380)
+ const vertical={width:500,height:600,fields:{a:field(20,40,180,100),b:field(20,180,180,100),c:field(300,400,100,60)}}
+ const down=resizeCanvasHandle(vertical,['a'],'bottom',0,35,{vertical:true})
+ assert.equal(down.fields.a.input.height,135);assert.equal(down.fields.b.input.height,65)
+ assert.equal(down.fields.b.input.top-down.fields.a.input.top-down.fields.a.input.height,40)
+ assert.equal(down.fields.b.input.top+down.fields.b.input.height,280)
+ assert.equal(down.fields.b.label.top,vertical.fields.b.label.top+35)
+ assert.deepEqual(down.fields.c,vertical.fields.c)
+ assert.deepEqual(resizeCanvasDimension(vertical,['a'],'height',135,{vertical:true}),down)
+ assert.deepEqual(resizeCanvasHandle(vertical,['b'],'top',0,35,{vertical:true}),down)
+ assert.deepEqual(horizontal.fields.a.input,{left:20,top:40,width:180,height:80})
+ assert.equal(resizeCanvasHandle(horizontal,['a','b'],'right',20,0,{horizontal:true}),horizontal,'ambiguous multiselection is atomic')
+ assert.equal(resizeCanvasHandle(horizontal,['c'],'right',20,0,{horizontal:true}),horizontal,'no neighbour means no drift')
+ const draft={...emptyDesignerDraft('paired'),neighborResize:{horizontal:true,vertical:false},canvas:moved}
+ const clean=validateDesignerDraft(draft,'paired',['a','b','c'])
+ assert.deepEqual(clean.neighborResize,{horizontal:true,vertical:false})
+ const schema={id:'paired',fields:[],sections:[]},history=attachDesignerDocument(createDesignerHistory({...draft,canvas:horizontal}),schema)
+ const changed=designerHistoryReducer(history,{type:'change',draft})
+ assert.deepEqual(designerHistoryReducer(changed,{type:'undo'}).present.canvas,horizontal)
+ assert.deepEqual(designerHistoryReducer(designerHistoryReducer(changed,{type:'undo'}),{type:'redo'}).present.canvas,moved)
+})
 import { contextDesignerSelection, designerAppearancePresets, designerElementAppearanceValues } from './designer.ts'
 import { alignCanvasFields, anchorDesignerInputs, captureDesignerPointer, createDesignerHistory, designerAppearanceStyle, designerHistoryReducer, designerStorageKey, designerStyleForField, designerStyleForPart, emptyDesignerDraft, existingCanvasCollisions, layoutDesignerFields, loadDesignerDraft, moveDesignerFieldGroup, resizeCanvasInputs, resizeDesignerEdge, resizeDesignerInputs, resizeDesignerWidth, resetDesignerFields, saveDesignerDraft, selectDesignerPart, selectedDesignerInputs, setDesignerAppearanceProperty, setDesignerProperty, setDesignerTableHeaderHeight, stopDesignerHandleClick, validateDesignerDraft } from './designer.ts'
 
@@ -90,7 +149,7 @@ test('table header height persists and its designer controls render live font st
   assert.equal(setDesignerTableHeaderHeight(draft, 121), draft)
   assert.match(page, /gridFormatDialog\?\.mode === 'font'/)
   assert.match(page, /gridFormatDialog\?\.mode === 'color'/)
-  assert.match(page, /onDesignerHeaderHeightChange=\{updateTableHeaderHeight\}/)
+  assert.match(page, /onDesignerHeaderHeightChange:\s*updateTableHeaderHeight/)
   assert.match(page, /setTableStyle\(next, id, 'italic', dialog\.italic\)/)
   assert.doesNotMatch(page, /fontSynthesis:\s*'none'/)
 })
@@ -200,10 +259,10 @@ test('context actions use existing panel controls and exclude incompatible color
   assert.match(page, /onContextMenu=\{openContextMenu\}/)
   assert.match(page, /createPortal\(<><div ref=\{contextMenuRef\}/)
   assert.match(page, /<div ref=\{contextSubmenuRef\}/)
-  assert.match(page, /if \(!action && !field\) \{ setContextMenu\(null\); return \}/)
+  assert.match(page, /if \(!action && !field\) \{ if \(activeManagedForm\) setContextMenu\(\{[^}]*part: 'structure'[^}]*\}\); else setContextMenu\(null\); return \}/)
   assert.match(page, /selection.every\(key => !key.endsWith\('::label'\)\)/)
-  assert.match(page, /contextMenu.part !== 'label'/)
-  assert.match(page, /contextMenu.part === 'label' \? 'labelColor' : 'textColor'/)
+  assert.match(page, /appearanceColors.filter\(command=>command.property==='textColor'\)/)
+  assert.match(page, /contextMenu.part==='label'\?'labelColor':command.property/)
   assert.match(panel, /control.querySelector<HTMLButtonElement>\('\.excel-color-trigger'\)\?\.click\(\)/)
   assert.match(panel, /editingAction && id === 'actions' \? keys.filter\(key => key === 'actionBarBackground'\)/)
   assert.match(page, /document.addEventListener\('keydown', escape, true\)/)
@@ -254,7 +313,8 @@ test('shortcuts respect optional visibility; mandatory visibility is independent
   assert.equal(designerShortcutAction(setDesignerActionVisibility(draft, { id: 'reset-sample' }, false), laboratoryActions, 'Escape').id, 'reset-sample')
   assert.equal(designerShortcutAction(setDesignerActionVisibility(draft, { id: 'next-page' }, false), laboratoryActions, 'PageDown'), undefined)
   for (const key of [' ', 'Insert', 'Delete', 'Home', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'End']) assert.ok(designerShortcutAction(draft, laboratoryActions, key))
-  assert.match(page, /target.matches\('input, select, textarea, \[contenteditable="true"\]'\)/)
+  assert.match(page, /const canHandleSpaceNatively = nativeControl && !target\.matches\(':disabled'\)/)
+  assert.match(page, /const editingField = target instanceof HTMLElement && \(\(target\.matches\('input, select, textarea'\) && !target\.matches\(':disabled'\)/)
   assert.match(page, /const shortcutKey = laboratoryDefinition.actions\?\.some/)
   assert.match(page, /event.stopPropagation\(\)[\s\S]*target.matches\('input, select, textarea/)
   assert.match(page, /if \(action\) runAction\(action.id, event.key\)/)
@@ -313,6 +373,18 @@ test('shared picker resets repeated confirmations and removes the compact palett
   assert.match(picker, /if \(pointerAction\.current\) \{ pointerAction\.current = false; return \}/)
   assert.match(picker, /event.key === 'Escape'/)
   assert.match(page, /const resized = resizeDesignerEdge\(/)
+})
+
+test('background palette exposes solid and gradient modes, colors, direction and live preview', () => {
+  assert.match(picker, /excel-gradient-controls/)
+  assert.match(picker, /Solid color/)
+  assert.match(picker, /Gradient preview/)
+  assert.match(picker, /type="color" value=\{gradient\.start\}/)
+  assert.match(picker, /type="color" value=\{gradient\.end\}/)
+  assert.match(picker, /gradient\.onChange\(\{ enabled: false \}\)/)
+  assert.match(panel, /gradient=\{gradient\}/)
+  assert.match(panel, /onElementAppearanceCommit\('gradientEnabled', false\)/)
+  assert.match(panel, /gradient: '\[data-designer-color-property="backgroundColor"\] \.excel-color-trigger'/)
 })
 
 test('Standard honeycomb has 217 distinct hexagonal colors across all hue families', () => {
@@ -517,7 +589,7 @@ test('four-edge resizing follows physical pointer movement and keeps the opposit
   assert.deepEqual(resizeDesignerEdge(50, 20, 'left', 48, 1000), { size: 48, positionDelta: 2 })
   assert.deepEqual(resizeDesignerEdge(590, 20, 'bottom', 24, 600), { size: 600, positionDelta: 0 })
   assert.match(page, /designer-edge-\$\{edge\}/)
-  assert.match(page, /resizeCanvasHandle\(initialCanvas, targets, edge, dx, dy\)/)
+  assert.match(page, /resizeCanvasHandle\(initialCanvas, targets, edge, dx, dy,neighborResizeFor\(startDraft\)\)/)
 })
 
 test('direct input selection replaces a parent selection, supports Ctrl selection and never selects a label', () => {
@@ -544,6 +616,15 @@ function pointerStart(handle) {
   return { currentTarget: handle, button: 0, pointerId: 7, clientX: 100, clientY: 50, prevented: false, stopped: false,
     preventDefault() { this.prevented = true }, stopPropagation() { this.stopped = true } }
 }
+
+test('pointer completion distinguishes a released click from cancellation and cleanup',()=>{
+ for(const type of ['pointerup','pointercancel','lostpointercapture','cleanup']){
+  const handle=new PointerHandle();let reason='pending'
+  const cleanup=captureDesignerPointer(pointerStart(handle),()=>{},event=>{reason=event?.type})
+  if(type==='cleanup')cleanup();else handle.send(type)
+  assert.equal(reason,type==='cleanup'?undefined:type)
+ }
+})
 
 test('resize handle owns capture, ignores other pointers, releases once and blocks parent click selection', () => {
   const handle = new PointerHandle(), start = pointerStart(handle), deltas = []
@@ -610,7 +691,7 @@ test('all four edges resize rendered inputs only, retain labels and anchor the o
   }
   const resizeHandler = page.slice(page.indexOf('const beginInputResize'), page.indexOf('const beginFieldMove'))
   assert.doesNotMatch(resizeHandler, /moveDesignerFieldGroup/)
-  assert.match(page, /designer-input-part > :is\(input,select,textarea,\.person-number-wrap\)/)
+  assert.ok(page.includes("element.querySelector('.designer-input-part')"), 'capture the shared input wrapper, including composite controls')
   assert.doesNotMatch(page, /className=\{selected \? 'designer-part-selected'/)
 })
 
@@ -652,18 +733,18 @@ test('moving inputs retains inherited offsets and preserves both elements sizes'
   assert.equal(moved.overrides['firstName::label'].width, undefined)
 })
 
-test('horizontal layout arranges RTL field groups with matched inputs, chosen gaps and independent labels', () => {
+test('horizontal layout arranges RTL field groups without resizing inputs, with chosen gaps and independent labels', () => {
   const start = emptyDesignerDraft(formId)
   const arranged = layoutDesignerFields(start, layoutFields, { operation: 'arrange', orientation: 'horizontal', gap: 18, rtl: true }, ids)
   const groups = layoutFields.map(field => {
     const dx = Number(arranged.overrides[`${field.id}::input`]?.offsetX ?? 0)
-    const width = Math.max(field.labelWidth, field.width + 100 - field.inputWidth)
+    const width = Math.max(field.labelWidth, field.width)
     return { field, left: field.left + dx, right: field.left + dx + width }
   }).sort((a, b) => b.right - a.right)
-  assert.equal(arranged.overrides['personCode::input'].width, 100)
-  assert.equal(arranged.overrides['personCode::input'].height, 30)
-  assert.equal(arranged.overrides['firstName::input'].width, 100)
-  assert.equal(arranged.overrides['lastName::input'].height, 30)
+  assert.equal(arranged.overrides['personCode::input']?.width, undefined)
+  assert.equal(arranged.overrides['personCode::input']?.height, undefined)
+  assert.equal(arranged.overrides['firstName::input']?.width, undefined)
+  assert.equal(arranged.overrides['lastName::input']?.height, undefined)
   assert.equal(arranged.overrides['firstName::label'].width, undefined)
   assert.equal(arranged.overrides['firstName::label'].height, undefined)
   assert.equal(arranged.overrides['firstName::label'].offsetX, arranged.overrides['firstName::input'].offsetX)
@@ -677,14 +758,14 @@ test('vertical layout aligns field groups and distributes exact non-overlapping 
   const start = emptyDesignerDraft(formId)
   const arranged = layoutDesignerFields(start, layoutFields, { operation: 'arrange', orientation: 'vertical', gap: 21, rtl: true }, ids)
   const groups = layoutFields.map(field => ({ field, top: field.top + Number(arranged.overrides[`${field.id}::input`]?.offsetY ?? 0), left: field.left + Number(arranged.overrides[`${field.id}::input`]?.offsetX ?? 0) })).sort((a, b) => a.top - b.top)
-  assert.equal(arranged.overrides['personCode::input'].width, 100)
-  assert.equal(arranged.overrides['lastName::input'].height, 30)
+  assert.equal(arranged.overrides['personCode::input'].width, undefined)
+  assert.equal(arranged.overrides['lastName::input'].height, undefined)
   assert.equal(arranged.overrides['lastName::label'].width, undefined)
   assert.equal(arranged.overrides['lastName::label'].height, undefined)
   assert.equal(arranged.overrides['lastName::label'].offsetX, arranged.overrides['lastName::input'].offsetX)
   assert.equal(arranged.overrides['lastName::label'].offsetY, arranged.overrides['lastName::input'].offsetY)
-  assert.ok(groups.every(group => group.left === groups[0].left))
-  const groupHeights = layoutFields.map(field => Math.max(field.labelHeight, field.height + 30 - field.inputHeight))
+  assert.ok(groups.every(group => group.left + Math.max(group.field.width, group.field.labelWidth) === groups[0].left + Math.max(groups[0].field.width, groups[0].field.labelWidth)))
+  const groupHeights = layoutFields.map(field => Math.max(field.labelHeight, field.height))
   assert.ok(Math.abs((groups[1].top - groups[0].top) - (groupHeights[0] + 21)) < 1)
   assert.ok(Math.abs((groups[2].top - groups[1].top) - (groupHeights[1] + 21)) < 1)
 })
@@ -796,10 +877,10 @@ test('laboratory UI protects editable keyboard behavior, RTL, cancellation and i
   assert.match(page, /target\.matches\('input, textarea, \[contenteditable="true"\]'\)/)
   assert.match(page, /editingBaseline\.current/)
   assert.match(app, /FormLaboratoryPage language=\{language\} authenticatedUserId=\{access\?\.id\}/)
-  assert.match(page, /const targets = applyToAll \? fieldIds : selection/)
-  assert.match(page, /setSelection\(fieldIds\.map/)
+  assert.match(page, /const targets = applyToAll \? activeFieldIds : selection/)
+  assert.match(page, /setSelection\(activeFieldIds\.map/)
   assert.doesNotMatch(page, /document\.documentElement\.dataset\.theme|setTheme\(/)
-  assert.match(page, /<Shortcut code=\{dataEntryActive \? action.code : designerActionCode\(visibleDraft, action\)\}/)
+  assert.match(page, /<Shortcut code=\{entryActive \? action.code : designerActionCode\(designerDraft, action\)\}/)
   assert.match(panel, /type="color"/)
   assert.match(panel, /onBeginColorChange/)
   assert.match(panel, /رنگ و ظاهر/)
@@ -811,15 +892,15 @@ test('laboratory UI protects editable keyboard behavior, RTL, cancellation and i
 test('device previews use real viewport widths and keep desktop canvas editing isolated', () => {
   const styles = readFileSync(new URL('../../styles.css', import.meta.url), 'utf8')
   assert.match(page, /const previewWidths = \{ desktop: 1440, tablet: 768, mobile: 390 \}/)
-  assert.match(page, /const geometryEditable = previewDevice === 'desktop'/)
+  assert.match(page, /const geometryEditable = activePreviewFrame\.device === 'desktop'/)
   assert.match(page, /const width = typeof stored\.width[\s\S]*?Math\.max\(320, Math\.min\(2400, stored\.width\)\)/)
-  assert.match(page, /data-preview-device=\{previewDevice\} data-preview-width=\{previewWidth\}/)
-  assert.match(page, /previewFitToPage && previewDevice === 'desktop' \? '100%' : previewWidth/)
-  assert.match(page, /const canvas = geometryEditable \? history\.present\.canvas/)
+  assert.match(page, /data-preview-device=\{activePreviewFrame\.device\} data-preview-width=\{activePreviewFrame\.width\}/)
+  assert.match(page, /activePreviewFrame\.fitToPage && activePreviewFrame\.device === 'desktop' \? '100%' : activePreviewFrame\.width/)
+  assert.match(page, /const canvas = geometryEditable \? storedEditorCanvas \?\? \(designerOpen \? frozenCanvas : null\) : null/)
   assert.match(page, /geometryEditable=\{geometryEditable\}/)
-  assert.match(page, /if \(!designerOpen \|\| !geometryEditable \|\| history\.present\.canvas/)
+  assert.match(page, /if \(!designerOpen \|\| !geometryEditable \|\| storedEditorCanvas/)
   assert.match(styles, /\.laboratory-form-frame\{[^}]*container-type:inline-size;container-name:laboratory-preview/)
-  assert.match(styles, /@container laboratory-preview \(max-width:900px\)/)
-  assert.match(styles, /@container laboratory-preview \(max-width:420px\)/)
+  assert.match(styles, /@container laboratory-preview \(max-width:\s*600px\)/)
+  assert.match(styles, /@container laboratory-preview \(max-width:\s*420px\)/)
   assert.match(styles, /\.laboratory-form-frame-area\{[^}]*overflow:auto/)
 })

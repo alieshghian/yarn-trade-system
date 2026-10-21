@@ -1,3 +1,6 @@
+import {createPortal} from 'react-dom'
+import {useComponentBehavior} from './useComponentBehavior'
+import type {ListCapabilities} from './componentBehavior'
 import { useEffect, useRef, useState } from 'react'
 import { functionKeyFromEvent } from './functionKeys'
 import { resolveFormValueEntries } from './formValueListEntries'
@@ -55,7 +58,11 @@ function updateFormattedPhoneInput(
   })
 }
 
-export function NumberControl({ field, label, primary, numbers, disabled, fa, onChange, suggestedCode = '', multiline = false, className = '', listPrimary, required = false, minListWidth = 0, getItemKey, addLabel, listLabel, protectedMode = false, designerMode = false, keyboardPrimarySelection = false, onSelectValue, canRemove, canEdit }: { field: string, label: string, primary: string, numbers: string[], disabled: boolean, fa: boolean, suggestedCode?: string, multiline?: boolean, className?: string, listPrimary?: string, required?: boolean, minListWidth?: number, addLabel?: string, listLabel?: string, getItemKey?: (original: string) => string, protectedMode?: boolean, designerMode?: boolean, keyboardPrimarySelection?: boolean, onSelectValue?: (value: string) => void, canRemove?: (original: string) => boolean, canEdit?: (original: string) => boolean, onChange: (primary: string, numbers: string[], origins: ReadonlyMap<string, string>) => boolean | void }) {
+export function NumberControl({ field, label, primary, numbers, disabled, fa, onChange, suggestedCode = '', multiline = false, className = '', listPrimary, required = false, minListWidth = 0, getItemKey, addLabel, listLabel, protectedMode = false, designerMode = false, keyboardPrimarySelection = false, onSelectValue, canRemove, canEdit, canAdd=true,componentDefinitionId,behaviorPreview }: { componentDefinitionId?:string;behaviorPreview?:ListCapabilities;canAdd?:boolean;field: string, label: string, primary: string, numbers: string[], disabled: boolean, fa: boolean, suggestedCode?: string, multiline?: boolean, className?: string, listPrimary?: string, required?: boolean, minListWidth?: number, addLabel?: string, listLabel?: string, getItemKey?: (original: string) => string, protectedMode?: boolean, designerMode?: boolean, keyboardPrimarySelection?: boolean, onSelectValue?: (value: string) => void, canRemove?: (original: string) => boolean, canEdit?: (original: string) => boolean, onChange: (primary: string, numbers: string[], origins: ReadonlyMap<string, string>) => boolean | void | Promise<boolean|void> }) {
+  const behavior=useComponentBehavior(componentDefinitionId??'base-form.value-list',behaviorPreview)
+  const popupRef=useRef<HTMLDivElement>(null),savingRef=useRef(false)
+  const [saving,setSaving]=useState(false),[popupError,setPopupError]=useState(''),[choiceSearch,setChoiceSearch]=useState(''),[removeCandidate,setRemoveCandidate]=useState<string|null>(null)
+  const ownsTarget=(target:Element)=>Boolean(wrapper.current?.contains(target)||popupRef.current?.contains(target))
   const [open, setOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [managing, setManaging] = useState(false)
@@ -68,6 +75,8 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
   const [editingNumber, setEditingNumber] = useState<string | null>(null)
   const [listPosition, setListPosition] = useState<React.CSSProperties>({})
   const [pendingNumbers, setPendingNumbers] = useState(numbers)
+  const managementAllowed=canAdd||numbers.some(value=>canEdit?.(value)===true||canRemove?.(value)===true)
+  const visibleNumbers=pendingNumbers.filter(value=>!choiceSearch||value.toLocaleLowerCase().includes(choiceSearch.toLocaleLowerCase()))
   const [pendingPrimary, setPendingPrimary] = useState(primary)
   const [activeNumber, setActiveNumber] = useState(primary)
   const input = useRef<HTMLInputElement | HTMLTextAreaElement>(null)
@@ -83,7 +92,7 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
   function openEmptyControl() {
     if (designerMode) return
     if (skipEmptyFocus.current) { skipEmptyFocus.current = false; return }
-    if ((!protectedMode || keyboardPrimarySelection) && !disabled && !primary.trim() && !open) addButton.current?.click()
+    if (canAdd && (!protectedMode || keyboardPrimarySelection) && !disabled && !primary.trim() && !open) addButton.current?.click()
   }
   function clickDisplay(event: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) {
     // A focus-opened list must not be dismissed by the click that focused it.
@@ -117,7 +126,7 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
   }
   function showList(event: React.MouseEvent<HTMLButtonElement>, startAdding = false) {
     if (designerMode) return
-    if (protectedMode && !numbers.length && !disabled) startAdding = true
+    if (canAdd && protectedMode && !numbers.length && !disabled) startAdding = true
     const wrapper = event.currentTarget.closest('.person-number-wrap')
     const field = wrapper?.querySelector('.person-number-control') ?? event.currentTarget.closest('.person-number-control')
     const rect = (field ?? event.currentTarget).getBoundingClientRect()
@@ -129,6 +138,7 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
     const placeAbove = keyboardPrimarySelection && below < 100 && above > below
     setListPosition({ top: placeAbove ? 'auto' : rect.bottom + 4, bottom: placeAbove ? window.innerHeight - rect.top + 4 : 'auto', left, right: 'auto', width, maxHeight: Math.max(keyboardPrimarySelection ? 64 : 40, Math.min(180, placeAbove ? above : below)) })
     if (!open) {
+      setPopupError('');setChoiceSearch('');setRemoveCandidate(null)
       setDefaultEntryId(null)
       setPendingNumbers(numbers)
       setPendingPrimary(listPrimary ?? primary)
@@ -136,7 +146,7 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
       valueOrigins.current = new Map(numbers.map(value => [value, value]))
     }
     if (!open) setEntryRows([])
-    if (startAdding && (!open || !entryRows.length)) {
+    if (canAdd && startAdding && (!open || !entryRows.length)) {
       const id = ++nextEntryId.current
       setEntryRows([{ id, code: suggestedCode, text: '' }])
       if (keyboardPrimarySelection && !numbers.length) setDefaultEntryId(id)
@@ -155,13 +165,13 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
   }, [open, adding, disabled, entryRows.length, keyboardPrimarySelection])
   useEffect(() => {
     if (open && protectedMode && !managing && !adding) {
-      const rows = Array.from(wrapper.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? [])
-      const activeIndex = pendingNumbers.indexOf(activeNumber)
+      const rows = Array.from(popupRef.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? [])
+      const activeIndex = visibleNumbers.indexOf(activeNumber)
       ;(rows[activeIndex] ?? rows.find(row => row.classList.contains('selected')) ?? rows[0])?.focus()
     }
   }, [open, protectedMode, managing, adding, activeNumber, pendingNumbers])
   function add(code: string) {
-    if (disabled) return
+    if (disabled||!canAdd||savingRef.current) return
     setManaging(true)
     const id = ++nextEntryId.current
     setEntryRows(current => [...current, { id, code, text: '' }])
@@ -171,7 +181,7 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
   function changeEntry(id: number, key: 'code' | 'text', value: string) { setEntryRows(current => current.map(row => row.id === id ? { ...row, [key]: value } : row)) }
   const removalAllowed = (value: string) => canRemove?.(valueOrigins.current.get(value) ?? value) !== false
   const editingAllowed = (value: string) => canEdit?.(valueOrigins.current.get(value) ?? value) !== false
-  function remove(value: string) { if (disabled || (protectedMode && !managing) || !removalAllowed(value)) return; const next = pendingNumbers.filter(item => item !== value); setPendingNumbers(next); if (value === pendingPrimary) setPendingPrimary(next[0] ?? '') }
+  function remove(value: string) { if(savingRef.current)return;if(behavior.confirmRemoval&&removeCandidate!==value){setRemoveCandidate(value);return}setRemoveCandidate(null);if (disabled || (protectedMode && !managing) || !removalAllowed(value)) return; const next = pendingNumbers.filter(item => item !== value); setPendingNumbers(next); if (value === pendingPrimary) setPendingPrimary(next[0] ?? '') }
   function edit(value: string, edited: string) {
     if (!edited.trim() || pendingNumbers.some(item => item !== value && item === edited)) return
     if (multiline) {
@@ -198,8 +208,9 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
     if (activeNumber === editingNumber) setActiveNumber(edited)
     setEditingNumber(null); setText('')
   }
-  function confirm() {
-    if (disabled) return
+  async function confirm() {
+    if (disabled||savingRef.current) return
+    setPopupError('')
     if (protectedMode && !managing) { cancel(); return }
     let finalNumbers = pendingNumbers
     let finalPrimary = pendingPrimary
@@ -215,6 +226,8 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
       finalNumbers = finalNumbers.map(item => item === editingNumber ? edited : item)
       if (finalPrimary === editingNumber) finalPrimary = edited
     }
+    const tooLong=entryRows.find(row=>row.text.length>behavior.maxEntryLength)
+    if(tooLong||editingNumber!==null&&text.length>behavior.maxEntryLength){setPopupError((fa?'حداکثر طول مجاز: ':'Maximum length: ')+behavior.maxEntryLength);return}
     const resolved = resolveFormValueEntries(finalNumbers, finalPrimary, entryRows, defaultEntryId, multiline)
     if (resolved.error) {
       reject((resolved.error.field === 'code' ? entryCodes : entryInputs).current.get(resolved.error.entryId) ?? null)
@@ -228,11 +241,15 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
       return
     }
     if (numbers.some(value => canRemove?.(value) === false && !finalNumbers.some(next => (valueOrigins.current.get(next) ?? next) === value))) return
-    if (onChange(finalPrimary, finalNumbers, valueOrigins.current) === false) return
+    savingRef.current=true;setSaving(true)
+    try{if(await onChange(finalPrimary,finalNumbers,new Map(valueOrigins.current))===false)return}
+    catch(error){setPopupError(error instanceof Error?error.message:String(error));return}
+    finally{savingRef.current=false;setSaving(false)}
     setEditingNumber(null); setOpen(false); setAdding(false); setManaging(false); setText(''); setEntryRows([])
     focusNextControl()
   }
   function cancel(advanceFocus = true) {
+    if(savingRef.current)return
     setPendingNumbers(numbers)
     setPendingPrimary(listPrimary ?? primary)
     setEditingNumber(null)
@@ -250,8 +267,8 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
     if (!open || !keyboardPrimarySelection) return
     const dismissOutside = (event: MouseEvent) => {
       if (!(event.target instanceof Node)) return
-      const popup = wrapper.current?.querySelector('.person-number-list')
-      if (popup?.contains(event.target) || addButton.current?.contains(event.target)) return
+      const popup = popupRef.current
+      if (event.composedPath().includes(popup as EventTarget) || popup?.contains(event.target) || addButton.current?.contains(event.target)) return
       if (event.target instanceof Element && event.target.closest('.number-chevron')?.closest('.person-number-wrap') === wrapper.current) return
       cancel(false)
     }
@@ -261,12 +278,12 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
   useEffect(() => {
     if (!protectedMode || designerMode) return
     const browseKey = (event: KeyboardEvent) => {
-      if (!(event.target instanceof Element) || event.target.closest('.person-number-wrap') !== wrapper.current || event.ctrlKey || event.altKey || event.metaKey) return
+      if (!(event.target instanceof Element) || !ownsTarget(event.target) || event.ctrlKey || event.altKey || event.metaKey) return
       const display = event.target.closest('.person-number-control')
       const rowButton = event.target.closest('.person-number-row:not(.new-number-row)')?.querySelector<HTMLButtonElement>('.person-primary')
       const rowNavigation = Boolean(rowButton) && event.target.matches('.person-primary,textarea[readonly],.number-row-value')
       const plus = event.key === '+' || event.key === 'Add' || event.code === 'NumpadAdd'
-      if (plus && !disabled && (display || event.target.matches('button,textarea[readonly],.number-row-value'))) {
+      if (plus && canAdd && !disabled && (display || event.target.matches('button,textarea[readonly],.number-row-value'))) {
         event.preventDefault(); event.stopImmediatePropagation()
         if (open) add(suggestedCode)
         else addButton.current?.click()
@@ -294,23 +311,23 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
         event.preventDefault(); event.stopImmediatePropagation()
         if (!open) wrapper.current?.querySelector<HTMLButtonElement>('.number-chevron')?.click()
         else {
-          const rows = Array.from(wrapper.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? [])
-          const index = pendingNumbers.indexOf(activeNumber)
+          const rows = Array.from(popupRef.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? [])
+          const index = visibleNumbers.indexOf(activeNumber)
           ;(rows[index] ?? rows.find(row => row.classList.contains('selected')) ?? rows[0])?.focus()
         }
       } else if (open && ['ArrowUp', 'ArrowDown'].includes(event.key) && rowNavigation) {
         event.preventDefault(); event.stopImmediatePropagation()
-        const rows = Array.from(wrapper.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? [])
+        const rows = Array.from(popupRef.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? [])
         const index = rows.indexOf(rowButton as HTMLButtonElement)
         if (rows.length) {
           const nextIndex = (index + (event.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length
-          setActiveNumber(pendingNumbers[nextIndex] ?? '')
+          setActiveNumber(visibleNumbers[nextIndex] ?? '')
           rows[nextIndex]?.focus()
         }
       } else if (open && event.key === 'Enter' && rowNavigation && keyboardPrimarySelection) {
         event.preventDefault(); event.stopImmediatePropagation()
-        const index = Array.from(wrapper.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? []).indexOf(rowButton as HTMLButtonElement)
-        const selectedNumber = pendingNumbers[index]
+        const index = Array.from(popupRef.current?.querySelectorAll<HTMLButtonElement>('.person-number-row:not(.new-number-row)>.person-primary') ?? []).indexOf(rowButton as HTMLButtonElement)
+        const selectedNumber = visibleNumbers[index]
         if (selectedNumber !== undefined) {
           setActiveNumber(selectedNumber)
           if (managing) { setPendingPrimary(selectedNumber); setDefaultEntryId(null) }
@@ -337,15 +354,13 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
     if (!open) return
     const cancelKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-      const owner = event.target instanceof Element ? event.target.closest('.person-number-wrap') : null
-      if (owner !== wrapper.current) return
+      if (!(event.target instanceof Element)||!ownsTarget(event.target)) return
       event.preventDefault(); event.stopImmediatePropagation()
       if (!event.repeat) cancel()
     }
     const confirmKey = (event: KeyboardEvent) => {
       if (functionKeyFromEvent(event) !== 'F3' || event.altKey || event.ctrlKey || event.metaKey || wrapper.current?.closest('[aria-hidden="true"]')) return
-      const owner = event.target instanceof Element ? event.target.closest('.person-number-wrap') : null
-      if (owner !== wrapper.current) return
+      if (!(event.target instanceof Element)||!ownsTarget(event.target)) return
       // Run before the shared document capture handler that owns the main F3 save.
       event.preventDefault(); event.stopImmediatePropagation()
       handledF3Keydown.current = true
@@ -355,18 +370,23 @@ export function NumberControl({ field, label, primary, numbers, disabled, fa, on
     window.addEventListener('keydown', confirmKey, true)
     return () => { window.removeEventListener('keydown', cancelKey, true); window.removeEventListener('keydown', confirmKey, true) }
   })
-  return <div className={`person-number-wrap${className ? ` ${className}` : ''}`} data-protected-list={protectedMode || undefined} data-standard-list={keyboardPrimarySelection || undefined} data-designer-mode={designerMode || undefined} inert={designerMode || undefined} ref={wrapper} onInput={event => { if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.target.setCustomValidity('') }}>
-    <button ref={addButton} type="button" className="number-add-button" disabled={disabled} aria-label={addLabel ?? `${fa ? 'افزودن شماره' : 'Add number'} ${label}`} aria-expanded={open && adding} onClick={event => disabled ? undefined : showList(event, true)}>+</button>
+  const popupTokens=Object.fromEntries(['--component-popup-font-size','--component-popup-bg'].map(key=>[key,wrapper.current?getComputedStyle(wrapper.current).getPropertyValue(key).trim():'']).filter(([,value])=>value))
+  const popupBackground=/^#[0-9a-f]{6}$/i.test(popupTokens['--component-popup-bg']??'')?popupTokens['--component-popup-bg']:'#ffffff'
+  const popup=open ? <div ref={popupRef} data-component-popup data-component-definition={componentDefinitionId??'base-form.value-list'} role="dialog" aria-label={label} className={`person-number-list ${multiline ? 'address-list' : 'phone-list'} ${adding ? 'adding' : ''}`} style={{...listPosition,position:'fixed',zIndex:2147483000,backgroundColor:popupBackground,backgroundImage:'none',opacity:1,backdropFilter:'none',isolation:'isolate',...popupTokens} as React.CSSProperties} dir={multiline ? 'rtl' : 'ltr'}>
+      {behavior.searchChoices&&<input className="component-choice-search" aria-label={fa?'جست‌وجو در '+label:'Search '+label} value={choiceSearch} onChange={event=>setChoiceSearch(event.target.value)}/>}
+      <p className="component-behavior-help">{fa?'افزودن '+label+'؛ Enter: یک ردیف دیگر؛ F3: ثبت؛ Esc: انصراف.':'Add '+label+'; Enter: another row; F3: save; Esc: cancel.'}</p>
+      <div className="number-list-items">
+      {visibleNumbers.map(number => <div className={`person-number-row${keyboardPrimarySelection && activeNumber === number ? ' is-active-row' : ''}`} key={getItemKey?.(valueOrigins.current.get(number) ?? number) ?? number} onFocusCapture={() => { if (keyboardPrimarySelection) setActiveNumber(number) }} onClick={() => { if (keyboardPrimarySelection && !managing && !disabled) { onSelectValue?.(number); cancel() } }}><button type="button" className={`person-primary ${defaultEntryId === null && pendingPrimary === number ? 'selected' : ''}`} aria-disabled={protectedMode && !editable || undefined} onClick={() => { if (!protectedMode || editable) { setPendingPrimary(number); setDefaultEntryId(null); setActiveNumber(number) } }} aria-label={fa ? 'انتخاب مورد اصلی' : 'Set primary'}>{defaultEntryId === null && pendingPrimary === number ? '✓' : ''}</button>{multiline ? <textarea ref={el => { if (editingNumber === number) input.current = el }} disabled={disabled} readOnly={protectedMode && editingNumber !== number} rows={2} value={protectedMode && editingNumber === number ? text : number} onChange={e => protectedMode ? setText(e.target.value) : edit(number, e.target.value)} /> : editingNumber === number ? <input ref={el => { input.current = el }} className="number-edit-input" dir="ltr" value={formatEditableNumber(text)} onChange={event => updateFormattedPhoneInput(event, formatEditableNumber, value => { const compact = value.replace(/[^\d+]/g, ''); return compact.startsWith('+') ? `+${compact.slice(1).replace(/\+/g, '')}` : compact.replace(/\+/g, '') }, setText)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyEdit() } }} /> : <span className="number-row-value" dir="ltr">{formatInternationalNumber(number)}</span>}{editable && <>{(!multiline || protectedMode) && editingAllowed(number) && <button type="button" className="number-row-edit" onClick={() => { setEditingNumber(number); setAdding(false); setActiveNumber(number); setText(number); requestAnimationFrame(() => input.current?.focus()) }} aria-label={fa ? 'ویرایش' : 'Edit'}>✎</button>}{removalAllowed(number) && <button type="button" disabled={!removalAllowed(number)} title={!removalAllowed(number) ? (fa ? 'این عنوان استفاده شده و قابل حذف نیست.' : 'This title is in use and cannot be removed.') : undefined} data-remove-candidate={removeCandidate===number||undefined} onClick={() => remove(number)} aria-label={fa ? 'حذف' : 'Remove'}>{removeCandidate===number?(fa?'تأیید حذف':'Confirm'):'×'}</button>}</>}</div>)}
+      {editable && entryRows.map(row => <div key={row.id} className="person-number-row new-number-row" dir={multiline ? 'rtl' : 'ltr'}>{keyboardPrimarySelection && <button type="button" className={`person-primary ${defaultEntryId === row.id ? 'selected' : ''}`} aria-pressed={defaultEntryId === row.id} aria-label={fa ? 'انتخاب پیش‌فرض' : 'Set default'} onClick={() => setDefaultEntryId(row.id)}>{defaultEntryId === row.id ? '✓' : ''}</button>}{!multiline && <input ref={el => { if (el) entryCodes.current.set(row.id, el); else entryCodes.current.delete(row.id) }} className="dial-code-input" dir="ltr" aria-label={fa ? 'کد کشور' : 'Country code'} value={row.code} onChange={e => changeEntry(row.id, 'code', e.target.value)} placeholder={suggestedCode || '+98'} />}{multiline ? <textarea ref={el => { if (el) entryInputs.current.set(row.id, el); else entryInputs.current.delete(row.id) }} value={row.text} maxLength={behavior.maxEntryLength} placeholder={fa?label+' جدید':'New '+label} onChange={e => changeEntry(row.id, 'text', e.target.value)} aria-label={label} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(row.code) } }} /> : <input ref={el => { if (el) entryInputs.current.set(row.id, el); else entryInputs.current.delete(row.id) }} className="number-edit-input" dir="ltr" type="tel" value={formatPhoneDigits(row.text, row.code)} onChange={event => updateFormattedPhoneInput(event, value => formatPhoneDigits(value, row.code), value => value.replace(/\D/g, ''), value => changeEntry(row.id, 'text', value))} aria-label={label} placeholder={fa ? 'شماره جدید' : 'New number'} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(row.code) } }} />}<button type="button" className="number-row-add" aria-label={fa ? 'افزودن مورد' : 'Add entry'} onClick={() => add(row.code)}>+</button></div>)}
+      </div>
+      {!disabled && <div className="number-actions" dir={keyboardPrimarySelection ? (fa ? 'rtl' : 'ltr') : undefined}><button type="button" className="number-confirm" disabled={saving} onClick={confirm}>{fa ? 'ثبت' : 'Save'} (F3)</button><button type="button" className="number-cancel" disabled={saving} onClick={() => cancel()}>{fa ? 'انصراف' : 'Cancel'} (Esc)</button>{protectedMode && canAdd && <button type="button" className="number-row-add" aria-label={fa ? 'افزودن مورد' : 'Add entry'} onClick={() => add(suggestedCode)}>+</button>}</div>}
+    {popupError&&<p role="alert">{popupError}</p>}</div>:null
+  return <div className={`person-number-wrap${className ? ` ${className}` : ''}`} data-component-definition={componentDefinitionId??'base-form.value-list'} data-protected-list={protectedMode || undefined} data-standard-list={keyboardPrimarySelection || undefined} data-designer-mode={designerMode || undefined} inert={designerMode || undefined} ref={wrapper} onInput={event => { if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) event.target.setCustomValidity('') }}>
+    <button ref={addButton} type="button" className="number-add-button" disabled={disabled||!managementAllowed} aria-label={addLabel ?? `${fa ? 'افزودن شماره' : 'Add number'} ${label}`} aria-expanded={open && adding} onClick={event => disabled ? undefined : showList(event, true)}>+</button>
     <div className={`person-number-control ${multiline ? 'address-control' : ''}`}>
       {multiline ? <textarea data-field={field} aria-label={label} disabled={disabled} value={primary} readOnly rows={1} onFocus={openEmptyControl} onClick={clickDisplay} /> : <input data-field={field} className="ltr-input number-display" aria-label={label} disabled={disabled} value={formatInternationalNumber(primary)} readOnly dir="ltr" onFocus={openEmptyControl} onClick={clickDisplay} />}
       <button type="button" className="number-chevron" aria-label={listLabel ?? (fa ? (multiline ? 'نمایش نشانی‌ها' : 'نمایش شماره‌ها') : 'Show list')} aria-expanded={open} onClick={event => open ? setOpen(false) : showList(event)} />
     </div>
-    {open && <div className={`person-number-list ${multiline ? 'address-list' : 'phone-list'} ${adding ? 'adding' : ''}`} style={listPosition} dir={multiline ? 'rtl' : 'ltr'}>
-      <div className="number-list-items">
-      {pendingNumbers.map(number => <div className={`person-number-row${keyboardPrimarySelection && activeNumber === number ? ' is-active-row' : ''}`} key={getItemKey?.(valueOrigins.current.get(number) ?? number) ?? number} onFocusCapture={() => { if (keyboardPrimarySelection) setActiveNumber(number) }} onClick={() => { if (keyboardPrimarySelection && !managing && !disabled) { onSelectValue?.(number); cancel() } }}><button type="button" className={`person-primary ${defaultEntryId === null && pendingPrimary === number ? 'selected' : ''}`} aria-disabled={protectedMode && !editable || undefined} onClick={() => { if (!protectedMode || editable) { setPendingPrimary(number); setDefaultEntryId(null); setActiveNumber(number) } }} aria-label={fa ? 'انتخاب مورد اصلی' : 'Set primary'}>{defaultEntryId === null && pendingPrimary === number ? '✓' : ''}</button>{multiline ? <textarea ref={el => { if (editingNumber === number) input.current = el }} disabled={disabled} readOnly={protectedMode && editingNumber !== number} rows={2} value={protectedMode && editingNumber === number ? text : number} onChange={e => protectedMode ? setText(e.target.value) : edit(number, e.target.value)} /> : editingNumber === number ? <input ref={el => { input.current = el }} className="number-edit-input" dir="ltr" value={formatEditableNumber(text)} onChange={event => updateFormattedPhoneInput(event, formatEditableNumber, value => { const compact = value.replace(/[^\d+]/g, ''); return compact.startsWith('+') ? `+${compact.slice(1).replace(/\+/g, '')}` : compact.replace(/\+/g, '') }, setText)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); applyEdit() } }} /> : <span className="number-row-value" dir="ltr">{formatInternationalNumber(number)}</span>}{editable && <>{(!multiline || protectedMode) && editingAllowed(number) && <button type="button" className="number-row-edit" onClick={() => { setEditingNumber(number); setAdding(false); setActiveNumber(number); setText(number); requestAnimationFrame(() => input.current?.focus()) }} aria-label={fa ? 'ویرایش' : 'Edit'}>✎</button>}{removalAllowed(number) && <button type="button" disabled={!removalAllowed(number)} title={!removalAllowed(number) ? (fa ? 'این عنوان استفاده شده و قابل حذف نیست.' : 'This title is in use and cannot be removed.') : undefined} onClick={() => remove(number)} aria-label={fa ? 'حذف' : 'Remove'}>×</button>}</>}</div>)}
-      {editable && entryRows.map(row => <div key={row.id} className="person-number-row new-number-row" dir={multiline ? 'rtl' : 'ltr'}>{keyboardPrimarySelection && <button type="button" className={`person-primary ${defaultEntryId === row.id ? 'selected' : ''}`} aria-pressed={defaultEntryId === row.id} aria-label={fa ? 'انتخاب پیش‌فرض' : 'Set default'} onClick={() => setDefaultEntryId(row.id)}>{defaultEntryId === row.id ? '✓' : ''}</button>}{!multiline && <input ref={el => { if (el) entryCodes.current.set(row.id, el); else entryCodes.current.delete(row.id) }} className="dial-code-input" dir="ltr" aria-label={fa ? 'کد کشور' : 'Country code'} value={row.code} onChange={e => changeEntry(row.id, 'code', e.target.value)} placeholder={suggestedCode || '+98'} />}{multiline ? <textarea ref={el => { if (el) entryInputs.current.set(row.id, el); else entryInputs.current.delete(row.id) }} value={row.text} onChange={e => changeEntry(row.id, 'text', e.target.value)} aria-label={label} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(row.code) } }} /> : <input ref={el => { if (el) entryInputs.current.set(row.id, el); else entryInputs.current.delete(row.id) }} className="number-edit-input" dir="ltr" type="tel" value={formatPhoneDigits(row.text, row.code)} onChange={event => updateFormattedPhoneInput(event, value => formatPhoneDigits(value, row.code), value => value.replace(/\D/g, ''), value => changeEntry(row.id, 'text', value))} aria-label={label} placeholder={fa ? 'شماره جدید' : 'New number'} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); add(row.code) } }} />}<button type="button" className="number-row-add" aria-label={fa ? 'افزودن مورد' : 'Add entry'} onClick={() => add(row.code)}>+</button></div>)}
-      </div>
-      {!disabled && <div className="number-actions" dir={keyboardPrimarySelection ? (fa ? 'rtl' : 'ltr') : undefined}><button type="button" className="number-confirm" onClick={confirm}>{fa ? 'ثبت' : 'Save'} (F3)</button><button type="button" className="number-cancel" onClick={() => cancel()}>{fa ? 'انصراف' : 'Cancel'} (Esc)</button>{protectedMode && <button type="button" className="number-row-add" aria-label={fa ? 'افزودن مورد' : 'Add entry'} onClick={() => add(suggestedCode)}>+</button>}</div>}
-    </div>}
+    {popup&&createPortal(<div className="person-number-wrap component-popup-host" data-standard-list={keyboardPrimarySelection||undefined}>{popup}</div>,document.getElementById('root')??document.body)}
   </div>
 }

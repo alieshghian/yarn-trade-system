@@ -181,6 +181,68 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         return Ok(new ParameterView(title.Id, title.ParameterType, title.Code, title.NameFa, title.NameEn, title.TitlePersonType));
     }
 
+    // One SaveChanges transaction for the complete shared list, with per-change
+    // permissions and protected references. No deletion of historical parameters.
+    [RequirePermission("persons.view")]
+    [HttpPost("parameters/titles/changes")]
+    public async Task<IActionResult> ChangeTitles(TitleListChanges input, [FromServices] PermissionService permissions, CancellationToken ct)
+    {
+        if (input.Items.Count > 200 || input.Removed.Count > 200 || input.PersonType is not (PersonType.Individual or PersonType.Company))
+            return BadRequest(new { error = "فهرست عنوان نامعتبر است." });
+        var effective = await permissions.GetEffectiveAsync(User, ct);
+        var all = await db.ParameterValues.Where(x => x.ParameterType == ParameterType.Title).ToListAsync(ct);
+        static string Normalize(string name) => PersianTextNormalizer.NormalizeName(name == "آقا" ? "آقای" : name.Trim());
+        var names = input.Items.Select(item => Normalize(item.Name)).ToArray();
+        if (input.Items.Any(item => string.IsNullOrWhiteSpace(item.Name) || item.Name.Trim().Length > 100) || names.Distinct().Count() != names.Length)
+            return BadRequest(new { error = "عنوان نامعتبر یا تکراری است." });
+        if (input.Items.Count > 0 && !names.Contains(Normalize(input.DefaultName)))
+            return BadRequest(new { error = "پیش‌فرض باید یکی از گزینه‌های همین فهرست باشد." });
+        var existingIds = input.Items.Where(item => item.Id.HasValue).Select(item => item.Id!.Value).ToArray();
+        if (existingIds.Distinct().Count() != existingIds.Length || input.Removed.Any(item => item.Id is null || existingIds.Contains(item.Id.Value)))
+            return BadRequest(new { error = "شناسهٔ عنوان تکراری یا نامعتبر است." });
+        var updates = new List<(ParameterValue Value, string Name)>();
+        var removes = new List<ParameterValue>();
+        foreach (var item in input.Items.Concat(input.Removed).Where(item => item.Id.HasValue))
+        {
+            var old = all.SingleOrDefault(value => value.Id == item.Id && value.IsActive);
+            if (old is null || old.NameFa != item.ExpectedName) return Conflict(new { error = "فهرست عنوان تغییر کرده است؛ دوباره بارگذاری کنید." });
+        }
+        foreach (var item in input.Items.Where(item => item.Id.HasValue))
+        {
+            var old = all.Single(value => value.Id == item.Id);
+            if (old.NameFa != item.Name.Trim()) updates.Add((old, item.Name.Trim()));
+        }
+        foreach (var item in input.Removed) removes.Add(all.Single(value => value.Id == item.Id));
+        if (input.Items.Any(item => item.Id is null) && !effective.Contains("persons.create") || updates.Count > 0 && !effective.Contains("persons.edit") || removes.Count > 0 && !effective.Contains("persons.delete")) return Forbid();
+        var changed = updates.Select(item => item.Value).Concat(removes).ToArray();
+        var changedIds = changed.Select(item => item.Id).ToArray();
+        if (changed.Any(item => !item.Code.StartsWith("TITLE_", StringComparison.Ordinal)) || await db.Persons.AnyAsync(person => person.TitleId.HasValue && changedIds.Contains(person.TitleId.Value), ct))
+            return Conflict(new { error = "عنوان سیستمی یا استفاده‌شده قابل ویرایش و حذف نیست." });
+        foreach (var item in input.Items)
+            if (all.Any(old => old.Id != item.Id && !removes.Contains(old) && Normalize(old.NameFa) == Normalize(item.Name) && old.IsActive))
+                return Conflict(new { error = "این عنوان قبلاً ثبت شده است." });
+        var result = new List<ParameterValue>();
+        foreach (var item in input.Items)
+        {
+            var value = item.Id.HasValue ? all.Single(old => old.Id == item.Id) : all.FirstOrDefault(old => !old.IsActive && Normalize(old.NameFa) == Normalize(item.Name));
+            if (value is null)
+            {
+                var normalized = Normalize(item.Name);
+                value = new ParameterValue { ParameterType = ParameterType.Title, Code = "TITLE_" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(normalized)))[..24], NameFa = item.Name.Trim(), NameEn = item.Name.Trim(), TitlePersonType = input.PersonType, SortOrder = 100 + all.Count + result.Count };
+                db.ParameterValues.Add(value);
+            }
+            value.IsActive = true;
+            if (updates.Any(update => update.Value == value)) { value.NameFa = item.Name.Trim(); value.NameEn = item.Name.Trim(); }
+            result.Add(value);
+        }
+        foreach (var removed in removes) removed.IsActive = false;
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
+        catch (DbUpdateException) { return Conflict(new { error = "تغییر هم‌زمان یا ارتباط وابسته مانع ثبت شد؛ فهرست را دوباره بخوانید." }); }
+        var selected = result.FirstOrDefault(value => Normalize(value.NameFa) == Normalize(input.DefaultName));
+        return Ok(new { options = result.Select(value => new ParameterView(value.Id, value.ParameterType, value.Code, value.NameFa, value.NameEn, value.TitlePersonType)), defaultId = selected?.Id });
+    }
+
     [RequirePermission("yarns.view")]
     [HttpGet("yarns")]
     public async Task<object> Yarns([FromQuery] string? q, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken ct = default)
@@ -387,3 +449,6 @@ internal static class PersonNumberList
         return values.Append(primary ?? "").Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.Ordinal).ToArray();
     }
 }
+
+public sealed record TitleListItem(Guid? Id, string Name, string? ExpectedName);
+public sealed record TitleListChanges(List<TitleListItem> Items, List<TitleListItem> Removed, string DefaultName, PersonType PersonType);

@@ -16,8 +16,23 @@ export type ExcelGridColumn<Row> = {
   width: number
   type: GridValueType
   value: (row: Row) => GridValue
+  multiline?: boolean
   effectiveCellColor?: (row: Row) => string | null | undefined
   colorAwareSort?: boolean
+}
+
+/** Structural column changes are separate from a user's visibility and resized widths. */
+export function reconcileGridColumns<Row>(incoming: readonly ExcelGridColumn<Row>[], current: readonly (ExcelGridColumn<Row> & { visible: boolean })[], previous: readonly ExcelGridColumn<Row>[]): (ExcelGridColumn<Row> & { visible: boolean })[] {
+  return incoming.map(column => {
+    const existing = current.find(item => item.id === column.id)
+    const old = previous.find(item => item.id === column.id)
+    return { ...column, width: existing && old?.width === column.width ? existing.width : column.width, visible: existing?.visible ?? true }
+  })
+}
+
+export function resizedGridColumnWidth(width: number, startX: number, currentX: number, direction: 'rtl' | 'ltr'): number {
+  const delta = direction === 'rtl' ? startX - currentX : currentX - startX
+  return Math.max(80, Math.round(width + delta))
 }
 
 export const BLANK_VALUE = '\u0000blank'

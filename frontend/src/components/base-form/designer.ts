@@ -1,4 +1,5 @@
 import type { BaseFormAction } from './types'
+import type { FormSchemaDraft } from './formSchema'
 
 export const designerDraftFormat = 'yarn-trade.form-designer-draft' as const
 export const designerDraftVersion = 1 as const
@@ -62,7 +63,7 @@ export const designerAppearanceProperties = [
 ] as const
 export type DesignerAppearanceProperty = typeof designerAppearanceProperties[number]
 export type DesignerAppearance = Partial<Record<DesignerAppearanceProperty, string>>
-export type DesignerTableColumnStyle = { bold?: boolean; italic?: boolean; underline?: 'single' | 'double'; strikeThrough?: boolean; script?: 'superscript' | 'subscript'; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number }
+export type DesignerTableColumnStyle = { bold?: boolean; italic?: boolean; underline?: 'single' | 'double'; strikeThrough?: boolean; script?: 'superscript' | 'subscript'; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number; textAlign?: 'start' | 'center' | 'end' }
 export type DesignerDraft = {
   format: typeof designerDraftFormat
   schemaVersion: typeof designerDraftVersion
@@ -75,16 +76,21 @@ export type DesignerDraft = {
   tableColumns?: Record<string, DesignerTableColumnStyle>
   tableHeaders?: Record<string, DesignerTableHeaderStyle>
   buttonPressEffect?: boolean
+  neighborResize?: Partial<DesignerNeighborResize>
   appearance?: DesignerAppearance
   defaults?: { input?: DesignerFieldOverride; label?: DesignerFieldOverride }
   actions?: Record<string, DesignerActionOverride>
   canvas?: DesignerCanvas
+  layoutMode?: 'schema' | 'canvas'
+  sectionCanvases?: Record<string, DesignerCanvas>
+  tables?: Record<string, DesignerTableSettings>
 }
+export type DesignerTableSettings = Pick<DesignerDraft, 'filterPopupFontSize' | 'gridSearchPosition' | 'tableFont' | 'tableHeaderHeight' | 'tableColumns' | 'tableHeaders'>
 export type GridSearchPosition = 'left' | 'center' | 'right'
 export type DesignerTableHeaderStyle = DesignerTableColumnStyle & { backgroundColor?: string; borderColor?: string }
-export type DesignerHistory = { present: DesignerDraft, past: DesignerDraft[], future: DesignerDraft[], transactionStart?: DesignerDraft }
+export type DesignerHistory = { present: DesignerDraft, past: DesignerDraft[], future: DesignerDraft[], transactionStart?: DesignerDraft; document?: { present: FormSchemaDraft; past: FormSchemaDraft[]; future: FormSchemaDraft[]; transactionStart?: FormSchemaDraft } }
 export type DesignerHistoryAction =
-  | { type: 'change', draft: DesignerDraft }
+  | { type: 'change', draft: DesignerDraft, schema?: FormSchemaDraft }
   | { type: 'beginTransaction' }
   | { type: 'commitTransaction' }
   | { type: 'undo' }
@@ -224,6 +230,7 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (typeof value.backgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.backgroundColor)) style.backgroundColor = value.backgroundColor.toLowerCase()
     if (typeof value.fontFamily === 'string' && fontFamilies.has(value.fontFamily)) style.fontFamily = value.fontFamily
     if (typeof value.fontSize === 'number' && Number.isFinite(value.fontSize) && value.fontSize >= 8 && value.fontSize <= 40) style.fontSize = value.fontSize
+    if (value.textAlign==='start'||value.textAlign==='center'||value.textAlign==='end')style.textAlign=value.textAlign
     if (Object.keys(style).length) tableColumns[id] = style
   }
   const tableHeaders: NonNullable<DesignerDraft['tableHeaders']> = {}
@@ -244,10 +251,25 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (typeof value.borderColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.borderColor)) style.borderColor = value.borderColor.toLowerCase()
     if (typeof value.fontFamily === 'string' && fontFamilies.has(value.fontFamily)) style.fontFamily = value.fontFamily
     if (typeof value.fontSize === 'number' && Number.isFinite(value.fontSize) && value.fontSize >= 8 && value.fontSize <= 40) style.fontSize = value.fontSize
+    if (value.textAlign==='start'||value.textAlign==='center'||value.textAlign==='end')style.textAlign=value.textAlign
     if (Object.keys(style).length) tableHeaders[id] = style
   }
+  const sectionCanvases: Record<string, DesignerCanvas> = {}
+  for (const [id, raw] of Object.entries(candidate.sectionCanvases ?? {})) {
+    if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(id) || !raw || typeof raw !== 'object' || !raw.fields) continue
+    const value = validateDesignerCanvas(raw, Object.keys(raw.fields).filter(fieldId => allowedFields.has(fieldId)))
+    if (value) sectionCanvases[id] = value
+  }
+  const tables: Record<string, DesignerTableSettings> = {}
+  for (const [id, raw] of Object.entries(candidate.tables ?? {})) {
+    if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(id) || !raw || typeof raw !== 'object') continue
+    const clean = validateDesignerDraft({ ...emptyDesignerDraft(formId), filterPopupFontSize: raw.filterPopupFontSize, gridSearchPosition: raw.gridSearchPosition, tableFont: raw.tableFont, tableHeaderHeight: raw.tableHeaderHeight, tableColumns: raw.tableColumns, tableHeaders: raw.tableHeaders }, formId, [])
+    tables[id] = Object.fromEntries(['filterPopupFontSize', 'gridSearchPosition', 'tableFont', 'tableHeaderHeight', 'tableColumns', 'tableHeaders'].filter(key => clean[key as keyof DesignerDraft] !== undefined).map(key => [key, clean[key as keyof DesignerDraft]]))
+  }
+  const neighborResize:Partial<DesignerNeighborResize>={}
+  for(const axis of ['horizontal','vertical'] as const)if(typeof candidate.neighborResize?.[axis]==='boolean')neighborResize[axis]=candidate.neighborResize[axis]
   const buttonPressEffect = typeof candidate.buttonPressEffect === 'boolean' ? candidate.buttonPressEffect : undefined
-  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(tableHeaderHeight !== undefined ? { tableHeaderHeight } : {}), ...(Object.keys(tableFont).length ? { tableFont } : {}), ...(Object.keys(tableColumns).length ? { tableColumns } : {}), ...(Object.keys(tableHeaders).length ? { tableHeaders } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }) }
+  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(Object.keys(neighborResize).length?{neighborResize}:{}), ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(tableHeaderHeight !== undefined ? { tableHeaderHeight } : {}), ...(Object.keys(tableFont).length ? { tableFont } : {}), ...(Object.keys(tableColumns).length ? { tableColumns } : {}), ...(Object.keys(tableHeaders).length ? { tableHeaders } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }), ...(['schema', 'canvas'].includes(candidate.layoutMode ?? '') ? { layoutMode: candidate.layoutMode } : {}), ...(Object.keys(sectionCanvases).length ? { sectionCanvases } : {}), ...(Object.keys(tables).length ? { tables } : {}) }
 }
 
 export function setDesignerFilterPopupFontSize(draft: DesignerDraft, value: number | undefined): DesignerDraft {
@@ -275,7 +297,7 @@ export function setDesignerTableHeaderHeight(draft: DesignerDraft, value: number
 }
 
 export function setDesignerTableColumnStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableColumnStyle, value: string | number | boolean | undefined): DesignerDraft {
-  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'textAlign' ? value !== undefined && !['start','center','end'].includes(String(value)) : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
   const tableColumns = { ...draft.tableColumns }, style = { ...tableColumns[columnId] }
   if (value === undefined) delete style[property]
   else style[property] = (property === 'textColor' || property === 'backgroundColor' ? String(value).toLowerCase() : value) as never
@@ -285,7 +307,7 @@ export function setDesignerTableColumnStyle(draft: DesignerDraft, columnId: stri
 }
 
 export function setDesignerTableHeaderStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableHeaderStyle, value: string | number | boolean | undefined): DesignerDraft {
-  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'textAlign' ? value !== undefined && !['start','center','end'].includes(String(value)) : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
   const tableHeaders = { ...draft.tableHeaders }, style = { ...tableHeaders[columnId] }
   if (value === undefined) delete style[property]
   else style[property] = (property === 'textColor' || property === 'backgroundColor' || property === 'borderColor' ? String(value).toLowerCase() : value) as never
@@ -527,7 +549,7 @@ export function stopDesignerHandleClick(event: Pick<Event, 'preventDefault' | 's
   event.stopPropagation()
 }
 
-export function captureDesignerPointer(event: DesignerPointerStart, onDelta: (dx: number, dy: number) => void, onEnd: () => void): () => void {
+export function captureDesignerPointer(event: DesignerPointerStart, onDelta: (dx: number, dy: number) => void, onEnd: (event?:PointerEvent) => void): () => void {
   const handle = event.currentTarget
   const { pointerId, clientX, clientY } = event
   event.preventDefault()
@@ -544,7 +566,7 @@ export function captureDesignerPointer(event: DesignerPointerStart, onDelta: (dx
     handle.removeEventListener('pointercancel', end)
     handle.removeEventListener('lostpointercapture', end)
     if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId)
-    onEnd()
+    onEnd(next)
   }
   handle.setPointerCapture(pointerId)
   handle.addEventListener('pointermove', move)
@@ -606,7 +628,7 @@ export type DesignerLayoutField = {
 export function layoutDesignerFields(
   draft: DesignerDraft,
   fields: readonly DesignerLayoutField[],
-  options: { operation: DesignerLayoutOperation; orientation: DesignerLayoutOrientation; gap: number; rtl: boolean },
+  options: { operation: DesignerLayoutOperation; orientation: DesignerLayoutOrientation; gap: number; rtl: boolean; referenceId?: string; width?: number; height?: number; verticalGap?: number; wrapWidth?: number },
   validFieldIds: readonly string[]
 ): DesignerDraft {
   const unique = [...new Map(fields.filter(field => validFieldIds.includes(field.id)).map(field => [field.id, field])).values()]
@@ -616,10 +638,11 @@ export function layoutDesignerFields(
     ? options.rtl ? b.right - a.right : a.left - b.left
     : a.top - b.top || (options.rtl ? b.right - a.right : a.left - b.left))
   const gap = Math.max(0, Math.min(300, options.gap))
-  const sizeWidth = ['arrange', 'equalSize', 'equalWidth'].includes(options.operation)
-  const sizeHeight = ['arrange', 'equalSize', 'equalHeight'].includes(options.operation)
-  const commonWidth = sizeWidth ? Math.max(48, Math.min(1000, Math.floor(Math.min(...ordered.map(field => field.inputWidth))))) : 0
-  const commonHeight = sizeHeight ? Math.max(24, Math.min(600, Math.floor(Math.min(...ordered.map(field => field.inputHeight))))) : 0
+  const reference = unique.find(field => field.id === options.referenceId) ?? unique[0]
+  const sizeWidth = ['equalSize', 'equalWidth'].includes(options.operation)
+  const sizeHeight = ['equalSize', 'equalHeight'].includes(options.operation)
+  const commonWidth = sizeWidth ? Math.max(48, Math.min(1000, options.width ?? reference.inputWidth)) : 0
+  const commonHeight = sizeHeight ? Math.max(24, Math.min(600, options.height ?? reference.inputHeight)) : 0
   let next = draft
   const slots = ordered.map(field => {
     const width = sizeWidth ? commonWidth : field.inputWidth
@@ -641,6 +664,19 @@ export function layoutDesignerFields(
 
   const alignCrossAxis = options.operation === 'arrange' || options.operation === 'align'
   const distribute = options.operation === 'arrange' || options.operation === 'equalSpacing'
+  if (options.operation === 'arrange' && horizontal && options.wrapWidth) {
+    const margin = 12, right = options.wrapWidth - margin
+    let cursor = options.rtl ? right : margin, top = Math.min(...slots.map(field => field.top)), rowHeight = 0
+    for (const field of slots) {
+      const exceeds = options.rtl ? cursor - field.width < margin : cursor + field.width > right
+      if (exceeds && rowHeight) { top += rowHeight + (options.verticalGap ?? gap); cursor = options.rtl ? right : margin; rowHeight = 0 }
+      const left = options.rtl ? cursor - field.width : cursor
+      next = moveDesignerFieldGroup(next, field.id, left - field.left, top - field.top, validFieldIds)
+      cursor = options.rtl ? left - gap : left + field.width + gap
+      rowHeight = Math.max(rowHeight, field.height)
+    }
+    return next
+  }
   if (horizontal && alignCrossAxis) {
     const top = Math.min(...slots.map(field => field.top))
     for (const field of slots) next = moveDesignerFieldGroup(next, field.id, 0, top - field.top, validFieldIds)
@@ -700,27 +736,36 @@ export function createDesignerHistory(draft: DesignerDraft): DesignerHistory {
   return { present: draft, past: [], future: [] }
 }
 
+/** Join legacy structure/visual stacks once, without dropping either. New edits share one timeline. */
+export function attachDesignerDocument(history: DesignerHistory, schema: FormSchemaDraft, legacy?: { past: FormSchemaDraft[]; future: FormSchemaDraft[] }): DesignerHistory {
+  if (history.document) return history
+  const past = legacy?.past ?? [], future = legacy?.future ?? []
+  return { ...history, past: [...past.map(() => history.past[0] ?? history.present), ...history.past], future: [...history.future, ...future.map(() => history.present)], document: { present: schema, past: [...past, ...history.past.map(() => schema)], future: [...history.future.map(() => schema), ...future], ...(history.transactionStart ? { transactionStart: schema } : {}) } }
+}
+
 export function designerHistoryReducer(state: DesignerHistory, action: DesignerHistoryAction): DesignerHistory {
-  if (action.type === 'replace') return createDesignerHistory(action.draft)
-  if (action.type === 'beginTransaction') return state.transactionStart ? state : { ...state, transactionStart: state.present }
+  if (action.type === 'replace') return state.document ? designerHistoryReducer(state, { type: 'change', draft: action.draft }) : createDesignerHistory(action.draft)
+  if (action.type === 'beginTransaction') return state.transactionStart ? state : { ...state, transactionStart: state.present, ...(state.document ? { document: { ...state.document, transactionStart: state.document.present } } : {}) }
   if (action.type === 'change') {
-    if (JSON.stringify(action.draft) === JSON.stringify(state.present)) return state
-    if (state.transactionStart) return { ...state, present: action.draft }
-    return { present: action.draft, past: [...state.past, state.present].slice(-designerHistoryLimit), future: [] }
+    const schema = action.schema ?? state.document?.present
+    if (JSON.stringify(action.draft) === JSON.stringify(state.present) && JSON.stringify(schema) === JSON.stringify(state.document?.present)) return state
+    if (state.transactionStart) return { ...state, present: action.draft, ...(state.document && schema ? { document: { ...state.document, present: schema } } : {}) }
+    return { present: action.draft, past: [...state.past, state.present].slice(-designerHistoryLimit), future: [], ...(state.document && schema ? { document: { present: schema, past: [...state.document.past, state.document.present].slice(-designerHistoryLimit), future: [] } } : {}) }
   }
   if (action.type === 'commitTransaction') {
     if (!state.transactionStart) return state
-    const past = JSON.stringify(state.transactionStart) === JSON.stringify(state.present) ? state.past : [...state.past, state.transactionStart].slice(-designerHistoryLimit)
-    return { present: state.present, past, future: past === state.past ? state.future : [], transactionStart: undefined }
+    const unchanged = JSON.stringify(state.transactionStart) === JSON.stringify(state.present) && JSON.stringify(state.document?.transactionStart) === JSON.stringify(state.document?.present)
+    const past = unchanged ? state.past : [...state.past, state.transactionStart].slice(-designerHistoryLimit)
+    return { present: state.present, past, future: unchanged ? state.future : [], transactionStart: undefined, ...(state.document ? { document: { present: state.document.present, past: unchanged ? state.document.past : [...state.document.past, state.document.transactionStart ?? state.document.present].slice(-designerHistoryLimit), future: unchanged ? state.document.future : [] } } : {}) }
   }
   if (state.transactionStart) return state
   if (action.type === 'undo') {
     if (!state.past.length) return state
     const previous = state.past[state.past.length - 1]
-    return { present: previous, past: state.past.slice(0, -1), future: [state.present, ...state.future].slice(0, designerHistoryLimit) }
+    return { present: previous, past: state.past.slice(0, -1), future: [state.present, ...state.future].slice(0, designerHistoryLimit), ...(state.document ? { document: { present: state.document.past.at(-1) ?? state.document.present, past: state.document.past.slice(0, -1), future: [state.document.present, ...state.document.future].slice(0, designerHistoryLimit) } } : {}) }
   }
   if (!state.future.length) return state
-  return { present: state.future[0], past: [...state.past, state.present].slice(-designerHistoryLimit), future: state.future.slice(1) }
+  return { present: state.future[0], past: [...state.past, state.present].slice(-designerHistoryLimit), future: state.future.slice(1), ...(state.document ? { document: { present: state.document.future[0] ?? state.document.present, past: [...state.document.past, state.document.present].slice(-designerHistoryLimit), future: state.document.future.slice(1) } } : {}) }
 }
 
 const cssColorVariables: Partial<Record<DesignerProperty, string>> = {
@@ -791,7 +836,7 @@ export function designerActionStyle(draft: DesignerDraft, actionId: string): Rec
 // Physical canvas coordinates. Editable rectangles never participate in grid sizing.
 export type DesignerRect = { left: number; top: number; width: number; height: number }
 export type DesignerCanvasField = { input: DesignerRect; label: DesignerRect; select?: DesignerRect; error?: DesignerRect }
-export type DesignerCanvas = { width: number; height: number; fields: Record<string, DesignerCanvasField> }
+export type DesignerCanvas = { width: number; height: number; fields: Record<string, DesignerCanvasField>; centeredFieldIds?: string[] }
 export type DesignerObstacle = DesignerRect & { id: string }
 export type DesignerAlignment = 'top' | 'bottom' | 'left' | 'right' | 'horizontalCenter' | 'verticalCenter'
 export const designerSafetyGap = 8
@@ -815,7 +860,24 @@ export function validateDesignerCanvas(value: unknown, ids: readonly string[]): 
     const select = cleanRect(field.select), error = cleanRect(field.error)
     fields[id] = { input, label, ...(select && { select }), ...(error && { error }) }
   }
-  return Object.keys(fields).length === ids.length ? { width: canvas.width, height: canvas.height, fields } : undefined
+  return Object.keys(fields).length === ids.length ? { width: canvas.width, height: canvas.height, fields, ...(Array.isArray(canvas.centeredFieldIds)?{centeredFieldIds:canvas.centeredFieldIds.filter(id=>typeof id==='string'&&ids.includes(id))}:{}) } : undefined
+}
+
+/** Center each selected physical row by its input borders, retaining sizes and gaps. */
+export function centerCanvasRows(canvas:DesignerCanvas,ids:readonly string[]=canvas.centeredFieldIds??[],width=canvas.width):DesignerCanvas {
+  const fields={...canvas.fields},rows:string[][]=[]
+  for(const id of [...new Set(ids)].filter(id=>fields[id]).sort((a,b)=>fields[a].input.top-fields[b].input.top)){
+    const input=fields[id].input
+    const row=rows.find(row=>row.some(other=>{const r=fields[other].input;return Math.min(bottomOf(r),bottomOf(input))-Math.max(r.top,input.top)>0}))
+    if(row)row.push(id);else rows.push([id])
+  }
+  width=Math.max(width,...rows.map(row=>Math.max(...row.map(id=>rightOf(fields[id].input)))-Math.min(...row.map(id=>fields[id].input.left))))
+  for(const row of rows){
+    const left=Math.min(...row.map(id=>fields[id].input.left)),right=Math.max(...row.map(id=>rightOf(fields[id].input)))
+    const dx=(width-(right-left))/2-left
+    for(const id of row)fields[id]=translateCanvasField(fields[id],dx,0)
+  }
+  return {...canvas,width,fields,centeredFieldIds:[...new Set(ids)].filter(id=>fields[id])}
 }
 
 export function canvasObstacles(canvas: DesignerCanvas): DesignerObstacle[] {
@@ -874,7 +936,9 @@ export function resizeCanvasInputs(canvas: DesignerCanvas, ids: readonly string[
   for (const id of ids) {
     const field = canvas.fields[id]
     if (!field) continue
-    const input = resizeCanvasInput(field.input, edge, delta, container, parts.filter(part => part.id !== `${id}::input`))
+    // Selection controls are Designer chrome. A field's own label may have a
+    // smaller normal vertical gap; it must not prevent horizontal resizing.
+    const input = resizeCanvasInput(field.input, edge, delta, container, parts.filter(part => !part.id.endsWith('::select') && part.id !== `${id}::input` && (!['left','right'].includes(edge) || part.id !== `${id}::label`)))
     fields[id] = { ...field, input }
   }
   return { ...canvas, fields }
@@ -882,11 +946,77 @@ export function resizeCanvasInputs(canvas: DesignerCanvas, ids: readonly string[
 
 export const designerResizeHandles = ['left', 'right', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] as const
 export type DesignerResizeHandle = typeof designerResizeHandles[number]
+export type DesignerNeighborResize = { horizontal:boolean; vertical:boolean }
+export const laboratoryResizeContract = { axes:['horizontal','vertical'], minimumWidth:48, minimumHeight:24, preserveGap:true, preserveOuterSpan:true, persistentRowCentering:true, atomicUndo:true } as const
 
-export function resizeCanvasHandle(canvas: DesignerCanvas, ids: readonly string[], handle: DesignerResizeHandle, dx: number, dy: number): DesignerCanvas {
+function canvasResizeNeighbor(canvas:DesignerCanvas,id:string,edge:'left'|'right'|'top'|'bottom') {
+  const initial=canvas.fields[id]?.input;if(!initial)return undefined
+  const horizontal=edge==='left'||edge==='right',leading=edge==='left'||edge==='top'
+  const pos=horizontal?'left':'top',size=horizontal?'width':'height',crossPos=horizontal?'top':'left',crossSize=horizontal?'height':'width'
+  const candidates=Object.entries(canvas.fields).filter(([key,other])=>key!==id&&Math.min(initial[crossPos]+initial[crossSize],other.input[crossPos]+other.input[crossSize])-Math.max(initial[crossPos],other.input[crossPos])>0.5).map(([key,other])=>({id:key,field:other,gap:leading?initial[pos]-other.input[pos]-other.input[size]:other.input[pos]-initial[pos]-initial[size]})).filter(item=>item.gap>=-0.1).sort((a,b)=>a.gap-b.gap)
+  return candidates[0]&&!(candidates[1]&&Math.abs(candidates[1].gap-candidates[0].gap)<0.5)?candidates[0]:undefined
+}
+
+/** Move a shared boundary in physical coordinates. Both outer edges and the
+ * existing gap stay fixed. Only one unambiguous neighbour in this canvas joins. */
+export function resizeCanvasNeighborInput(canvas:DesignerCanvas,id:string,edge:'left'|'right'|'top'|'bottom',delta:number):DesignerCanvas {
+  const field=canvas.fields[id];if(!field||!Number.isFinite(delta)||!delta)return canvas
+  const horizontal=edge==='left'||edge==='right',leading=edge==='left'||edge==='top'
+  const pos=horizontal?'left':'top',size=horizontal?'width':'height'
+  const initial=field.input,start=initial[pos]
+  const neighbor=canvasResizeNeighbor(canvas,id,edge);if(!neighbor)return canvas
+  const minimum=horizontal?48:24,maximum=horizontal?1000:600
+  const ownMin=Math.min(minimum,initial[size]),otherMin=Math.min(minimum,neighbor.field.input[size])
+  const ownMax=Math.max(maximum,initial[size]),otherMax=Math.max(maximum,neighbor.field.input[size])
+  const low=leading?Math.max(initial[size]-ownMax,otherMin-neighbor.field.input[size]):Math.max(ownMin-initial[size],neighbor.field.input[size]-otherMax)
+  const high=leading?Math.min(initial[size]-ownMin,otherMax-neighbor.field.input[size]):Math.min(ownMax-initial[size],neighbor.field.input[size]-otherMin)
+  const amount=Math.max(low,Math.min(high,delta));if(Math.abs(amount)<0.001)return canvas
+  const adjust=(before:DesignerCanvasField,input:DesignerRect):DesignerCanvasField=>{
+    const dx=horizontal?(Math.abs(rightOf(before.label)-rightOf(before.input))<=Math.abs(before.label.left-before.input.left)?rightOf(input)-rightOf(before.input):input.left-before.input.left):0
+    const dy=horizontal?0:input.top-before.input.top
+    return {...before,input,label:{...before.label,left:before.label.left+dx,top:before.label.top+dy},...(before.select?{select:{...before.select,left:before.select.left+input.left-before.input.left,top:before.select.top+dy}}:{}),...(before.error?{error:{...before.error,left:before.error.left+input.left-before.input.left,top:before.error.top+bottomOf(input)-bottomOf(before.input)}}:{})}
+  }
+  const build=(d:number):DesignerCanvas=>{
+    const input={...initial,[pos]:start+(leading?d:0),[size]:initial[size]+(leading?-d:d)}
+    const other={...neighbor.field.input,[pos]:neighbor.field.input[pos]+(leading?0:d),[size]:neighbor.field.input[size]+(leading?d:-d)}
+    return {...canvas,fields:{...canvas.fields,[id]:adjust(field,input),[neighbor.id]:adjust(neighbor.field,other)}}
+  }
+  const parts=canvasObstacles(canvas).filter(part=>!part.id.endsWith('::select'))
+  const area=(a:DesignerRect,b:DesignerRect)=>Math.max(0,Math.min(rightOf(a),rightOf(b))-Math.max(a.left,b.left))*Math.max(0,Math.min(bottomOf(a),bottomOf(b))-Math.max(a.top,b.top))
+  const safe=(next:DesignerCanvas)=>{
+    const after=canvasObstacles(next).filter(part=>!part.id.endsWith('::select'))
+    for(let i=0;i<after.length;i++){
+      const a=after[i],old=parts[i]
+      if(a.left<Math.min(0,old.left)-0.01||a.top<Math.min(0,old.top)-0.01||rightOf(a)>Math.max(canvas.width,rightOf(old))+0.01||bottomOf(a)>Math.max(canvas.height,bottomOf(old))+0.01)return false
+      for(let j=i+1;j<after.length;j++)if(area(a,after[j])>area(old,parts[j])+0.01)return false
+    }
+    return true
+  }
+  let result=build(amount)
+  if(!safe(result)){let lo=0,hi=1;for(let i=0;i<24;i++){const middle=(lo+hi)/2;if(safe(build(amount*middle)))lo=middle;else hi=middle}if(Math.abs(amount*lo)<0.01)return canvas;result=build(amount*lo)}
+  return result
+}
+
+/** Numeric sizes use the same physical boundary operation as pointer/keyboard. */
+export function resizeCanvasDimension(canvas:DesignerCanvas,ids:readonly string[],dimension:'width'|'height',value:number,preserve?:Partial<DesignerNeighborResize>,rtl=false):DesignerCanvas {
+  if(!Number.isFinite(value))return canvas
+  const horizontal=dimension==='width',locked=horizontal?preserve?.horizontal:preserve?.vertical
+  if(locked&&ids.length!==1)return canvas
+  let next=canvas
+  for(const id of ids){
+    const rect=next.fields[id]?.input;if(!rect)continue
+    let edge:'left'|'right'|'top'|'bottom'=horizontal?(rtl?'left':'right'):'bottom'
+    if(locked&&!canvasResizeNeighbor(next,id,edge)){const alternate=edge==='left'?'right':edge==='right'?'left':'top';if(canvasResizeNeighbor(next,id,alternate))edge=alternate}
+    const delta=(value-rect[dimension])*(edge==='left'||edge==='top'?-1:1)
+    next=resizeCanvasHandle(next,[id],edge,horizontal?delta:0,horizontal?0:delta,preserve)
+  }
+  return next
+}
+
+export function resizeCanvasHandle(canvas: DesignerCanvas, ids: readonly string[], handle: DesignerResizeHandle, dx: number, dy: number, preserve?:Partial<DesignerNeighborResize>): DesignerCanvas {
   let next = canvas
-  if (dx && (handle.includes('left') || handle.includes('right'))) next = resizeCanvasInputs(next, ids, handle.includes('left') ? 'left' : 'right', dx)
-  if (dy && (handle.includes('top') || handle.includes('bottom'))) next = resizeCanvasInputs(next, ids, handle.includes('top') ? 'top' : 'bottom', dy)
+  if (dx && (handle.includes('left') || handle.includes('right'))) next = preserve?.horizontal ? ids.length===1?resizeCanvasNeighborInput(next,ids[0],handle.includes('left')?'left':'right',dx):next : resizeCanvasInputs(next, ids, handle.includes('left') ? 'left' : 'right', dx)
+  if (dy && (handle.includes('top') || handle.includes('bottom'))) next = preserve?.vertical ? ids.length===1?resizeCanvasNeighborInput(next,ids[0],handle.includes('top')?'top':'bottom',dy):next : resizeCanvasInputs(next, ids, handle.includes('top') ? 'top' : 'bottom', dy)
   return ids.every(id => {
     const before = canvas.fields[id]?.input, after = next.fields[id]?.input
     return before === after || (before && after && before.left === after.left && before.top === after.top && before.width === after.width && before.height === after.height)
@@ -912,10 +1042,10 @@ export function moveCanvasFields(canvas: DesignerCanvas, ids: readonly string[],
   return { ...canvas, fields }
 }
 
-export function validateCanvasArrangement(initial: DesignerCanvas, proposed: DesignerCanvas, movedIds: readonly string[], extra: readonly DesignerObstacle[] = []): string | undefined {
+export function validateCanvasArrangement(initial: DesignerCanvas, proposed: DesignerCanvas, movedIds: readonly string[], extra: readonly DesignerObstacle[] = [], gap = designerSafetyGap, ignoreSelectionControls = false): string | undefined {
   const moved = new Set(movedIds)
   const before = new Map(canvasObstacles(initial).map(rect => [rect.id, rect]))
-  const all = [...canvasObstacles(proposed), ...extra]
+  const all = [...canvasObstacles(proposed), ...extra].filter(rect => !ignoreSelectionControls || !rect.id.endsWith('::select'))
   for (const rect of all) {
     const id = rect.id.split('::')[0]
     if (!moved.has(id)) continue
@@ -924,24 +1054,24 @@ export function validateCanvasArrangement(initial: DesignerCanvas, proposed: Des
     if (rect.left < -epsilon || rect.top < -epsilon || rightOf(rect) > proposed.width + epsilon || bottomOf(rect) > proposed.height + epsilon) return 'container'
     for (const other of all) {
       if (other.id.split('::')[0] === id) continue
-      if (rectanglesCollide(rect, other)) return other.id.split('::')[0]
+      if (rectanglesCollide(rect, other, gap)) return other.id.split('::')[0]
     }
   }
   return undefined
 }
 
-export function alignCanvasFields(canvas: DesignerCanvas, selected: readonly string[], referenceId: string, direction: DesignerAlignment, extra: readonly DesignerObstacle[] = []): { canvas: DesignerCanvas; blockedBy?: string } {
+export function alignCanvasFields(canvas: DesignerCanvas, selected: readonly string[], referenceId: string, direction: DesignerAlignment, extra: readonly DesignerObstacle[] = [], gap = designerSafetyGap): { canvas: DesignerCanvas; blockedBy?: string } {
   const ids = [...new Set(selected)].filter(id => canvas.fields[id])
   if (ids.length < 2 || !ids.includes(referenceId)) return { canvas }
-  const reference = fieldGroupRect(canvas.fields[referenceId]), fields = { ...canvas.fields }
+  const reference = canvas.fields[referenceId].input, fields = { ...canvas.fields }
   for (const id of ids) {
     if (id === referenceId) continue
-    const rect = fieldGroupRect(fields[id])
+    const rect = fields[id].input
     const dx = direction === 'left' ? reference.left - rect.left : direction === 'right' ? rightOf(reference) - rightOf(rect) : direction === 'horizontalCenter' ? reference.left + reference.width / 2 - rect.left - rect.width / 2 : 0
     const dy = direction === 'top' ? reference.top - rect.top : direction === 'bottom' ? bottomOf(reference) - bottomOf(rect) : direction === 'verticalCenter' ? reference.top + reference.height / 2 - rect.top - rect.height / 2 : 0
     fields[id] = translateCanvasField(fields[id], dx, dy)
   }
   const proposed = { ...canvas, fields }
-  const blockedBy = validateCanvasArrangement(canvas, proposed, ids.filter(id => id !== referenceId), extra)
+  const blockedBy = validateCanvasArrangement(canvas, proposed, ids.filter(id => id !== referenceId), extra, gap, true)
   return blockedBy ? { canvas, blockedBy } : { canvas: proposed }
 }

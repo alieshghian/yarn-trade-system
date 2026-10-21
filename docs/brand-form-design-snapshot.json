@@ -1,0 +1,1794 @@
+{
+  "artifact": "yarn-trade.brand-form-review-snapshot",
+  "schemaVersion": 1,
+  "source": {
+    "filename": "form-lab.json",
+    "sourceModifiedAt": "2026-10-20T05:14:01.255Z",
+    "scope": "Only this form’s explicitly saved record and latest recovery snapshot are included. The source localStorage user key and other forms are omitted. Recovery history entries are summarized, not copied; no business table rows are included."
+  },
+  "managedForms": {
+    "activeFormId": "form.laboratory-copy.3c2efb1c-a20a-4583-a11a-da3b8f78d354",
+    "form": {
+      "id": "form.laboratory-copy.3c2efb1c-a20a-4583-a11a-da3b8f78d354",
+      "schema": {
+        "id": "form.laboratory-copy.3c2efb1c-a20a-4583-a11a-da3b8f78d354",
+        "schemaVersion": 1,
+        "version": 1,
+        "status": "draft",
+        "mode": "hybrid",
+        "title": {
+          "fa": "تعریف برند — پیش‌نویس",
+          "en": "تعریف برند — پیش‌نویس",
+          "zh": "تعریف برند — پیش‌نویس"
+        },
+        "sections": [
+          {
+            "id": "laboratory.editor",
+            "kind": "editor",
+            "purpose": "operational"
+          },
+          {
+            "id": "laboratory.grid",
+            "kind": "grid",
+            "purpose": "reporting"
+          },
+          {
+            "id": "laboratory.footer",
+            "kind": "footer",
+            "purpose": "operational"
+          }
+        ],
+        "fields": [
+          {
+            "id": "personCode",
+            "sectionId": "laboratory.editor",
+            "minTracks": 2,
+            "span": 2,
+            "required": true,
+            "kind": "text",
+            "componentId": "form-laboratory.personCode",
+            "label": {
+              "fa": "کد شخص",
+              "en": "Person code",
+              "zh": "人员代码"
+            },
+            "order": 0
+          },
+          {
+            "id": "titleId",
+            "sectionId": "laboratory.editor",
+            "minTracks": 3,
+            "span": 3,
+            "required": true,
+            "kind": "valueList",
+            "componentId": "form-laboratory.titleId",
+            "label": {
+              "fa": "عنوان",
+              "en": "Title",
+              "zh": "称谓"
+            },
+            "order": 1
+          },
+          {
+            "id": "firstName",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "text",
+            "componentId": "form-laboratory.firstName",
+            "label": {
+              "fa": "نام",
+              "en": "First name",
+              "zh": "名字"
+            },
+            "order": 2
+          },
+          {
+            "id": "lastName",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "text",
+            "componentId": "form-laboratory.lastName",
+            "label": {
+              "fa": "نام خانوادگی",
+              "en": "Last name",
+              "zh": "姓氏"
+            },
+            "order": 3
+          },
+          {
+            "id": "jobId",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "select",
+            "componentId": "form-laboratory.jobId",
+            "label": {
+              "fa": "نقش",
+              "en": "Job",
+              "zh": "角色"
+            },
+            "order": 4
+          },
+          {
+            "id": "nationalityId",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "select",
+            "componentId": "form-laboratory.nationalityId",
+            "label": {
+              "fa": "ملیت",
+              "en": "Nationality",
+              "zh": "国籍"
+            },
+            "order": 5
+          },
+          {
+            "id": "phone",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "valueList",
+            "componentId": "form-laboratory.phone",
+            "label": {
+              "fa": "تلفن",
+              "en": "Phone",
+              "zh": "电话"
+            },
+            "order": 6
+          },
+          {
+            "id": "mobile",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "valueList",
+            "componentId": "form-laboratory.mobile",
+            "label": {
+              "fa": "موبایل",
+              "en": "Mobile",
+              "zh": "手机"
+            },
+            "order": 7
+          },
+          {
+            "id": "address",
+            "sectionId": "laboratory.editor",
+            "minTracks": 10,
+            "span": 10,
+            "kind": "valueList",
+            "componentId": "form-laboratory.address",
+            "label": {
+              "fa": "آدرس",
+              "en": "Address",
+              "zh": "地址"
+            },
+            "order": 8
+          },
+          {
+            "id": "notes",
+            "sectionId": "laboratory.editor",
+            "minTracks": 10,
+            "span": 10,
+            "kind": "text",
+            "componentId": "form-laboratory.notes",
+            "label": {
+              "fa": "توضیحات",
+              "en": "Notes",
+              "zh": "说明"
+            },
+            "order": 9
+          },
+          {
+            "id": "errorExample",
+            "sectionId": "laboratory.editor",
+            "minTracks": 10,
+            "span": 10,
+            "kind": "text",
+            "componentId": "form-laboratory.errorExample",
+            "label": {
+              "fa": "نمونهٔ خطا",
+              "en": "Error example",
+              "zh": "错误示例"
+            },
+            "order": 10,
+            "readOnly": true
+          },
+          {
+            "id": "disabledExample",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "text",
+            "componentId": "form-laboratory.disabledExample",
+            "label": {
+              "fa": "نمونهٔ غیرفعال",
+              "en": "Disabled example",
+              "zh": "禁用示例"
+            },
+            "order": 11,
+            "readOnly": true
+          }
+        ],
+        "actions": [
+          {
+            "id": "new-person",
+            "code": "Space",
+            "keys": [
+              " "
+            ],
+            "label": {
+              "fa": "شخص جدید",
+              "en": "New person",
+              "zh": "新建人员"
+            },
+            "primary": true,
+            "required": true
+          },
+          {
+            "id": "edit-person",
+            "code": "Insert",
+            "keys": [
+              "Insert"
+            ],
+            "label": {
+              "fa": "ویرایش",
+              "en": "Edit",
+              "zh": "编辑"
+            },
+            "required": true
+          },
+          {
+            "id": "delete-person",
+            "code": "Delete",
+            "keys": [
+              "Delete"
+            ],
+            "label": {
+              "fa": "حذف",
+              "en": "Delete",
+              "zh": "删除"
+            },
+            "required": true
+          },
+          {
+            "id": "first-record",
+            "code": "Home",
+            "keys": [
+              "Home"
+            ],
+            "label": {
+              "fa": "اول",
+              "en": "First",
+              "zh": "首条"
+            }
+          },
+          {
+            "id": "previous-page",
+            "code": "PgUp",
+            "keys": [
+              "PageUp"
+            ],
+            "label": {
+              "fa": "صفحه قبل",
+              "en": "Previous page",
+              "zh": "上一页"
+            }
+          },
+          {
+            "id": "browse-records",
+            "code": "↑ ↓",
+            "keys": [
+              "ArrowUp",
+              "ArrowDown"
+            ],
+            "label": {
+              "fa": "مرور",
+              "en": "Browse",
+              "zh": "浏览"
+            }
+          },
+          {
+            "id": "next-page",
+            "code": "PgDn",
+            "keys": [
+              "PageDown"
+            ],
+            "label": {
+              "fa": "صفحه بعد",
+              "en": "Next page",
+              "zh": "下一页"
+            }
+          },
+          {
+            "id": "last-record",
+            "code": "End",
+            "keys": [
+              "End"
+            ],
+            "label": {
+              "fa": "آخر",
+              "en": "Last",
+              "zh": "末条"
+            }
+          },
+          {
+            "id": "action-settings",
+            "code": "⚙",
+            "label": {
+              "fa": "تنظیمات",
+              "en": "Settings",
+              "zh": "设置"
+            },
+            "iconOnly": true
+          },
+          {
+            "id": "demo-save",
+            "code": "F3",
+            "keys": [
+              "F3"
+            ],
+            "label": {
+              "fa": "ذخیره",
+              "en": "Save",
+              "zh": "保存"
+            },
+            "primary": true,
+            "required": true
+          },
+          {
+            "id": "reset-sample",
+            "code": "Esc",
+            "keys": [
+              "Escape"
+            ],
+            "label": {
+              "fa": "خروج",
+              "en": "Exit",
+              "zh": "退出"
+            },
+            "required": true
+          }
+        ],
+        "tables": [
+          {
+            "id": "laboratory.synthetic-persons",
+            "sectionId": "laboratory.grid",
+            "dataSourceId": "form-laboratory.synthetic-persons",
+            "title": {
+              "fa": "جدول دادهٔ مصنوعی",
+              "en": "Synthetic data table",
+              "zh": "合成数据表"
+            },
+            "columns": [
+              {
+                "id": "personCode",
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "personCode"
+                },
+                "label": {
+                  "fa": "کد",
+                  "en": "Code",
+                  "zh": "代码"
+                },
+                "width": 120,
+                "sortable": true,
+                "filterable": true,
+                "order": 0
+              },
+              {
+                "id": "displayName",
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "displayName"
+                },
+                "label": {
+                  "fa": "نام",
+                  "en": "Name",
+                  "zh": "姓名"
+                },
+                "width": 210,
+                "sortable": true,
+                "filterable": true,
+                "order": 1
+              },
+              {
+                "id": "job",
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "job"
+                },
+                "label": {
+                  "fa": "نقش",
+                  "en": "Role",
+                  "zh": "角色"
+                },
+                "width": 130,
+                "sortable": true,
+                "filterable": true,
+                "order": 2
+              },
+              {
+                "id": "nationality",
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "nationality"
+                },
+                "label": {
+                  "fa": "ملیت",
+                  "en": "Nationality",
+                  "zh": "国籍"
+                },
+                "width": 110,
+                "sortable": true,
+                "filterable": true,
+                "order": 3
+              },
+              {
+                "id": "mobile",
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "mobile"
+                },
+                "label": {
+                  "fa": "موبایل",
+                  "en": "Mobile",
+                  "zh": "手机"
+                },
+                "width": 145,
+                "sortable": true,
+                "filterable": true,
+                "order": 4
+              },
+              {
+                "id": "address",
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "address"
+                },
+                "label": {
+                  "fa": "نشانی",
+                  "en": "Address",
+                  "zh": "地址"
+                },
+                "width": 240,
+                "sortable": true,
+                "filterable": true,
+                "order": 5
+              }
+            ],
+            "searchable": true,
+            "columnSelection": true,
+            "rowSelection": "single",
+            "contextMenu": true,
+            "lazyLoading": true,
+            "virtualScrolling": true
+          }
+        ],
+        "resources": {
+          "dataSourceIds": [
+            "form-laboratory.synthetic-persons"
+          ]
+        },
+        "layout": {
+          "direction": "vertical",
+          "gap": 0
+        },
+        "templateFormId": "form-laboratory.persons-synthetic",
+        "settings": {
+          "shared": {
+            "standardId": "form-laboratory.persons-synthetic",
+            "version": 1,
+            "designer": {
+              "format": "yarn-trade.form-designer-draft",
+              "schemaVersion": 1,
+              "formId": "form-laboratory.persons-synthetic",
+              "overrides": {
+                "personCode::input": {
+                  "focusBackgroundColor": "#f8f2ca",
+                  "focusBorderColor": "#d8d8d8"
+                }
+              },
+              "defaults": {
+                "input": {
+                  "focusBackgroundColor": "#f6eeb8",
+                  "focusBorderColor": "#d8d8d8",
+                  "backgroundColor": "#f4f6f5"
+                }
+              },
+              "actions": {
+                "first-record": {
+                  "visible": true
+                },
+                "delete-person": {
+                  "visible": true
+                },
+                "previous-page": {
+                  "visible": true
+                },
+                "browse-records": {
+                  "visible": true
+                },
+                "next-page": {
+                  "visible": true
+                },
+                "last-record": {
+                  "visible": true
+                },
+                "new-person": {
+                  "visible": true
+                },
+                "edit-person": {
+                  "visible": true
+                },
+                "action-settings": {
+                  "visible": true
+                },
+                "demo-save": {
+                  "visible": true
+                },
+                "reset-sample": {
+                  "visible": true
+                }
+              },
+              "appearance": {
+                "headerBackground": "#dee2de",
+                "headerBorder": "#3a7d22",
+                "entryFieldBackground": "#d8d8d8"
+              },
+              "canvas": {
+                "width": 1398,
+                "height": 328.9979169845581,
+                "fields": {
+                  "personCode": {
+                    "input": {
+                      "left": 1261.2708740234375,
+                      "top": 39.45,
+                      "width": 112.0625,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1311.8333740234375,
+                      "top": 15,
+                      "width": 61.5,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 1259.2708740234375,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "titleId": {
+                    "input": {
+                      "left": 1055.1667175292969,
+                      "top": 37.45,
+                      "width": 180.77084350585938,
+                      "height": 36
+                    },
+                    "label": {
+                      "left": 1202.0833740234375,
+                      "top": 13,
+                      "width": 33.85416793823242,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 1053.1667175292969,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "firstName": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 39.45,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1012.5938110351562,
+                      "top": 15,
+                      "width": 17.23958396911621,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "lastName": {
+                    "input": {
+                      "left": 368.1667022705078,
+                      "top": 39.45,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 607.3854598999023,
+                      "top": 15,
+                      "width": 78.94792175292969,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 366.1667022705078,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "jobId": {
+                    "input": {
+                      "left": 24.66668701171875,
+                      "top": 39.45,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 312.1250305175781,
+                      "top": 15,
+                      "width": 30.70833396911621,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 22.66668701171875,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "nationalityId": {
+                    "input": {
+                      "left": 1055.1667175292969,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1341.5833740234375,
+                      "top": 103.45,
+                      "width": 31.75,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 1053.1667175292969,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "phone": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1001.9375610351562,
+                      "top": 103.45,
+                      "width": 27.89583396911621,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "mobile": {
+                    "input": {
+                      "left": 368.1667022705078,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 648.9167098999023,
+                      "top": 103.45,
+                      "width": 37.41666793823242,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 366.1667022705078,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "address": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 198.35,
+                      "width": 661.6666870117188,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1330.2813110351562,
+                      "top": 173.9,
+                      "width": 43.052085876464844,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 150.9,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "notes": {
+                    "input": {
+                      "left": 24.66668701171875,
+                      "top": 196.35,
+                      "width": 661.6666870117188,
+                      "height": 36
+                    },
+                    "label": {
+                      "left": 632.9167098999023,
+                      "top": 169.9,
+                      "width": 53.41666793823242,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 22.66668701171875,
+                      "top": 146.9,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "errorExample": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 264.8,
+                      "width": 661.6666870117188,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1311.9271240234375,
+                      "top": 240.35000000000002,
+                      "width": 61.40625,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 217.35000000000002,
+                      "width": 19,
+                      "height": 18
+                    },
+                    "error": {
+                      "left": 711.6667175292969,
+                      "top": 301.8,
+                      "width": 661.6666870117188,
+                      "height": 11.197916984558105
+                    }
+                  },
+                  "disabledExample": {
+                    "input": {
+                      "left": 24.66668701171875,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 258.7083740234375,
+                      "top": 103.45,
+                      "width": 84.125,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 22.66668701171875,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "specific": {
+            "designer": {
+              "properties": {},
+              "appearance": {},
+              "components": {}
+            }
+          }
+        }
+      },
+      "frame": {
+        "device": "desktop",
+        "width": 1222,
+        "height": null,
+        "fitToPage": true
+      },
+      "template": {
+        "formId": "form-laboratory.persons-synthetic",
+        "version": 1
+      },
+      "designerOverrides": {},
+      "customization": {
+        "colors": true,
+        "typography": true,
+        "formSize": true,
+        "tablePresentation": true
+      },
+      "structurePermissions": {
+        "fieldAddRemove": false,
+        "fieldTypeChange": false,
+        "tableSchemaChange": false,
+        "businessBehaviorChange": false
+      }
+    }
+  },
+  "recovery": {
+    "activeFormId": "form.laboratory-copy.3c2efb1c-a20a-4583-a11a-da3b8f78d354",
+    "form": {
+      "id": "form.laboratory-copy.3c2efb1c-a20a-4583-a11a-da3b8f78d354",
+      "schema": {
+        "id": "form.laboratory-copy.3c2efb1c-a20a-4583-a11a-da3b8f78d354",
+        "schemaVersion": 1,
+        "version": 1,
+        "status": "draft",
+        "mode": "hybrid",
+        "title": {
+          "fa": "تعریف برند — پیش‌نویس",
+          "en": "تعریف برند — پیش‌نویس",
+          "zh": "تعریف برند — پیش‌نویس"
+        },
+        "sections": [
+          {
+            "id": "laboratory.editor",
+            "kind": "editor",
+            "purpose": "operational",
+            "layout": {
+              "columns": 20,
+              "direction": "horizontal",
+              "gap": 12,
+              "minimumWidth": 1440
+            }
+          },
+          {
+            "id": "laboratory.grid",
+            "kind": "grid",
+            "purpose": "reporting"
+          },
+          {
+            "id": "laboratory.footer",
+            "kind": "footer",
+            "purpose": "operational"
+          },
+          {
+            "id": "report-row.8228d7c0-75e6-4b25-a2d1-a54296e3042a",
+            "kind": "editor",
+            "tableHeaderFor": "laboratory.synthetic-persons",
+            "purpose": "reporting",
+            "title": {
+              "fa": "ردیف گزارش 1",
+              "en": "Report row 1",
+              "zh": "报表行 1"
+            },
+            "layout": {
+              "columns": 20,
+              "direction": "horizontal",
+              "gap": 12
+            }
+          }
+        ],
+        "fields": [
+          {
+            "id": "personCode",
+            "sectionId": "laboratory.editor",
+            "minTracks": 2,
+            "span": 2,
+            "required": true,
+            "kind": "text",
+            "componentId": "form-laboratory.personCode",
+            "label": {
+              "fa": "کد برند",
+              "en": "Person code",
+              "zh": "人员代码"
+            },
+            "order": 0,
+            "settings": {
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 1,
+                  "columnSpan": 2,
+                  "rowStart": 1
+                }
+              }
+            },
+            "columnLinks": [
+              {
+                "tableId": "laboratory.synthetic-persons",
+                "columnId": "personCode"
+              }
+            ],
+            "valueType": "alphanumeric",
+            "validation": [
+              {
+                "type": "unique"
+              }
+            ]
+          },
+          {
+            "id": "firstName",
+            "sectionId": "laboratory.editor",
+            "minTracks": 5,
+            "span": 5,
+            "kind": "text",
+            "componentId": "form-laboratory.firstName",
+            "label": {
+              "fa": "نام برند",
+              "en": "First name",
+              "zh": "名字"
+            },
+            "order": 2,
+            "settings": {
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 6,
+                  "columnSpan": 5,
+                  "rowStart": 1
+                }
+              }
+            },
+            "columnLinks": [
+              {
+                "tableId": "laboratory.synthetic-persons",
+                "columnId": "displayName"
+              }
+            ]
+          },
+          {
+            "id": "notes",
+            "sectionId": "laboratory.editor",
+            "minTracks": 10,
+            "span": 10,
+            "kind": "text",
+            "componentId": "form-laboratory.notes",
+            "label": {
+              "fa": "توضیحات",
+              "en": "Notes",
+              "zh": "说明"
+            },
+            "order": 9,
+            "settings": {
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 11,
+                  "columnSpan": 10,
+                  "rowStart": 3
+                }
+              }
+            },
+            "columnLinks": [
+              {
+                "tableId": "laboratory.synthetic-persons",
+                "columnId": "column.6be46903-966c-49c1-8a0b-bbd22155dbf6"
+              },
+              {
+                "tableId": "laboratory.synthetic-persons",
+                "columnId": "personCode"
+              }
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "new-person",
+            "code": "Space",
+            "keys": [
+              " "
+            ],
+            "label": {
+              "fa": "شخص جدید",
+              "en": "New person",
+              "zh": "新建人员"
+            },
+            "primary": true,
+            "required": false
+          },
+          {
+            "id": "edit-person",
+            "code": "Insert",
+            "keys": [
+              "Insert"
+            ],
+            "label": {
+              "fa": "ویرایش",
+              "en": "Edit",
+              "zh": "编辑"
+            },
+            "required": false
+          },
+          {
+            "id": "delete-person",
+            "code": "Delete",
+            "keys": [
+              "Delete"
+            ],
+            "label": {
+              "fa": "حذف",
+              "en": "Delete",
+              "zh": "删除"
+            },
+            "required": false
+          },
+          {
+            "id": "first-record",
+            "code": "Home",
+            "keys": [
+              "Home"
+            ],
+            "label": {
+              "fa": "اول",
+              "en": "First",
+              "zh": "首条"
+            },
+            "required": false
+          },
+          {
+            "id": "last-record",
+            "code": "End",
+            "keys": [
+              "End"
+            ],
+            "label": {
+              "fa": "آخر",
+              "en": "Last",
+              "zh": "末条"
+            },
+            "required": false
+          },
+          {
+            "id": "action-settings",
+            "code": "⚙",
+            "label": {
+              "fa": "تنظیمات",
+              "en": "Settings",
+              "zh": "设置"
+            },
+            "iconOnly": true,
+            "required": false
+          },
+          {
+            "id": "demo-save",
+            "code": "F3",
+            "keys": [
+              "F3"
+            ],
+            "label": {
+              "fa": "ذخیره",
+              "en": "Save",
+              "zh": "保存"
+            },
+            "primary": true,
+            "required": false
+          },
+          {
+            "id": "reset-sample",
+            "code": "Esc",
+            "keys": [
+              "Escape"
+            ],
+            "label": {
+              "fa": "خروج",
+              "en": "Exit",
+              "zh": "退出"
+            },
+            "required": false
+          }
+        ],
+        "tables": [
+          {
+            "id": "laboratory.synthetic-persons",
+            "sectionId": "laboratory.grid",
+            "dataSourceId": "form-laboratory.synthetic-persons",
+            "title": {
+              "fa": "جدول دادهٔ مصنوعی",
+              "en": "Synthetic data table",
+              "zh": "合成数据表"
+            },
+            "columns": [
+              {
+                "id": "personCode",
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "personCode"
+                },
+                "label": {
+                  "fa": "کد برند",
+                  "en": "Code",
+                  "zh": "代码"
+                },
+                "width": 120,
+                "sortable": true,
+                "filterable": true,
+                "order": 0,
+                "sourceFieldIds": [
+                  "personCode",
+                  "notes"
+                ],
+                "requiresSourceDecision": false,
+                "labelSyncDecision": "primary-field",
+                "labelSyncFieldId": "personCode",
+                "sourceFieldLabelSnapshot": {
+                  "personCode": {
+                    "fa": "کد برند",
+                    "en": "Person code",
+                    "zh": "人员代码"
+                  },
+                  "notes": {
+                    "fa": "توضیحات",
+                    "en": "Notes",
+                    "zh": "说明"
+                  }
+                },
+                "labelSnapshot": {
+                  "fa": "کد برند",
+                  "en": "Code",
+                  "zh": "代码"
+                }
+              },
+              {
+                "id": "displayName",
+                "binding": {
+                  "kind": "formField",
+                  "fieldId": "firstName"
+                },
+                "label": {
+                  "fa": "نام برند",
+                  "en": "First name",
+                  "zh": "名字"
+                },
+                "width": 210,
+                "sortable": true,
+                "filterable": true,
+                "order": 1,
+                "sourceFieldIds": [
+                  "firstName"
+                ],
+                "requiresSourceDecision": false
+              },
+              {
+                "id": "column.6be46903-966c-49c1-8a0b-bbd22155dbf6",
+                "label": {
+                  "fa": "توضیحات",
+                  "en": "توضیحات",
+                  "zh": "توضیحات"
+                },
+                "binding": {
+                  "kind": "formField",
+                  "fieldId": "notes"
+                },
+                "sourceFieldIds": [
+                  "notes"
+                ],
+                "valueType": "text",
+                "width": 160,
+                "visible": true,
+                "requiresSourceDecision": false
+              }
+            ],
+            "searchable": true,
+            "columnSelection": true,
+            "rowSelection": "single",
+            "contextMenu": true,
+            "lazyLoading": true,
+            "virtualScrolling": true,
+            "settings": {
+              "toolbar": {
+                "expand": {
+                  "x": -590.6667175292969,
+                  "y": 2.666748046875
+                },
+                "columns": {
+                  "x": 2,
+                  "y": 8.66668701171875,
+                  "fontSize": 11,
+                  "bold": false,
+                  "italic": false,
+                  "strikeThrough": false,
+                  "textColor": "#263a38",
+                  "fontFamily": "inherit"
+                },
+                "title": {
+                  "x": -346.9999694824219,
+                  "y": 12,
+                  "fontSize": 12,
+                  "bold": false,
+                  "italic": false,
+                  "strikeThrough": false,
+                  "textColor": "#263a38",
+                  "fontFamily": "inherit"
+                },
+                "search": {
+                  "x": 282.6667175292969,
+                  "y": -1.333343505859375
+                },
+                "counter": {
+                  "x": -357.9999694824219,
+                  "y": 13.33331298828125,
+                  "fontSize": 11,
+                  "bold": false,
+                  "italic": false,
+                  "strikeThrough": false,
+                  "textColor": "#263a38",
+                  "fontFamily": "inherit"
+                },
+                "header": {
+                  "x": 0.00002288818359375,
+                  "y": 0.333282470703125,
+                  "width": 764,
+                  "height": 68.65625,
+                  "borderWidth": 0
+                },
+                "searchInput": {
+                  "x": 1.97918701171875,
+                  "y": -1,
+                  "width": 322.7499694824219,
+                  "height": 34,
+                  "fontSize": 15,
+                  "borderWidth": 1,
+                  "bold": false,
+                  "italic": false,
+                  "strikeThrough": false,
+                  "textColor": "#bcbcbc",
+                  "backgroundColor": "#e1f3ee",
+                  "borderColor": "#3a7d22",
+                  "fontFamily": "inherit"
+                },
+                "searchReverse": {
+                  "backgroundColor": "#e1f3ee"
+                }
+              }
+            }
+          }
+        ],
+        "resources": {
+          "dataSourceIds": [
+            "form-laboratory.synthetic-persons"
+          ]
+        },
+        "layout": {
+          "direction": "vertical",
+          "gap": 0
+        },
+        "templateFormId": "form-laboratory.persons-synthetic",
+        "settings": {
+          "shared": {
+            "standardId": "form-laboratory.persons-synthetic",
+            "version": 1,
+            "designer": {
+              "format": "yarn-trade.form-designer-draft",
+              "schemaVersion": 1,
+              "formId": "form-laboratory.persons-synthetic",
+              "overrides": {
+                "personCode::input": {
+                  "focusBackgroundColor": "#f8f2ca",
+                  "focusBorderColor": "#d8d8d8"
+                }
+              },
+              "defaults": {
+                "input": {
+                  "focusBackgroundColor": "#f6eeb8",
+                  "focusBorderColor": "#d8d8d8",
+                  "backgroundColor": "#f4f6f5"
+                }
+              },
+              "actions": {
+                "first-record": {
+                  "visible": true
+                },
+                "delete-person": {
+                  "visible": true
+                },
+                "previous-page": {
+                  "visible": true
+                },
+                "browse-records": {
+                  "visible": true
+                },
+                "next-page": {
+                  "visible": true
+                },
+                "last-record": {
+                  "visible": true
+                },
+                "new-person": {
+                  "visible": true
+                },
+                "edit-person": {
+                  "visible": true
+                },
+                "action-settings": {
+                  "visible": true
+                },
+                "demo-save": {
+                  "visible": true
+                },
+                "reset-sample": {
+                  "visible": true
+                }
+              },
+              "appearance": {
+                "headerBackground": "#dee2de",
+                "headerBorder": "#3a7d22",
+                "entryFieldBackground": "#d8d8d8"
+              },
+              "canvas": {
+                "width": 1398,
+                "height": 328.9979169845581,
+                "fields": {
+                  "personCode": {
+                    "input": {
+                      "left": 1261.2708740234375,
+                      "top": 39.45,
+                      "width": 112.0625,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1311.8333740234375,
+                      "top": 15,
+                      "width": 61.5,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 1259.2708740234375,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "titleId": {
+                    "input": {
+                      "left": 1055.1667175292969,
+                      "top": 37.45,
+                      "width": 180.77084350585938,
+                      "height": 36
+                    },
+                    "label": {
+                      "left": 1202.0833740234375,
+                      "top": 13,
+                      "width": 33.85416793823242,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 1053.1667175292969,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "firstName": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 39.45,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1012.5938110351562,
+                      "top": 15,
+                      "width": 17.23958396911621,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "lastName": {
+                    "input": {
+                      "left": 368.1667022705078,
+                      "top": 39.45,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 607.3854598999023,
+                      "top": 15,
+                      "width": 78.94792175292969,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 366.1667022705078,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "jobId": {
+                    "input": {
+                      "left": 24.66668701171875,
+                      "top": 39.45,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 312.1250305175781,
+                      "top": 15,
+                      "width": 30.70833396911621,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 22.66668701171875,
+                      "top": 0,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "nationalityId": {
+                    "input": {
+                      "left": 1055.1667175292969,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1341.5833740234375,
+                      "top": 103.45,
+                      "width": 31.75,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 1053.1667175292969,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "phone": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1001.9375610351562,
+                      "top": 103.45,
+                      "width": 27.89583396911621,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "mobile": {
+                    "input": {
+                      "left": 368.1667022705078,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 648.9167098999023,
+                      "top": 103.45,
+                      "width": 37.41666793823242,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 366.1667022705078,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "address": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 198.35,
+                      "width": 661.6666870117188,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1330.2813110351562,
+                      "top": 173.9,
+                      "width": 43.052085876464844,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 150.9,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "notes": {
+                    "input": {
+                      "left": 24.66668701171875,
+                      "top": 196.35,
+                      "width": 661.6666870117188,
+                      "height": 36
+                    },
+                    "label": {
+                      "left": 632.9167098999023,
+                      "top": 169.9,
+                      "width": 53.41666793823242,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 22.66668701171875,
+                      "top": 146.9,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "errorExample": {
+                    "input": {
+                      "left": 711.6667175292969,
+                      "top": 264.8,
+                      "width": 661.6666870117188,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 1311.9271240234375,
+                      "top": 240.35000000000002,
+                      "width": 61.40625,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 709.6667175292969,
+                      "top": 217.35000000000002,
+                      "width": 19,
+                      "height": 18
+                    },
+                    "error": {
+                      "left": 711.6667175292969,
+                      "top": 301.8,
+                      "width": 661.6666870117188,
+                      "height": 11.197916984558105
+                    }
+                  },
+                  "disabledExample": {
+                    "input": {
+                      "left": 24.66668701171875,
+                      "top": 127.9,
+                      "width": 318.16668701171875,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 258.7083740234375,
+                      "top": 103.45,
+                      "width": 84.125,
+                      "height": 21.45
+                    },
+                    "select": {
+                      "left": 22.66668701171875,
+                      "top": 80.45,
+                      "width": 19,
+                      "height": 18
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "specific": {
+            "designer": {
+              "properties": {},
+              "appearance": {},
+              "components": {}
+            }
+          }
+        }
+      },
+      "frame": {
+        "device": "desktop",
+        "width": 752,
+        "height": null,
+        "fitToPage": false
+      },
+      "template": {
+        "formId": "form-laboratory.persons-synthetic",
+        "version": 1
+      },
+      "designerOverrides": {},
+      "customization": {
+        "colors": true,
+        "typography": true,
+        "formSize": true,
+        "tablePresentation": true
+      },
+      "structurePermissions": {
+        "fieldAddRemove": false,
+        "fieldTypeChange": false,
+        "tableSchemaChange": false,
+        "businessBehaviorChange": false
+      }
+    },
+    "designerDraft": {
+      "format": "yarn-trade.form-designer-draft",
+      "schemaVersion": 1,
+      "formId": "form.laboratory-copy.3c2efb1c-a20a-4583-a11a-da3b8f78d354",
+      "overrides": {
+        "personCode::input": {
+          "focusBackgroundColor": "#f8f2ca",
+          "focusBorderColor": "#d8d8d8",
+          "offsetX": -216.333251953125,
+          "offsetY": 1,
+          "borderRadius": 7,
+          "height": 37
+        },
+        "notes::input": {
+          "offsetX": 662.6666870117188,
+          "offsetY": -70.66665649414061,
+          "height": 37,
+          "lineHeight": 1.4
+        },
+        "notes::label": {
+          "offsetX": 662.6666870117188,
+          "offsetY": -73.66665649414062
+        },
+        "personCode::label": {
+          "offsetX": -25.333251953125,
+          "offsetY": 1.333343505859375
+        },
+        "firstName::input": {
+          "offsetX": -19.666717529296875,
+          "offsetY": 2.6666717529296875,
+          "height": 37,
+          "borderRadius": 7
+        },
+        "firstName::label": {
+          "offsetX": -19.666717529296875,
+          "offsetY": 2.6666717529296875
+        },
+        "field.d0eda137-e561-4b9a-8390-3d731fe45116::input": {
+          "offsetX": 140.00001525878906,
+          "height": 40.66668701171875,
+          "width": 320.6666717529297,
+          "offsetY": 14.66668701171875,
+          "borderRadius": 7
+        },
+        "field.d0eda137-e561-4b9a-8390-3d731fe45116::label": {
+          "offsetX": 150.66668701171875,
+          "offsetY": 14.66668701171875
+        }
+      },
+      "defaults": {
+        "input": {
+          "focusBackgroundColor": "#f6eeb8",
+          "focusBorderColor": "#d8d8d8",
+          "backgroundColor": "#f4f6f5"
+        }
+      },
+      "actions": {
+        "first-record": {
+          "visible": true,
+          "width": 66
+        },
+        "delete-person": {
+          "visible": true,
+          "width": 68
+        },
+        "previous-page": {
+          "visible": true,
+          "width": 70.66665649414062
+        },
+        "browse-records": {
+          "visible": true
+        },
+        "next-page": {
+          "visible": true
+        },
+        "last-record": {
+          "visible": true
+        },
+        "new-person": {
+          "visible": true
+        },
+        "edit-person": {
+          "visible": true,
+          "width": 71.3333740234375
+        },
+        "action-settings": {
+          "visible": true
+        },
+        "demo-save": {
+          "visible": true
+        },
+        "reset-sample": {
+          "visible": true
+        }
+      },
+      "appearance": {
+        "headerBackground": "#dee2de",
+        "headerBorder": "#3a7d22",
+        "entryFieldBackground": "#d8d8d8"
+      },
+      "canvas": {
+        "width": 1398,
+        "height": 328.9979169845581,
+        "fields": {
+          "personCode": {
+            "input": {
+              "left": 1044.9376220703125,
+              "top": 40.78334350585938,
+              "width": 303.0625,
+              "height": 37
+            },
+            "label": {
+              "left": 1286.5001220703125,
+              "top": 16.333343505859375,
+              "width": 61.5,
+              "height": 21.45
+            },
+            "select": {
+              "left": 1233.9376220703125,
+              "top": 1.333343505859375,
+              "width": 19,
+              "height": 18
+            }
+          },
+          "firstName": {
+            "input": {
+              "left": 692,
+              "top": 42.11667175292969,
+              "width": 318.16668701171875,
+              "height": 37
+            },
+            "label": {
+              "left": 992.9270935058594,
+              "top": 17.666671752929688,
+              "width": 17.23958396911621,
+              "height": 21.45
+            },
+            "select": {
+              "left": 690,
+              "top": 2.6666717529296875,
+              "width": 19,
+              "height": 18
+            }
+          },
+          "notes": {
+            "input": {
+              "left": 687.3333740234375,
+              "top": 125.68334350585938,
+              "width": 661.6666870117188,
+              "height": 37.999999999999986
+            },
+            "label": {
+              "left": 1295.583396911621,
+              "top": 96.23334350585938,
+              "width": 53.41666793823242,
+              "height": 21.45
+            },
+            "select": {
+              "left": 685.3333740234375,
+              "top": 73.23334350585938,
+              "width": 19,
+              "height": 18
+            }
+          }
+        }
+      },
+      "layoutMode": "canvas",
+      "buttonPressEffect": true,
+      "tables": {
+        "laboratory.synthetic-persons": {
+          "tableHeaderHeight": 40
+        }
+      }
+    },
+    "updatedAt": "2026-10-20T04:56:29.803Z",
+    "historyVersionCount": 23
+  }
+}

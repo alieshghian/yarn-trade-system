@@ -128,6 +128,8 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof PersonDraft, string>>>({})
   const [loading, setLoading] = useState(true)
   const userKey = currentUserKey()
+  const titleDefaultKey='yarn-trade:person-title-default:'+encodeURIComponent(authenticatedUserId??userKey)
+  const [titleDefaultId,setTitleDefaultId]=useState(()=>localStorage.getItem(titleDefaultKey)??'')
   const splitKey = `persons-split:${userKey}`
   const columnKey = `persons-columns:${authenticatedUserId ?? userKey}`
   const legacyColumnKey = `persons-columns:${userKey}`
@@ -352,13 +354,13 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
 
   const beginNew = useCallback(async () => {
     const value = emptyDraft()
-    value.titleId = parameters.find(x => x.parameterType === 'Title' && x.code === 'MR')?.id ?? ''
+    value.titleId = parameters.find(x=>x.parameterType==='Title'&&x.id===titleDefaultId)?.id??parameters.find(x => x.parameterType === 'Title' && x.code === 'MR')?.id ?? ''
     value.nationalityId = parameters.find(x => x.parameterType === 'Nationality' && x.code === 'IR')?.id ?? ''
     if (contractCreation) value.jobId = parameters.find(x => x.parameterType === 'Job' && x.code === 'PARTNER')?.id ?? ''
     try { value.personCode = await suggestSerial('person', demoMode, persons.at(-1)?.personCode, 'PER-0001') }
     catch (e) { setError(e instanceof Error ? e.message : String(e)) }
     setDraft(value); original.current = JSON.stringify(value); setMode('new'); setMessage(''); setFieldErrors({})
-  }, [demoMode, persons, parameters, contractCreation])
+  }, [demoMode, persons, parameters, contractCreation,titleDefaultId])
   useEffect(() => {
     if (contractCreation && !loading && !contractStarted.current && parameters.length) {
       contractStarted.current = true
@@ -562,6 +564,21 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     const personType = knownPersonType ?? titlePersonType(titles.find(x => x.id === titleId)) ?? current.personType
     return { ...current, titleId, personType }
   })
+  const titleListName=(title:Parameter)=>title.code==='MR'?(fa?'آقای':title.nameEn):parameterLabel(title)
+  const titleCanChange=(id:string)=>!persons.some(person=>person.titleId===id)&&titles.some(title=>title.id===id&&title.code.startsWith('TITLE_'))
+  async function commitPersonTitleList(primary:string,names:string[],origins:ReadonlyMap<string,string>){
+    const items=names.map(name=>{const old=titles.find(title=>titleListName(title)===(origins.get(name)??name));return {id:old?.id??null,name:old&&titleListName(old)===name?old.nameFa:name,expectedName:old?.nameFa??null}})
+    const removed=titles.filter(title=>!items.some(item=>item.id===title.id)).map(title=>({id:title.id,name:title.nameFa,expectedName:title.nameFa}))
+    const primaryItem=items[names.indexOf(primary)],defaultName=primaryItem?.name??primary
+    let response:{options:Parameter[];defaultId:string}
+    if(demoMode){
+      if(removed.some(item=>!titleCanChange(item.id))||items.some(item=>item.id&&item.name!==item.expectedName&&!titleCanChange(item.id)))throw Error('عنوان استفاده‌شده یا سیستمی قابل تغییر نیست.')
+      const options=items.map(item=>item.id?{...titles.find(title=>title.id===item.id)!,nameFa:item.name,nameEn:item.name}:{id:crypto.randomUUID(),parameterType:'Title' as const,code:'TITLE_'+crypto.randomUUID(),nameFa:item.name,nameEn:item.name,personType:draft.personType})
+      response={options,defaultId:options.find(item=>item.nameFa===defaultName)?.id??''}
+    }else response=await apiRequest('/api/master-data/parameters/titles/changes',{method:'POST',body:JSON.stringify({items,removed,defaultName,personType:draft.personType})})
+    setParameters(current=>[...current.filter(item=>item.parameterType!=='Title'),...response.options])
+    return {options:response.options.map(title=>({id:title.id,nameFa:title.nameFa,nameEn:title.nameEn,code:title.code,personType:titlePersonType(title)??draft.personType})),defaultId:response.defaultId}
+  }
   async function createPersonTitle(name: string): Promise<PersonTitleOption> {
     // The title control only collects text; retain the current form's type internally.
     const personType = draft.personType
@@ -587,7 +604,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       {error && <div className="form-message error-message">{error}</div>}{message && <div className="form-message success-message">{message}</div>}
       <div className={`person-form-grid ${mode !== 'view' ? 'editing' : ''}`} ref={formRef} onKeyDown={formKeyDown} onBlur={formBlur}>
         <Field className="person-code-field" label={fa ? 'کد شخص *' : 'Person code *'} error={fieldErrors.personCode}><input data-field="personCode" aria-invalid={Boolean(fieldErrors.personCode)} autoFocus={mode === 'new'} disabled={disabled || selected?.isContractPartner} maxLength={30} value={draft.personCode} onChange={e => set('personCode', e.target.value)} /></Field>
-        <Field className="person-title-field" label={fa ? 'عنوان *' : 'Title *'} error={fieldErrors.titleId}><PersonTitleControl value={draft.titleId ?? ''} options={titles.map(title => ({ id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? 'Company' }))} disabled={disabled} required invalid={Boolean(fieldErrors.titleId)} canCreate={hasPermission('persons.create')} fa={fa} language={language} onChange={changeTitle} onCreate={createPersonTitle} /></Field>
+        <Field className="person-title-field" label={fa ? 'عنوان *' : 'Title *'} error={fieldErrors.titleId}><PersonTitleControl label={fa?'عنوان':'Title'} defaultValue={titleDefaultId||draft.titleId} onSetDefault={id=>{localStorage.setItem(titleDefaultKey,id);setTitleDefaultId(id)}} onCommit={commitPersonTitleList} canEdit={option=>hasPermission('persons.edit')&&titleCanChange(option.id)} canRemove={option=>hasPermission('persons.delete')&&titleCanChange(option.id)} value={draft.titleId ?? ''} options={titles.map(title => ({ id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? 'Company' }))} disabled={disabled} required invalid={Boolean(fieldErrors.titleId)} canCreate={hasPermission('persons.create')} fa={fa} language={language} onChange={changeTitle} onCreate={createPersonTitle} /></Field>
         {!organization && <Field className="person-first-name-field" compact label={fa ? 'نام' : 'First name'}><input data-field="firstName" disabled={disabled} value={draft.firstName} onChange={e => set('firstName', e.target.value)} /></Field>}
         <Field className={organization ? 'person-organization-field' : 'person-family-name-field'} label={organization ? (fa ? `نام ${selectedTitle?.nameFa ?? 'شرکت'} *` : `${selectedTitle?.nameEn ?? 'Organization'} name *`) : (fa ? 'نام خانوادگی *' : 'Family name *')} wide={organization} compact={!organization} error={fieldErrors.lastName}><input data-field="lastName" required aria-invalid={Boolean(fieldErrors.lastName)} disabled={disabled} value={draft.lastName} onChange={e => set('lastName', e.target.value)} /></Field>
         {organization && <Field className="person-director-field" label={fa ? `نام مدیر ${selectedTitle?.nameFa ?? 'شرکت'}` : `${selectedTitle?.nameEn ?? 'Organization'} director`}><input data-field="directorName" disabled={disabled} maxLength={200} value={draft.directorName} onChange={e => set('directorName', e.target.value)} /></Field>}

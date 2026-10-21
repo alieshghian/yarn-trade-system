@@ -1,3 +1,4 @@
+import { applyDesignTheme, type ThemeDocument } from './components/base-form/themeDesignSystem'
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiRequest, isConcurrencyConflict, withRowVersion, authenticationRequest, type EmailChallenge, isAuthenticated, login, logout, setAccessPermissions, tryDevelopmentSession, verifyEmail } from './api'
 import { Language, languageNames, loginText, text } from './i18n'
@@ -43,6 +44,8 @@ const isLanguage = (value: string): value is Language => value === 'fa' || value
 export default function App() {
   const demoMode = new URLSearchParams(location.search).get('demo') === '1'
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'fa')
+  const [themeDocument, setThemeDocument] = useState<ThemeDocument | null>(null)
+  const [requestedDesign, setRequestedDesign] = useState<{id:string;sequence:number}>()
   const [theme, setTheme] = useState<UserPreferences['theme']>(() => (localStorage.getItem('theme') as UserPreferences['theme']) || 'system')
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compact-mode') === '1')
   const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(() => Number(localStorage.getItem('session-timeout')) || 30)
@@ -71,7 +74,7 @@ export default function App() {
   const t = text[language]
   const dir = language === 'fa' ? 'rtl' : 'ltr'
   const allMenus = useMemo(() => ['dashboard', 'persons', 'brands', 'formLaboratory', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings'] as const, [])
-  const menu = useMemo(() => allMenus.filter(key => demoMode || key === 'settings' || (!access ? key === 'dashboard' : access.permissions.includes(key === 'businessContract' ? 'settings.view' : `${key}.view`))), [allMenus, access, demoMode])
+  const menu = useMemo(() => allMenus.filter(key => (key !== 'formLaboratory' || demoMode || access?.roles.includes('Administrator')) && (demoMode || key === 'settings' || (!access ? key === 'dashboard' : access.permissions.includes(key === 'businessContract' ? 'settings.view' : `${key}.view`)))), [allMenus, access, demoMode])
   // هر فرم فقط کارتابل فعالیت مرتبط با خودش را نمایش می‌دهد؛ نقش مقصد در API کنترل می‌شود.
   const currentWorkItems = useMemo(() => workItems.filter(item => item.target === active), [workItems, active])
   const pendingWorkItems = currentWorkItems.filter(item => !item.actionStartedAtUtc)
@@ -84,6 +87,20 @@ export default function App() {
     setActive(key)
   }
 
+  useEffect(() => {
+    if (!authenticated || demoMode) { setThemeDocument(null); return }
+    setThemeDocument(null)
+    let alive = true
+    const read = () => { void apiRequest<ThemeDocument>('/api/design-system/themes').then(value => { if (alive) setThemeDocument(value) }).catch(() => { if (alive) setThemeDocument(null) }) }
+    read(); window.addEventListener('design-system-theme-updated', read)
+    return () => { alive = false; window.removeEventListener('design-system-theme-updated', read) }
+  }, [authenticated, demoMode, access?.id])
+  useEffect(() => { applyDesignTheme(document.documentElement, theme, authenticated ? themeDocument : null) }, [theme, themeDocument, authenticated])
+  useEffect(() => {
+    const open = (event: Event) => { const route = (event as CustomEvent<MenuKey>).detail; if (import.meta.env.DEV && menu.includes(route)) openForm(route) }
+    window.addEventListener('open-operational-form', open)
+    return () => window.removeEventListener('open-operational-form', open)
+  }, [menu])
   function closeForm(key: MenuKey) {
     setOpenTabs(current => {
       if (current.length === 1) return current
@@ -332,7 +349,7 @@ export default function App() {
     {maintenanceNotice && <div className="maintenance-overlay" role="alertdialog" aria-modal="true"><section><div className="maintenance-icon">!</div><h2>{language === 'fa' ? 'درخواست خروج از سیستم' : 'Sign-out requested'}</h2><p>{language === 'fa' ? `برای انجام ${maintenanceNotice.operation === 'Backup' ? 'تهیه نسخه پشتیبان' : 'بازخوانی اطلاعات'} از شما خواسته شده از سیستم خارج شوید.` : `Please sign out so ${maintenanceNotice.operation.toLowerCase()} can begin.`}</p><dl><div><dt>{language === 'fa' ? 'درخواست‌کننده' : 'Requested by'}</dt><dd>{maintenanceNotice.requesterName}</dd></div><div><dt>{language === 'fa' ? 'نقش' : 'Role'}</dt><dd>{formatMaintenanceRoles(maintenanceNotice.requesterRoles, language)}</dd></div><div><dt>{language === 'fa' ? 'دلیل' : 'Reason'}</dt><dd>{maintenanceNotice.reason}</dd></div><div><dt>{language === 'fa' ? 'مدت تقریبی' : 'Estimated duration'}</dt><dd>{maintenanceNotice.estimatedMinutes} {language === 'fa' ? 'دقیقه' : 'minutes'}</dd></div></dl><button className="primary" onClick={() => { logout(); setAccess(undefined); setAuthenticated(false); setMaintenanceNotice(null); setAuthNotice(language === 'fa' ? `به درخواست ${maintenanceNotice.requesterName} برای عملیات نگهداری خارج شدید. پس از حدود ${maintenanceNotice.estimatedMinutes} دقیقه دوباره وارد شوید.` : `Signed out for maintenance requested by ${maintenanceNotice.requesterName}. Try again in about ${maintenanceNotice.estimatedMinutes} minutes.`) }}>{language === 'fa' ? 'خروج از سیستم' : 'Sign out now'}</button></section></div>}
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">G</div><div className="brand-copy"><strong>Global Trade</strong><small>YARN PARTNERSHIP</small></div><button className="collapse-sidebar" title={t.collapseMenu} onClick={toggleSidebar}>{sidebarCollapsed ? '»' : '«'}</button></div>
-      <NavigationSidebar key={access?.id ?? 'demo'} language={language} userId={access?.id} administrator={Boolean(access?.roles.includes('Administrator') && access.permissions.includes('settings.edit'))} demoMode={demoMode} allowedRoutes={menu} active={active} onOpen={openForm} commerceCount={commerceOrderCount} />
+      <NavigationSidebar key={access?.id ?? 'demo'} language={language} userId={access?.id} administrator={Boolean(access?.roles.includes('Administrator') && access.permissions.includes('settings.edit'))} demoMode={demoMode} allowedRoutes={menu} active={active} onOpen={openForm} commerceCount={commerceOrderCount} onOpenDesign={import.meta.env.DEV && access?.roles.includes('Administrator') && menu.includes('formLaboratory') ? id => { openForm('formLaboratory'); setRequestedDesign({ id, sequence: Date.now() }) } : undefined} />
       <div className="user"><div className="avatar">{access?.displayName?.[0] ?? 'A'}</div><div><b>{access?.displayName ?? 'Administrator'}</b><small>{access?.roles?.join('، ') || `${t.systemStatus}: ${t.healthy}`}</small></div><button title={t.signOut} onClick={() => { logout(); setAccess(undefined); setAuthenticated(false) }}>↪</button></div>
     </aside>
     <main>
@@ -348,7 +365,7 @@ export default function App() {
       </aside>
       <section className={`content tabbed-content ${active === 'persons' || active === 'brands' || active === 'formLaboratory' || active === 'yarns' || active === 'purchaseOrders' || active === 'commerce' || active === 'users' || active === 'dataBackup' || active === 'businessContract' || active === 'settings' ? 'persons-content' : ''}`}>
         {openTabs.filter(key => menu.includes(key)).map(tab => <div key={tab} className={`form-tab-pane ${active === tab ? 'active' : ''}`} aria-hidden={active !== tab}>
-          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} authenticatedUserId={access?.id} /> : tab === 'brands' ? <BrandsPage language={language} demoMode={demoMode} /> : tab === 'formLaboratory' ? <FormLaboratoryPage language={language} authenticatedUserId={access?.id} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} administrator={access?.roles.includes('Administrator') ?? false} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'businessContract' ? <BusinessContractPage language={language} canEdit={demoMode || (access?.permissions.includes('settings.edit') ?? false)} /> : tab === 'settings' ? <UserSettingsPage language={language} onLanguageChanged={changeLanguage} onPreferencesChanged={savePreferences} onPasswordChanged={() => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : language === 'zh' ? '密码已更改，请使用新密码登录。' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
+          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} authenticatedUserId={access?.id} /> : tab === 'brands' ? <BrandsPage language={language} demoMode={demoMode} /> : tab === 'formLaboratory' ? <FormLaboratoryPage language={language} authenticatedUserId={access?.id} requestedDesign={requestedDesign} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} administrator={access?.roles.includes('Administrator') ?? false} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'businessContract' ? <BusinessContractPage language={language} canEdit={demoMode || (access?.permissions.includes('settings.edit') ?? false)} /> : tab === 'settings' ? <UserSettingsPage language={language} onLanguageChanged={changeLanguage} onPreferencesChanged={savePreferences} onPasswordChanged={() => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : language === 'zh' ? '密码已更改，请使用新密码登录。' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
           <div className="metrics">
           <Metric label={t.openReceivables} value={language === 'fa' ? '۲٬۱۸۰٬۰۰۰٬۰۰۰' : '2,180,000,000'} unit={t.irr} trend={language === 'fa' ? '+۸٫۲٪' : '+8.2%'} tone="gold" />
           <Metric label={t.inventoryValue} value={language === 'fa' ? '۴۳٬۶۴۳٫۷' : '43,643.7'} unit={t.kg} trend={t.twoWarehouses} tone="teal" />

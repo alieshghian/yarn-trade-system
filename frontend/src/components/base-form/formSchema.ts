@@ -27,6 +27,10 @@ export type FormSchemaDataBinding =
 
 export type FormSchemaFieldKind = 'text' | 'textarea' | 'number' | 'date' | 'datetime' | 'time' | 'select' | 'multiSelect' | 'radio' | 'checkbox' | 'valueList' | 'lookup' | 'file' | 'button' | 'hidden' | 'custom'
 export type FormSchemaField = BaseFormField & {
+  ruleSettings?: { normalizeText?: boolean; scopeFieldIds?: readonly string[]; dependencies?: readonly { fieldId: string; mode: 'requiredWhenFilled' | 'sameValue' | 'differentValue' }[] }
+  columnLinks?: readonly { tableId: string; columnId: string }[]
+  independentPurpose?: string
+  valueType?: 'text' | 'number' | 'alphanumeric'
   kind: FormSchemaFieldKind
   componentId: string
   label: FormLocalizedText
@@ -47,13 +51,15 @@ export type FormSchemaField = BaseFormField & {
 
 export type FormSchemaSectionPurpose = 'operational' | 'reporting' | 'calculations' | 'details' | 'custom'
 export type FormSchemaSection = BaseFormSectionDefinition & {
+  tableHeaderFor?: string
+  enabled?: boolean
   parentId?: string | null
-  initialSize?: { width: number; height: number }
+  initialSize?: { width?: number; height?: number }
   purpose?: FormSchemaSectionPurpose
   title?: FormLocalizedText
   description?: FormLocalizedText
   order?: number
-  layout?: { columns?: number; rows?: number; direction?: 'horizontal' | 'vertical'; gap?: number }
+  layout?: { columns?: number; rows?: number; direction?: 'horizontal' | 'vertical'; gap?: number; minimumWidth?: number }
   tableIds?: readonly string[]
   visibleWhen?: FormSchemaCondition
   settings?: Readonly<Record<string, unknown>>
@@ -72,6 +78,17 @@ export type FormSchemaFilter = {
 }
 export type FormSchemaSortRule = { binding: FormSchemaDataBinding; direction: 'asc' | 'desc'; order?: number }
 export type FormSchemaTableColumn = {
+  labelSyncDecision?: 'independent' | 'primary-field'
+  labelSyncFieldId?: string
+  requiresSourceDecision?: boolean
+  sourceFieldIds?: readonly string[]
+  sourceLinkIntent?: 'single' | 'composite'
+  valueComposition?: 'direct' | 'space' | 'comma' | 'newline' | 'custom'
+  valueSeparator?: string
+  sourceFieldLabelSnapshot?: Record<string, FormLocalizedText>
+  labelSnapshot?: FormLocalizedText
+  independentPurpose?: string
+  valueType?: 'text' | 'number' | 'alphanumeric'
   id: string
   binding: FormSchemaDataBinding
   label: FormLocalizedText
@@ -85,6 +102,7 @@ export type FormSchemaTableColumn = {
   order?: number
 }
 export type FormSchemaTable = {
+  masterDetail?: { masterTableId: string; masterField: string; detailField: string; instruction?: string }
   id: string
   sectionId?: string
   title?: FormLocalizedText
@@ -112,7 +130,7 @@ export type FormSchemaResources = {
   operationIds?: readonly string[]
   tables?: Readonly<Record<string, FormSchemaOperationIds>>
 }
-export type FormSchemaAction = BaseFormAction & { operationId?: string; permissionId?: string; visibleWhen?: FormSchemaCondition }
+export type FormSchemaAction = BaseFormAction & { hidden?: boolean; sectionId?: string; operationId?: string; permissionId?: string; visibleWhen?: FormSchemaCondition }
 export type FormSchemaPermissions = {
   view?: string
   create?: string
@@ -127,6 +145,7 @@ export type FormSchemaPermissions = {
 export type FormSchemaPropertySetting = { inherited: boolean; value?: DesignerValue }
 export type FormSchemaSettings = {
   shared?: {
+    behaviorId?: string
     standardId?: string
     version?: number
     designer?: DesignerDraft
@@ -149,6 +168,8 @@ export type FormSchemaSettings = {
 }
 
 export type FormSchemaBase = Omit<BaseFormDefinition, 'sections' | 'fields' | 'actions'> & {
+  uniqueConstraints?: readonly { id: string; fieldIds: readonly string[]; scopeFieldIds?: readonly string[]; normalizeText?: boolean }[]
+  behaviorInstruction?: string
   schemaVersion: number
   version: number
   title: FormLocalizedText

@@ -5,6 +5,7 @@ import { BaseFormShell } from './BaseFormShell'
 import { FormValueList } from './FormValueList'
 import { NumberControl } from './NumberControl'
 import { PersonTitleControl } from './PersonTitleControl'
+import SystemDateInput from '../../SystemDateInput'
 import type { FormLocalizedText, FormSchemaFieldKind, FormSchemaMode } from './formSchema'
 
 export type FormComponentCategory = 'input' | 'layout' | 'table' | 'action' | 'support'
@@ -64,7 +65,7 @@ const definitions: FormComponentDefinition[] = [
     title: { fa: 'فهرست مقادیر', en: 'Value List', zh: '值列表' }, category: 'input',
     allowedFormTypes: entryForms, labelPolicy: 'editable', adapterRequired: true,
     designerSelectable: true,
-    schemaKind: 'valueList', presetIds: valueListPresets.map(preset => preset.id)
+    schemaKind: 'valueList', presetIds: valueListPresets.filter(preset=>preset.componentId==='base-form.value-list').map(preset => preset.id)
   },
   {
     id: 'base-form.number-control', exportName: 'NumberControl', component: NumberControl,
@@ -76,6 +77,9 @@ const definitions: FormComponentDefinition[] = [
     title: { fa: 'عنوان شخص', en: 'Person Title', zh: '人员称谓' }, category: 'input',
     allowedFormTypes: entryForms, labelPolicy: 'none', adapterRequired: true, designerSelectable: true, schemaKind: 'select'
   },
+  { id:'base-form.date-input',exportName:'SystemDateInput',component:SystemDateInput as unknown as ComponentType<never>,title:{fa:'تاریخ مشترک',en:'System date',zh:'系统日期'},category:'input',allowedFormTypes:allFormTypes,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'date' },
+  { id:'base-form.code-input',exportName:'CodeInput',component:Field as unknown as ComponentType<never>,title:{fa:'کد قابل تنظیم',en:'Configurable code',zh:'可配置代码'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'text' },
+  { id:'base-form.incremental-code',exportName:'IncrementalCodeInput',component:Field as unknown as ComponentType<never>,title:{fa:'شماره افزایشی یکتا',en:'Unique incremental number',zh:'唯一递增编号'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'text' },
   {
     id: 'base-form.grid-boundary', exportName: 'BaseFormGridBoundary', component: BaseFormGridBoundary,
     title: { fa: 'مرز جدول پایه', en: 'Base Grid Boundary', zh: '基础表格边界' }, category: 'table',

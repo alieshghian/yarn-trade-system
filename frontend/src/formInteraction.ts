@@ -1,4 +1,5 @@
 import { functionKeyFromEvent } from './components/base-form/functionKeys'
+import {currentFormPolicy} from './components/base-form/formBehavior'
 
 // The visible save button owns validity/permissions; the keyboard invokes the same action.
 export function installFormInteraction(root: Document = document) {
@@ -22,8 +23,11 @@ export function installFormInteraction(root: Document = document) {
     const target = event.target
     if (typeof HTMLElement !== 'undefined' && target instanceof HTMLElement && !event.altKey && !event.ctrlKey && !event.metaKey && !event.isComposing) {
       const formGrid = target.closest<HTMLElement>('.person-form-grid')
+      const behaviorOwner=target.closest<HTMLElement>('[data-form-behavior-id]')
+      let behavior=currentFormPolicy(behaviorOwner?.dataset.formBehaviorId)
+      if(behaviorOwner?.dataset.formPolicy){try{const preview=JSON.parse(behaviorOwner.dataset.formPolicy);behavior={...behavior,...Object.fromEntries(Object.entries(preview).filter(([key,value])=>key in behavior&&typeof value==='boolean'))}}catch{/* Invalid preview cannot replace the shared policy. */}}
       const entryActive = Boolean(formGrid && (formGrid.classList.contains('editing') || formGrid.closest('[data-entry-active="true"]')))
-      if (event.key === 'Tab' && entryActive && formGrid) {
+      if (event.key === 'Tab' && entryActive && formGrid && behavior.trapTab) {
         const tabbable = Array.from(formGrid.querySelectorAll<HTMLElement>('input,select,textarea,button,[tabindex]:not([tabindex="-1"])')).filter(control =>
           !control.matches(':disabled') && control.tabIndex >= 0 && control.getClientRects().length > 0 && !control.closest('[aria-hidden="true"],details:not([open])'))
         const index = tabbable.indexOf(target)
@@ -48,28 +52,31 @@ export function installFormInteraction(root: Document = document) {
         }
       }
       const pane = target.closest('.form-tab-pane.active')
+      const navigationRoot=formGrid??pane
       const numberDisplay = Boolean(target.closest('.person-number-control')) && 'readOnly' in target && target.readOnly
       // Segmented dates and calendar popovers own their internal keyboard behaviour.
-      if (pane && !target.closest('.system-date-input,.system-calendar') &&
+      if (navigationRoot && !target.closest('.system-date-input,.system-calendar') &&
         (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) &&
         !target.disabled && (!('readOnly' in target && target.readOnly) || numberDisplay)) {
-        const rtl = getComputedStyle(formGrid ?? pane).direction === 'rtl'
+        const rtl = getComputedStyle(navigationRoot).direction === 'rtl'
         // In RTL forms, Left follows DOM order and Right goes back; in LTR
         // forms the direction is reversed. Keep both directions available.
         const backward = rtl ? event.key === 'ArrowRight' : event.key === 'ArrowLeft'
         const forward = rtl ? event.key === 'ArrowLeft' : event.key === 'ArrowRight'
         const atEdge = textField(target) && (target === selectedField || (event.key === 'ArrowLeft' ? target.selectionStart === 0 && target.selectionEnd === 0 : target.selectionStart === target.value.length && target.selectionEnd === target.value.length))
-        const enter = event.key === 'Enter' && (!(target instanceof HTMLTextAreaElement) || numberDisplay) && !['checkbox','radio','button','submit'].includes((target as HTMLInputElement).type)
+        const enterTarget=target.closest<HTMLElement>('[data-enter-target]')?.dataset.enterTarget
+        const enter = behavior.enterNavigation && enterTarget!=='native' && event.key === 'Enter' && (!(target instanceof HTMLTextAreaElement) || numberDisplay) && !['checkbox','radio','button','submit'].includes((target as HTMLInputElement).type)
         const arrowNavigation = !event.shiftKey && (atEdge || target instanceof HTMLSelectElement || numberDisplay) && (backward || forward)
         if (enter || arrowNavigation) {
           event.preventDefault(); event.stopImmediatePropagation()
           if ((enter || !backward) && !target.checkValidity()) { target.reportValidity(); return }
-          const controls = Array.from((formGrid ?? pane).querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input,select,textarea')).filter(control =>
+          const controls = Array.from(navigationRoot.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input,select,textarea')).filter(control =>
             !control.disabled && (!('readOnly' in control && control.readOnly) || Boolean(control.closest('.person-number-control'))) && control.type !== 'hidden' && control.getClientRects().length > 0 && !control.closest('.system-calendar,details:not([open])'))
           // Existing CSS grids follow DOM order from inline-start (RTL or LTR).
           // Label wrapping must not reorder controls within the same visual row.
           const index = controls.indexOf(target)
-          controls[index + (!enter && backward ? -1 : 1)]?.focus()
+          const next=enter&&enterTarget?controls.find(control=>control.dataset.field===enterTarget||control.closest<HTMLElement>('[data-field-id]')?.dataset.fieldId===enterTarget):controls[index + (!enter && backward ? -1 : 1)]
+          next?.focus()
           return
         }
       }
@@ -86,8 +93,8 @@ export function installFormInteraction(root: Document = document) {
     const numberSave = activeNumberControl?.querySelector<HTMLButtonElement>('.person-number-list .number-confirm')
     if (numberSave && !numberSave.disabled) { numberSave.click(); return }
     const pane = root.querySelector('.form-tab-pane.active')
-    const scope = typeof HTMLElement !== 'undefined' && event.target instanceof HTMLElement ? event.target.closest('[data-form-scope]') : null
-    const saveRoot = scope && pane?.contains(scope) ? scope : pane
+    const scope = typeof HTMLElement !== 'undefined' && event.target instanceof HTMLElement ? event.target.closest('[data-form-scope],[data-form-laboratory]') : null
+    const saveRoot = scope && (!pane || pane.contains(scope)) ? scope : pane
     const save = Array.from(saveRoot?.querySelectorAll<HTMLButtonElement>('button') ?? []).find(button =>
       !button.disabled && button.getClientRects().length > 0 &&
       !button.closest?.('details:not([open])') && (!button.closest?.('[data-form-scope]') || button.closest('[data-form-scope]') === saveRoot) &&

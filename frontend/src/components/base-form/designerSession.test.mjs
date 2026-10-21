@@ -26,7 +26,7 @@ function sessionHarness(initialOptions, storage) {
     createDesignerHistory, designerHistoryReducer, loadDesignerDraft, saveDesignerDraft,
     useState: state,
     useReducer: (reducer, arg, init) => {
-      const [value, set] = state(() => init(arg))
+      const [value, set] = state(() => init ? init(arg) : arg)
       return [value, action => set(current => reducer(current, action))]
     },
     useRef: value => { const i = cursor++; return slots[i] ??= { current: value } },
@@ -91,7 +91,12 @@ test('saved geometry and appearance reopen independently for different forms and
   session = harness.render(identity)
   assert.equal(session.history.present.appearance.formBackground, '#abcdef')
   assert.equal(session.history.present.canvas.fields.name.input.left, 10)
-  assert.equal(session.history.past.length, 0)
+  assert.equal(session.history.past.length, 1)
+  assert.equal(session.previewDraft, null)
+  session.undo(); session = harness.render()
+  assert.deepEqual(Object.keys(session.history.present.overrides), [])
+  session = harness.render({ ...identity, formId: 'pilot.two' })
+  assert.equal(session.history.present.overrides['name::input'].fontSize, 16)
   assert.equal(storage.getItem(designerStorageKey('owner', 'pilot.one')), original)
 })
 

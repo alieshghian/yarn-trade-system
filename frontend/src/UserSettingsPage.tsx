@@ -1,9 +1,10 @@
+import { UserThemePreferences } from './components/base-form/ThemeDesignControls'
 import { useEffect, useState } from 'react'
 import { api, apiRequest } from './api'
 import { userSettingsText, type Language } from './i18n'
 
 export type UserPreferences = {
-  preferredLanguage: Language, sessionTimeoutMinutes: number, theme: 'system' | 'light' | 'dark' | 'ocean', compactMode: boolean,
+  preferredLanguage: Language, sessionTimeoutMinutes: number, theme: 'system' | 'light' | 'dark' | 'ocean' | `design:${string}`, compactMode: boolean,
   fontFamily: 'vazirmatn' | 'tahoma' | 'segoe' | 'arial' | 'naskh', fontSize: 'small' | 'normal' | 'large'
 }
 
@@ -63,7 +64,7 @@ export default function UserSettingsPage({ language, onLanguageChanged, onPrefer
         <div className="settings-fields">
           <label><span>{t.language}</span><select dir="ltr" value={settings.preferredLanguage} onChange={e => { const next = e.target.value as Language; setSettings(x => ({ ...x, preferredLanguage: next })); setMessage(''); void onLanguageChanged(next) }}><option value="fa">فارسی</option><option value="en">English</option><option value="zh">中文</option></select><small>{t.languageHint}</small></label>
           <label><span>{t.timeout}</span><input dir="ltr" type="number" min="1" max="480" value={settings.sessionTimeoutMinutes} onChange={e => setSettings(x => ({ ...x, sessionTimeoutMinutes: Number(e.target.value) }))} /><small>{t.timeoutHint}</small></label>
-          <label><span>{t.theme}</span><select value={settings.theme} onChange={e => setSettings(x => ({ ...x, theme: e.target.value as UserPreferences['theme'] }))}><option value="system">{t.deviceTheme}</option><option value="light">{t.light}</option><option value="dark">{t.dark}</option><option value="ocean">{t.ocean}</option></select></label>
+          <label><span>{t.theme}</span><select value={settings.theme} onChange={e => setSettings(x => ({ ...x, theme: e.target.value as UserPreferences['theme'] }))}><option value="system">{t.deviceTheme}</option><option value="light">{t.light}</option><option value="dark">{t.dark}</option><option value="ocean">{t.ocean}</option>{settings.theme.startsWith('design:') && <option value={settings.theme}>تم انتخاب‌شده آزمایشگاه</option>}</select></label>
           <label><span>{t.fontFamily}</span><select value={settings.fontFamily} onChange={e => setSettings(x => ({ ...x, fontFamily: e.target.value as UserPreferences['fontFamily'] }))}><option value="vazirmatn">Vazirmatn / وزیرمتن</option><option value="tahoma">Tahoma / تاهوما</option><option value="segoe">Segoe UI</option><option value="arial">Arial</option><option value="naskh">Noto Naskh / B Nazanin</option></select><small>{t.fontFallback}</small></label>
           <label><span>{t.fontSize}</span><select value={settings.fontSize} onChange={e => setSettings(x => ({ ...x, fontSize: e.target.value as UserPreferences['fontSize'] }))}><option value="small">{t.smaller}</option><option value="normal">{t.normal}</option><option value="large">{t.larger}</option></select><small>{t.fontSizeHint}</small></label>
           <label className="settings-switch"><input type="checkbox" checked={settings.compactMode} onChange={e => setSettings(x => ({ ...x, compactMode: e.target.checked }))} /><span><b>{t.compact}</b><small>{t.compactHint}</small></span></label>
@@ -81,6 +82,7 @@ export default function UserSettingsPage({ language, onLanguageChanged, onPrefer
         <button className="password-change" disabled={saving} onClick={() => void changePassword()}>{t.changePassword}</button>
       </article>
     </div>
+    <UserThemePreferences themeSelection={settings.theme} onThemeSelection={theme => setSettings(value => ({...value,theme:theme as UserPreferences['theme']}))} />
     <div className="shortcut-bar settings-shortcuts"><button className="primary" disabled={saving} onClick={() => void savePreferences()}><kbd>F3</kbd><span>{t.saveSettings}</span></button><button onClick={() => window.dispatchEvent(new Event('close-active-form'))}><kbd>Esc</kbd><span>{t.exit}</span></button></div>
   </section>
 }

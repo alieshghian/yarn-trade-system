@@ -1,0 +1,56 @@
+name: Form design regression gate
+
+on:
+  push:
+    branches: ['review/**']
+    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/package*.json', 'frontend/tsconfig*.json', 'frontend/vite.config.ts', 'src/YarnTrade.Api/Controllers/ThemeDesignController.cs', 'src/YarnTrade.Api/Controllers/UserSettingsController.cs', 'tests/YarnTrade.Tests/ThemeDesignTests.cs', 'src/YarnTrade.Api/Controllers/MasterDataController.cs', 'tests/YarnTrade.Tests/TitleListBehaviorTests.cs', '.github/workflows/form-design-regressions.yml']
+  pull_request:
+    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/package*.json', 'frontend/tsconfig*.json', 'frontend/vite.config.ts', 'src/YarnTrade.Api/Controllers/ThemeDesignController.cs', 'src/YarnTrade.Api/Controllers/UserSettingsController.cs', 'tests/YarnTrade.Tests/ThemeDesignTests.cs', 'src/YarnTrade.Api/Controllers/MasterDataController.cs', 'tests/YarnTrade.Tests/TitleListBehaviorTests.cs', '.github/workflows/form-design-regressions.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: form-design-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Start isolated development fixture server
+        run: |
+          npm run dev -- --host 127.1.0.1 > /tmp/yarn-form-vite.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.1.0.1:5173/tests/form-designer.html > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/yarn-form-vite.log
+          exit 1
+      - name: Behavioral tests, TypeScript and real browser geometry
+        run: |
+          export FORM_TEST_BROWSER="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          test -n "$FORM_TEST_BROWSER" || { echo 'A real browser is required; tests cannot skip.'; exit 1; }
+          npm run validate:form-designer
+  theme-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Theme permissions, immutable revisions and shared Title list protections
+        run: dotnet test tests/YarnTrade.Tests/YarnTrade.Tests.csproj --filter 'FullyQualifiedName~Theme_design|FullyQualifiedName~UserSettingsRules|FullyQualifiedName~Shared_title_list' --logger 'console;verbosity=minimal'

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { applyGridFiltersAndSort, gridDistinctValues, gridRowMatchesSearch, gridValueKey, NO_FILL } from './excelGrid.ts'
+import { applyGridFiltersAndSort, gridDistinctValues, gridRowMatchesSearch, gridValueKey, NO_FILL, resizedGridColumnWidth } from './excelGrid.ts'
 
 const rows = [
   { code: '010', qty: 10, date: '2025-03-10', name: 'Alpha', kind: 'A', fill: '#ff0000' },
@@ -21,6 +21,13 @@ test('declared text keeps digit codes textual and preserves blanks distinctly', 
   assert.deepEqual(applyGridFiltersAndSort(rows, columns, {}, [{ id: 'code', direction: 'asc' }], 'en').map(row => row.code), ['', '002', '010', '100', '2'])
   assert.equal(gridValueKey(null), gridValueKey(''))
   assert.equal(gridDistinctValues(rows, columns[0]).length, 5)
+})
+
+test('column resize shrinks in the language direction and keeps its minimum width', () => {
+  assert.equal(resizedGridColumnWidth(210, 100, 160, 'rtl'), 150)
+  assert.equal(resizedGridColumnWidth(210, 100, 40, 'ltr'), 150)
+  assert.equal(resizedGridColumnWidth(210, 100, 160, 'ltr'), 270)
+  assert.equal(resizedGridColumnWidth(100, 100, 300, 'rtl'), 80)
 })
 
 test('smart search defaults to word starts, with optional contains and exact modes', () => {

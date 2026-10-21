@@ -17,6 +17,7 @@ type Props = {
   onCommit: (value: ColorValue) => void
   onPreview?: (value: ColorValue | null) => void
   onCancel?: () => void
+  gradient?: { enabled: boolean; start: string; end: string; angle: number; onChange: (value: { enabled?: boolean; start?: string; end?: string; angle?: number }) => void }
 }
 
 // Colors sampled from the user's Excel reference; each column contains its base and five shades.
@@ -200,7 +201,7 @@ export function colorPickerNavigation(stage: PickerStage, action: 'open' | 'more
   return 'closed'
 }
 
-export function ExcelColorPicker({ language, label, value, disabled = false, mixed = false, autoOpen = false, onCommit, onPreview, onCancel }: Props) {
+export function ExcelColorPicker({ language, label, value, disabled = false, mixed = false, autoOpen = false, onCommit, onPreview, onCancel, gradient }: Props) {
   const fa = language === 'fa'
   const zh = language === 'zh'
   const word = (faText: string, enText: string, zhText: string) => fa ? faText : zh ? zhText : enText
@@ -452,6 +453,7 @@ export function ExcelColorPicker({ language, label, value, disabled = false, mix
   const preview = (caption: string, color: ColorValue) => <div className="excel-color-preview"><span>{caption}</span><i className={color ? undefined : 'is-transparent'} style={{ backgroundColor: color ?? undefined }} aria-label={color ?? word('بدون رنگ', 'No color', '无颜色')} /></div>
   const comparisonPreviews = <>{preview(word('رنگ فعلی', 'Current Color', '当前颜色'), original)}{preview(word('رنگ جدید', 'New Color', '新颜色'), hoveredColor === null ? draft : hoveredColor)}</>
   const recentPalette = <div className="excel-recent-colors"><strong>{word('رنگ‌های اخیر (Recent)', 'Recent Colors', '最近使用的颜色')}</strong>{recentColors.length ? <div className="excel-recent-palette" dir="ltr">{recentColors.map(swatch)}</div> : <span>{word('هنوز رنگی تأیید نشده است', 'No colors confirmed yet', '尚未确认颜色')}</span>}</div>
+  const gradientControls = gradient && <section className="excel-quick-section excel-gradient-controls" aria-label={word('نوع پس‌زمینه', 'Background fill', '背景填充')}><strong className="excel-quick-title">{word('نوع پس‌زمینه', 'Background fill', '背景填充')}</strong><div className="excel-color-tabs"><button type="button" aria-pressed={!gradient.enabled} onClick={() => gradient.onChange({ enabled: false })}>{word('رنگ ساده', 'Solid color', '纯色')}</button><button type="button" aria-pressed={gradient.enabled} onClick={() => gradient.onChange({ enabled: true })}>{word('گرادیان', 'Gradient', '渐变')}</button></div>{gradient.enabled && <><label>{word('رنگ آغاز', 'Start color', '起始颜色')}<input aria-label={word('رنگ آغاز گرادیان', 'Gradient start color', '渐变起始颜色')} type="color" value={gradient.start} onChange={event => gradient.onChange({ start: event.target.value })} /></label><label>{word('رنگ پایان', 'End color', '结束颜色')}<input aria-label={word('رنگ پایان گرادیان', 'Gradient end color', '渐变结束颜色')} type="color" value={gradient.end} onChange={event => gradient.onChange({ end: event.target.value })} /></label><label>{word('جهت', 'Direction', '方向')}<input aria-label={word('جهت گرادیان', 'Gradient direction', '渐变方向')} type="range" min="0" max="360" value={gradient.angle} onChange={event => gradient.onChange({ angle: Number(event.target.value) })} /><output>{gradient.angle}°</output></label><div aria-label={word('پیش‌نمایش گرادیان', 'Gradient preview', '渐变预览')} className="excel-gradient-preview" style={{ background: `linear-gradient(${gradient.angle}deg, ${gradient.start}, ${gradient.end})` }} /></>}</section>
   const dialog = dialogOpen && <div className={'excel-color-dialog-backdrop' + (stage === 'custom' ? ' is-custom' : '')} role="presentation" onPointerDown={event => { event.stopPropagation(); if (event.target === event.currentTarget) closePicker() }}><section className={'excel-color-dialog' + (stage === 'custom' ? ' is-custom' : '')} style={{ top: popoverPosition.top, left: popoverPosition.left }} role="dialog" aria-modal="true" aria-label={word('رنگ‌های بیشتر', 'More Colors', '更多颜色')} dir={fa ? 'rtl' : 'ltr'} onPointerDown={event => event.stopPropagation()}>
     <div className="excel-color-dialog-heading" onPointerDown={startPopupDrag} onPointerMove={movePopupDrag} onPointerUp={endPopupDrag} onPointerCancel={endPopupDrag}><strong>{word('رنگ‌های بیشتر', 'More Colors', '更多颜色')}</strong><div className="excel-color-dialog-tools">{screenPicker}<button type="button" aria-label={word('بستن', 'Close', '关闭')} onClick={event => { event.stopPropagation(); closePicker() }}>×</button></div></div>
     {samplerMessage}
@@ -479,6 +481,7 @@ export function ExcelColorPicker({ language, label, value, disabled = false, mix
       <div className="excel-color-values"><label>HEX<input aria-label={`${label} HEX`} value={proposed.hexInput} placeholder="#RRGGBB" onChange={event => updateHex(event.target.value)} onBlur={() => setProposed(previous => ({ ...previous, hexInput: previous.color?.toUpperCase() ?? '' }))} /></label><div className="excel-rgb-values" aria-label={`${label} RYB`}>{proposed.ryb.map((channel, index) => <label key={['R', 'Y', 'B'][index]}>{[word('قرمز (R)', 'Red (R)', '红色 (R)'), word('زرد (Y)', 'Yellow (Y)', '黄色 (Y)'), word('آبی (B)', 'Blue (B)', '蓝色 (B)')][index]}<input aria-label={`${label} RYB ${['R', 'Y', 'B'][index]}`} type="number" min="0" max="255" value={channel} onChange={event => updateRyb(index, Number(event.target.value))} /></label>)}</div></div>
     </div>}
     {recentPalette}
+    {gradientControls}
     <div className="excel-color-dialog-actions"><button type="button" onClick={event => { event.stopPropagation(); navigate('back') }}>{word('بازگشت', 'Back', '返回')}</button><button type="button" onMouseDown={cancelFromMouse} onPointerDown={event => { captureActionPointer(event); cancelFromPointer(event) }} onClick={cancelFromClick}>{word('لغو', 'Cancel', '取消')}</button><button type="button" className="primary" onMouseDown={confirmFromMouse} onPointerDown={event => { captureActionPointer(event); confirmFromPointer(event) }} onClick={confirmFromClick}>{word('تأیید', 'OK', '确定')}</button></div>
   </section></div>
 
@@ -488,6 +491,7 @@ export function ExcelColorPicker({ language, label, value, disabled = false, mix
       <section className="excel-quick-section" aria-label={word('رنگ‌های تم', 'Theme Colors', '主题颜色')}><strong className="excel-quick-title">{word('رنگ‌های تم', 'Theme Colors', '主题颜色')}</strong><div className="excel-quick-theme-grid" dir="ltr">{themeColorColumns.map((column, index) => <div className="excel-theme-color-column" key={index}>{swatch(column[0], index)}<div className="excel-theme-shade-column">{column.slice(1).map(swatch)}</div></div>)}</div></section>
       <section className="excel-quick-section" aria-label={word('رنگ‌های اصلی', 'Standard Colors', '标准颜色')}><strong className="excel-quick-title">{word('رنگ‌های اصلی', 'Standard Colors', '标准颜色')}</strong><div className="excel-primary-palette" dir="ltr">{standardColors.map(swatch)}</div></section>
       {recentPalette}
+      {gradientControls}
       <button type="button" className="excel-no-color excel-quick-command" aria-pressed={!draft} {...hoverEvents(undefined)} onClick={event => { event.stopPropagation(); commitColor(undefined) }}><i className="excel-no-fill-icon" aria-hidden="true" /><span>{word('بدون رنگ', 'No Fill', '无填充')}</span></button>
       <button type="button" className="excel-more-colors excel-quick-command" onClick={event => { event.stopPropagation(); navigate('more') }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 1.5-3.3 1.6 1.6 0 0 1 1.2-2.7H18a3 3 0 0 0 3-3c0-5-4-9-9-9Z" fill="none" stroke="currentColor" strokeWidth="1.5" /><circle cx="8" cy="8" r="1.3" fill="#e97132" /><circle cx="13" cy="6.5" r="1.3" fill="#196b24" /><circle cx="17" cy="10" r="1.3" fill="#0f9ed5" /><circle cx="7" cy="13" r="1.3" fill="#a02b93" /></svg><span>{word('رنگ‌های بیشتر...', 'More Colors...', '更多颜色...')}</span></button>
       <div className="excel-color-popover-previews">{comparisonPreviews}</div>

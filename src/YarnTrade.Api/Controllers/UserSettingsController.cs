@@ -1,3 +1,5 @@
+using YarnTrade.Api.Data;
+using Microsoft.EntityFrameworkCore;
 using YarnTrade.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -7,7 +9,7 @@ using YarnTrade.Api.Domain;
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api/user-settings"), Authorize]
-public sealed class UserSettingsController(UserManager<AppUser> users, IDataScope dataScope) : ControllerBase
+public sealed class UserSettingsController(UserManager<AppUser> users, IDataScope dataScope, AppDbContext db) : ControllerBase
 {
     [AuthenticatedOnly("Own account/session; record identity comes from the authenticated user.")]
     [HttpGet]
@@ -22,14 +24,20 @@ public sealed class UserSettingsController(UserManager<AppUser> users, IDataScop
     [HttpPut]
     public async Task<IActionResult> Update(UserSettingsInput input)
     {
-        var error = UserSettingsRules.Validate(input);
+        HashSet<string>? designThemes = null;
+        if (input.Theme?.StartsWith("design:", StringComparison.Ordinal) == true)
+        {
+            var storedThemes = await db.SystemSettings.AsNoTracking().SingleOrDefaultAsync(x => x.Key == ThemeDesignController.GlobalKey && x.ValidFrom == ThemeDesignController.StorageDate);
+            designThemes = ThemeDesignController.Parse(storedThemes?.Value).Themes.Select(theme => theme.Id).ToHashSet();
+        }
+        var error = UserSettingsRules.Validate(input, designThemes);
         if (error is not null) return BadRequest(new { error });
         var user = await users.GetUserAsync(User);
         if (user is null) return Unauthorized();
         if (!dataScope.Allows(User, new(DataScopeKind.OwnUser, user.Id))) return Forbid();
         user.PreferredLanguage = input.PreferredLanguage;
         user.SessionTimeoutMinutes = input.SessionTimeoutMinutes;
-        user.Theme = input.Theme;
+        user.Theme = input.Theme!;
         user.CompactMode = input.CompactMode;
         user.FontFamily = input.FontFamily;
         user.FontSize = input.FontSize;
@@ -63,11 +71,11 @@ public sealed record ChangeOwnPasswordInput(string CurrentPassword, string NewPa
 
 public static class UserSettingsRules
 {
-    public static string? Validate(UserSettingsInput input)
+    public static string? Validate(UserSettingsInput input, IReadOnlySet<string>? designThemes = null)
     {
         if (input.PreferredLanguage is not ("fa" or "en" or "zh")) return "زبان انتخاب‌شده معتبر نیست.";
         if (input.SessionTimeoutMinutes is < 1 or > 480) return "زمان نشست باید بین ۱ تا ۴۸۰ دقیقه باشد.";
-        if (input.Theme is not ("system" or "light" or "dark" or "ocean")) return "تم انتخاب‌شده معتبر نیست.";
+        if (input.Theme is not ("system" or "light" or "dark" or "ocean") && !(input.Theme?.StartsWith("design:", StringComparison.Ordinal) == true && designThemes?.Contains(input.Theme[7..]) == true)) return "تم انتخاب‌شده معتبر نیست.";
         if (input.FontFamily is not ("vazirmatn" or "tahoma" or "segoe" or "arial" or "naskh")) return "فونت انتخاب‌شده معتبر نیست.";
         if (input.FontSize is not ("small" or "normal" or "large")) return "اندازه فونت انتخاب‌شده معتبر نیست.";
         return null;
