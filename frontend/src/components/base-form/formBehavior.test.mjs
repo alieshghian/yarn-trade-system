@@ -57,7 +57,7 @@ test('rules remain structured through label changes and enforce independent uniq
  assert.ok(validateRecordRules(codeForm,{code:'کد یک'},rows).code)
  assert.deepEqual(fieldRuleMarkers(codeForm,codeForm.fields[0]).map(item=>item.symbol),['*','U'])
  const optional={...codeForm,fields:[{...codeForm.fields[0],required:false,settings:{componentSettings:{unique:false,required:false}}}]}
- assert.deepEqual(validateTestRecord(optional,{code:'کد یک'},rows),{})
+ assert.deepEqual(validateTestRecord(optional,{code:'AB1'},[{id:'1',values:{code:'AB1'}}]),{})
  assert.deepEqual(fieldRuleMarkers(optional,optional.fields[0]),[])
 })
 
@@ -146,4 +146,19 @@ test('final design freezes behavior references policies and instructions for int
  const previous=structuredClone(release.behavior)
  writeFormBehaviors(storage,publishFormBehavior(library,'custom',{enterNavigation:false},emptyBehaviorInstructions(),'جدید'))
  assert.deepEqual(loadDesignReleases(storage,'owner')[0].behavior,previous)
+})
+
+
+test('editing an old sample keeps registration order for incremental-code suggestions',()=>{
+ let state=initialFormTest()
+ for (const [id,code] of [['r1','AB8'],['r2','AB9']]) {
+  state=formTestReducer(state,{type:'create',defaults:{code}})
+  state=formTestReducer(state,{type:'save',id})
+ }
+ assert.deepEqual(state.records.map(row=>row.values.code),['AB8','AB9'])
+ state=formTestReducer(state,{type:'select',id:'r1'})
+ state=formTestReducer(state,{type:'edit'})
+ state=formTestReducer(state,{type:'save',id:'unused'})
+ assert.deepEqual(state.records.map(row=>row.values.code),['AB8','AB9'])
+ assert.equal(state.records[0].id,'r1')
 })

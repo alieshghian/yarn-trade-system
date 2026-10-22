@@ -1,9 +1,11 @@
 import type { FormSchemaDraft, FormSchemaField } from './formSchema.ts'
+import {normalizeComponentCode,validateComponentCode} from './serialCode.ts'
+import {fieldCodeSettings} from './componentBehavior.ts'
 
 /** Shared Laboratory contract; labels are presentation and never choose behavior. */
 export const laboratoryFieldRuleContract = { version: 1, markers: { required: '*', unique: 'U', composite: 'U₂', dependency: '↔' }, normalizeText: true, scope: 'form-records', partialComposite: 'validate-when-complete', emptyUnique: 'ignore-unless-required', edit: 'exclude-current-record', close: 'save-discard-continue' } as const
 export function effectiveFieldRules(field:FormSchemaField) {
-  const code=['base-form.code-input','base-form.incremental-code'].includes(field.componentId), settings=field.settings?.componentSettings as {required?:boolean;unique?:boolean}|undefined
+  const code=['base-form.code-input','base-form.incremental-code'].includes(field.componentId), settings=code?fieldCodeSettings(field):undefined
   return { required:field.required??(code?settings?.required??true:false),unique:field.validation?.some(rule=>rule.type==='unique')===true||(code?(settings?.unique??true):false),code }
 }
 export function normalizeRuleText(value: unknown, normalize = true): string {
@@ -21,11 +23,13 @@ export function fieldRuleMarkers(schema: FormSchemaDraft, field: FormSchemaField
 }
 export function validateRecordRules(schema: FormSchemaDraft, values: Record<string, string>, records: readonly { id: string; values: Record<string, string> }[] = [], currentId?: string | null): Record<string, string> {
   const errors: Record<string,string> = {}
-  const duplicate = (ids: readonly string[], scope: readonly string[], normalize: boolean) => records.some(row => row.id !== currentId && [...ids, ...scope].every(id => normalizeRuleText(row.values[id], normalize) === normalizeRuleText(values[id], normalize)))
+  const normalizeValue=(id:string,value:unknown,normalize:boolean)=>schema.fields.some(field=>field.id===id&&effectiveFieldRules(field).code)?normalizeComponentCode(String(value??'')):normalizeRuleText(value,normalize)
+  const duplicate = (ids: readonly string[], scope: readonly string[], normalize: boolean) => records.some(row => row.id !== currentId && [...ids, ...scope].every(id => normalizeValue(id,row.values[id], normalize) === normalizeValue(id,values[id], normalize)))
   for (const field of schema.fields) {
-    if (field.readOnly || field.kind === 'hidden') continue
+    if (field.readOnly && !effectiveFieldRules(field).code || field.kind === 'hidden') continue
     const settings = field.ruleSettings, normalize = settings?.normalizeText !== false, value = normalizeRuleText(values[field.id], normalize)
     const scope = settings?.scopeFieldIds ?? []
+    if(effectiveFieldRules(field).code){const message=validateComponentCode(values[field.id]??'',{...fieldCodeSettings(field),required:effectiveFieldRules(field).required,unique:false});if(message)errors[field.id]=message}
     if (effectiveFieldRules(field).unique && (scope.some(id=>!schema.fields.some(item=>item.id===id)))) errors[field.id]='فیلد دامنهٔ یکتایی حذف شده است؛ قانون را اصلاح کنید.'
     else if (value && effectiveFieldRules(field).unique && duplicate([field.id], scope, normalize)) errors[field.id]='این مقدار در دامنهٔ تعیین‌شده تکراری است.'
     for (const rule of settings?.dependencies ?? []) {

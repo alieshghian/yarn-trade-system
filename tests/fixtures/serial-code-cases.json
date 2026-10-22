@@ -1,0 +1,722 @@
+{
+  "suggestions": [
+    {
+      "name": "number starts padded",
+      "settings": {
+        "mode": "number",
+        "suffixWidth": 4
+      },
+      "values": [],
+      "expected": "0001",
+      "error": false
+    },
+    {
+      "name": "last registration not maximum",
+      "settings": {
+        "mode": "number",
+        "suffixWidth": 3
+      },
+      "values": [
+        "900",
+        "100",
+        "bad"
+      ],
+      "expected": "101",
+      "error": false
+    },
+    {
+      "name": "number unicode",
+      "settings": {
+        "mode": "number",
+        "suffixWidth": 4
+      },
+      "values": [
+        "۰۰۰۹"
+      ],
+      "expected": "0010",
+      "error": false
+    },
+    {
+      "name": "numeric capacity",
+      "settings": {
+        "mode": "number",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "number",
+            "length": 2,
+            "minimum": 1
+          }
+        ]
+      },
+      "values": [
+        "99"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "letters initial",
+      "settings": {
+        "mode": "letters",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          }
+        ]
+      },
+      "values": [],
+      "expected": "AA",
+      "error": false
+    },
+    {
+      "name": "letters increment",
+      "settings": {
+        "mode": "letters",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          }
+        ]
+      },
+      "values": [
+        "AZ"
+      ],
+      "expected": "BA",
+      "error": false
+    },
+    {
+      "name": "letters capacity",
+      "settings": {
+        "mode": "letters",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          }
+        ]
+      },
+      "values": [
+        "ZZ"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "AB8",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "values": [
+        "AB8"
+      ],
+      "expected": "AB9",
+      "error": false
+    },
+    {
+      "name": "AB9 carry",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "values": [
+        "AB9"
+      ],
+      "expected": "AC1",
+      "error": false
+    },
+    {
+      "name": "letters unicode",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "values": [
+        "ab۹"
+      ],
+      "expected": "ac1",
+      "error": false
+    },
+    {
+      "name": "11A",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "number",
+            "length": 2,
+            "minimum": 1
+          },
+          {
+            "kind": "letters",
+            "length": 1
+          }
+        ]
+      },
+      "values": [
+        "11A"
+      ],
+      "expected": "11B",
+      "error": false
+    },
+    {
+      "name": "11Z carry",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "number",
+            "length": 2,
+            "minimum": 1
+          },
+          {
+            "kind": "letters",
+            "length": 1
+          }
+        ]
+      },
+      "values": [
+        "11Z"
+      ],
+      "expected": "12A",
+      "error": false
+    },
+    {
+      "name": "explicit number fastest",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "number",
+            "length": 2,
+            "minimum": 1
+          },
+          {
+            "kind": "letters",
+            "length": 1
+          }
+        ],
+        "incrementOrder": [
+          0,
+          1
+        ]
+      },
+      "values": [
+        "11A"
+      ],
+      "expected": "12A",
+      "error": false
+    },
+    {
+      "name": "explicit reverse carry",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "number",
+            "length": 2,
+            "minimum": 1
+          },
+          {
+            "kind": "letters",
+            "length": 1
+          }
+        ],
+        "incrementOrder": [
+          0,
+          1
+        ]
+      },
+      "values": [
+        "99A"
+      ],
+      "expected": "01B",
+      "error": false
+    },
+    {
+      "name": "three parts",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 1
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 0
+          },
+          {
+            "kind": "letters",
+            "length": 1
+          }
+        ]
+      },
+      "values": [
+        "A9Z"
+      ],
+      "expected": "B0A",
+      "error": false
+    },
+    {
+      "name": "combined capacity",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "values": [
+        "ZZ9"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "zero rollover",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 1
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 0
+          }
+        ]
+      },
+      "values": [
+        "A9"
+      ],
+      "expected": "B0",
+      "error": false
+    },
+    {
+      "name": "collision asks manual",
+      "settings": {
+        "mode": "number",
+        "suffixWidth": 3
+      },
+      "values": [
+        "201",
+        "200"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "invalid newest ignored",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "values": [
+        "AB8",
+        "فارسی"
+      ],
+      "expected": "AB9",
+      "error": false
+    },
+    {
+      "name": "legacy prefix",
+      "settings": {
+        "suffixWidth": 4
+      },
+      "values": [
+        "PER-0009"
+      ],
+      "expected": "PER-0010",
+      "error": false
+    },
+    {
+      "name": "legacy letters carry",
+      "settings": {
+        "suffixWidth": 3
+      },
+      "values": [
+        "AB999"
+      ],
+      "expected": "AC001",
+      "error": false
+    },
+    {
+      "name": "fixed number capacity",
+      "settings": {
+        "mode": "number",
+        "fixedLength": 2
+      },
+      "values": [
+        "99"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "fixed letters capacity",
+      "settings": {
+        "mode": "letters",
+        "fixedLength": 2
+      },
+      "values": [
+        "ZZ"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "max length exhausted",
+      "settings": {
+        "mode": "number",
+        "suffixWidth": 1,
+        "maxLength": 2
+      },
+      "values": [
+        "99"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "bad order",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ],
+        "incrementOrder": [
+          1,
+          1
+        ]
+      },
+      "values": [
+        "AB1"
+      ],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "mode incompatible",
+      "settings": {
+        "mode": "number",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 1
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "values": [],
+      "expected": "",
+      "error": true
+    },
+    {
+      "name": "fixed legacy prefix width",
+      "settings": {
+        "fixedLength": 4
+      },
+      "values": [
+        "AB01"
+      ],
+      "expected": "AB02",
+      "error": false
+    }
+  ],
+  "validation": [
+    {
+      "name": "canonical duplicate",
+      "settings": {},
+      "value": "AB۱۲",
+      "existing": [
+        "ab12"
+      ],
+      "valid": false
+    },
+    {
+      "name": "arabic digits",
+      "settings": {
+        "mode": "number"
+      },
+      "value": "٠٠١٢",
+      "existing": [],
+      "valid": true
+    },
+    {
+      "name": "leading zero",
+      "settings": {
+        "mode": "number",
+        "fixedLength": 4
+      },
+      "value": "0012",
+      "existing": [],
+      "valid": true
+    },
+    {
+      "name": "short fixed",
+      "settings": {
+        "mode": "number",
+        "fixedLength": 4
+      },
+      "value": "012",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "long max",
+      "settings": {
+        "maxLength": 3
+      },
+      "value": "AB12",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "Persian letters",
+      "settings": {},
+      "value": "برند12",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "non Latin",
+      "settings": {},
+      "value": "é12",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "uppercase expansion",
+      "settings": {},
+      "value": "ß12",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "emoji",
+      "settings": {},
+      "value": "AB🚀1",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "internal space",
+      "settings": {},
+      "value": "AB 1",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "letters only",
+      "settings": {
+        "mode": "letters"
+      },
+      "value": "abz",
+      "existing": [],
+      "valid": true
+    },
+    {
+      "name": "letters reject digits",
+      "settings": {
+        "mode": "letters"
+      },
+      "value": "AB1",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "numeric rejects Latin",
+      "settings": {
+        "mode": "number"
+      },
+      "value": "AB1",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "legacy separators",
+      "settings": {},
+      "value": "PER-0001",
+      "existing": [],
+      "valid": true
+    },
+    {
+      "name": "new template rejects separators",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "value": "AB-1",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "zero under minimum",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "value": "AB0",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "template order",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ]
+      },
+      "value": "1AB",
+      "existing": [],
+      "valid": false
+    },
+    {
+      "name": "scoped duplicate disabled",
+      "settings": {
+        "unique": false
+      },
+      "value": "ab۱۲",
+      "existing": [
+        "AB12"
+      ],
+      "valid": true
+    },
+    {
+      "name": "invalid config length",
+      "settings": {
+        "mode": "alphanumeric",
+        "format": "segments",
+        "segments": [
+          {
+            "kind": "letters",
+            "length": 2
+          },
+          {
+            "kind": "number",
+            "length": 1,
+            "minimum": 1
+          }
+        ],
+        "fixedLength": 5
+      },
+      "value": "AB1",
+      "existing": [],
+      "valid": false
+    }
+  ]
+}

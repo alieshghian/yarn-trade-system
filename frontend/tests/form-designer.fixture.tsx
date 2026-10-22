@@ -14,9 +14,9 @@ import { installFormInteraction } from '../src/formInteraction'
 import { defaultNavigation,defaultPreferences,icons,type MenuKey } from '../src/navigation'
 import NavigationSidebar from '../src/NavigationSidebar'
 import { defaultDesignTheme } from '../src/components/base-form/themeDesignSystem'
-import {loadManagedLaboratoryForms,resolveManagedLaboratoryDesigner,managedFormWithDesigner,saveManagedLaboratoryForm} from '../src/components/base-form/laboratoryFormDraftState'
+import {createManagedLaboratoryForm,loadManagedLaboratoryForms,resolveManagedLaboratoryDesigner,managedFormWithDesigner,saveManagedLaboratoryForm} from '../src/components/base-form/laboratoryFormDraftState'
 import {readFormRecovery,writeFormRecovery} from '../src/components/base-form/formDocumentRecovery'
-import {attachDesignerDocument,createDesignerHistory} from '../src/components/base-form/designer'
+import {emptyDesignerDraft,attachDesignerDocument,createDesignerHistory} from '../src/components/base-form/designer'
 import '../src/styles.css'
 import '../src/components/base-form/formTheme.css'
 if (!import.meta.env.DEV) throw new Error('Developer regression fixture only')
@@ -47,6 +47,15 @@ if((leadingCanvas||new URLSearchParams(location.search).has('legacyCanvas'))&&!s
  const next=managedFormWithDesigner(leadingCanvas?{...form,schema:{...form.schema,sections:form.schema.sections.map(section=>section.kind==='editor'?{...section,settings:{...section.settings,viewport:{heightMode:'fixed',overflowX:'auto',overflowY:'auto'}}}:section)}}:form,draft)
  if(!saveManagedLaboratoryForm(localStorage,user,next)||!writeFormRecovery(localStorage,user,{form:next,designerHistory:attachDesignerDocument(createDesignerHistory(draft),next.schema),structureHistory:{past:[],present:next.schema,future:[]}},'Synthetic old Canvas'))throw new Error('Legacy Canvas fixture could not preserve the draft')
  sessionStorage.setItem(canvasSeedKey,'true')
+}
+// A separate synthetic document; neither source form nor Laboratory template is rewritten.
+if(new URLSearchParams(location.search).has('codeRuntime')){
+ const user='isolated-browser-regression',collection=loadManagedLaboratoryForms(localStorage,user),source=collection?.forms.find(item=>item.id===collection.activeFormId)
+ if(!source)throw new Error('Code fixture needs the existing disposable test form')
+ const sectionId=source.schema.sections.find(section=>section.kind==='editor')!.id
+ const fields=['personCode','firstName'].map((id,index)=>({id,sectionId,kind:'text' as const,componentId:index===0?'base-form.incremental-code':'definition.field',label:{fa:index===0?'کد نمونه':'نام نمونه',en:id,zh:id},span:10,minTracks:1,settings:{layout:{grid:{columns:20,columnStart:index*10+1,columnSpan:10,rowStart:1}},...(index===0?{componentSettings:{mode:'alphanumeric',required:true,unique:true,incremental:true,suffixWidth:1,format:'segments',segments:[{kind:'letters',length:2},{kind:'number',length:1}]}}:{})}}))
+ const form=createManagedLaboratoryForm({id:'form.code-regression',name:'آزمایش موتور کد',mode:'hybrid',templateSchema:{...source.schema,fields,uniqueConstraints:[]},templateDesigner:emptyDesignerDraft(source.schema.id),frame:source.frame})
+ if(!saveManagedLaboratoryForm(localStorage,user,form)||!writeFormRecovery(localStorage,user,{form,designerHistory:attachDesignerDocument(createDesignerHistory(emptyDesignerDraft(form.id)),form.schema),structureHistory:{past:[],present:form.schema,future:[]}},'Code regression'))throw Error('Code fixture save failed')
 }
 const personsDemo=new URLSearchParams(location.search).has('personsDemo')
 if(personsDemo)setAccessPermissions(['persons.view','persons.create','persons.edit','persons.delete'])

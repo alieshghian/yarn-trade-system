@@ -19,7 +19,7 @@ export function saveFieldBlueprint(storage: FormStorage | null | undefined, user
     if (current.some(item => item.id === blueprint.id)) return null
     const library=readComponentLibrary(storage)
     const definition=library.components.find(item=>item.id===blueprint.id)
-    const updated=definition?library:addLibraryComponent(library,blueprint.id,blueprint.name,blueprint.componentId,blueprint.componentDefinitionId??blueprint.componentId,blueprint.behaviorOverrides)
+    const updated=definition?library:addLibraryComponent(library,blueprint.id,blueprint.name,blueprint.componentId,blueprint.componentDefinitionId??blueprint.componentId,blueprint.behaviorOverrides,blueprint.componentSettings)
     const next = [...current, {...blueprint,componentDefinitionId:blueprint.id}]
     const previousLibrary=storage.getItem(componentLibraryKey)
     try{writeComponentLibrary(storage,updated);storage.setItem(localBlueprintsKey(userId), JSON.stringify(next))}
@@ -34,7 +34,7 @@ export function addDocumentField(schema: FormSchemaDraft, sectionId: string, id:
   const siblings = schema.fields.filter(field => field.sectionId === sectionId)
   const rows = siblings.map(field => Number((field.settings?.layout as { grid?: { rowStart?: number } } | undefined)?.grid?.rowStart) || 1)
   const columns = schema.sections.find(section => section.id === sectionId)?.layout?.columns ?? 20
-  const field: FormSchemaField = { id, sectionId, minTracks: 1, span: Math.min(5, columns), label: { fa: label.trim(), en: label.trim(), zh: label.trim() }, kind: blueprint.kind, componentId: blueprint.componentId, valueType: blueprint.valueType, labelPolicy: 'editable',...(blueprint.componentId==='base-form.code-input'||blueprint.componentId==='base-form.incremental-code'?{required:blueprint.componentSettings?.required??true,validation:blueprint.componentSettings?.unique===false?undefined:[{type:'unique' as const}]}:{}), settings: { ...(blueprint.componentDefinitionId?{componentDefinitionId:blueprint.componentDefinitionId}:{}), ...(blueprint.multiline ? { multiline: true } : {}), ...(blueprint.componentSettings?{componentSettings:blueprint.componentSettings}:{}), ...(blueprint.suggestToday?{suggestToday:true}:{}), layout: { grid: { columns, columnStart: 1, columnSpan: Math.min(5, columns), rowStart: Math.max(0, ...rows) + 1 } } } }
+  const field: FormSchemaField = { id, sectionId, minTracks: 1, span: Math.min(5, columns), label: { fa: label.trim(), en: label.trim(), zh: label.trim() }, kind: ['base-form.code-input','base-form.incremental-code'].includes(blueprint.componentId)?'text':blueprint.kind, componentId: blueprint.componentId, valueType: ['base-form.code-input','base-form.incremental-code'].includes(blueprint.componentId)?'text':blueprint.valueType, labelPolicy: 'editable',...(blueprint.componentId==='base-form.code-input'||blueprint.componentId==='base-form.incremental-code'?{required:blueprint.componentSettings?.required??true,validation:blueprint.componentSettings?.unique===false?undefined:[{type:'unique' as const}]}:{}), settings: { ...(blueprint.componentDefinitionId?{componentDefinitionId:blueprint.componentDefinitionId}:{}), ...(blueprint.multiline ? { multiline: true } : {}), ...(blueprint.componentSettings?{componentSettings:blueprint.componentSettings}:{}), ...(blueprint.suggestToday?{suggestToday:true}:{}), layout: { grid: { columns, columnStart: 1, columnSpan: Math.min(5, columns), rowStart: Math.max(0, ...rows) + 1 } } } }
   return { ...schema, fields: [...schema.fields, field] }
 }
 

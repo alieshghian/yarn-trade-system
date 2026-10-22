@@ -62,13 +62,13 @@ export function behaviorManifest(schema:FormSchemaDraft,library:FormBehaviorLibr
 export type FormTestRecord={id:string;values:Record<string,string>}
 export type FormTestState={mode:'view'|'create'|'edit';records:FormTestRecord[];selectedId:string|null;draft:Record<string,string>;log:string[]}
 export const initialFormTest=():FormTestState=>({mode:'view',records:[],selectedId:null,draft:{},log:[]})
-export type FormTestEvent={type:'reset'}|{type:'create';defaults:Record<string,string>}|{type:'change';field:string;value:string}|{type:'save';id:string}|{type:'close'}|{type:'select';id:string}|{type:'edit'}|{type:'delete'}
+export type FormTestEvent={type:'reset'}|{type:'create';defaults:Record<string,string>}|{type:'change';field:string;value:string}|{type:'save';id:string;values?:Record<string,string>}|{type:'close'}|{type:'select';id:string}|{type:'edit'}|{type:'delete'}
 export function formTestReducer(state:FormTestState,event:FormTestEvent):FormTestState{
  switch(event.type){
   case 'reset':return initialFormTest()
   case 'create':return {...state,mode:'create',selectedId:null,draft:{...event.defaults},log:[...state.log,'ایجاد رکورد آزمایشی']}
   case 'change':return state.mode==='view'?state:{...state,draft:{...state.draft,[event.field]:event.value}}
-  case 'save':{if(state.mode==='view')return state;const id=state.mode==='edit'?state.selectedId!:event.id;return {...state,mode:'view',records:[...state.records.filter(row=>row.id!==id),{id,values:{...state.draft}}],selectedId:id,log:[...state.log,'ثبت رکورد آزمایشی']}}
+  case 'save':{if(state.mode==='view')return state;const id=state.mode==='edit'?state.selectedId!:event.id;const row={id,values:{...(event.values??state.draft)}};return {...state,mode:'view',records:state.mode==='edit'?state.records.map(existing=>existing.id===id?row:existing):[...state.records,row],selectedId:id,log:[...state.log,'ثبت رکورد آزمایشی']}}
   case 'close':return {...state,mode:'view',draft:state.records.find(row=>row.id===state.selectedId)?.values??{},log:[...state.log,'بستن ورود آزمایشی']}
   case 'select':return state.mode!=='view'?state:{...state,selectedId:event.id,draft:{...state.records.find(row=>row.id===event.id)?.values??{}}}
   case 'edit':return !state.selectedId||state.mode!=='view'?state:{...state,mode:'edit',log:[...state.log,'ویرایش رکورد آزمایشی']}

@@ -73,3 +73,45 @@ test('code component settings survive reusable-library save and field installati
  assert.equal(nextIncrementalCode(['AB999'],settings),'AC001')
  assert.match(validateComponentCode('AB001',settings,['AB001'])??'',/استفاده/)
 })
+
+import {resolveComponentCodeSettings} from './componentBehavior.ts'
+import {createManagedLaboratoryForm,saveManagedLaboratoryForm,loadManagedLaboratoryForms,createManagedFormStructureHistory,commitManagedFormStructure,undoManagedFormStructure,redoManagedFormStructure} from './laboratoryFormDraftState.ts'
+import {emptyDesignerDraft} from './designer.ts'
+test('code settings persist in immutable library revisions, schema history, saved documents and independent copies',()=>{
+ const values=new Map(),storage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value)}
+ const settings={...defaultCodeComponentSettings,format:'segments',segments:[{kind:'number',length:2},{kind:'letters',length:1}],incrementOrder:[1,0],fixedLength:3,maxLength:3,incremental:true}
+ let library=initialComponentLibrary();const originalLibrary=structuredClone(library)
+ library=publishComponentRevision(library,'base-form.code-input',{},settings)
+ library=addLibraryComponent(library,'code.child','کد فرزند','base-form.code-input','base-form.code-input',{}, {maxLength:4,fixedLength:undefined})
+ writeComponentLibrary(storage,library)
+ assert.deepEqual(resolveComponentCodeSettings(readComponentLibrary(storage),'base-form.code-input'),settings)
+ assert.equal(resolveComponentCodeSettings(library,'code.child').maxLength,4)
+ assert.deepEqual(originalLibrary,initialComponentLibrary())
+ const template={id:'form-laboratory.persons-synthetic',schemaVersion:1,version:1,status:'draft',mode:'hybrid',title:{fa:'مادر',en:'Master',zh:'Master'},sections:[{id:'editor',kind:'editor'}],fields:[]}
+ const originalTemplate=structuredClone(template),blueprint={id:'new.code',name:'کد',kind:'text',componentId:'base-form.code-input',valueType:'text',componentSettings:settings}
+ assert.ok(saveFieldBlueprint(storage,'owner',blueprint));assert.deepEqual(resolveComponentCodeSettings(readComponentLibrary(storage),'new.code'),settings)
+ const form=createManagedLaboratoryForm({id:'form.code-a',name:'Code A',mode:'hybrid',templateSchema:template,templateDesigner:emptyDesignerDraft(template.id),frame:{width:1280,height:null,fitToPage:true,device:'desktop'}})
+ let history=createManagedFormStructureHistory(form.schema)
+ history=commitManagedFormStructure(history,addDocumentField(form.schema,'editor','a','کد الف',loadFieldBlueprints(storage,'owner')[0]))
+ assert.equal(undoManagedFormStructure(history).present.fields.length,0)
+ assert.deepEqual(redoManagedFormStructure(undoManagedFormStructure(history)).present.fields[0].settings.componentSettings,settings)
+ form.schema=history.present;assert.equal(saveManagedLaboratoryForm(storage,'owner',form),true)
+ const loaded=loadManagedLaboratoryForms(storage,'owner').forms[0];assert.deepEqual(loaded.schema.fields[0].settings.componentSettings,settings)
+ const copy=createManagedLaboratoryForm({id:'form.code-b',name:'Code B',mode:'hybrid',templateSchema:loaded.schema,templateDesigner:emptyDesignerDraft(loaded.id),frame:loaded.frame})
+ copy.schema.fields[0].settings.componentSettings.segments[0].length=3
+ assert.deepEqual(form.schema.fields[0].settings.componentSettings,settings)
+ assert.deepEqual(template,originalTemplate)
+ assert.equal(loadManagedLaboratoryForms(storage,'other').forms.length,0)
+})
+
+test('old numeric code blueprints remain string-valued on installation without rewriting stored settings',()=>{
+ const raw=JSON.stringify([{id:'old-code',name:'Old',kind:'number',componentId:'base-form.code-input',valueType:'number',componentSettings:{mode:'number',suffixWidth:4}}])
+ const storage={getItem:()=>raw,setItem:()=>{throw Error('Read must not write')}}
+ const old=loadFieldBlueprints(storage,'owner')[0]
+ assert.equal(old.componentSettings.format,'legacy')
+ const schema={id:'code-form',sections:[{id:'editor',kind:'editor'}],fields:[]}
+ const field=addDocumentField(schema,'editor','code','Code',old).fields[0]
+ assert.equal(field.kind,'text');assert.equal(field.valueType,'text')
+ assert.equal(nextIncrementalCode(['۰۰۰۹'],old.componentSettings),'0010')
+ assert.equal(storage.getItem(),raw)
+})

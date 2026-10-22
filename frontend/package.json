@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test:form-designer": "node --test src/components/base-form/formSchemaPresentation.test.mjs src/components/base-form/laboratoryFormDraftState.test.mjs src/components/base-form/formDocumentStructure.test.mjs src/components/base-form/formSchemaPresentation.behavior.test.mjs src/components/base-form/formDocumentRecovery.test.mjs src/components/base-form/formCatalogAndTheme.test.mjs src/components/base-form/headerDesignerRegression.test.mjs src/components/base-form/componentBehavior.test.mjs src/components/base-form/formBehavior.test.mjs src/components/base-form/appearanceCommands.test.mjs",
+    "test:form-designer": "node --test src/components/base-form/serialCode.test.mjs src/components/base-form/formSchemaPresentation.test.mjs src/components/base-form/laboratoryFormDraftState.test.mjs src/components/base-form/formDocumentStructure.test.mjs src/components/base-form/formSchemaPresentation.behavior.test.mjs src/components/base-form/formDocumentRecovery.test.mjs src/components/base-form/formCatalogAndTheme.test.mjs src/components/base-form/headerDesignerRegression.test.mjs src/components/base-form/componentBehavior.test.mjs src/components/base-form/formBehavior.test.mjs src/components/base-form/appearanceCommands.test.mjs",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build",
     "package:color-sampler": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/Publish-ColorSamplerDownloads.ps1",
     "build:release": "npm run package:color-sampler && npm run build",

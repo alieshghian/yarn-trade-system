@@ -1,9 +1,10 @@
 import type {FormStorage} from './laboratoryFormDraftState'
+import {normalizeCodeComponentSettings,type CodeComponentSettings} from './serialCode.ts'
 
 export const componentLibraryKey='yarn-trade:component-library:v1'
 export const componentLibraryEvent='yarn-component-library-changed'
 export type ListCapabilities={searchChoices:boolean;confirmRemoval:boolean;maxEntryLength:number}
-export type ComponentRevision={version:number;createdAt:string;capabilities:Partial<ListCapabilities>}
+export type ComponentRevision={version:number;createdAt:string;capabilities:Partial<ListCapabilities>;codeSettings?:Partial<CodeComponentSettings>}
 export type LibraryComponent={id:string;name:string;parentId?:string;rendererId:string;revisions:ComponentRevision[]}
 export type ComponentLibrary={version:1;components:LibraryComponent[]}
 export const defaultListCapabilities:ListCapabilities={searchChoices:false,confirmRemoval:false,maxEntryLength:1000}
@@ -35,14 +36,29 @@ export function resolveComponentCapabilities(library:ComponentLibrary,id:string,
  const parent=definition.parentId?resolveComponentCapabilities(library,definition.parentId,seen):defaultListCapabilities
  return {...parent,...normalizeCapabilities(definition.revisions.at(-1)!.capabilities)}
 }
-export function addLibraryComponent(library:ComponentLibrary,id:string,name:string,rendererId:string,parentId=rendererId,capabilities:Partial<ListCapabilities>={}):ComponentLibrary{
+export function addLibraryComponent(library:ComponentLibrary,id:string,name:string,rendererId:string,parentId=rendererId,capabilities:Partial<ListCapabilities>={},codeSettings?:Partial<CodeComponentSettings>):ComponentLibrary{
  if(library.components.some(item=>item.id===id))throw Error('شناسهٔ کامپوننت تکراری است.')
  const candidate=canonicalBehaviorId(parentId),parent=library.components.some(item=>item.id===candidate)?candidate:'base-form.value-list';resolveComponentCapabilities(library,parent)
- return {...library,components:[...library.components,{id,name:name.trim(),rendererId,parentId:parent,revisions:[{version:1,createdAt:new Date().toISOString(),capabilities:normalizeCapabilities(capabilities)}]}]}
+ return {...library,components:[...library.components,{id,name:name.trim(),rendererId,parentId:parent,revisions:[{version:1,createdAt:new Date().toISOString(),capabilities:normalizeCapabilities(capabilities),...(codeSettings?{codeSettings:structuredClone(codeSettings)}:{})}]}]}
 }
-export function publishComponentRevision(library:ComponentLibrary,id:string,capabilities:Partial<ListCapabilities>):ComponentLibrary{
+export function publishComponentRevision(library:ComponentLibrary,id:string,capabilities:Partial<ListCapabilities>,codeSettings?:Partial<CodeComponentSettings>):ComponentLibrary{
  if(!library.components.some(item=>item.id===id))throw Error('کامپوننت پیدا نشد.')
- return {...library,components:library.components.map(item=>item.id!==id?item:{...item,revisions:[...item.revisions,{version:item.revisions.at(-1)!.version+1,createdAt:new Date().toISOString(),capabilities:normalizeCapabilities(capabilities)}]})}
+ return {...library,components:library.components.map(item=>item.id!==id?item:{...item,revisions:[...item.revisions,{version:item.revisions.at(-1)!.version+1,createdAt:new Date().toISOString(),capabilities:normalizeCapabilities(capabilities),...((codeSettings??item.revisions.at(-1)!.codeSettings)?{codeSettings:structuredClone(codeSettings??item.revisions.at(-1)!.codeSettings)}:{})}]})}
+}
+export function resolveComponentCodeSettings(library:ComponentLibrary,id:string,overrides?:Partial<CodeComponentSettings>):CodeComponentSettings {
+ const visit=(key:string,seen=new Set<string>()):Partial<CodeComponentSettings>=>{
+  if(seen.has(key))throw Error('ارتباط حلقه‌ای کامپوننت‌ها مجاز نیست.')
+  seen.add(key);const definition=library.components.find(item=>item.id===key)
+  if(!definition)return {}
+  return {...(definition.parentId?visit(definition.parentId,seen):{}),...definition.revisions.at(-1)?.codeSettings}
+ }
+ return normalizeCodeComponentSettings({...visit(id),...overrides})
+}
+export function fieldCodeSettings(field:{componentId:string;settings?:Record<string,unknown>},library?:ComponentLibrary):CodeComponentSettings {
+ const overrides=field.settings?.componentSettings as Partial<CodeComponentSettings>|undefined
+ const id=String(field.settings?.componentDefinitionId??field.componentId)
+ try{const config=resolveComponentCodeSettings(library??readComponentLibrary(typeof localStorage==='undefined'?null:localStorage),id,overrides);return {...config,incremental:field.componentId==='base-form.incremental-code'||config.incremental}}
+ catch{const config=normalizeCodeComponentSettings(overrides);return {...config,incremental:field.componentId==='base-form.incremental-code'||config.incremental}}
 }
 export function writeComponentLibrary(storage:FormStorage,library:ComponentLibrary){
  // Validate before writing. Never replace a malformed stored library implicitly.
