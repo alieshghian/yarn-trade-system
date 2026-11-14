@@ -1,4 +1,11 @@
 export type GridValue = string | number | boolean | Date | null | undefined
+/** Display-only digit conversion for standalone numbers/codes; never alter mixed Persian labels. */
+export function gridDisplayValue(value:GridValue):string{
+  const text=String(value??'—')
+  return /[۰-۹٠-٩]/.test(text)&&/^[\sA-Za-z0-9۰-۹٠-٩+\-−.,٫٬%٪]+$/.test(text)
+    ? text.replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x6f0)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x660))
+    : text
+}
 export type GridValueType = 'text' | 'number' | 'date' | 'boolean'
 export type GridSearchMode = 'startsWith' | 'contains' | 'exact'
 export type GridFilterOperator = 'equals' | 'notEquals' | 'contains' | 'notContains' | 'beginsWith' | 'endsWith' | 'greaterThan' | 'greaterOrEqual' | 'lessThan' | 'lessOrEqual' | 'between' | 'on' | 'before' | 'after'
@@ -46,7 +53,7 @@ export function gridValueKey(value: GridValue): string {
 
 export function gridValueLabel(value: GridValue): string {
   if (value === null || value === undefined || value === '') return '(Blanks)'
-  return value instanceof Date ? value.toLocaleDateString() : String(value)
+  return value instanceof Date ? value.toLocaleDateString() : gridDisplayValue(value)
 }
 
 export function normalizeGridSearchText(value: string): string {

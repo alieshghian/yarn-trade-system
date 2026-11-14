@@ -14,12 +14,18 @@ public static class PermissionCatalog
     [
         P("dashboard.view", "dashboard", "view", "مشاهده داشبورد", "View dashboard"),
         P("formLaboratory.view", "formLaboratory", "view", "مشاهده آزمایشگاه فرم‌ها", "View Form Laboratory"),
+        P("productGroups.view", "productGroups", "view", "مشاهده گروه کالا", "View product groups"),
+        P("productGroups.create", "productGroups", "create", "ثبت گروه کالا", "Create product group"),
+        P("productGroups.edit", "productGroups", "edit", "ویرایش گروه کالا", "Edit product group"),
+        P("productGroups.delete", "productGroups", "delete", "حذف گروه کالا", "Delete product group"),
+        P("productGroups.configure", "productGroups", "configure", "تنظیم سطوح گروه کالا", "Configure product group depth"),
         P("brands.view", "brands", "view", "مشاهده برندها", "View brands"), P("brands.create", "brands", "create", "تعریف برند", "Create brand"), P("brands.edit", "brands", "edit", "ویرایش برند", "Edit brand"), P("brands.delete", "brands", "delete", "حذف برند", "Delete brand"),
         P("persons.view", "persons", "view", "مشاهده اشخاص", "View persons"), P("persons.create", "persons", "create", "تعریف شخص", "Create person"), P("persons.edit", "persons", "edit", "ویرایش شخص", "Edit person"), P("persons.delete", "persons", "delete", "حذف شخص", "Delete person"),
         P("yarns.view", "yarns", "view", "مشاهده نخ‌ها", "View yarns"), P("yarns.create", "yarns", "create", "تعریف نخ", "Create yarn"), P("yarns.edit", "yarns", "edit", "ویرایش نخ", "Edit yarn"), P("yarns.delete", "yarns", "delete", "حذف نخ", "Delete yarn"),
         P("purchaseOrders.view", "purchaseOrders", "view", "مشاهده سفارش خرید", "View purchase orders"), P("purchaseOrders.create", "purchaseOrders", "create", "ثبت سفارش خرید", "Create purchase order"), P("purchaseOrders.edit", "purchaseOrders", "edit", "ویرایش سفارش خرید", "Edit purchase order"), P("purchaseOrders.delete", "purchaseOrders", "delete", "حذف سفارش خرید", "Delete purchase order"), P("purchaseOrders.submit", "purchaseOrders", "submit", "ارسال سفارش به بازرگانی", "Submit to commerce"),
         P("commerce.view", "commerce", "view", "مشاهده کارتابل بازرگانی", "View commerce inbox"), P("commerce.accept", "commerce", "accept", "پذیرش سفارش", "Accept order"), P("commerce.edit", "commerce", "edit", "تکمیل اطلاعات خرید", "Edit purchase details"), P("commerce.upload", "commerce", "upload", "بارگذاری مدارک خرید", "Upload documents"), P("commerce.sendToWarehouse", "commerce", "send", "ارسال خرید به انبار", "Send to warehouse"),
         P("purchases.view", "purchases", "view", "مشاهده خریدها", "View purchases"), P("purchases.create", "purchases", "create", "ثبت خرید", "Create purchase"), P("purchases.edit", "purchases", "edit", "ویرایش خرید", "Edit purchase"), P("purchases.post", "purchases", "post", "قطعی‌کردن خرید", "Post purchase"),
+        P("warehouses.view", "warehouses", "view", "مشاهده تعریف انبار", "View warehouses"), P("warehouses.create", "warehouses", "create", "ثبت انبار", "Create warehouse"), P("warehouses.edit", "warehouses", "edit", "ویرایش انبار و انباردار", "Edit warehouse"), P("warehouses.delete", "warehouses", "delete", "غیرفعال‌کردن انبار", "Deactivate warehouse"), P("warehouses.zones", "warehouses", "zones", "تعریف زون انبار", "Manage warehouse zones"),
         P("inventory.view", "inventory", "view", "مشاهده انبار", "View inventory"), P("inventory.edit", "inventory", "edit", "عملیات انبار", "Inventory operations"),
         P("sales.view", "sales", "view", "مشاهده فروش", "View sales"), P("sales.create", "sales", "create", "ثبت فروش", "Create sale"), P("sales.edit", "sales", "edit", "ویرایش فروش", "Edit sale"), P("sales.post", "sales", "post", "قطعی‌کردن فروش", "Post sale"),
         P("sales.creditOverride", "sales", "creditOverride", "تأیید عبور از سقف اعتبار فروش", "Approve sale credit limit override"),
@@ -49,7 +55,7 @@ public static class PermissionCatalog
         {
             "Orders" => ["persons.view", "yarns.view", "purchaseOrders."],
             "Commerce" => ["persons.view", "yarns.view", "purchaseOrders.view", "commerce.", "purchases.view", "inventory.view"],
-            "WarehouseOperator" => ["persons.view", "yarns.view", "inventory."],
+            "WarehouseOperator" => ["warehouses.view", "warehouses.zones", "persons.view", "yarns.view", "inventory."],
             "FinanceOperator" => ["persons.", "finance.", "checks.", "partners.view", "reports.view"],
             "SalesOperator" => ["persons.view", "yarns.view", "inventory.view", "sales."],
             "Seller" => ["persons.view", "yarns.view", "inventory.view", "sales."],
@@ -59,6 +65,7 @@ public static class PermissionCatalog
             _ => []
         };
         // Sensitive credit approval is not inherited through an operational menu prefix.
+        if (prefixes.Contains("yarns.view")) set.Add("productGroups.view");
         if (prefixes.Any(x => x is "persons.view" or "persons.")) set.Add("brands.view");
         foreach (var permission in All.Where(x => x.Key != "sales.creditOverride" && prefixes.Any(prefix => prefix.EndsWith('.') ? x.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) : x.Key.Equals(prefix, StringComparison.OrdinalIgnoreCase))))
             set.Add(permission.Key);

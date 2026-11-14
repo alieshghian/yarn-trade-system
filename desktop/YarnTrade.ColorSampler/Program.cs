@@ -23,15 +23,19 @@ internal static class Program
 
         using var controller = new SamplerController();
         var window = new SamplerWindow(controller);
-        if (isBackground)
-        {
-            window.Opacity = 0;
-            window.Shown += (_, _) => { window.Hide(); window.Opacity = 1; };
-        }
         controller.SetWindow(window);
+        // Create the UI dispatch handle before accepting commands. Background startup
+        // must not hide the first user-requested Show through a late Shown callback.
+        _ = window.Handle;
         using var server = new LocalSamplerServer(controller);
         server.StartAsync().GetAwaiter().GetResult();
-        Application.Run(window);
+        if (isBackground)
+        {
+            using var context = new ApplicationContext();
+            window.FormClosed += (_, _) => context.ExitThread();
+            Application.Run(context);
+        }
+        else Application.Run(window);
         server.StopAsync().GetAwaiter().GetResult();
     }
 

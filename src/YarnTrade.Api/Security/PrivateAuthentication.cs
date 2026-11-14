@@ -205,6 +205,55 @@ public sealed class PrivateAuthentication(UserManager<AppUser> users, AppSignInM
         return await IssueAsync(user!, false, false, "development");
     }
 
+    public sealed record DevelopmentProfileInput(string Profile);
+
+    // Permanent local development identities; never accept arbitrary users or roles from the client.
+    public async Task<IResult> DevelopmentProfileSessionAsync(DevelopmentProfileInput input, HttpContext context)
+    {
+        if (!environment.IsDevelopment() || !settings.DevelopmentAutoLogin.Enabled) return Results.NotFound();
+        if (!IsLocalDevelopmentRequest(context, settings, environment)) return Results.Forbid();
+        var developer = await users.FindByEmailAsync(settings.DevelopmentAutoLogin.UserEmail);
+        if (!Eligible(developer) || !await users.IsInRoleAsync(developer!, "Administrator") || await users.IsLockedOutAsync(developer!)) return Failure();
+        var profile = input.Profile switch
+        {
+            "manager" => (Id: Guid.Parse("b273b664-d035-4ae7-869e-ec5347ecb092"), Email: "development.manager@yarntrade.invalid", Name: "مدیر توسعه", Role: "Manager"),
+            "user" => (Id: Guid.Parse("7c911e64-3099-4b17-90ad-993d1c387d09"), Email: "development.user@yarntrade.invalid", Name: "کاربر عادی توسعه", Role: "Other"),
+            _ => default
+        };
+        if (profile.Id == Guid.Empty) return Results.BadRequest();
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync<IResult>(async () =>
+        {
+        await using (var transaction = await db.Database.BeginTransactionAsync())
+        {
+            // Serialize first creation across processes, without resetting existing account permissions.
+            await db.Database.ExecuteSqlInterpolatedAsync($"DECLARE @r int; EXEC @r = sp_getapplock @Resource={"YarnTrade.LocalDevelopmentProfiles"}, @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000; IF @r < 0 THROW 51000, 'Development account is busy.', 1;");
+            var existing = await users.FindByIdAsync(profile.Id.ToString());
+            if (existing is null)
+            {
+                if (await users.FindByEmailAsync(profile.Email) is not null) return Results.Conflict();
+                existing = new AppUser { Id = profile.Id, UserName = profile.Email, Email = profile.Email,
+                    EmailConfirmed = true, DisplayName = profile.Name, PreferredLanguage = "fa", IsActive = true, LockoutEnabled = true };
+                // No shared or published password; passwordless access is restricted above to local Development.
+                var created = await users.CreateAsync(existing, Convert.ToHexString(RandomNumberGenerator.GetBytes(32)) + "aA1!");
+                if (!created.Succeeded || !(await users.AddToRoleAsync(existing, profile.Role)).Succeeded)
+                    throw new InvalidOperationException("Local development account creation failed.");
+                if (input.Profile == "user")
+                {
+                    string[] grants = ["dashboard.view", "persons.view", "persons.create", "persons.edit", "brands.view", "brands.create", "brands.edit",
+                        "yarns.view", "yarns.create", "yarns.edit", "productGroups.view", "warehouses.view", "warehouses.create", "warehouses.edit", "warehouses.zones"];
+                    db.UserPermissions.AddRange(grants.Select(key => new UserPermission { UserId = existing.Id, PermissionKey = key, IsGranted = true }));
+                    await db.SaveChangesAsync();
+                }
+            }
+            if (existing.Email != profile.Email || !Eligible(existing) || await users.IsLockedOutAsync(existing) ||
+                !(await users.GetRolesAsync(existing)).SequenceEqual(new[] { profile.Role })) return Failure();
+            await transaction.CommitAsync();
+        }
+        logger.LogInformation("Local development sign-in profile {Profile}", input.Profile);
+        return await IssueAsync((await users.FindByIdAsync(profile.Id.ToString()))!, false, false, "development");
+        });
+    }
+
     public async Task SendInvitationAsync(AppUser user, CancellationToken ct)
     {
         if (await users.HasPasswordAsync(user)) throw new InvalidOperationException("An activated account cannot be reinvited.");
@@ -265,6 +314,7 @@ public sealed class PrivateAuthentication(UserManager<AppUser> users, AppSignInM
         group.MapPost("/forgotPassword", (RecoveryRequestInput input, HttpContext context, PrivateAuthentication auth, CancellationToken ct) => auth.ForgotPasswordAsync(input, context, ct)).AllowAnonymous();
         group.MapPost("/resetPassword", (SetInitialPasswordInput input, PrivateAuthentication auth) => auth.ResetPasswordAsync(input)).AllowAnonymous();
         group.MapGet("/development-session", (HttpContext context, PrivateAuthentication auth) => auth.DevelopmentSessionAsync(context)).AllowAnonymous();
+        group.MapPost("/development-profile-session", (PrivateAuthentication.DevelopmentProfileInput input, HttpContext context, PrivateAuthentication auth) => auth.DevelopmentProfileSessionAsync(input, context)).AllowAnonymous();
         group.MapGet("/manage/info", async (ClaimsPrincipal principal, UserManager<AppUser> users) =>
         {
             var user = await users.GetUserAsync(principal);

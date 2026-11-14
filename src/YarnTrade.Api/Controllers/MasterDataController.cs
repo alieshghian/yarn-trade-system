@@ -36,6 +36,10 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
     }
 
     [RequirePermission("persons.view")]
+    [HttpGet("persons/latest")]
+    public async Task<ActionResult<PersonView>> LatestPerson(CancellationToken ct){var id=await db.Persons.AsNoTracking().OrderByDescending(x=>x.UpdatedAtUtc??x.CreatedAtUtc).ThenByDescending(x=>x.Id).Select(x=>(Guid?)x.Id).FirstOrDefaultAsync(ct);return id is null?NotFound():await PersonById(id.Value,ct);}
+
+    [RequirePermission("persons.view")]
     [HttpGet("persons/{id:guid}")]
     public async Task<ActionResult<PersonView>> PersonById(Guid id, CancellationToken ct)
     {
@@ -67,6 +71,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         db.Persons.Add(person);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
+        catch (DbUpdateException e) when (e.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } sql && sql.Message.Contains("IX_PersonBrands_BrandId")) { return Conflict(new { error = "این برند هم‌زمان به شخص دیگری اختصاص یافته است.", code = "BRAND_ALREADY_ASSIGNED" }); }
         catch (DbUpdateException) { return Conflict(new { error = "کد شخص تکراری است.", code = "DUPLICATE_PERSON_CODE" }); }
         return CreatedAtAction(nameof(PersonById), new { id = person.Id }, PersonView.From(person));
     }
@@ -109,10 +114,14 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         Apply(person, input);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
+        catch (DbUpdateException e) when (e.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 } sql && sql.Message.Contains("IX_PersonBrands_BrandId")) { return Conflict(new { error = "این برند هم‌زمان به شخص دیگری اختصاص یافته است.", code = "BRAND_ALREADY_ASSIGNED" }); }
         catch (DbUpdateException) { return Conflict(new { error = "کد شخص تکراری است.", code = "DUPLICATE_PERSON_CODE" }); }
         return Ok(PersonView.From(person, linked));
     }
 
+    [HttpPost("persons/bulk-delete"), RequirePermission("persons.delete")]
+    public Task<IActionResult> DeletePersons(DefinitionBulkDeleteInput input,CancellationToken ct) =>
+        DefinitionBulkDelete.Run(db,input,(row,token)=>DeletePersonCore(row.Id,row.RowVersion,false,token),ct);
     [RequirePermission("persons.delete")]
     [HttpDelete("persons/{id:guid}")]
     public Task<IActionResult> DeletePerson(Guid id, [FromQuery] string? rowVersion, CancellationToken ct) => DeletePersonCore(id, rowVersion, false, ct);
@@ -274,11 +283,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
     [HttpGet("warehouses")]
     public Task<List<Warehouse>> Warehouses(CancellationToken ct) => db.Warehouses.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.Code).ToListAsync(ct);
 
-    [RequirePermission("inventory.edit")]
-    [HttpPost("warehouses")]
-    public async Task<ActionResult<Warehouse>> CreateWarehouse(Warehouse item, CancellationToken ct)
-    { item.Id = Guid.NewGuid(); db.Warehouses.Add(item); await db.SaveChangesAsync(ct); return Ok(item); }
-
+    // Warehouse creation uses the validated warehouse aggregate.
     [RequirePermission("finance.view")]
     [HttpGet("exchange-rates")]
     public Task<List<ExchangeRate>> Rates([FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
@@ -301,6 +306,8 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
             var ids = input.BrandIds.Distinct().ToArray();
             if (ids.Length != input.BrandIds.Length || await db.Brands.CountAsync(x => ids.Contains(x.Id), ct) != ids.Length)
                 return "برندهای انتخاب‌شده نامعتبر یا تکراری هستند.";
+            if (await db.PersonBrands.AnyAsync(x => ids.Contains(x.BrandId) && x.PersonId != currentId, ct))
+                return "این برند قبلاً به شخص دیگری اختصاص یافته است.";
             if (input.DefaultBrandId is { } defaultId && !ids.Contains(defaultId))
                 return "برند پیش‌فرض باید از برندهای انتخاب‌شدهٔ شخص باشد.";
         }

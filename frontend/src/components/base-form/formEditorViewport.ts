@@ -5,7 +5,7 @@ export type EditorViewport={heightMode:'content'|'fixed';overflowX:'auto'|'scrol
 export const defaultEditorViewport:EditorViewport={heightMode:'fixed',overflowX:'auto',overflowY:'auto'}
 export function editorViewport(section:FormSchemaSection|undefined):EditorViewport{
  const value=section?.settings?.viewport as Partial<EditorViewport>|undefined
- return {heightMode:value?.heightMode==='content'?'content':'fixed',overflowX:['auto','scroll','hidden'].includes(value?.overflowX??'')?value!.overflowX!: 'auto',overflowY:['auto','scroll','hidden'].includes(value?.overflowY??'')?value!.overflowY!:'auto'}
+ return {heightMode:value?.heightMode==='content'?'content':'fixed',overflowX:['auto','scroll','hidden'].includes(value?.overflowX??'')?value!.overflowX!: 'auto',overflowY:value?.overflowY==='hidden'?'hidden':'auto'}
 }
 export function fitCanvasToFields(canvas:DesignerCanvas,ids:readonly string[]):DesignerCanvas{
  const wanted=new Set(ids),entries=Object.entries(canvas.fields).filter(([id])=>wanted.has(id))

@@ -37,6 +37,12 @@ builder.Services.AddScoped<DemoDataSeeder>();
 builder.Services.AddScoped<PersonAccountService>();
 builder.Services.AddScoped<BusinessContractService>();
 builder.Services.AddScoped<UserPresenceService>();
+builder.Services.AddHttpClient("label-translation", client => client.Timeout = TimeSpan.FromSeconds(8));
+builder.Services.AddSingleton<LabelTranslationService>();
+builder.Services.AddSingleton<YarnTrade.Api.Services.WarehouseZoneEditSessions>();
+builder.Services.AddRateLimiter(options => options.AddPolicy("label-translations", context =>
+    System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+        _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })));
 
 var app = builder.Build();
 app.UseInternetSecurity();

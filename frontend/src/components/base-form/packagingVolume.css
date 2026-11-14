@@ -1,0 +1,10 @@
+.packaging-volume-control{min-width:0;width:100%;height:100%}
+.packaging-volume-control>.person-number-wrap{width:100%;height:100%}
+.packaging-volume-control .person-number-control{min-width:0;height:100%;overflow:hidden}
+#root .packaging-volume-control .person-number-control textarea{white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis;resize:none;min-height:0!important;height:100%!important;box-sizing:border-box}
+.number-pair-inputs{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+#root .component-popup-host .number-pair-inputs>input{box-sizing:border-box;min-width:0;height:var(--component-entry-height,34px)!important;font:inherit;font-size:var(--component-popup-font-size,15px);background:var(--lab-entry-field-bg,#d8d8d8);border:1px solid #d7e3e1}
+#root .component-popup-host .number-pair-inputs>input:first-child{flex:1 1 50%;width:50%}
+#root .component-popup-host .number-pair-inputs>input:last-child{flex:1 1 40%;width:40%;direction:ltr}
+#root .component-popup-host .number-pair-inputs>input:focus{background:var(--lab-focus-bg,#fbffdf)}
+.paired-entry-list .number-list-items{min-width:0}

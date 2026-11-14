@@ -5,13 +5,21 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test:form-designer": "node --test src/components/base-form/serialCode.test.mjs src/components/base-form/formSchemaPresentation.test.mjs src/components/base-form/laboratoryFormDraftState.test.mjs src/components/base-form/formDocumentStructure.test.mjs src/components/base-form/formSchemaPresentation.behavior.test.mjs src/components/base-form/formDocumentRecovery.test.mjs src/components/base-form/formCatalogAndTheme.test.mjs src/components/base-form/headerDesignerRegression.test.mjs src/components/base-form/componentBehavior.test.mjs src/components/base-form/formBehavior.test.mjs src/components/base-form/appearanceCommands.test.mjs",
-    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "test:form-designer": "node --test src/components/base-form/packagingVolume.test.mjs src/components/base-form/batchValueRecords.test.mjs src/components/base-form/numericDerived.test.mjs src/components/base-form/batchValuePattern.test.mjs src/components/base-form/operationalAcceptance.test.mjs src/components/base-form/labelTranslationQueue.test.mjs src/components/base-form/formDesignExport.test.mjs src/components/base-form/serialCode.test.mjs src/components/base-form/formSchemaPresentation.test.mjs src/components/base-form/laboratoryFormDraftState.test.mjs src/components/base-form/formDocumentStructure.test.mjs src/components/base-form/formSchemaPresentation.behavior.test.mjs src/components/base-form/formDocumentRecovery.test.mjs src/components/base-form/formCatalogAndTheme.test.mjs src/components/base-form/headerDesignerRegression.test.mjs src/components/base-form/componentBehavior.test.mjs src/components/base-form/formBehavior.test.mjs src/components/base-form/appearanceCommands.test.mjs src/components/base-form/fieldFocusOrder.test.mjs src/components/base-form/fieldTypingLanguage.test.mjs src/components/base-form/componentListSettings.test.mjs src/components/base-form/formDesignLifecycle.test.mjs",
+    "build": "node --test src/components/base-form/formDocumentRecovery.test.mjs && tsc --noEmit -p tsconfig.app.json && vite build",
     "package:color-sampler": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/Publish-ColorSamplerDownloads.ps1",
     "build:release": "npm run package:color-sampler && npm run build",
     "preview": "vite preview",
-    "test:form-designer:browser": "node tests/form-designer.browser.mjs && node tests/form-runtime.browser.mjs",
-    "validate:form-designer": "npm run test:form-designer && node --test src/components/base-form/designerSession.test.mjs src/components/base-form/formLaboratoryDesigner.test.mjs && tsc --noEmit -p tsconfig.app.json && npm run test:form-designer:browser"
+    "test:app-lazy-loading:browser": "node tests/app-lazy-loading.browser.mjs",
+    "test:form-designer:browser": "node tests/component-role-runtime.browser.mjs && node tests/session-continuity.browser.mjs && node tests/runtime-typing-focused.browser.mjs && node tests/packaging-volume.browser.mjs && node tests/editor-content-scroll.browser.mjs && node tests/component-identity.browser.mjs && node tests/batch-master-runtime.browser.mjs && node tests/numeric-derived.browser.mjs && node tests/lookup-geometry.browser.mjs && node tests/batch-values.browser.mjs && node tests/grid-reset-validation.browser.mjs && node tests/yarn-uniqueness.browser.mjs && node tests/design-handoff.browser.mjs && node tests/form-designer.browser.mjs && node tests/form-runtime.browser.mjs && node tests/focus-navigation.browser.mjs && node tests/component-settings.browser.mjs && node tests/tree-geometry.browser.mjs && node tests/tree-geometry.browser.mjs --canvas && node tests/tree-geometry.browser.mjs --registered && node tests/tree-geometry.browser.mjs --edge-keyboard && node tests/tree-report.browser.mjs && node tests/layout-preview.browser.mjs && node tests/shared-interaction.browser.mjs",
+    "validate:form-designer": "npm run test:form-designer && node --test src/components/base-form/designerSession.test.mjs src/components/base-form/formLaboratoryDesigner.test.mjs && tsc --noEmit -p tsconfig.app.json && npm run test:form-designer:browser",
+    "test:operational-contract": "node --test src/components/base-form/operationalAcceptance.test.mjs src/components/base-form/formDesignExport.test.mjs src/components/base-form/formCatalogAndTheme.test.mjs && tsc --noEmit -p tsconfig.app.json && node tests/form-presentation-runtime.browser.mjs && node tests/product-group-grid-query.browser.mjs",
+    "test:grid-reset-validation:browser": "node tests/grid-reset-validation.browser.mjs",
+    "test:zone-batch:browser": "node tests/zone-batch.browser.mjs",
+    "test:lookup-sources:browser": "node tests/lookup-sources.browser.mjs",
+    "test:batch-values:browser": "node tests/batch-values.browser.mjs",
+    "test:session-continuity:browser": "node tests/session-continuity.browser.mjs",
+    "test:yarn-linked-path:browser": "node tests/yarn-linked-path.browser.mjs"
   },
   "dependencies": {
     "react": "19.2.7",

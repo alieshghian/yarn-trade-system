@@ -1,0 +1,1715 @@
+{
+  "form": {
+    "id": "operational.warehouses",
+    "schema": {
+      "id": "operational.warehouses",
+      "schemaVersion": 1,
+      "version": 1,
+      "status": "draft",
+      "mode": "operational",
+      "title": {
+        "fa": "تعریف انبار",
+        "en": "Warehouse definition",
+        "zh": "仓库定义"
+      },
+      "layout": {
+        "direction": "vertical",
+        "gap": 0
+      },
+      "sections": [
+        {
+          "id": "catalog.editor",
+          "kind": "editor",
+          "layout": {
+            "columns": 1,
+            "gap": 12
+          }
+        },
+        {
+          "id": "catalog.grid.warehouses",
+          "kind": "grid"
+        },
+        {
+          "id": "catalog.footer",
+          "kind": "footer"
+        }
+      ],
+      "fields": [
+        {
+          "id": "code",
+          "sectionId": "catalog.editor",
+          "componentId": "definition.field",
+          "label": {
+            "fa": "کد انبار",
+            "en": "Warehouse code",
+            "zh": "Warehouse code"
+          },
+          "kind": "text",
+          "required": true,
+          "focusOrder": 1,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "code"
+          },
+          "columnLinks": [
+            {
+              "tableId": "warehouses",
+              "columnId": "code"
+            }
+          ]
+        },
+        {
+          "id": "name",
+          "sectionId": "catalog.editor",
+          "componentId": "definition.field",
+          "label": {
+            "fa": "نام انبار",
+            "en": "Warehouse name",
+            "zh": "Warehouse name"
+          },
+          "kind": "text",
+          "required": true,
+          "focusOrder": 2,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "name"
+          },
+          "columnLinks": [
+            {
+              "tableId": "warehouses",
+              "columnId": "name"
+            }
+          ]
+        },
+        {
+          "id": "floorCount",
+          "sectionId": "catalog.editor",
+          "componentId": "definition.field",
+          "label": {
+            "fa": "تعداد طبقات",
+            "en": "Number of floors",
+            "zh": "楼层数"
+          },
+          "kind": "text",
+          "required": true,
+          "focusOrder": 3,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "code"
+          },
+          "columnLinks": [
+            {
+              "tableId": "warehouses",
+              "columnId": "code"
+            }
+          ],
+          "dataType": "number",
+          "settings": {}
+        },
+        {
+          "id": "location",
+          "sectionId": "catalog.editor",
+          "componentId": "definition.field",
+          "label": {
+            "fa": "موقعیت انبار",
+            "en": "Warehouse location",
+            "zh": "仓库位置"
+          },
+          "kind": "select",
+          "required": true,
+          "focusOrder": 4,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "location"
+          },
+          "columnLinks": [],
+          "dataType": "text",
+          "settings": {}
+        },
+        {
+          "id": "custodianPersonId",
+          "sectionId": "catalog.editor",
+          "componentId": "base-form.system-lookup",
+          "label": {
+            "fa": "انباردار",
+            "en": "Custodian",
+            "zh": "Custodian"
+          },
+          "kind": "lookup",
+          "required": false,
+          "focusOrder": 5,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "custodianPersonId"
+          },
+          "columnLinks": [],
+          "settings": {
+            "listSettings": {
+              "allowEmpty": true
+            },
+            "lookupSettings": {
+              "sourceId": "persons",
+              "returnMode": "saveAndSelect",
+              "selectedDisplay": "name"
+            }
+          }
+        },
+        {
+          "id": "address",
+          "sectionId": "catalog.editor",
+          "componentId": "base-form.value-list",
+          "label": {
+            "fa": "آدرس انبار",
+            "en": "Warehouse address",
+            "zh": "Warehouse address"
+          },
+          "kind": "textarea",
+          "required": false,
+          "focusOrder": 6,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "address"
+          },
+          "columnLinks": [
+            {
+              "tableId": "warehouses",
+              "columnId": "address"
+            }
+          ]
+        },
+        {
+          "id": "description",
+          "sectionId": "catalog.editor",
+          "componentId": "definition.field",
+          "label": {
+            "fa": "توضیحات",
+            "en": "Description",
+            "zh": "Description"
+          },
+          "kind": "textarea",
+          "required": false,
+          "focusOrder": 7,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "description"
+          },
+          "columnLinks": [
+            {
+              "tableId": "warehouses",
+              "columnId": "description"
+            }
+          ]
+        }
+      ],
+      "tables": [
+        {
+          "id": "warehouses",
+          "sectionId": "catalog.grid.warehouses",
+          "title": {
+            "fa": "انبارها",
+            "en": "Warehouses",
+            "zh": "仓库"
+          },
+          "dataSourceId": "/api/warehouses/grid",
+          "columns": [
+            {
+              "id": "code",
+              "label": {
+                "fa": "کد انبار",
+                "en": "Warehouse code",
+                "zh": "Warehouse code"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "code"
+              },
+              "width": 86
+            },
+            {
+              "id": "name",
+              "label": {
+                "fa": "نام انبار",
+                "en": "Warehouse name",
+                "zh": "Warehouse name"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "name"
+              },
+              "width": 160
+            },
+            {
+              "id": "custodian",
+              "label": {
+                "fa": "انباردار",
+                "en": "Custodian",
+                "zh": "Custodian"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "custodian"
+              },
+              "width": 140
+            },
+            {
+              "id": "address",
+              "label": {
+                "fa": "آدرس انبار",
+                "en": "Warehouse address",
+                "zh": "Warehouse address"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "address"
+              },
+              "width": 160
+            },
+            {
+              "id": "description",
+              "label": {
+                "fa": "توضیحات",
+                "en": "Description",
+                "zh": "Description"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "description"
+              },
+              "width": 144
+            }
+          ],
+          "searchable": true,
+          "columnSelection": true,
+          "rowSelection": "single",
+          "contextMenu": true,
+          "lazyLoading": true,
+          "virtualScrolling": true
+        }
+      ],
+      "actions": [
+        {
+          "id": "operational.new",
+          "code": "Space",
+          "keys": [
+            " "
+          ],
+          "label": {
+            "fa": "انبار جدید",
+            "en": "New warehouse",
+            "zh": "新建仓库"
+          },
+          "primary": true,
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "warehouses.new"
+        },
+        {
+          "id": "operational.edit",
+          "code": "Insert",
+          "keys": [
+            "Insert"
+          ],
+          "label": {
+            "fa": "ویرایش",
+            "en": "Edit",
+            "zh": "编辑"
+          },
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "warehouses.edit"
+        },
+        {
+          "id": "operational.copyLast",
+          "code": "F2",
+          "keys": [
+            "F2"
+          ],
+          "label": {
+            "fa": "کپی آخرین",
+            "en": "Copy last",
+            "zh": "复制上一条"
+          },
+          "required": true,
+          "sectionId": "catalog.footer",
+          "operationId": "warehouses.copyLast"
+        },
+        {
+          "id": "operational.copySelected",
+          "code": "F4",
+          "keys": [
+            "F4"
+          ],
+          "label": {
+            "fa": "کپی انتخابی",
+            "en": "Copy selected",
+            "zh": "复制所选"
+          },
+          "required": true,
+          "sectionId": "catalog.footer",
+          "operationId": "warehouses.copySelected"
+        },
+        {
+          "id": "operational.delete",
+          "code": "Delete",
+          "keys": [
+            "Delete"
+          ],
+          "label": {
+            "fa": "غیرفعال‌کردن",
+            "en": "Deactivate",
+            "zh": "停用"
+          },
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "warehouses.delete"
+        },
+        {
+          "id": "operational.save",
+          "code": "F3",
+          "keys": [
+            "F3"
+          ],
+          "label": {
+            "fa": "ذخیره",
+            "en": "Save",
+            "zh": "保存"
+          },
+          "primary": true,
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "warehouses.save"
+        },
+        {
+          "id": "operational.close",
+          "code": "Esc",
+          "keys": [
+            "Escape"
+          ],
+          "label": {
+            "fa": "خروج",
+            "en": "Exit",
+            "zh": "退出"
+          },
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "warehouses.close"
+        }
+      ],
+      "resources": {
+        "dataSourceIds": [
+          "/api/warehouses/grid"
+        ],
+        "operationIds": [
+          "warehouses.read",
+          "warehouses.save",
+          "warehouses.zones"
+        ]
+      },
+      "templateFormId": "form-laboratory.persons-synthetic",
+      "menuPlacement": {
+        "menuId": "definitions"
+      },
+      "settings": {
+        "fieldValidation": {
+          "entity": "warehouses",
+          "uniqueFields": [
+            "code"
+          ]
+        }
+      }
+    },
+    "frame": {
+      "device": "desktop",
+      "width": 746.6666564941406,
+      "height": null,
+      "fitToPage": false
+    },
+    "customization": {
+      "colors": true,
+      "typography": true,
+      "formSize": true,
+      "tablePresentation": true
+    }
+  },
+  "designerDraft": {
+    "format": "yarn-trade.form-designer-draft",
+    "schemaVersion": 1,
+    "formId": "operational.warehouses",
+    "defaults": {
+      "input": {
+        "bold": false,
+        "focusBackgroundColor": "#f6eeb8",
+        "focusBorderColor": "#d8d8d8",
+        "backgroundColor": "#f4f6f5"
+      },
+      "label": {
+        "bold": false,
+        "textColor": "#000000"
+      }
+    },
+    "appearance": {
+      "headerBackground": "#dee2de",
+      "headerBorder": "#3a7d22",
+      "entryFieldBackground": "#d8d8d8"
+    },
+    "overrides": {},
+    "actions": {},
+    "layoutMode": "canvas",
+    "canvas": {
+      "width": 744,
+      "height": 238,
+      "centeredFieldIds": [
+        "code",
+        "name",
+        "floorCount",
+        "custodianPersonId",
+        "address",
+        "description"
+      ],
+      "fields": {
+        "code": {
+          "input": {
+            "left": 384,
+            "top": 40,
+            "width": 283,
+            "height": 34
+          },
+          "label": {
+            "left": 384,
+            "top": 16,
+            "width": 283,
+            "height": 22
+          }
+        },
+        "name": {
+          "input": {
+            "left": 77,
+            "top": 40,
+            "width": 283,
+            "height": 34
+          },
+          "label": {
+            "left": 77,
+            "top": 16,
+            "width": 283,
+            "height": 22
+          }
+        },
+        "custodianPersonId": {
+          "input": {
+            "left": 77,
+            "top": 110,
+            "width": 180.66666666666666,
+            "height": 34
+          },
+          "label": {
+            "left": 77,
+            "top": 86,
+            "width": 180.66666666666666,
+            "height": 22
+          }
+        },
+        "address": {
+          "input": {
+            "left": 384,
+            "top": 180,
+            "width": 283,
+            "height": 34
+          },
+          "label": {
+            "left": 384,
+            "top": 156,
+            "width": 283,
+            "height": 22
+          }
+        },
+        "description": {
+          "input": {
+            "left": 77,
+            "top": 180,
+            "width": 283,
+            "height": 34
+          },
+          "label": {
+            "left": 77,
+            "top": 156,
+            "width": 283,
+            "height": 22
+          }
+        },
+        "floorCount": {
+          "input": {
+            "left": 486.3333333333333,
+            "top": 110,
+            "width": 180.66666666666666,
+            "height": 34
+          },
+          "label": {
+            "left": 486.3333333333333,
+            "top": 86,
+            "width": 180.66666666666666,
+            "height": 22
+          }
+        },
+        "location": {
+          "input": {
+            "left": 281.66666666666663,
+            "top": 110,
+            "width": 180.66666666666666,
+            "height": 34
+          },
+          "label": {
+            "left": 281.66666666666663,
+            "top": 86,
+            "width": 180.66666666666666,
+            "height": 22
+          }
+        }
+      }
+    }
+  },
+  "operationalBehaviorContract": {
+    "contractId": "yarn-trade.form-laboratory.operational-behavior",
+    "version": 81,
+    "source": "Form Laboratory",
+    "futureFormPolicy": {
+      "scope": "all-forms-created-or-redesigned-through-the-form-laboratory",
+      "requiredSharedComponents": [
+        "FormSchemaPresentation",
+        "BaseFormGridBoundary",
+        "ExcelGridColumnHeader",
+        "OperationalFormFrame",
+        "DesignerFontPanel",
+        "ExcelColorPicker",
+        "exportGridWorkbook"
+      ],
+      "requiredMembersInExportedJson": [
+        "form",
+        "designerDraft",
+        "operationalBehaviorContract"
+      ],
+      "operationalUserPreferencePersistence": "localStorage-keyed-by-user-and-form-id",
+      "formIdentityMustRemainStableForPreferencePersistence": true,
+      "userPreferencesAreSeparateFromDesignerDraft": true,
+      "sharedRuntimeForksAllowed": false,
+      "operationalDataAcceptance": {
+        "contract": "operationalAcceptanceRequirements",
+        "version": 1,
+        "eachTableRequiresServerPagingSearchFilterSort": true,
+        "hierarchyRequiresLazyBranches": true,
+        "largeDatasetBrowserAndApiEvidenceRequired": true,
+        "evidenceBoundToFormReleaseAndDigest": true,
+        "failedBlockedOrMissingChecksPreventNewActivation": true,
+        "designApprovalDoesNotMeanOperationalReadiness": true
+      },
+      "operationalPresentation": {
+        "defaultMode": "operational",
+        "designModeRequiresExplicitOptIn": true,
+        "designerSettingsMustNotActivateDesignMode": true,
+        "searchFilterSortEnabledOutsideDataEntry": true,
+        "stickyHeaderResizeUsesVisibleCellBounds": true
+      },
+      "formSpecificStructureAndDataSourceStayInSchema": true,
+      "presentationInheritance": {
+        "preserveFormSpecificFieldsAndDataBindings": true,
+        "inheritUserCustomizedColors": false,
+        "newFormTheme": "laboratory-default-before-user-customization",
+        "toolbarHeaderWidth": "match-full-table-width",
+        "renderOnlySchemaDefinedInformationBars": true,
+        "frameContentInsets": {
+          "unit": "css-px",
+          "inline": 12,
+          "blockEnd": 12,
+          "approximateMillimetersAt96Dpi": 3.2,
+          "edges": [
+            "left",
+            "right",
+            "bottom"
+          ],
+          "laboratoryAndOperationalPreviewMustMatch": true
+        }
+      },
+      "fieldPresentationDefaults": {
+        "labelFontWeight": 400,
+        "inputFontWeight": 400,
+        "viewModeDisabledTextColor": "preserve-existing-muted-gray",
+        "checkbox": {
+          "labelFontWeight": 400,
+          "layout": "inline-and-adjacent",
+          "labelControlGapPx": 2,
+          "controlSizePx": 14
+        }
+      },
+      "keyboardShortcuts": {
+        "aliases": {
+          "F2": {
+            "action": "copy-last-record-to-new",
+            "enabledByDefault": true,
+            "userDisableable": true,
+            "mode": "view",
+            "permission": "create"
+          },
+          "F4": {
+            "action": "copy-selected-grid-record-to-new",
+            "enabledByDefault": true,
+            "userDisableable": true,
+            "mode": "view",
+            "permission": "create"
+          }
+        },
+        "keepExistingShortcuts": true,
+        "disablement": "remove-alias-from-operation-keys",
+        "futureFormsInheritAliases": true,
+        "copyActions": {
+          "placement": "bottom-toolbar",
+          "createNewRecord": true,
+          "copyReusableVisibleFields": true,
+          "excludeFields": [
+            "hidden",
+            "read-only",
+            "system-identity",
+            "row-version",
+            "unique"
+          ],
+          "regenerateCodeFromLatestCreatedRecord": true,
+          "F2": "copy-most-recently-created-record",
+          "F4": "copy-selected-grid-record"
+        }
+      },
+      "workspaceLayout": {
+        "fixedFrameDimensionsRemainUnchangedOnViewportChange": true,
+        "fitToPageModeResizesToAvailableWorkspace": true,
+        "framePlacementByDirection": {
+          "rtl": {
+            "anchor": "right",
+            "unusedSpace": "left"
+          },
+          "ltr": {
+            "anchor": "left",
+            "unusedSpace": "right"
+          }
+        },
+        "fieldSelectionExpandsCollapsedDesignerSidebar": false,
+        "toolbarSelectionExpandsCollapsedDesignerSidebar": false
+      },
+      "smartFieldAlignment": {
+        "enabledByDefault": true,
+        "activation": "initial-canvas-capture-and-completed-field-geometry-edits",
+        "rowAlignment": "align-field-group-centers-and-input-centers-within-tolerance",
+        "columnAlignment": "align-trailing-edge-in-rtl-and-leading-edge-in-ltr-within-tolerance",
+        "positionTolerancePx": 12,
+        "columnToleranceRatio": 0.08,
+        "similarInputSizeTolerance": {
+          "ratio": 0.22,
+          "minimumWidthPx": 24,
+          "minimumHeightPx": 8
+        },
+        "gapEqualization": {
+          "horizontal": true,
+          "vertical": true,
+          "maximumSpreadPx": 24,
+          "maximumRelativeSpread": 0.6
+        },
+        "preserveSizeAndPositionOutliers": true,
+        "preventNewCanvasCollisions": true,
+        "manualGlobalLeveling": {
+          "key": "Ctrl+L",
+          "requiresAllEditorFieldsSelected": true,
+          "alignsRowsAndColumns": true,
+          "equalizesSimilarWidthsAndHeights": true,
+          "equalizesHorizontalAndVerticalGaps": true,
+          "textareaBesideCheckbox": "textarea-fills-available-form-width-and-checkbox-sits-adjacent-at-inline-start",
+          "includesF1ExceptionFields": true,
+          "preservesF1ExceptionsForLaterAutomaticAlignment": true,
+          "preserveExistingCollisions": true
+        },
+        "exceptions": {
+          "key": "F1",
+          "scope": "single-selected-canvas-field-in-design-mode",
+          "toggle": true,
+          "persistWithDesignerDraft": true
+        },
+        "runtimeShortcuts": {
+          "F1": "preserve-existing-search-behavior",
+          "F3": "preserve-data-entry-save-behavior"
+        }
+      },
+      "operationalPreview": {
+        "availableForAllLaboratoryForms": true,
+        "sharedRenderer": "FormSchemaPresentation",
+        "presentationMode": "operational",
+        "useCurrentSchemaAndDesignerDraft": true,
+        "hideDesignerAndTestChrome": true,
+        "hideTableStructureAndReviewTools": true,
+        "preserveSchemaAndData": true,
+        "returnToPreviousDesignerState": true,
+        "releaseMustUseSameOperationalPresentation": true,
+        "hideLaboratoryDocumentTitle": true,
+        "hideCompositeLabelWhenComponentHasOwnHeading": true,
+        "hiddenChromeMustNotReserveLayoutSpace": true
+      },
+      "compositeDesignerGeometry": {
+        "sharedSelectionAndAppearance": true,
+        "geometryOwner": "designer-input-part",
+        "paintedContentFitsOwner": true,
+        "coordinateSystem": "physical-left-top-css-pixels",
+        "pointerDeltasRespectRenderedScale": true,
+        "resizeAxesIndependent": true,
+        "resizePreservesOppositeEdge": true,
+        "manualDragDoesNotAutoArrange": true,
+        "multiSelectLayoutUsesSharedDesigner": true,
+        "numericEditorMustNotOverwriteExternalGeometryOnBlur": true,
+        "reportTableCanFillViewport": true,
+        "browserRegression": "tests/tree-geometry.browser.mjs",
+        "treeEditorLayout": {
+          "version": 1,
+          "fullWidthTitleHeightOnly": true,
+          "inputSurfaceFillsRemainingEditorSpace": true,
+          "surfaceBackgroundIndependentOfColumns": true,
+          "sharedEditorAndReportInsets": true,
+          "splitterMinimumFromVisibleFieldBounds": true,
+          "preserveSavedColumnGeometry": true,
+          "automaticColumnGap": "mean-existing-gaps",
+          "layoutBrowserRegression": "tests/tree-report.browser.mjs"
+        }
+      },
+      "finalOperationalAcceptance": {
+        "required": true,
+        "verifyLatestApprovedArtifact": true,
+        "preserveSavedFrameAndDesigner": true,
+        "checks": [
+          "footer-visible-reachable-and-working",
+          "browse-versus-entry-actions",
+          "Space-contextual-create",
+          "F3-server-confirmed-save",
+          "Escape-restores-node-or-column-not-search",
+          "F1-focused-column-search",
+          "tree-grid-bindings",
+          "appearance-and-customization-permissions"
+        ],
+        "evidenceRequired": true,
+        "unverifiedChecksBlockActivation": true
+      }
+    },
+    "table": {
+      "rtlLanguages": [
+        "fa"
+      ],
+      "initialScroll": "logical-start",
+      "resize": "single-column-logical-inline-end",
+      "overflow": "scroll-only-when-content-exceeds-viewport",
+      "reserveScrollbarGutter": false,
+      "toolbarHeaderWidth": "match-full-table-width"
+    },
+    "settings": {
+      "entry": "topbar",
+      "save": "explicit",
+      "cancel": "exit-without-saving",
+      "fieldAppearanceMenu": "laboratory-context-menu",
+      "fontPanel": "DesignerFontPanel",
+      "colorPicker": "ExcelColorPicker"
+    },
+    "entryFocus": {
+      "retainVisualIndicatorOnBlur": true,
+      "moveIndicatorOnFocus": true,
+      "clearIndicatorOn": [
+        "save",
+        "exit"
+      ],
+      "restoreExpandedGrid": "create-copy-last-copy-selected-restore-normal-grid-view-and-focus-editor; mouse-and-keyboard; preserve-grid-state-and-saved-geometry",
+      "treeReportSelection": "green-path-is-not-focus; click-any-report-loaded-node-to-focus-it-with-blue-inset-outline-and-target-permitted-edit-delete; preserve-used-node-protection",
+      "treeListOverflow": "compare-real-row-span-with-padding-free-list-height; no-scroll-for-fitting-data; align-green-path-at-nearest-shared-feasible-center; recalculate-on-resize-font-or-visible-depth-change; allow-scroll-only-for-real-overflow",
+      "appearance": "pale-yellow-input-with-neutral-focus-ring; designer-selection-is-separate",
+      "compoundControlNavigation": "use-shared-saved-field-order; no-hard-coded-contact-field-sequence",
+      "directionalKeys": {
+        "horizontal": "follow-saved-Enter-sequence-and-participation-across-row-boundaries; RTL-Left-forward-Right-backward; LTR-Right-forward-Left-backward; retain-focus-at-sequence-ends; preserve-native-caret-after-intentional-text-click",
+        "vertical": "Up/Down belong to the component; browse existing choices without opening the value-list popup; never move to another field",
+        "enter": "confirm current choice and follow saved Enter order"
+      }
+    },
+    "entryEditorSpacing": {
+      "bannerToEditor": 0,
+      "collapseEmptyNotice": true,
+      "panelInsetPx": 12,
+      "matchEditorAndBannerInsetsToGrid": true,
+      "collapseEmptyOperationalToolbarPanels": true,
+      "persistEditorGridSplitRatio": true,
+      "fieldRowSpacing": "uniform-within-form",
+      "manyFieldForms": "use-uniform-compact-row-gap",
+      "editorScrollExtent": "auto-overflow-measures-actual-field-extents-even-with-fixed-panel-height; ignore-empty-canvas-tail; preserve-saved-panel-size-field-coordinates-and-explicit-scroll-mode"
+    },
+    "gridExport": {
+      "enabled": true,
+      "format": "xlsx",
+      "placement": "beside-expand-and-columns",
+      "button": "icon-only",
+      "tooltip": "hover-or-focus",
+      "scope": "all-filtered-sorted-records-and-visible-columns",
+      "presentation": "title-styled-header-banded-rows-borders-frozen-header-autofilter",
+      "futureUserConfiguration": true
+    },
+    "filterValueSelection": {
+      "invertSelection": {
+        "enabled": true,
+        "placement": "beside-select-all",
+        "control": "icon-only-with-tooltip",
+        "operation": "complement-selected-and-unselected-values",
+        "scope": "all-distinct-values-for-current-column",
+        "secondClickRestoresOriginalSelection": true,
+        "localizedTooltip": {
+          "fa": "معکوس کردن انتخاب",
+          "en": "Invert selection",
+          "zh": "反向选择"
+        }
+      }
+    },
+    "keyboardSelection": {
+      "ctrlA": "editable-content-or-visible-grid-data-only",
+      "selectInterfaceControls": false
+    },
+    "gridCellSelection": {
+      "leftClick": "select-row-and-clear-cell-selection",
+      "cellSelection": "right-click",
+      "multipleSelection": "ctrl-or-command-right-click",
+      "rangeSelection": "shift-right-click-in-same-column",
+      "rowNavigation": "ArrowUp-ArrowDown-in-filtered-sorted-order",
+      "retainGridFocusDuringRowNavigation": true,
+      "hierarchyRowIndicator": "ancestry-path-with-row-selection-color-not-keyboard-focus",
+      "copySelectedCells": true,
+      "copyContextMenu": true,
+      "formLabelsSelectable": false,
+      "tableHeadersSelectableOutsideDesigner": false
+    },
+    "colorPreview": {
+      "live": true,
+      "cancelRestoresPreviousValue": true,
+      "commitOnPickerConfirm": true,
+      "inputSurfaceIsSeparateFromEmptyEditorArea": true
+    },
+    "gridLayout": {
+      "permission": "customization.tablePresentation",
+      "persistence": "account-form-table",
+      "settingsMode": "save-or-discard",
+      "normalModeResizePersistsImmediately": true,
+      "editorGridSplitRatio": {
+        "minimum": 0.08,
+        "maximum": 12,
+        "persistence": "account-form-settings"
+      },
+      "columnWidth": {
+        "minimum": 80,
+        "maximum": 1200
+      },
+      "tableHeaderHeight": {
+        "minimum": 28,
+        "maximum": 120
+      },
+      "toolbarHeaderHeight": {
+        "minimum": 56,
+        "maximum": 260,
+        "adjustment": "visible-bottom-handle-and-arrow-keys",
+        "focusHandleOnSelection": true,
+        "keyboard": {
+          "decrease": "ArrowUp",
+          "increase": "ArrowDown",
+          "stepPx": 2
+        }
+      },
+      "rtlInitialScroll": "logical-start"
+    },
+    "search": {
+      "activeModeEmphasis": "bold",
+      "radioMustMatchEmphasis": true,
+      "rightClickDoesNotChangeMode": true,
+      "reverseResultsToolbarPart": "searchReverse",
+      "reverseResultsToggle": {
+        "enabled": true,
+        "operation": "show-nonmatching-instead-of-matching-results",
+        "secondClickRestoresMatchingResults": true
+      },
+      "inputAppearanceStates": {
+        "unfocused": {
+          "targetId": "toolbar:searchInput",
+          "properties": [
+            "backgroundColor",
+            "fontFamily",
+            "fontSize",
+            "textColor"
+          ]
+        },
+        "focused": {
+          "targetId": "toolbar:searchInput:focus",
+          "properties": [
+            "backgroundColor",
+            "fontFamily",
+            "fontSize",
+            "textColor"
+          ]
+        }
+      }
+    },
+    "personalCustomization": {
+      "version": 1,
+      "permissions": {
+        "fontAndTypography": "customization.typography",
+        "allColorsAndBackgrounds": "customization.colors",
+        "tablePresentationPermissionIsRequiredForVisualStyles": false
+      },
+      "menu": {
+        "component": "designer-context-menu",
+        "groups": [
+          "text",
+          "appearance"
+        ],
+        "fontPanel": "DesignerFontPanel",
+        "colorPicker": "ExcelColorPicker"
+      },
+      "fixedPositionTargets": [
+        "form-title"
+      ],
+      "resizableTargets": {
+        "form-header": "formHeaderHeight",
+        "form-editor": "editorRatio",
+        "grid-toolbar": "toolbarHeight",
+        "table-header:{columnId}": "headerHeight"
+      },
+      "resizeInteraction": {
+        "handle": "visible-bottom-grip",
+        "focusHandleOnSelection": true,
+        "pointer": "drag",
+        "keyboard": {
+          "decrease": "ArrowUp",
+          "increase": "ArrowDown",
+          "stepPx": 2
+        },
+        "settingsMode": "save-or-discard",
+        "persistence": "localStorage-keyed-by-user-and-form-id",
+        "targets": {
+          "form-header": {
+            "preference": "formHeaderHeight",
+            "permission": "customization.formSize",
+            "minimum": 48,
+            "maximum": 180
+          },
+          "grid-toolbar": {
+            "preference": "gridLayouts.toolbarHeight",
+            "permission": "customization.tablePresentation",
+            "width": "match-full-table-width",
+            "minimum": 56,
+            "maximum": 260
+          }
+        }
+      },
+      "toolbarParts": [
+        "expand",
+        "title",
+        "counter",
+        "search",
+        "searchInput",
+        "searchReverse",
+        "searchOptions",
+        "searchOption:startsWith",
+        "searchOption:contains",
+        "searchOption:exact",
+        "columns",
+        "header"
+      ],
+      "targets": [
+        {
+          "id": "form-header",
+          "selector": ".form-laboratory-banner, .form-laboratory-banner *",
+          "backgroundSelector": ".form-laboratory-banner",
+          "borderSelector": ".form-laboratory-banner",
+          "label": {
+            "fa": "هدر فرم",
+            "en": "Form header"
+          },
+          "positionEditable": false,
+          "resize": "formHeaderHeight"
+        },
+        {
+          "id": "form-title",
+          "selector": ".form-laboratory-banner .laboratory-banner-title, .form-laboratory-banner .laboratory-banner-title *",
+          "backgroundSelector": ".form-laboratory-banner .laboratory-banner-title",
+          "borderSelector": ".form-laboratory-banner .laboratory-banner-title",
+          "label": {
+            "fa": "عنوان فرم",
+            "en": "Form title"
+          },
+          "positionEditable": false,
+          "resize": "formHeaderHeight"
+        },
+        {
+          "id": "form-editor",
+          "selector": ".person-editor",
+          "backgroundSelector": ".person-editor, .person-editor .person-form-grid",
+          "borderSelector": ".person-editor",
+          "label": {
+            "fa": "زمینهٔ پنل فرم",
+            "en": "Form panel background"
+          },
+          "positionEditable": false,
+          "resize": "editorRatio"
+        },
+        {
+          "id": "form-fields",
+          "selector": ".person-form-grid, .person-form-grid .designer-label-part, .person-form-grid .designer-input-part, .person-form-grid .designer-input-part *",
+          "backgroundSelector": ".person-form-grid .designer-input-part, .person-form-grid .designer-input-part :is(input,textarea,select)",
+          "borderSelector": ".person-form-grid .designer-input-part, .person-form-grid .designer-input-part :is(input,textarea,select)",
+          "label": {
+            "fa": "سطح فیلدهای فرم",
+            "en": "Form fields"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "form-notice",
+          "selector": ".operational-form-notice, .operational-form-notice *",
+          "backgroundSelector": ".operational-form-notice",
+          "borderSelector": ".operational-form-notice",
+          "label": {
+            "fa": "پیام فرم",
+            "en": "Form message"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "grid-panel",
+          "selector": ".person-grid-panel",
+          "backgroundSelector": ".person-grid-panel",
+          "borderSelector": ".person-grid-panel",
+          "label": {
+            "fa": "قاب جدول",
+            "en": "Table panel"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "grid-toolbar",
+          "selector": ".grid-toolbar-panels > .grid-toolbar[data-toolbar-part=\"header\"]",
+          "backgroundSelector": ".grid-toolbar-panels > .grid-toolbar[data-toolbar-part=\"header\"]",
+          "borderSelector": ".grid-toolbar-panels > .grid-toolbar[data-toolbar-part=\"header\"]",
+          "label": {
+            "fa": "نوار ابزار جدول",
+            "en": "Table toolbar"
+          },
+          "positionEditable": false,
+          "resize": "toolbarHeight"
+        },
+        {
+          "id": "grid-table",
+          "selector": ".base-grid-table-wrap, .base-grid-table",
+          "backgroundSelector": ".base-grid-table-wrap, .base-grid-table",
+          "borderSelector": ".base-grid-table",
+          "label": {
+            "fa": "زمینهٔ جدول",
+            "en": "Table background"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-headers",
+          "selector": ".base-grid-table thead, .base-grid-table thead th, .base-grid-table thead th *",
+          "backgroundSelector": ".base-grid-table thead th",
+          "borderSelector": ".base-grid-table thead th",
+          "label": {
+            "fa": "همهٔ سرستون‌ها",
+            "en": "All table headers"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-rows",
+          "selector": ".base-grid-table tbody tr, .base-grid-table tbody tr *",
+          "backgroundSelector": ".base-grid-table tbody tr, .base-grid-table tbody td",
+          "borderSelector": ".base-grid-table tbody td",
+          "label": {
+            "fa": "ردیف‌های جدول",
+            "en": "Table rows"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-cells",
+          "selector": ".base-grid-table tbody td, .base-grid-table tbody td *",
+          "backgroundSelector": ".base-grid-table tbody td",
+          "borderSelector": ".base-grid-table tbody td",
+          "label": {
+            "fa": "داده‌های جدول",
+            "en": "Table data"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "toolbar:{part}",
+          "selector": ".grid-toolbar-panels [data-toolbar-part=\"{part}\"], .grid-toolbar-panels [data-toolbar-part=\"{part}\"] *",
+          "backgroundSelector": ".grid-toolbar-panels [data-toolbar-part=\"{part}\"], .grid-toolbar-panels [data-toolbar-part=\"{part}\"] :is(input,button,select)",
+          "borderSelector": ".grid-toolbar-panels [data-toolbar-part=\"{part}\"], .grid-toolbar-panels [data-toolbar-part=\"{part}\"] :is(input,button,select)",
+          "label": {
+            "fa": "جزء نوار جدول",
+            "en": "Table toolbar part"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "toolbar:searchInput",
+          "selector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus), .grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus)::placeholder",
+          "backgroundSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus)",
+          "borderSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus)",
+          "label": {
+            "fa": "کادر جست‌وجو بدون فوکوس",
+            "en": "Search input without focus"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "toolbar:searchInput:focus",
+          "selector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus, .grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus::placeholder",
+          "backgroundSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus",
+          "borderSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus",
+          "label": {
+            "fa": "کادر جست‌وجو هنگام فوکوس",
+            "en": "Search input while focused"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-header:{columnId}",
+          "selector": ".base-grid-table thead th[data-column=\"{columnId}\"], .base-grid-table thead th[data-column=\"{columnId}\"] *",
+          "backgroundSelector": ".base-grid-table thead th[data-column=\"{columnId}\"]",
+          "borderSelector": ".base-grid-table thead th[data-column=\"{columnId}\"]",
+          "label": {
+            "fa": "سرستون",
+            "en": "Table column header"
+          },
+          "positionEditable": false,
+          "resize": "headerHeight"
+        },
+        {
+          "id": "table-column:{columnId}",
+          "selector": ".base-grid-table tbody td[data-column=\"{columnId}\"], .base-grid-table tbody td[data-column=\"{columnId}\"] *",
+          "backgroundSelector": ".base-grid-table tbody td[data-column=\"{columnId}\"]",
+          "borderSelector": ".base-grid-table tbody td[data-column=\"{columnId}\"]",
+          "label": {
+            "fa": "داده‌های ستون",
+            "en": "Table column data"
+          },
+          "positionEditable": false
+        }
+      ],
+      "styleProperties": [
+        "fontFamily",
+        "fontSize",
+        "bold",
+        "italic",
+        "underline",
+        "strikeThrough",
+        "script",
+        "textColor",
+        "backgroundColor",
+        "borderColor"
+      ],
+      "fontDialog": "Reuse draggable FormDocumentDialog title bar; controls never initiate dragging. Load effective rendered typography. Explicit none means no underline/script, never a truthy enabled effect. Bold customization applies to selected tree path. Apply button retains identical green background, white text and border on hover/focus/active. Live draft previews immediately on the actual target; Cancel/close restores pre-dialog typography; Apply retains the chosen typography in the settings draft."
+    },
+    "selection": {
+      "designerToolbarParts": "individually-selectable",
+      "multiSelectModifier": "ctrl-or-command",
+      "dragMovesAllSelectedPartsTogether": true,
+      "operationalFormTitlePositionEditable": false
+    },
+    "hierarchyKeyboard": {
+      "listOverflow": "internal-scroll-only-when-real-content-exceeds-available-height; fitting-report-lists-have-no-artificial-tail-overflow",
+      "searchSelection": "green-exact-then-prefix-then-first-result; arrows-change-green-result-without-input-blur; Enter-focuses-same-result-in-same-column-clears-filter-centers-neighbours-no-save",
+      "selectionViewport": "browse-search-and-inline-matches-center-current-item; recenter-after-final-level-save-and-copy; two-real-neighbours-above-and-below-where-available-and-space-permits; internal-list-scroll-only; preserve-report-path-horizontal-alignment",
+      "F2": "entry-mode-open-copy-in-active-column-only-when-missing-items-exist; preserve-browse-mode-form-shortcut",
+      "saveAppearance": "green-save-background-and-white-text-stable-on-hover-focus-active; group-and-copy-save",
+      "entryActions": "hide-all-panel-Add-buttons-during-entry-or-copy; restore-after-exit; existing-footer-Save-and-Escape-only",
+      "space": "create-child-of-focused-node; at-last-level-create-sibling-under-same-parent; never-intercept-typed-spaces",
+      "escape": "cancel-inline-entry-and-restore-last-node-or-column-focus; never-focus-search",
+      "F1": "search-in-focused-hierarchy-column; grid-search-only-outside-hierarchy",
+      "toolbarTooltip": "native-title-only-for-columns-expand-export",
+      "entryArrows": "RTL left: advance through selected existing parent; right: previous level; retain per-parent drafts; never silently save",
+      "F3": "await-authoritative-save-then-open-next-permitted-level; last-level-retains-saved-node-focus",
+      "Enter": "select-existing-match-and-next-level; foreign-branch-match-reuses-name-without-changing-parent-or-saving",
+      "emptyEntryNavigation": "preselect-first-existing-match; Enter-or-left-selects-highlighted-match-and-advances-without-save; up-down-changes-match; right-returns-previous-level; never-create-an-unsaved-parent",
+      "createWithoutFocus": "Space or main Create starts root when no hierarchy focus context; historical selection and report markers never imply focus; direct focus transfer from hierarchy to Create preserves context"
+    },
+    "hierarchyReusableChildren": {
+      "suggestions": "same-depth-across-branches-with-source-path",
+      "uniqueness": "same-parent; NFKC, Persian-Arabic letters and digits, diacritics, whitespace-insensitive",
+      "copy": "entry-mode-active-column-only; hide-copy-button-and-F2-noop-if-no-missing-items; current-parent-only; pooled-same-root-other-parents-at-same-level-missing-names-only; normalized-missing-only; preselected-optional-checkboxes; green-F3-save; atomic-server-validation; close-on-success; sources-unchanged",
+      "operationalPersistence": "optional-persistCopyChildren-adapter; atomic-server-transaction-and-permissions",
+      "cancel": "Escape-or-bottom-exit-closes-copy-only-and-restores-suspended-entry-draft"
+    },
+    "productGroupTerminalAssignment": {
+      "scope": "all-branches-of-root",
+      "beforeFirstUse": "deepest-active-depth",
+      "firstProductSave": "explicit-depth-confirmation",
+      "afterFirstUse": "root-depth-locked-while-any-current-product-reference-exists; unlock-after-last-removal-or-reassignment; existing-inventory-history-protections-retained",
+      "eligible": "leaf-at-root-terminal-depth-only",
+      "incompleteBranches": "retain-but-not-assignable; allow-completion-to-locked-depth",
+      "report": "all-existing-leaf-paths-including-incomplete-branches; no-prefix-parent-rows; deduplicate-normalized-full-path-per-root; unused-level-cells-empty; product-eligibility-independent",
+      "copySelectedOrLast": "restore-path-open-empty-next-permitted-level; never-auto-register",
+      "entry": "disable-independent-search-and-F1; allow-mouse-Enter-RTL-arrows-between-editors; preserve-drafts",
+      "selectionViewport": "center-selection-in-short-and-long-lists-including-first-and-last-sibling; show-valid-browse-siblings-in-light-gray; align-entire-selected-path; reserve-only-required-context-space-for-centering",
+      "savedPath": "center-and-align-selected-ancestors-during-entry; same-green-row-and-bold-text-as-grid-selection; retain-correct-parent-and-next-input-focus",
+      "usedGroupProtection": "direct-sibling-selection-without-change-button; actual-rename-delete-actions-protected-by-current-product-references-on-client-and-server",
+      "copyCompletion": "after-server-confirmation-close-copy-select-first-confirmed-copied-child-under-target-parent; show-green-bold-complete-path-and-focus-copied-node; align-ancestor-rows-to-active-row-with-no-forced-short-list-scroll",
+      "siblingBrowsing": "all-levels-show-current-parent-siblings; unselected-text-#bcbec0; selected-green-bold; direct-click-and-arrows; descendants-rematched-by-normalized-name-or-cleared",
+      "batchCreation": "inline-plus-or-keyboard-plus-queues-names-under-same-parent; F3-atomic-save; normalized-duplicate-check; errors-preserve-drafts; Escape-discards-unsaved-only; server-authoritative-identities",
+      "levelNameReuse": "all-subgroup-levels-within-same-root-only; typed-suggestions-only-from-other-parents-at-same-depth; exclude-destination-and-staged-normalized-names; F2-pools-missing-names-without-typing; preserve-current-parent; no-source-mutation; server-revalidate-depth-and-duplicates"
+    },
+    "reusableHierarchy": {
+      "component": "CascadingTreePanels",
+      "contract": "laboratory.cascading-tree",
+      "version": 30,
+      "scope": "product-person-yarn-and-other-Master-Detail-forms",
+      "depth": {
+        "minSubgroups": 0,
+        "maxSubgroups": 4,
+        "administratorControlled": true,
+        "hiddenLevelsRetainData": true
+      },
+      "capabilities": [
+        "inline-batch-create",
+        "selective-recursive-branch-copy",
+        "normalized-missing-only-merge",
+        "stable-parent-identities",
+        "server-confirmed-atomic-persistence"
+      ],
+      "branchSelection": "depth-first-parent-child-preview; capture-checkbox-state-before-deferred-update; selected-leaves-include-ancestors; server-receipt-confirms-every-source-ID-and-count-before-success",
+      "branchPreview": "only-normalized-missing-destination-paths-selectable; existing-ancestors-context-only-without-checkbox; fully-existing-subtrees-hidden; optional-native-top-layer-modal-copy-dialog; square-minimum; content-driven-height-up-to-viewport; live-selected-missing-item-count; background-inert; focus-contained; fixed-save-cancel-footer; list-only-scroll; restore-normal-size-after-save-or-cancel; cancellation-retains-path-and-realigns-all-five-levels; resize-observer-rebinds-restored-lists-and-uses-shared-anchor; saved-form-geometry-unchanged",
+      "parentNavigation": "rematch-existing-descendant-ID-or-normalized-name; auto-select-unmatched-single-child; unmatched-multiple-children-require-choice; refresh-and-align-green-path-after-every-parent-switch",
+      "bindings": "Host supplies domain records, permissions and code allocation through existing optional persistence adapters. Yarn parameters, item/color relations and internal-code rules remain domain-specific; no automatic database binding or migration.",
+      "export": "Include resolved shared contract with explicit per-form hierarchy depth, labels, parent relationships, code policy and persistence binding; never infer bindings from display titles."
+    },
+    "ruleEditingScopes": {
+      "footerActionVisibility": "shared-formActionVisible-gate; design-shows-all-actions-for-customization; operational-preview-and-view-hide-save; test-and-runtime-create-edit-show-only-save-and-cancel-close; preserve-saved-actions-and-appearance",
+      "fieldColumnCardinality": "one-field-to-one-column-per-table; reject-duplicate-source-links-at-all-edit-entrypoints; remove-deleted-duplicate-tombstone-when-a-live-binding-survives; retain-warning-for-true-orphan",
+      "editorOverflow": "vertical-scroll-only-when-rendered-fields-exceed-panel; normalize-legacy-forced-scroll-to-auto; no-empty-canvas-tail-or-duplicate-offset-spacer; preserve-saved-geometry",
+      "componentConversion": "show-current-schema-component-or-ordinary-field; selection-updates-dialog-draft; no-separate-convert-confirmation; preserve-identities-layout-bindings-and-rules; existing-final-save-discard-contract",
+      "form": [
+        "enter-sequence-with-up-down-controls",
+        "composite-uniqueness",
+        "cross-field-dependencies"
+      ],
+      "field": [
+        "required",
+        "independent-uniqueness",
+        "normalization",
+        "readonly",
+        "value-behavior"
+      ],
+      "persistence": "existing-schema-fields-and-uniqueConstraints; preserve-identities-and-existing-design",
+      "enterParticipation": "default-on-for-editable-fields; readonly-and-derived-excluded; per-field-enterEnabled-false-skips-Enter-and-horizontal-sequence; preserve-mouse-access-and-saved-order; default-order-follows-visual-layout"
+    },
+    "warehouseDefinition": {
+      "version": 3,
+      "sharedFrame": "OperationalFormFrame",
+      "sharedGrid": "FormSchemaPresentation",
+      "code": "shared-serial-code-brand-compatible",
+      "address": "base-form.value-list",
+      "custodian": {
+        "source": "persons",
+        "optional": true,
+        "history": "non-overlapping-periods-with-actor-and-reason"
+      },
+      "zones": {
+        "scope": "warehouse-and-floor",
+        "normalizedUnique": [
+          "full-code-in-warehouse",
+          "name-within-floor"
+        ],
+        "code": "immutable-floor-prefix-and-hyphen; editable-alphanumeric-suffix; server-suggestion; database-unique",
+        "mandatoryReceivingDock": "auto-create-ground-floor-only",
+        "additionalDocks": "explicit-create-on-other-floors; at-most-one-per-floor; fixed-name-بارانداز; no-delete-or-disable-or-floor-move",
+        "editor": "shared-form-frame; editor-above-standard-remote-grid; create-Space; edit-Insert; save-F3; cancel-Escape; only-save-cancel-during-entry; select-saved-row",
+        "copy": "same-warehouse-other-floor; missing-normalized-code-and-name-only; preselected-options; atomic-server-write-and-duplicate-recheck; change-prefix-to-target-floor; exclude-docks-stock-history; cancellation-writes-nothing"
+      },
+      "inventoryContract": {
+        "receipts": "destination-receiving-dock-only",
+        "withinWarehouse": "zone-to-zone-with-audit",
+        "betweenWarehouses": "any-source-zone-to-destination-dock-only",
+        "transferImplementation": "separate-inventory-phase"
+      },
+      "editorRows": [
+        [
+          "code",
+          "name"
+        ],
+        [
+          "floorCount",
+          "location",
+          "custodianPersonId"
+        ],
+        [
+          "address",
+          "description"
+        ]
+      ],
+      "floors": {
+        "minimum": 1,
+        "maximum": 5,
+        "default": 1,
+        "numbering": "ground=1; first-upper=2; subsequent=ascending",
+        "reduction": "blocked-while-any-zone-or-history-remains-in-removed-floors"
+      },
+      "location": {
+        "required": true,
+        "values": [
+          "inside",
+          "outside"
+        ],
+        "default": null,
+        "legacy": "unknown-until-owner-classifies; never-infer",
+        "inventoryContract": "internal-only-transfers-no-gate-approval; external-boundary-requires-manager-and-departure-guard-approval-and-separate-destination-receipt; in-transit-until-received; transfer-workflow-separate-phase"
+      }
+    },
+    "entryGridVisibility": {
+      "rowsRemainVisible": true,
+      "remoteQueryRemainsActive": true,
+      "searchSortFilterRemainAvailable": true,
+      "entryModeMustNotClearOrDisableGrid": true,
+      "rowSelectionMustNotOverwriteUnsavedEditor": true,
+      "designModeIsSeparate": true
+    },
+    "optionalLookupSelection": {
+      "emptyChoiceSelectable": true,
+      "emptySelectionPersistsAsNull": true,
+      "closedFieldDisplayConfigurable": true,
+      "warehouseCustodianSelectedDisplay": "name",
+      "lookupResultsKeepCodeAndName": true,
+      "searchByCodeAndName": true,
+      "clearingAssignmentPreservesHistory": true,
+      "emptyRowPosition": "fixed-below-search-outside-scrolling-results",
+      "emptyRowMinimumHeight": 32,
+      "initialSelectionWithoutQuery": "empty",
+      "selectionWithQuery": "first-matching-result",
+      "emptyRowUnaffectedBySearch": true
+    },
+    "modalFormInheritance": {
+      "entryGridMarker": "data-entry-grid",
+      "navigationUsesSharedFormInteraction": true,
+      "explicitSchemaFocusOrderRequired": true,
+      "enterAndHorizontalArrowsShareSequence": true,
+      "filterPortal": "nearest-document-dialog-backdrop-or-body",
+      "filterMustRemainAboveOwningModal": true
+    },
+    "warehouseZoneDisplay": {
+      "namePrefix": "floorNumber — name",
+      "floorNumberIsSeparateStoredField": true,
+      "rawNameUnchanged": true,
+      "zoneCodeUnchanged": true,
+      "warehouseNameUnchanged": true,
+      "groundFloor": 1,
+      "futureSelectionSequence": [
+        "warehouseId",
+        "floorNumber",
+        "zoneId"
+      ],
+      "futureZoneSelectionRestrictedToSelectedFloor": true
+    },
+    "fieldTypingLanguage": {
+      "implementation": "shared installFormInteraction / installFieldTypingLanguage",
+      "eligible": "editable text and textarea; excludes codes, numeric, readonly and disabled fields",
+      "button": "inside physical left edge; label is target language EN or فا",
+      "shortcut": "Alt pressed and released alone; combinations and IME unchanged",
+      "initial": "application-language-on-each-field-focus; Persian app fa, English app en; previous field text/mode never sets next field language",
+      "mapping": "physical US / Persian Standard keyboard",
+      "preserve": [
+        "existing text",
+        "caret",
+        "selection",
+        "native undo",
+        "paste",
+        "Enter order",
+        "horizontal navigation",
+        "F3"
+      ],
+      "operatingSystemLayoutUnchanged": true,
+      "schemaSetting": "field.typingLanguage: enabled, initial auto/fa/en",
+      "scope": "Laboratory preview and operational forms",
+      "numericInputModeScope": "Only numeric schema fields receive numeric/decimal inputMode. Generic Laboratory text fields retain text inputMode and shared language switching. Codes retain explicit code exclusion."
+    },
+    "fieldValidation": {
+      "implementation": "useFieldValidation + FieldValidationController",
+      "when": [
+        "typing-debounced",
+        "Enter",
+        "Tab",
+        "horizontal navigation",
+        "pointer exit",
+        "Save"
+      ],
+      "requiredAndRange": "same-field Persian error; retain focus until valid",
+      "uniqueness": "authoritative database preflight, never current grid page",
+      "scope": "existing business rules only; no new global name uniqueness",
+      "selfEdit": "exclude current technical ID",
+      "concurrency": "preflight advisory; write validation, transactions and unique indexes remain authoritative",
+      "pending": "deduplicate checks; ignore changed value/context/cancelled editor",
+      "failure": "preserve input; fail closed; retry available",
+      "cancel": "Escape/Cancel always available",
+      "design": "validation disabled in structure/appearance editing",
+      "schema": "settings.fieldValidation: entity, uniqueFields, context; fields.required and validation"
+    },
+    "suggestedCodeSelection": {
+      "implementation": "installFormInteraction",
+      "policy": "Select the entire suggested code on entry, including suggestions arriving after focus.",
+      "preserve": "Never overwrite or reselect user input; never steal focus after navigation or cancellation.",
+      "escape": "Existing Escape cancellation contract unchanged."
+    },
+    "typingLanguageShortcut": {
+      "key": "Alt",
+      "trigger": "standalone keyup; <=500ms toggles current field only; >=1500ms changes current and subsequent field default for this session",
+      "ignore": [
+        "500-1500ms hold",
+        "other key combinations",
+        "focus change or pointer action"
+      ],
+      "repeat": "bare hold autorepeat does not trigger multiple toggles"
+    },
+    "codeTypingLanguage": {
+      "switching": "disabled",
+      "button": "hidden",
+      "componentMarker": "data-code-input=true regardless of custom field ID",
+      "input": "Latin letters and allowed code characters only; Persian/Arabic digits normalized to ASCII; Persian physical letter keys map to Latin; invalid paste/composition rejected atomically",
+      "preserve": "Existing per-code character, length and uniqueness constraints remain authoritative."
+    },
+    "textTypingCoverage": {
+      "scope": [
+        "editable text fields",
+        "text component popup inputs and textareas",
+        "table search",
+        "filter search and text dialogs"
+      ],
+      "portals": "Language control belongs to the source component even when popup is portalled outside its modal.",
+      "layer": "Button must receive pointer events above its component popup without moving or resizing the field.",
+      "exclude": [
+        "code inputs",
+        "numeric and telephone inputs",
+        "readonly or disabled controls"
+      ],
+      "shortcut": "Existing standalone short Alt release contract unchanged.",
+      "activeLayer": "Component popups, column filter menus and custom filter editors suppress all background language buttons; covered inputs are excluded by hit testing with language overlays temporarily hidden."
+    },
+    "componentPopupModality": {
+      "implementation": "NumberControl shared popup + installFieldTypingLanguage",
+      "activeLayer": "Only the open component accepts pointer, focus, Tab and keyboard actions; transparent backdrop blocks background form/table.",
+      "close": "Explicit Save, Cancel or Escape closes component before other form work.",
+      "language": "Only active popup text controls show language buttons; background language buttons are hidden until close.",
+      "search": "Table and filter text search use the shared language control when their layer is active.",
+      "invariants": [
+        "code inputs excluded",
+        "saved field geometry unchanged",
+        "no automatic save when switching language"
+      ]
+    },
+    "gridFilterReset": {
+      "shortcut": "F8",
+      "scope": "active-grid-or-topmost-owning-modal",
+      "clear": [
+        "column-value-selections",
+        "custom-conditions",
+        "color-filters",
+        "value-rules",
+        "table-search",
+        "reverse-search"
+      ],
+      "preserve": [
+        "sort",
+        "column-widths",
+        "column-visibility",
+        "designer-geometry",
+        "other-grids"
+      ],
+      "implementation": "ExcelGridFilterScope owns the shortcut; BaseFormGridBoundary and legacy shared-header hosts reset their real query state. No page-specific Laboratory handler.",
+      "verification": "tests/grid-reset-validation.browser.mjs"
+    },
+    "fieldValidationPresentation": {
+      "layout": "fixed compact tooltip below the invalid control, no document-flow or field-row geometry changes",
+      "onInput": "dismiss immediately, keep input focus and user text; revalidate on attempted navigation/save",
+      "persistence": "never write error messages into field values",
+      "verification": "tests/grid-reset-validation.browser.mjs"
+    },
+    "batchEntry": {
+      "add": "Plus button beside the active name input and standalone + key queue its nonempty name, clear that same input and retain its focus. Reject normalized duplicates; removable queued names; maximum 100 names including the current input. Never add blank editor rows.",
+      "zones": {
+        "codes": "Server preview assigns visible sequential codes from the starting code, skips occupied codes and keeps floor prefix. Preview reserves nothing; SQL transaction rechecks all names and codes.",
+        "scope": "Same warehouse/floor; shared description and active state; protected docks excluded",
+        "commit": "F3 submits one atomic batch. All succeed or none; no client phantom nodes. Pending duplicate submission blocked. Rejection retains every draft and input focus. Cancellation discards only unsaved rows and invalidates preview responses.",
+        "grid": "Existing rows remain visible during entry; refresh after success and select last saved zone",
+        "implementation": "WarehouseZones + WarehousesController CreateZoneBatch and PreviewZoneBatch",
+        "verification": [
+          "tests/zone-batch.browser.mjs",
+          "WarehouseZoneBatchTests.cs"
+        ],
+        "input": "Same queue interaction as CascadingTreePanels. F3 accepts queued names even when current input is empty; a nonempty current input is included last.",
+        "presentation": "Plus appears inside the focused, nonempty name input beside its language toggle, only during creation. Queued names, visible proposed codes and removal actions float immediately below that input, grow leftward and scroll within the viewport without changing editor/grid geometry. Keep previous proposed codes visible while refreshing preview; queueing must not refetch or reposition the main grid.",
+        "editorSession": {
+          "scope": "one user and one browser-tab editor per warehouse",
+          "authority": "SQL Server session-owned exclusive application lock; never client-only",
+          "renewSeconds": 30,
+          "expirySeconds": 120,
+          "onLoss": "retain drafts, deny mutations until reacquired",
+          "release": "on close, exit or expiry"
+        },
+        "floorPresentation": "Single floor: fixed Ground floor label, no floor numeral next to zone name. Multiple floors: floor numeral at physical right of name, no dash; grid/filter labels include Ground floor or Floor name. Stored IDs/codes unchanged."
+      }
+    },
+    "treePathEmphasis": {
+      "selected": "green background, normal weight by default; explicit user typography override remains supported",
+      "siblings": "existing faint gray text unchanged",
+      "status": "owner requested visual trial; no change to selection/navigation"
+    },
+    "designValidationNavigation": {
+      "onBlockedApproval": "Show actionable message, close permission/save overlay, open exact field/group/table settings, scroll and focus failing controls; mark invalid uniqueness groups red.",
+      "preserve": "Never auto-remove rules or silently approve an invalid document; preserve draft, geometry and permissions.",
+      "separation": "Design approval validates schema references, not empty operational record values.",
+      "columnLinkVisibility": "Opening field column links shows actual live field and table/column names with two green connected badges, and preselects current connection; otherwise explicitly No column. Tombstones/mismatched labels remain review warnings; disconnect/relink/independent confirmation preserve schema controls.",
+      "runtimeTyping": "Synthetic/runtime entry releases Designer pointer/selection chrome. The shared field typing language installer remains active for editable text fields and component popup/search inputs, with click and standalone Alt tap, unchanged geometry, no toggle on code/numeric/read-only fields.",
+      "derivedDisplay": "Derived source parts share one inline text container; inherited horizontal and vertical alignment applies to the complete text. A space separator never creates a line per source; explicit newline separators remain supported; natural wrapping only when real width is insufficient."
+    },
+    "systemLookupSourceBinding": {
+      "sourceCatalog": "Explicit registered operational sources only; never Laboratory drafts or arbitrary document URLs.",
+      "configuration": "Persist sourceId in field lookupSettings and exported JSON. Source binding imposes no hierarchy depth or terminal-node restrictions.",
+      "productGroups": "All saved non-deleted nodes at every depth, including incomplete branches. Return stable technical ID, root public code and full ancestry path; hide internal hierarchical codes.",
+      "operationalValidation": "The consuming operational write enforces permitted depth, terminal-node and assignment rules, not source configuration.",
+      "sharedBehavior": "Reuse SystemLookup keyboard search, selection, empty choice and permissions. Creation requires an authorized registered creation adapter.",
+      "query": "Permission-checked server search with bounded pages and by-ID reload; no Laboratory fixtures."
+    },
+    "batchValues": {
+      "componentId": "base-form.batch-values",
+      "renderer": "BatchValueList uses shared NumberControl; no separate list interaction engine",
+      "identity": "Each saved value has a stable internal UUID. User text is color name/code, never the technical ID. Preserve IDs through editing; operational server adapters must return authoritative IDs.",
+      "entry": "Plus adds an editable pending row; keyboard + and Enter add next; F3 validates and commits the entire set once; Escape discards pending changes. Failure preserves rows and context; pending submission cannot repeat.",
+      "pattern": "Three consistent numeric or common-prefix/suffix samples suggest the next arithmetic value, selected for replacement. Unclear patterns or duplicate suggestions remain blank. Never register an unconfirmed value in the source.",
+      "uniqueness": "Normalize Persian/Arabic letters, digits, whitespace and case for duplicate comparison within the current parent collection; preserve displayed spelling.",
+      "integration": "Export componentId and inherited behavior reference. Laboratory testing is temporary and cannot write operational records. Operational adapters supply parent-scoped persistence and server validation.",
+      "masterDetail": "One master record owns parent-scoped color details. Each color has an internal stable ID; public master code is allocated once and repeated in report rows. Component F3 stages the detail set; form F3 saves master+details atomically in Laboratory runtime. Display detail count and group-save caption. Report projects one row per saved color, with an explicit color column if missing; no duplicate master records. Selecting a color report row loads its parent and exact color; view allows browsing saved colors without management actions. New master has an empty collection; copy gives new detail IDs; cancel preserves saved details. Operational adapters must implement this as a transaction and server-paged joined report, not client duplication of master codes.",
+      "codeSuggestionButton": "Do not show an extra next-code suggestion button below the Laboratory code field. Existing automatic selected code suggestion remains unchanged."
+    },
+    "numericAndDerivedFields": {
+      "numeric": "Number fields default to decimal-permitted step any. Explicit decimalPlaces 0..12 persists in numericSettings; 0 is integer-only. Apply in Laboratory runtime and shared operational presentation. Validate precision with Persian error; never round user input. Technical code components keep their own rules.",
+      "derived": "Each source retains saved order and optional sourceFormats: value only, value then label, label then value or label only. Full localized field label or exact custom text such as لا/دنیر. Skip empty source values and their labels. Both live preview and saved derived value use the same resolver. Legacy configurations remain value-only.",
+      "persistence": "Numeric precision and per-source formats persist through schema JSON, conversion and handoff. Consuming backend must enforce approved precision and build the same derived business name."
+    },
+    "fieldComponentIdentity": {
+      "source": "saved-dialog-draft-component-id-preset-definition-and-effective-kind-settings",
+      "legacyLists": "show-effective-value-list-not-ordinary",
+      "noLabelGuessing": true,
+      "conversion": "single-dialog-confirmation-preserves-identity-rules-bindings-and-geometry",
+      "regression": "component-identity.browser.mjs"
+    },
+    "testDataPresentation": {
+      "formattingSample": "only-when-the-effective-control-value-is-empty-including-selected-batch-item",
+      "designReturn": "retain-saved-test-rows-and-field-bindings-for-current-session",
+      "placeholderRows": "never-replace-saved-test-records",
+      "operationalData": "never-import-test-records-into-operational-persistence"
+    },
+    "derivedLabelWords": {
+      "choices": "whole-label-or-individual-label-word-or-custom-text",
+      "storage": "selected-text-in-existing-sourceFormats-label",
+      "sourceLabel": "unchanged",
+      "evaluation": "same-live-and-saved-composition"
+    },
+    "packagingVolume": {
+      "componentId": "base-form.packaging-volume",
+      "unit": "m3-per-metric-ton-net",
+      "reference": "shared-packaging-types",
+      "perProduct": "multiple-packaging-volume-coefficients-one-default",
+      "positiveDecimals": true,
+      "duplicateProtection": "normalized-type-names-and-product-type-ids",
+      "settings": [
+        "decimalPlaces-2-to-6",
+        "allowNewTypes",
+        "shared-list-permissions"
+      ],
+      "keyboard": {
+        "save": "F3",
+        "cancel": "Escape",
+        "entry": "shared-form-navigation"
+      },
+      "designExport": "schema-settings-plus-packaging-reference-snapshot-no-test-products",
+      "operationalRequirement": "server-reference-and-product-details-persistence-before-activation",
+      "interactionEngine": "FormValueList/NumberControl-shared-with-person-title",
+      "popup": "same-anchored-title-popup-not-a-separate-modal-form",
+      "entry": "two-input-slots-packaging-and-cbm-with-shared-add-edit-remove-default-actions",
+      "appearance": "inherit-existing-field-background-and-shared-green-confirm-including-hover",
+      "missingCoefficient": "complete-in-loading-and-save-to-product-packaging-reference; no-order-requirement",
+      "pairedEntryGeometry": "minimum-420px-popup; both native inputs retain usable-width-and-pointer-hit-targets",
+      "referenceSelection": "shared-names-suggested-through-native-datalist; normalized-name-matches-reuse-stable-type-id",
+      "coefficientScope": "per-product-and-packaging-id; never-copy-another-products-coefficient"
+    },
+    "editorScrollExtent": {
+      "vertical": "visible-input-and-label-bounds-only",
+      "ignore": "unused-canvas-tail-and-obsolete-error-selection-rectangles",
+      "manualMove": "extend-scroll-only-to-real-field-bottom",
+      "preserve": "stored-coordinates-and-canvas-bounds"
+    },
+    "componentPopupResize": {
+      "engine": "NumberControl/FormValueList",
+      "handles": "both-bottom-corners",
+      "mode": "design-test-entry-and-operational-browsing",
+      "persist": "browser-local-per-form-field-and-component",
+      "limits": "viewport-clamped; paired-entry-minimum-420px-when-space-allows",
+      "layout": "floating-popup-only; never-resize-parent-field-or-reflow-form"
+    },
+    "sessionContinuity": {
+      "idleLogout": "disabled; legacy sessionTimeoutMinutes is retained only for API/storage compatibility",
+      "authentication": "single-flight server refresh on explicit 401; retry once; do not retry network-failed writes",
+      "expiry": "keep-workspace-mounted-inert-and-require-same-user-reauthentication; never-bypass-revocation-or-permissions",
+      "manualExit": "confirm-sign-out-and-tab-close-or-Escape; preserve-existing-unsaved-form-guard",
+      "browserExit": "native-beforeunload-warning-when-forms-open; browser-controls-final-wording",
+      "scope": "operational-forms-and-laboratory",
+      "modalPriority": "session-recovery overlay suspends component outside-click, focus and keyboard traps; staged component text remains mounted",
+      "bootstrapFailure": "never logout on access-bootstrap network/503 error; show retry without restarting",
+      "authenticationTimeout": "bounded authentication request with retryable message; preserve workspace and component drafts"
+    },
+    "componentPermissionParity": {
+      "roleSource": "operational: authenticated App roles via inherited ComponentListProvider; Laboratory: explicit admin/user preview selector",
+      "previewOnly": "switching preview role does not change account privileges, saved permissions or backend roles; design mode uses administrator visibility",
+      "creation": "hide add trigger and pending editable rows without add permission; block commit explicitly if permission is unavailable",
+      "editing": "existing definition text is readonly without edit permission; hide edit/delete actions independently",
+      "ordinaryUser": "existing-value selection, optional search and allowed default change remain available",
+      "default": "default selection may enter management without granting add/edit/remove rights",
+      "validation": "permission rejection is distinct from invalid or duplicate entry"
+    },
+    "componentCommitFeedback": {
+      "validation": "separate-permission-duplicate-and-incomplete-errors; preserve-input-and-focus; clear-native-validity-and-error-on-entry-change",
+      "textDuplicates": "normalize-Persian-Arabic-letters-digits-and-whitespace-before-comparing; reuse-existing-choice-without-duplicate-insertion",
+      "packagingDisplay": "packaging-name — CBM-number; no-unit-suffix; single-line-fixed-field-geometry; inspect-multiple-items-in-popup",
+      "verification": "real-browser-duplicate-rejection-then-correct-and-save; paired-CBM-edit-invalid-then-correct-F3; fixed-size-selected-display",
+      "structuredValidation": "whole-form-save-validates-real-packaging-detail-coefficients; numeric-display-caption-is-not-a-scalar-number; retained-numeric-rules-apply-to-each-CBM; missing-details-block-save; edit-restores-packaging-details"
+    },
+    "componentEntryNavigation": {
+      "horizontal": "Enter-order forward/backward across rows only at editing caret edge: RTL Left at logical end, Right at logical start; LTR reversed; partial selection stays in text, whole-value selection may traverse; validation gate uses the same shared predicate",
+      "vertical": "existing component choice navigation unchanged",
+      "packagingReference": "all shared packaging names shown as fixed rows on entry; names cannot be renamed or removed here; CBM editable per product independently of reference-add permission; unused blank coefficients omitted; add new type only with permission; fixed field geometry",
+      "packagingSizing": "default popup width 120% of rendered field width, minimum 240px, viewport-capped; paired name/coefficient slots proportional; manual popup resize ratio retained against current field width; ResizeObserver follows actual field resize without reflow"
+    },
+    "choiceEnterConfirmation": {
+      "scope": "shared value lists, system lookups and native select controls in operational and Laboratory entry",
+      "multiple": "Enter opens the choices even if a value is already selected; explicit selection then advances",
+      "single": "only one known choice may be selected and advanced without opening",
+      "unknownTotal": "server lookup opens selection instead of assuming one loaded result is the only choice",
+      "vertical": "Up/Down selection behavior retained"
+    },
+    "recordUniquenessContract": {
+      "independent": "explicit record-level rule, not catalog option deduplication",
+      "sharedAttributes": "may be reused in distinct records unless the owner explicitly requires independent uniqueness",
+      "composite": "retain explicit field tuple and scope; reject duplicate tuples",
+      "diagnostics": "name the actual rule and field; focus and reveal invalid input without clearing draft or reflowing fields",
+      "repair": "existing rules change only with owner approval; preserve unrelated rules and geometry"
+    },
+    "tableSectionBindingContract": {
+      "accepted": [
+        "table.sectionId matching an active grid section",
+        "active grid section.tableIds containing the table ID"
+      ],
+      "independentOf": "column-to-field bindings",
+      "validation": "same association semantics as the renderer; no requirement to store both representations",
+      "diagnostics": "plain-language explanation; highlight and focus the missing table panel selector; never mark valid columns as broken",
+      "repair": "explicit panel selection changes section association only, preserving columns, field links, appearance and geometry"
+    }
+  }
+}

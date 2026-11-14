@@ -8,15 +8,18 @@ export const designerHistoryLimit = 50
 export const designerElementAppearanceProperties = ['appearancePreset', 'borderWidth', 'borderStyle', 'borderRadius', 'shadowOpacity', 'shadowOffsetX', 'shadowOffsetY', 'shadowBlur', 'shadowSpread', 'shadowInset', 'gradientEnabled', 'gradientStartColor', 'gradientEndColor', 'gradientAngle', 'paddingX', 'paddingY'] as const
 
 export const designerProperties = [
-  'fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'underline', 'strikeThrough', 'script', 'textAlign', 'lineHeight',
+  'fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'underline', 'strikeThrough', 'script', 'textAlign', 'verticalTextAlign', 'lineHeight',
   'backgroundColor', 'textColor', 'labelColor', 'borderColor', 'focusColor', 'focusBackgroundColor', 'focusTextColor', 'focusBorderColor', 'focusLabelColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'selectedColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'errorColor',
-  'componentPopupBackground', 'componentPopupFontSize', 'componentAddBackground', 'componentAddTextColor', 'componentAddWidth', 'componentAddHeight',
+  'componentPopupBackground', 'componentPopupFontSize', 'componentPopupWidth', 'componentPopupButtonWidth', 'componentPopupButtonHeight', 'componentAddBackground', 'componentAddTextColor', 'componentAddWidth', 'componentAddHeight',
   'width', 'height', 'offsetX', 'offsetY', ...designerElementAppearanceProperties
 ] as const
 
 export type DesignerProperty = typeof designerProperties[number]
 export type DesignerValue = string | number | boolean
 export type DesignerPart = 'field' | 'label' | 'input'
+export function isDesignerShortcutKey(event: Pick<KeyboardEvent, 'key' | 'code' | 'keyCode'>, letter: 'a' | 'l'): boolean {
+  return event.key.toLowerCase() === letter || event.code.toLowerCase() === `key${letter}` || event.keyCode === letter.toUpperCase().charCodeAt(0)
+}
 export type DesignerFieldOverride = Partial<Record<DesignerProperty, DesignerValue>>
 export type DesignerActionTextPart = 'code' | 'fa' | 'en' | 'zh'
 export type DesignerActionTextStyle = {
@@ -25,9 +28,9 @@ export type DesignerActionTextStyle = {
   fontWeight?: number
   bold?: boolean
   italic?: boolean
-  underline?: 'single' | 'double'
+  underline?: 'none' | 'single' | 'double'
   strikeThrough?: boolean
-  script?: 'superscript' | 'subscript'
+  script?: 'none' | 'superscript' | 'subscript'
   textColor?: string
   textAlign?: string
   lineHeight?: number
@@ -36,6 +39,8 @@ export type DesignerActionOverride = DesignerFieldOverride & {
   visible?: boolean
   code?: string
   labels?: Partial<Record<'fa' | 'en' | 'zh', string>>
+  manualLabels?: Partial<Record<'fa' | 'en' | 'zh', boolean>>
+  autoLabels?: Partial<Record<'fa' | 'en' | 'zh', string>>
   textStyles?: Partial<Record<DesignerActionTextPart, DesignerActionTextStyle>>
 }
 export const designerAppearancePresets = {
@@ -63,7 +68,7 @@ export const designerAppearanceProperties = [
 ] as const
 export type DesignerAppearanceProperty = typeof designerAppearanceProperties[number]
 export type DesignerAppearance = Partial<Record<DesignerAppearanceProperty, string>>
-export type DesignerTableColumnStyle = { bold?: boolean; italic?: boolean; underline?: 'single' | 'double'; strikeThrough?: boolean; script?: 'superscript' | 'subscript'; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number; textAlign?: 'start' | 'center' | 'end' }
+export type DesignerTableColumnStyle = { bold?: boolean; italic?: boolean; underline?: 'single' | 'double'; strikeThrough?: boolean; script?: 'superscript' | 'subscript'; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number; textAlign?: 'start' | 'center' | 'end' | 'left' | 'right'; verticalTextAlign?: 'top' | 'center' | 'bottom' }
 export type DesignerDraft = {
   format: typeof designerDraftFormat
   schemaVersion: typeof designerDraftVersion
@@ -76,6 +81,8 @@ export type DesignerDraft = {
   tableColumns?: Record<string, DesignerTableColumnStyle>
   tableHeaders?: Record<string, DesignerTableHeaderStyle>
   buttonPressEffect?: boolean
+  actionBarHeight?: number
+  actionBarOffsetY?: number
   neighborResize?: Partial<DesignerNeighborResize>
   appearance?: DesignerAppearance
   defaults?: { input?: DesignerFieldOverride; label?: DesignerFieldOverride }
@@ -83,6 +90,7 @@ export type DesignerDraft = {
   canvas?: DesignerCanvas
   layoutMode?: 'schema' | 'canvas'
   sectionCanvases?: Record<string, DesignerCanvas>
+  flowSlots?: Record<string, { width: number; height: number }>
   tables?: Record<string, DesignerTableSettings>
 }
 export type DesignerTableSettings = Pick<DesignerDraft, 'filterPopupFontSize' | 'gridSearchPosition' | 'tableFont' | 'tableHeaderHeight' | 'tableColumns' | 'tableHeaders'>
@@ -99,7 +107,7 @@ export type DesignerHistoryAction =
 
 const colorProperties = new Set<DesignerProperty>(['componentPopupBackground', 'componentAddBackground', 'componentAddTextColor', 'backgroundColor', 'textColor', 'labelColor', 'borderColor', 'focusColor', 'focusBackgroundColor', 'focusTextColor', 'focusBorderColor', 'focusLabelColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'selectedColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'errorColor', 'gradientStartColor', 'gradientEndColor'])
 export const designerActionProperties: DesignerProperty[] = ['backgroundColor', 'textColor', 'borderColor', 'hoverColor', 'hoverTextColor', 'hoverBorderColor', 'disabledColor', 'disabledTextColor', 'disabledBorderColor', 'width', 'height', 'fontSize', 'fontWeight', 'fontFamily', 'bold', 'italic', 'underline', 'strikeThrough', 'script', 'textAlign', 'lineHeight', ...designerElementAppearanceProperties]
-const effectRanges: Partial<Record<DesignerProperty, readonly [number, number]>> = { componentPopupFontSize: [8, 40], componentAddWidth: [20, 120], componentAddHeight: [20, 120], borderWidth: [0, 12], shadowOpacity: [0, 100], shadowOffsetX: [-40, 40], shadowOffsetY: [-40, 40], shadowBlur: [0, 80], shadowSpread: [-20, 40], gradientAngle: [0, 360], paddingX: [0, 40], paddingY: [0, 40] }
+const effectRanges: Partial<Record<DesignerProperty, readonly [number, number]>> = { componentPopupFontSize: [8, 40], componentPopupWidth: [80, 1200], componentPopupButtonWidth: [24, 240], componentPopupButtonHeight: [20, 80], componentAddWidth: [20, 120], componentAddHeight: [20, 120], borderWidth: [0, 12], shadowOpacity: [0, 100], shadowOffsetX: [-40, 40], shadowOffsetY: [-40, 40], shadowBlur: [0, 80], shadowSpread: [-20, 40], gradientAngle: [0, 360], paddingX: [0, 40], paddingY: [0, 40] }
 const fontFamilies = new Set(['inherit', 'vazirmatn', 'tahoma', 'segoe', 'arial', 'naskh', 'aptos', 'calibri', 'cambria', 'consolas', 'courier', 'georgia', 'times', 'verdana'])
 const fontWeights = new Set([300, 400, 500, 600, 700])
 const alignments = new Set(['start', 'center', 'end', 'left', 'right'])
@@ -133,11 +141,12 @@ function validValue(property: DesignerProperty, value: unknown): value is Design
   if (property === 'fontWeight') return typeof value === 'number' && fontWeights.has(value)
   if (property === 'lineHeight') return typeof value === 'number' && Number.isFinite(value) && value >= 0.8 && value <= 3
   if (property === 'borderRadius') return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100
-  if (dimensions.has(property)) return typeof value === 'number' && Number.isFinite(value) && value >= (property === 'width' || property === 'height' ? 16 : -10000) && value <= (property === 'width' || property === 'height' ? 1200 : 10000)
+  if (dimensions.has(property)) return typeof value === 'number' && Number.isFinite(value) && value >= (property === 'width' || property === 'height' ? 16 : -10000) && value <= (property === 'width' || property === 'height' ? 20000 : 10000)
   if (property === 'textAlign') return typeof value === 'string' && alignments.has(value)
+  if (property === 'verticalTextAlign') return typeof value === 'string' && ['top', 'center', 'bottom'].includes(value)
   if (property === 'bold' || property === 'italic' || property === 'strikeThrough') return typeof value === 'boolean'
-  if (property === 'underline') return value === 'single' || value === 'double'
-  if (property === 'script') return value === 'superscript' || value === 'subscript'
+  if (property === 'underline') return value === 'none' || value === 'single' || value === 'double'
+  if (property === 'script') return value === 'none' || value === 'superscript' || value === 'subscript'
   return false
 }
 
@@ -149,7 +158,8 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
   const overrides: DesignerDraft['overrides'] = {}
   for (const [fieldId, properties] of Object.entries(candidate.overrides)) {
     const [baseId, part] = fieldId.split('::')
-    if (!allowedFields.has(baseId) || (part !== undefined && !['label', 'input'].includes(part)) || !properties || typeof properties !== 'object' || Array.isArray(properties)) continue
+    const composite = /^(.*)\.tree\.(?:[0-4]\.(?:column|title|search|items|add|selected|change)|header|back|all|path|node\.(?:[A-Za-z0-9_.!~*'()-]|%[0-9A-Fa-f]{2})+)$/.exec(baseId)
+    if ((!allowedFields.has(baseId) && !(composite && allowedFields.has(composite[1]))) || (part !== undefined && !['label', 'input'].includes(part)) || !properties || typeof properties !== 'object' || Array.isArray(properties)) continue
     const clean: DesignerFieldOverride = {}
     for (const [name, setting] of Object.entries(properties)) {
       if (!validPropertySet.has(name)) continue
@@ -179,6 +189,10 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     const clean: DesignerActionOverride = {}
     if (typeof values.visible === 'boolean') clean.visible = values.visible
     if (typeof values.code === 'string' && values.code.length <= 32) clean.code = values.code
+    for (const locale of ['fa', 'en', 'zh'] as const) {
+      if (typeof values.manualLabels?.[locale] === 'boolean') (clean.manualLabels ??= {})[locale] = values.manualLabels[locale]
+      if (typeof values.autoLabels?.[locale] === 'string' && values.autoLabels[locale].length <= 160) (clean.autoLabels ??= {})[locale] = values.autoLabels[locale]
+    }
     if (values.labels && typeof values.labels === 'object' && !Array.isArray(values.labels)) {
       const labels: NonNullable<DesignerActionOverride['labels']> = {}
       for (const locale of ['fa', 'en', 'zh'] as const) if (typeof values.labels[locale] === 'string' && values.labels[locale].length <= 160) labels[locale] = values.labels[locale]
@@ -230,7 +244,8 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (typeof value.backgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.backgroundColor)) style.backgroundColor = value.backgroundColor.toLowerCase()
     if (typeof value.fontFamily === 'string' && fontFamilies.has(value.fontFamily)) style.fontFamily = value.fontFamily
     if (typeof value.fontSize === 'number' && Number.isFinite(value.fontSize) && value.fontSize >= 8 && value.fontSize <= 40) style.fontSize = value.fontSize
-    if (value.textAlign==='start'||value.textAlign==='center'||value.textAlign==='end')style.textAlign=value.textAlign
+    if (value.textAlign==='start'||value.textAlign==='center'||value.textAlign==='end'||value.textAlign==='left'||value.textAlign==='right')style.textAlign=value.textAlign
+    if (value.verticalTextAlign==='top'||value.verticalTextAlign==='center'||value.verticalTextAlign==='bottom')style.verticalTextAlign=value.verticalTextAlign
     if (Object.keys(style).length) tableColumns[id] = style
   }
   const tableHeaders: NonNullable<DesignerDraft['tableHeaders']> = {}
@@ -251,7 +266,8 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
     if (typeof value.borderColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.borderColor)) style.borderColor = value.borderColor.toLowerCase()
     if (typeof value.fontFamily === 'string' && fontFamilies.has(value.fontFamily)) style.fontFamily = value.fontFamily
     if (typeof value.fontSize === 'number' && Number.isFinite(value.fontSize) && value.fontSize >= 8 && value.fontSize <= 40) style.fontSize = value.fontSize
-    if (value.textAlign==='start'||value.textAlign==='center'||value.textAlign==='end')style.textAlign=value.textAlign
+    if (value.textAlign==='start'||value.textAlign==='center'||value.textAlign==='end'||value.textAlign==='left'||value.textAlign==='right')style.textAlign=value.textAlign
+    if (value.verticalTextAlign==='top'||value.verticalTextAlign==='center'||value.verticalTextAlign==='bottom')style.verticalTextAlign=value.verticalTextAlign
     if (Object.keys(style).length) tableHeaders[id] = style
   }
   const sectionCanvases: Record<string, DesignerCanvas> = {}
@@ -269,7 +285,33 @@ export function validateDesignerDraft(value: unknown, formId: string, validField
   const neighborResize:Partial<DesignerNeighborResize>={}
   for(const axis of ['horizontal','vertical'] as const)if(typeof candidate.neighborResize?.[axis]==='boolean')neighborResize[axis]=candidate.neighborResize[axis]
   const buttonPressEffect = typeof candidate.buttonPressEffect === 'boolean' ? candidate.buttonPressEffect : undefined
-  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(Object.keys(neighborResize).length?{neighborResize}:{}), ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(tableHeaderHeight !== undefined ? { tableHeaderHeight } : {}), ...(Object.keys(tableFont).length ? { tableFont } : {}), ...(Object.keys(tableColumns).length ? { tableColumns } : {}), ...(Object.keys(tableHeaders).length ? { tableHeaders } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }), ...(['schema', 'canvas'].includes(candidate.layoutMode ?? '') ? { layoutMode: candidate.layoutMode } : {}), ...(Object.keys(sectionCanvases).length ? { sectionCanvases } : {}), ...(Object.keys(tables).length ? { tables } : {}) }
+  const actionBarHeight = typeof candidate.actionBarHeight === 'number' && Number.isFinite(candidate.actionBarHeight) && candidate.actionBarHeight >= 48 && candidate.actionBarHeight <= 220 ? Math.round(candidate.actionBarHeight) : undefined
+  const actionBarOffsetY = typeof candidate.actionBarOffsetY === 'number' && Number.isFinite(candidate.actionBarOffsetY) && candidate.actionBarOffsetY >= -600 && candidate.actionBarOffsetY <= 600 ? Math.round(candidate.actionBarOffsetY) : undefined
+  const flowSlots: NonNullable<DesignerDraft['flowSlots']> = {}
+  if (candidate.flowSlots && typeof candidate.flowSlots === 'object' && !Array.isArray(candidate.flowSlots)) {
+    for (const id of validFieldIds) {
+      const slot = candidate.flowSlots[id]
+      if (slot && Number.isFinite(slot.width) && Number.isFinite(slot.height) && slot.width > 0 && slot.width <= 20000 && slot.height > 0 && slot.height <= 20000) flowSlots[id] = { width: slot.width, height: slot.height }
+    }
+  }
+  return { format: designerDraftFormat, schemaVersion: designerDraftVersion, formId, overrides, ...(Object.keys(flowSlots).length ? { flowSlots } : {}), ...(Object.keys(neighborResize).length?{neighborResize}:{}), ...(filterPopupFontSize !== undefined ? { filterPopupFontSize } : {}), ...(gridSearchPosition ? { gridSearchPosition } : {}), ...(tableHeaderHeight !== undefined ? { tableHeaderHeight } : {}), ...(Object.keys(tableFont).length ? { tableFont } : {}), ...(Object.keys(tableColumns).length ? { tableColumns } : {}), ...(Object.keys(tableHeaders).length ? { tableHeaders } : {}), ...(buttonPressEffect !== undefined ? { buttonPressEffect } : {}), ...(actionBarHeight !== undefined ? { actionBarHeight } : {}), ...(actionBarOffsetY !== undefined ? { actionBarOffsetY } : {}), ...(Object.keys(defaults).length ? { defaults } : {}), ...(Object.keys(actions).length ? { actions } : {}), ...(Object.keys(appearance).length ? { appearance } : {}), ...(canvas && { canvas }), ...(['schema', 'canvas'].includes(candidate.layoutMode ?? '') ? { layoutMode: candidate.layoutMode } : {}), ...(Object.keys(sectionCanvases).length ? { sectionCanvases } : {}), ...(Object.keys(tables).length ? { tables } : {}) }
+}
+
+export function setDesignerActionBarHeight(draft: DesignerDraft, value: number | undefined): DesignerDraft {
+  if (value !== undefined && (!Number.isFinite(value) || value < 48 || value > 220)) return draft
+  if (value === draft.actionBarHeight) return draft
+  if (value === undefined) {
+    const { actionBarHeight: _height, ...rest } = draft
+    return rest
+  }
+  return { ...draft, actionBarHeight: Math.round(value) }
+}
+
+export function setDesignerActionBarOffsetY(draft: DesignerDraft, value: number | undefined): DesignerDraft {
+  if (value !== undefined && (!Number.isFinite(value) || value < -600 || value > 600)) return draft
+  if (value === draft.actionBarOffsetY) return draft
+  if (value === undefined) { const { actionBarOffsetY: _offset, ...rest } = draft; return rest }
+  return { ...draft, actionBarOffsetY: Math.round(value) }
 }
 
 export function setDesignerFilterPopupFontSize(draft: DesignerDraft, value: number | undefined): DesignerDraft {
@@ -297,7 +339,7 @@ export function setDesignerTableHeaderHeight(draft: DesignerDraft, value: number
 }
 
 export function setDesignerTableColumnStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableColumnStyle, value: string | number | boolean | undefined): DesignerDraft {
-  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'textAlign' ? value !== undefined && !['start','center','end'].includes(String(value)) : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'textAlign' ? value !== undefined && !['start','center','end','left','right'].includes(String(value)) : property === 'verticalTextAlign' ? value !== undefined && !['top','center','bottom'].includes(String(value)) : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
   const tableColumns = { ...draft.tableColumns }, style = { ...tableColumns[columnId] }
   if (value === undefined) delete style[property]
   else style[property] = (property === 'textColor' || property === 'backgroundColor' ? String(value).toLowerCase() : value) as never
@@ -307,7 +349,7 @@ export function setDesignerTableColumnStyle(draft: DesignerDraft, columnId: stri
 }
 
 export function setDesignerTableHeaderStyle(draft: DesignerDraft, columnId: string, property: keyof DesignerTableHeaderStyle, value: string | number | boolean | undefined): DesignerDraft {
-  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'textAlign' ? value !== undefined && !['start','center','end'].includes(String(value)) : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
+  if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(columnId) || (['bold', 'italic', 'strikeThrough'].includes(property) ? value !== undefined && typeof value !== 'boolean' : property === 'underline' ? value !== undefined && value !== 'single' && value !== 'double' : property === 'script' ? value !== undefined && value !== 'superscript' && value !== 'subscript' : property === 'textAlign' ? value !== undefined && !['start','center','end','left','right'].includes(String(value)) : property === 'verticalTextAlign' ? value !== undefined && !['top','center','bottom'].includes(String(value)) : property === 'fontFamily' ? value !== undefined && (typeof value !== 'string' || !fontFamilies.has(value)) : property === 'fontSize' ? value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 8 || value > 40) : value !== undefined && (typeof value !== 'string' || !/^#[0-9a-f]{6}$/i.test(value)))) return draft
   const tableHeaders = { ...draft.tableHeaders }, style = { ...tableHeaders[columnId] }
   if (value === undefined) delete style[property]
   else style[property] = (property === 'textColor' || property === 'backgroundColor' || property === 'borderColor' ? String(value).toLowerCase() : value) as never
@@ -386,6 +428,20 @@ export function setDesignerActionProperty(draft: DesignerDraft, actionIds: reado
   return { ...draft, actions }
 }
 
+/** Resize selected footer actions by the same pointer delta while preserving their relative sizes. */
+export function resizeDesignerActions(draft: DesignerDraft, starts: readonly { id: string; size: number }[], property: 'width' | 'height', edge: 'left' | 'right' | 'top' | 'bottom', delta: number): DesignerDraft {
+  const horizontal = edge === 'left' || edge === 'right'
+  if ((property === 'width') !== horizontal || !Number.isFinite(delta)) return draft
+  const limits = designerActionDimensionLimits[property]
+  let next = draft
+  for (const start of starts) {
+    if (!Number.isFinite(start.size)) continue
+    const resized = resizeDesignerEdge(start.size, delta, edge, limits.min, limits.max)
+    next = setDesignerActionProperty(next, [start.id], property, resized.size)
+  }
+  return next
+}
+
 export function setDesignerActionText(draft: DesignerDraft, actionId: string, part: DesignerActionTextPart, value: string | undefined): DesignerDraft {
   if (!/^[a-zA-Z0-9_.-]{1,80}$/.test(actionId) || typeof value !== 'string' || value.length > (part === 'code' ? 32 : 160)) return draft
   const actions = { ...draft.actions }, current = { ...actions[actionId] }
@@ -400,6 +456,55 @@ export function setDesignerActionText(draft: DesignerDraft, actionId: string, pa
   if (Object.keys(current).length) actions[actionId] = current
   else delete actions[actionId]
   return { ...draft, actions }
+}
+
+type ActionLabelLanguage = 'fa' | 'en' | 'zh'
+const actionLabelPhrases: ReadonlyArray<Readonly<Record<ActionLabelLanguage, string>>> = [
+  { fa: 'گروه جدید', en: 'New group', zh: '新建分组' }, { fa: 'ایجاد گروه', en: 'Create group', zh: '创建分组' }, { fa: 'افزودن گروه', en: 'Add group', zh: '添加分组' },
+  { fa: 'شخص جدید', en: 'New person', zh: '新建人员' }, { fa: 'ایجاد شخص', en: 'Create person', zh: '创建人员' }, { fa: 'افزودن شخص', en: 'Add person', zh: '添加人员' },
+  { fa: 'ذخیره فرم', en: 'Save form', zh: '保存表单' }, { fa: 'ذخیره', en: 'Save', zh: '保存' }, { fa: 'ذخیره و بستن', en: 'Save and close', zh: '保存并关闭' },
+  { fa: 'کپی آخرین', en: 'Copy last', zh: '复制上一条' }, { fa: 'کپی آخرین مورد', en: 'Copy last item', zh: '复制最后一项' },
+  { fa: 'کپی انتخابی', en: 'Copy selected', zh: '复制所选' }, { fa: 'کپی انتخاب‌شده', en: 'Copy selection', zh: '复制选中项' },
+  { fa: 'ویرایش اطلاعات', en: 'Edit information', zh: '编辑信息' }, { fa: 'ویرایش', en: 'Edit', zh: '编辑' },
+  { fa: 'حذف انتخاب‌شده', en: 'Delete selected', zh: '删除所选' }, { fa: 'حذف انتخابی', en: 'Delete selection', zh: '删除选中项' }, { fa: 'حذف', en: 'Delete', zh: '删除' },
+  { fa: 'صفحه بعد', en: 'Next page', zh: '下一页' }, { fa: 'صفحهٔ بعد', en: 'Next page', zh: '下一页' }, { fa: 'بعدی', en: 'Next', zh: '下一个' },
+  { fa: 'صفحه قبل', en: 'Previous page', zh: '上一页' }, { fa: 'صفحهٔ قبل', en: 'Previous page', zh: '上一页' }, { fa: 'صفحهٔ قبلی', en: 'Previous page', zh: '上一页' }, { fa: 'قبلی', en: 'Previous', zh: '上一个' },
+  { fa: 'تنظیمات', en: 'Settings', zh: '设置' }, { fa: 'اولین', en: 'First', zh: '首条' }, { fa: 'اول', en: 'First', zh: '首条' }, { fa: 'آخرین', en: 'Last', zh: '末条' }, { fa: 'آخر', en: 'Last', zh: '末条' },
+  { fa: 'مرور', en: 'Browse', zh: '浏览' }, { fa: 'مرور رکوردها', en: 'Browse records', zh: '浏览记录' },
+  { fa: 'خروج از فرم', en: 'Exit form', zh: '退出表单' }, { fa: 'خروج', en: 'Exit', zh: '退出' }, { fa: 'بستن فرم', en: 'Close form', zh: '关闭表单' }, { fa: 'بستن', en: 'Close', zh: '关闭' },
+  { fa: 'جدید', en: 'New', zh: '新建' }, { fa: 'افزودن', en: 'Add', zh: '添加' }, { fa: 'انصراف', en: 'Cancel', zh: '取消' }, { fa: 'تأیید', en: 'Confirm', zh: '确认' }, { fa: 'تایید', en: 'Confirm', zh: '确认' }, { fa: 'جستجو', en: 'Search', zh: '搜索' }, { fa: 'جست‌وجو', en: 'Search', zh: '搜索' }
+]
+// Compare lookup keys only; never rewrite the user's displayed caption.
+const normalizeActionLabelPhrase = (value: string) => value.normalize('NFKC').toLocaleLowerCase()
+  .replace(/[يى]/gu, 'ی').replace(/ك/gu, 'ک')
+  .replace(/[\u064b-\u065f\u0670ـ]/gu, '')
+  .replace(/[\u061c\u200b\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/gu, '')
+  .replace(/[\s\u200c]+/gu, ' ').replace(/[.!؟?،,:;؛]+/gu, '').trim()
+
+/** Translate common form-action labels locally; custom labels remain editable when no known phrase matches. */
+export function translateDesignerActionLabel(value: string, sourceLanguage: ActionLabelLanguage): Partial<Record<ActionLabelLanguage, string>> | undefined {
+  const normalized = normalizeActionLabelPhrase(value)
+  if (!normalized) return undefined
+  const phrase = actionLabelPhrases.find(candidate => normalizeActionLabelPhrase(candidate[sourceLanguage]) === normalized)
+  if (!phrase) return undefined
+  return Object.fromEntries((['fa', 'en', 'zh'] as const).filter(language => language !== sourceLanguage).map(language => [language, phrase[language]]))
+}
+
+/** Preserve authored translations and provenance through export, reload and Undo. */
+export function markDesignerActionLabelManual(draft: DesignerDraft, id: string, locale: ActionLabelLanguage, manual = true): DesignerDraft {
+  const current = draft.actions?.[id] ?? {}
+  return { ...draft, actions: { ...draft.actions, [id]: { ...current, manualLabels: { ...current.manualLabels, [locale]: manual } } } }
+}
+export function applyDesignerActionTranslations(draft: DesignerDraft, id: string, translations: Partial<Record<ActionLabelLanguage, string>>): DesignerDraft {
+  let next = draft
+  for (const locale of ['fa', 'en', 'zh'] as const) {
+    const text = translations[locale]
+    if (typeof text !== 'string' || !text.trim() || text.length > 160 || next.actions?.[id]?.manualLabels?.[locale]) continue
+    next = setDesignerActionText(next, id, locale, text)
+    const current = next.actions![id]
+    next = { ...next, actions: { ...next.actions, [id]: { ...current, autoLabels: { ...current.autoLabels, [locale]: text } } } }
+  }
+  return next
 }
 
 const actionTextStyleProperties = ['fontFamily', 'fontSize', 'fontWeight', 'bold', 'italic', 'underline', 'strikeThrough', 'script', 'textColor', 'textAlign', 'lineHeight'] as const
@@ -438,9 +543,9 @@ export function designerActionTextStyle(draft: DesignerDraft, actionId: string, 
   else if (values.fontWeight !== undefined) style.fontWeight = values.fontWeight
   if (values.italic !== undefined) style.fontStyle = values.italic ? 'italic' : 'normal'
   if (values.textColor !== undefined) style.color = values.textColor
-  if (values.underline || values.strikeThrough) style.textDecorationLine = [values.underline ? 'underline' : '', values.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ')
+  if (values.underline !== undefined || values.strikeThrough !== undefined) style.textDecorationLine = [values.underline === 'single' || values.underline === 'double' ? 'underline' : '', values.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ') || 'none'
   if (values.underline === 'double') style.textDecorationStyle = 'double'
-  if (values.script) { style.verticalAlign = values.script === 'superscript' ? 'super' : 'sub'; style.fontSize = `${Number(values.fontSize ?? 14) * 0.75}px` }
+  if (values.script === 'superscript' || values.script === 'subscript') { style.verticalAlign = values.script === 'superscript' ? 'super' : 'sub'; style.fontSize = `${Number(values.fontSize ?? 14) * 0.75}px` }
   if (values.textAlign !== undefined) style.textAlign = String(values.textAlign)
   if (values.lineHeight !== undefined) style.lineHeight = values.lineHeight
   return style
@@ -532,9 +637,11 @@ export function selectDesignerPart(selection: readonly string[], fieldId: string
   return additive ? selection.includes(key) ? selection.filter(item => item !== key) : [...selection, key] : [key]
 }
 
-export function contextDesignerSelection(selection: readonly string[], target: string): string[] {
-  const group = target.includes('::') ? `${target.split('::')[0]}::field` : target
-  return selection.includes(target) || selection.includes(group) ? [...selection] : [target]
+export function contextDesignerSelection(selection: readonly string[], target: string, additive = false): string[] {
+  const targetId = target.split('::')[0]
+  const alreadySelected = selection.some(item => item === target || item === targetId || item.startsWith(`${targetId}::`))
+  if (alreadySelected) return [...selection]
+  return additive ? [...selection, target] : [target]
 }
 
 export function selectedDesignerInputs(selection: readonly string[], validFieldIds: readonly string[]): string[] {
@@ -707,10 +814,13 @@ export function layoutDesignerFields(
 
 export function resetDesignerFields(draft: DesignerDraft, fieldIds: readonly string[]): DesignerDraft {
   const keys = fieldIds.flatMap(id => { const [baseId, part] = id.split('::'); return part ? [id] : [baseId, `${baseId}::label`, `${baseId}::input`] })
-  if (!keys.some(id => id in draft.overrides)) return draft
+  const resetSlots = new Set(fieldIds.filter(id => !id.endsWith('::label')).map(id => id.split('::')[0]))
+  if (!keys.some(id => id in draft.overrides) && !Object.keys(draft.flowSlots ?? {}).some(id => resetSlots.has(id))) return draft
   const overrides = { ...draft.overrides }
   for (const id of keys) delete overrides[id]
-  return { ...draft, overrides }
+  const flowSlots = Object.fromEntries(Object.entries(draft.flowSlots ?? {}).filter(([id]) => !resetSlots.has(id)))
+  const { flowSlots: _oldSlots, ...rest } = draft
+  return { ...rest, overrides, ...(Object.keys(flowSlots).length ? { flowSlots } : {}) }
 }
 
 export function designerStorageKey(userId: string, formId: string): string {
@@ -789,6 +899,9 @@ export function designerStyleForField(draft: DesignerDraft, fieldId: string): Re
     if (variable && typeof value === 'string') style[variable] = value
   }
   if (values.componentPopupFontSize !== undefined) style['--component-popup-font-size'] = `${values.componentPopupFontSize}px`
+  if (values.componentPopupWidth !== undefined) style['--component-popup-width'] = `${values.componentPopupWidth}px`
+  if (values.componentPopupButtonWidth !== undefined) style['--component-popup-button-width'] = `${values.componentPopupButtonWidth}px`
+  if (values.componentPopupButtonHeight !== undefined) style['--component-popup-button-height'] = `${values.componentPopupButtonHeight}px`
   if (values.componentAddWidth !== undefined) style['--component-add-width'] = `${values.componentAddWidth}px`
   if (values.componentAddHeight !== undefined) style['--component-add-height'] = `${values.componentAddHeight}px`
   if (values.fontFamily && values.fontFamily !== 'inherit') style['--lab-font'] = safeFonts[String(values.fontFamily)]
@@ -796,10 +909,20 @@ export function designerStyleForField(draft: DesignerDraft, fieldId: string): Re
   if (values.fontWeight !== undefined) style['--lab-font-weight'] = String(values.fontWeight)
   if (values.bold !== undefined) style['--lab-bold'] = values.bold ? '700' : '400'
   if (values.italic !== undefined) style['--lab-font-style'] = values.italic ? 'italic' : 'normal'
-  if (values.underline || values.strikeThrough) style['--lab-text-decoration'] = [values.underline ? 'underline' : '', values.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ')
+  if (values.underline !== undefined || values.strikeThrough !== undefined) style['--lab-text-decoration'] = [values.underline === 'single' || values.underline === 'double' ? 'underline' : '', values.strikeThrough ? 'line-through' : ''].filter(Boolean).join(' ') || 'none'
   if (values.underline === 'double') style['--lab-text-decoration-style'] = 'double'
-  if (values.script) { style['--lab-script-size'] = '0.75em'; style['--lab-script-align'] = values.script === 'superscript' ? 'super' : 'sub' }
+  if (values.script !== undefined) { style['--lab-script-size'] = values.script === 'superscript' || values.script === 'subscript' ? '0.75em' : '1em'; style['--lab-script-align'] = values.script === 'superscript' ? 'super' : values.script === 'subscript' ? 'sub' : 'baseline' }
   if (values.textAlign !== undefined) style['--lab-text-align'] = String(values.textAlign)
+  if (values.verticalTextAlign !== undefined) {
+    style['--lab-vertical-text-align'] = String(values.verticalTextAlign)
+    if (values.verticalTextAlign === 'top') {
+      style['--lab-text-pad-before'] = '2px'
+      style['--lab-text-pad-after'] = 'max(2px, calc(var(--lab-height, 36px) - 1.2em - 4px))'
+    } else if (values.verticalTextAlign === 'bottom') {
+      style['--lab-text-pad-before'] = 'max(2px, calc(var(--lab-height, 36px) - 1.2em - 4px))'
+      style['--lab-text-pad-after'] = '2px'
+    }
+  }
   if (values.lineHeight !== undefined) style['--lab-line-height'] = String(values.lineHeight)
   if (values.width !== undefined) style['--lab-width'] = `${values.width}px`
   if (values.height !== undefined) style['--lab-height'] = `${values.height}px`
@@ -836,13 +959,87 @@ export function designerActionStyle(draft: DesignerDraft, actionId: string): Rec
 // Physical canvas coordinates. Editable rectangles never participate in grid sizing.
 export type DesignerRect = { left: number; top: number; width: number; height: number }
 export type DesignerCanvasField = { input: DesignerRect; label: DesignerRect; select?: DesignerRect; error?: DesignerRect }
-export type DesignerCanvas = { width: number; height: number; fields: Record<string, DesignerCanvasField>; centeredFieldIds?: string[] }
+export type DesignerCanvas = { width: number; height: number; fields: Record<string, DesignerCanvasField>; centeredFieldIds?: string[]; alignmentExceptionFieldIds?: string[]; preserveHorizontalBounds?: boolean }
 export type DesignerObstacle = DesignerRect & { id: string }
 export type DesignerAlignment = 'top' | 'bottom' | 'left' | 'right' | 'horizontalCenter' | 'verticalCenter'
 export const designerSafetyGap = 8
+export const designerCanvasEdgeInset = 96 / 2.54 / 2
 const epsilon = 0.1
 export const rightOf = (rect: DesignerRect) => rect.left + rect.width
 export const bottomOf = (rect: DesignerRect) => rect.top + rect.height
+
+/** Grow only the editable canvas bounds; viewport sizing must never translate saved field geometry. */
+export function expandDesignerCanvasBounds(canvas: DesignerCanvas, minimumWidth: number, minimumHeight: number): DesignerCanvas {
+  const width = Math.max(canvas.width, Number.isFinite(minimumWidth) ? minimumWidth : canvas.width)
+  const height = Math.max(canvas.height, Number.isFinite(minimumHeight) ? minimumHeight : canvas.height)
+  return width === canvas.width && height === canvas.height ? canvas : { ...canvas, width, height }
+}
+
+/** Cap an oversized stored Canvas at the editor viewport without moving its fields. */
+export function capDesignerCanvasWidth(canvas: DesignerCanvas, maximumWidth: number): DesignerCanvas {
+  if (!Number.isFinite(maximumWidth) || maximumWidth <= 0) return canvas
+  const width = Math.min(canvas.width, Math.max(320, maximumWidth))
+  return width === canvas.width ? canvas : { ...canvas, width }
+}
+
+/**
+ * Build a render-only Canvas projection that uses the available editor width
+ * until its fields and labels reach the half-centimeter edge insets. Saved
+ * rectangles are never changed; narrower viewports overflow only as much as
+ * the content plus those insets requires.
+ */
+export function fitDesignerCanvasToViewport(
+  canvas: DesignerCanvas,
+  availableWidth: number,
+  fieldIds: readonly string[] = Object.keys(canvas.fields),
+  edgeInset = 96 / 2.54 / 2
+): { canvas: DesignerCanvas; shift: number; minimumWidth: number } {
+  const ids = [...new Set(fieldIds)].filter(id => canvas.fields[id])
+  const rects = ids.map(id => fieldGroupRect(canvas.fields[id]))
+  if (!rects.length || !Number.isFinite(availableWidth) || availableWidth <= 0) {
+    return { canvas, shift: 0, minimumWidth: canvas.width }
+  }
+
+  const contentLeft = Math.min(...rects.map(rect => rect.left))
+  const contentRight = Math.max(...rects.map(rightOf))
+  const contentWidth = contentRight - contentLeft
+  const minimumWidth = contentWidth + edgeInset * 2
+  const width = Math.max(availableWidth, minimumWidth)
+  const shift = (width - contentWidth) / 2 - contentLeft
+  return {
+    canvas: { ...canvas, width, centeredFieldIds: ids },
+    shift,
+    minimumWidth
+  }
+}
+
+/** Keep scrolling active until a growing viewport gives the field group an 8mm
+ * margin; when shrinking, enable it at the normal 5mm margin. The small retained
+ * overflow keeps the scrollbar from toggling repeatedly around one pixel. */
+export function fitDesignerCanvasToViewportWithHysteresis(
+  canvas: DesignerCanvas,
+  availableWidth: number,
+  fieldIds: readonly string[] = Object.keys(canvas.fields),
+  wasOverflowing = false,
+  edgeInset = 96 / 2.54 / 2,
+  releaseInset = 96 / 2.54 * 8 / 10
+): { canvas: DesignerCanvas; shift: number; minimumWidth: number; overflowing: boolean } {
+  const fitted = fitDesignerCanvasToViewport(canvas, availableWidth, fieldIds, edgeInset)
+  const ids = [...new Set(fieldIds)].filter(id => canvas.fields[id])
+  const rects = ids.map(id => fieldGroupRect(canvas.fields[id]))
+  if (!Number.isFinite(availableWidth) || availableWidth <= 0 || !rects.length) {
+    return { ...fitted, overflowing: false }
+  }
+  const releaseWidth = fitted.minimumWidth + Math.max(0, releaseInset - edgeInset) * 2
+  const overflowing = wasOverflowing ? availableWidth < releaseWidth : availableWidth <= fitted.minimumWidth
+  if (!overflowing) return { ...fitted, overflowing: false }
+
+  const contentLeft = Math.min(...rects.map(rect => rect.left))
+  const contentRight = Math.max(...rects.map(rightOf))
+  const width = Math.max(fitted.minimumWidth, availableWidth + 1)
+  const shift = (width - (contentRight - contentLeft)) / 2 - contentLeft
+  return { ...fitted, canvas: { ...fitted.canvas, width }, shift, overflowing: true }
+}
 
 export function validateDesignerCanvas(value: unknown, ids: readonly string[]): DesignerCanvas | undefined {
   if (!value || typeof value !== 'object') return undefined
@@ -860,13 +1057,22 @@ export function validateDesignerCanvas(value: unknown, ids: readonly string[]): 
     const select = cleanRect(field.select), error = cleanRect(field.error)
     fields[id] = { input, label, ...(select && { select }), ...(error && { error }) }
   }
-  return Object.keys(fields).length === ids.length ? { width: canvas.width, height: canvas.height, fields, ...(Array.isArray(canvas.centeredFieldIds)?{centeredFieldIds:canvas.centeredFieldIds.filter(id=>typeof id==='string'&&ids.includes(id))}:{}) } : undefined
+  return Object.keys(fields).length === ids.length ? {
+    width: canvas.width,
+    height: canvas.height,
+    fields,
+    ...(Array.isArray(canvas.centeredFieldIds) ? { centeredFieldIds: canvas.centeredFieldIds.filter(id => typeof id === 'string' && ids.includes(id)) } : {}),
+    ...(Array.isArray(canvas.alignmentExceptionFieldIds) ? { alignmentExceptionFieldIds: [...new Set(canvas.alignmentExceptionFieldIds.filter(id => typeof id === 'string' && ids.includes(id)))] } : {}),
+    ...(canvas.preserveHorizontalBounds === true ? { preserveHorizontalBounds: true } : {})
+  } : undefined
 }
 
 /** Center each selected physical row by its input borders, retaining sizes and gaps. */
 export function centerCanvasRows(canvas:DesignerCanvas,ids:readonly string[]=canvas.centeredFieldIds??[],width=canvas.width):DesignerCanvas {
   const fields={...canvas.fields},rows:string[][]=[]
-  for(const id of [...new Set(ids)].filter(id=>fields[id]).sort((a,b)=>fields[a].input.top-fields[b].input.top)){
+  const exceptions=new Set(canvas.alignmentExceptionFieldIds??[])
+  const centeredIds=[...new Set(ids)].filter(id=>fields[id]&&!exceptions.has(id))
+  for(const id of centeredIds.sort((a,b)=>fields[a].input.top-fields[b].input.top)){
     const input=fields[id].input
     const row=rows.find(row=>row.some(other=>{const r=fields[other].input;return Math.min(bottomOf(r),bottomOf(input))-Math.max(r.top,input.top)>0}))
     if(row)row.push(id);else rows.push([id])
@@ -877,7 +1083,7 @@ export function centerCanvasRows(canvas:DesignerCanvas,ids:readonly string[]=can
     const dx=(width-(right-left))/2-left
     for(const id of row)fields[id]=translateCanvasField(fields[id],dx,0)
   }
-  return {...canvas,width,fields,centeredFieldIds:[...new Set(ids)].filter(id=>fields[id])}
+  return {...canvas,width,fields,centeredFieldIds:centeredIds}
 }
 
 export function canvasObstacles(canvas: DesignerCanvas): DesignerObstacle[] {
@@ -893,6 +1099,509 @@ export function existingCanvasCollisions(canvas: DesignerCanvas): [string, strin
   return parts.flatMap((a, index) => parts.slice(index + 1).filter(b => rectanglesCollide(a, b, 0)).map(b => [a.id, b.id] as [string, string]))
 }
 
+const median = (values: readonly number[]) => {
+  const ordered = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(ordered.length / 2)
+  return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2
+}
+
+const mean = (values: readonly number[]) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0
+const tenth = (value: number) => Math.round(value * 10) / 10
+const boundedMean = (values: readonly number[], fallback: number, min: number, max: number) => {
+  if (!values.length) return fallback
+  const center = median(values)
+  const central = values.filter(value => Math.abs(value - center) <= Math.max(10, Math.abs(center) * 0.4))
+  return tenth(Math.max(min, Math.min(max, mean(central.length ? central : values))))
+}
+
+function coordinateGroups<T>(items: readonly T[], coordinate: (item: T) => number, tolerance: (center: number, group: readonly T[]) => number): T[][] {
+  const groups: T[][] = []
+  for (const item of [...items].sort((a, b) => coordinate(a) - coordinate(b))) {
+    const nearest = groups
+      .map(group => ({ group, center: median(group.map(coordinate)) }))
+      .filter(candidate => Math.abs(coordinate(item) - candidate.center) <= tolerance(candidate.center, candidate.group))
+      .sort((a, b) => Math.abs(coordinate(item) - a.center) - Math.abs(coordinate(item) - b.center))[0]
+    if (nearest) nearest.group.push(item)
+    else groups.push([item])
+  }
+  return groups
+}
+
+/** Toggle fields that the automatic alignment pass must leave at their chosen geometry. */
+export function toggleDesignerCanvasAlignmentException(canvas: DesignerCanvas, fieldIds: readonly string[]): DesignerCanvas {
+  const ids = [...new Set(fieldIds)].filter(id => Boolean(canvas.fields[id]))
+  if (!ids.length) return canvas
+  const exceptions = new Set(canvas.alignmentExceptionFieldIds ?? [])
+  const shouldExclude = ids.some(id => !exceptions.has(id))
+  for (const id of ids) shouldExclude ? exceptions.add(id) : exceptions.delete(id)
+  return { ...canvas, alignmentExceptionFieldIds: exceptions.size ? [...exceptions] : undefined }
+}
+
+/**
+ * Snap near-matching canvas controls to common rows, columns and dimensions.
+ * Large differences are treated as deliberate. F1-exempt fields are ignored.
+ */
+export function autoAlignDesignerCanvas(canvas: DesignerCanvas, options: { rtl?: boolean; fieldIds?: readonly string[]; respectExceptions?: boolean; textareaFieldIds?: readonly string[]; checkboxFieldIds?: readonly string[] } = {}): DesignerCanvas {
+  const rtl = options.rtl === true
+  const exceptions = options.respectExceptions === false ? new Set<string>() : new Set(canvas.alignmentExceptionFieldIds ?? [])
+  const requested = options.fieldIds ? new Set(options.fieldIds) : undefined
+  const ids = Object.keys(canvas.fields).filter(id => !exceptions.has(id))
+  const movableIds = new Set(ids.filter(id => !requested || requested.has(id)))
+  if (ids.length < 2 || movableIds.size === 0) return canvas
+
+  let current: DesignerCanvas = { ...canvas, fields: { ...canvas.fields } }
+  let changed = false
+  const withinOriginalBounds = (candidate: DesignerCanvas) => Object.entries(candidate.fields).every(([id, field]) => Object.entries(field).every(([part, rect]) => {
+    const before = canvas.fields[id]?.[part as keyof DesignerCanvasField]
+    if (!before) return false
+    const wasInside = before.left >= 0 && before.top >= 0 && rightOf(before) <= canvas.width && bottomOf(before) <= canvas.height
+    return !wasInside || (rect.left >= 0 && rect.top >= 0 && rightOf(rect) <= canvas.width && bottomOf(rect) <= canvas.height)
+  }))
+  const commit = (fields: Record<string, DesignerCanvasField>) => {
+    const geometryChanged = Object.keys(fields).some(id => {
+      const before = current.fields[id], after = fields[id]
+      return Object.keys(before ?? {}).some(part => {
+        const a = before[part as keyof DesignerCanvasField], b = after?.[part as keyof DesignerCanvasField]
+        return Boolean(a && b && (a.left !== b.left || a.top !== b.top || a.width !== b.width || a.height !== b.height))
+      })
+    })
+    if (!geometryChanged) return false
+    const candidate = { ...current, fields }
+    if (!withinOriginalBounds(candidate)) return false
+    const before = new Set(existingCanvasCollisions(current).map(pair => [...pair].sort().join('|')))
+    if (existingCanvasCollisions(candidate).some(pair => !before.has([...pair].sort().join('|')))) return false
+    current = candidate
+    changed = true
+    return true
+  }
+  const similarityGroups = (items: readonly string[], dimension: 'width' | 'height') => coordinateGroups(
+    items,
+    id => current.fields[id].input[dimension],
+    (center, group) => Math.max(dimension === 'width' ? 24 : 8, Math.abs(center) * 0.22)
+  )
+  const rowsFor = (items: readonly string[]) => coordinateGroups(
+    items,
+    id => current.fields[id].input.top + current.fields[id].input.height / 2,
+    // Baseline grouping must follow the actual input controls. Label placement
+    // can differ independently; using the full label+input box can split a
+    // visually single row when a newly added field has a small baseline drift.
+    // This tolerance absorbs normal field-height-sized variation, while rows
+    // separated by actual row spacing remain distinct.
+    (_center, group) => Math.max(12, median(group.map(id => current.fields[id].input.height)) * 0.7)
+  )
+  const columnsFor = (items: readonly string[]) => coordinateGroups(
+    items,
+    id => rtl ? rightOf(current.fields[id].input) : current.fields[id].input.left,
+    (_edge, group) => Math.max(12, median(group.map(id => current.fields[id].input.width)) * 0.08)
+  )
+  const equalize = (items: readonly string[], dimension: 'width' | 'height') => {
+    for (const group of similarityGroups(items, dimension).filter(part => part.length > 1)) {
+      const targetSize = Math.round(median(group.map(id => current.fields[id].input[dimension])))
+      const fields = { ...current.fields }
+      for (const id of group) {
+        if (!movableIds.has(id)) continue
+        const field = fields[id], input = field.input, size = input[dimension]
+        if (size === targetSize) continue
+        const delta = dimension === 'width' ? (rtl ? size - targetSize : 0) : (size - targetSize) / 2
+        const moved = translateCanvasField(field, dimension === 'width' ? delta : 0, dimension === 'height' ? delta : 0)
+        fields[id] = { ...moved, input: { ...moved.input, [dimension]: targetSize } }
+      }
+      commit(fields)
+    }
+  }
+  const alignRows = () => {
+    for (const row of rowsFor(ids).filter(group => group.length > 1)) {
+      const anchors = row.filter(id => !movableIds.has(id))
+      const baseline = anchors.length ? anchors : row
+      const center = median(baseline.map(id => current.fields[id].input.top + current.fields[id].input.height / 2))
+      const fields = { ...current.fields }
+      for (const id of row) {
+        if (!movableIds.has(id)) continue
+        const field = fields[id]
+        const delta = Math.round(center - (field.input.top + field.input.height / 2))
+        if (delta) fields[id] = translateCanvasField(field, 0, delta)
+      }
+      commit(fields)
+    }
+  }
+  const alignColumns = () => {
+    for (const column of columnsFor(ids).filter(group => group.length > 1)) {
+      const anchors = column.filter(id => !movableIds.has(id))
+      const baseline = anchors.length ? anchors : column
+      const edge = median(baseline.map(id => rtl ? rightOf(current.fields[id].input) : current.fields[id].input.left))
+      const fields = { ...current.fields }
+      for (const id of column) {
+        if (!movableIds.has(id)) continue
+        const field = fields[id], currentEdge = rtl ? rightOf(field.input) : field.input.left
+        const delta = Math.round(edge - currentEdge)
+        if (delta) fields[id] = translateCanvasField(field, delta, 0)
+      }
+      commit(fields)
+    }
+  }
+  const distributeGaps = (groups: readonly string[][], axis: 'horizontal' | 'vertical') => {
+    for (const group of groups.filter(items => items.length > 2)) {
+      const ordered = [...group].sort((a, b) => axis === 'horizontal'
+        ? rtl ? rightOf(current.fields[b].input) - rightOf(current.fields[a].input) : current.fields[a].input.left - current.fields[b].input.left
+        : current.fields[a].input.top - current.fields[b].input.top)
+      const gaps = ordered.slice(1).map((id, index) => axis === 'horizontal'
+        ? rtl ? current.fields[ordered[index]].input.left - rightOf(current.fields[id].input) : current.fields[id].input.left - rightOf(current.fields[ordered[index]].input)
+        : current.fields[id].input.top - bottomOf(current.fields[ordered[index]].input))
+      if (gaps.some(gap => gap < 0)) continue
+      const targetGap = median(gaps)
+      if (Math.max(...gaps) - Math.min(...gaps) > Math.max(24, targetGap * 0.6)) continue
+      const fields = { ...current.fields }
+      for (let index = 0; index < ordered.length; index++) {
+        const id = ordered[index]
+        if (!movableIds.has(id)) continue
+        const field = fields[id]
+        let dx = 0, dy = 0
+        if (axis === 'horizontal') {
+          const previous = index > 0 ? fields[ordered[index - 1]] : undefined
+          const next = index + 1 < ordered.length ? fields[ordered[index + 1]] : undefined
+          if (previous) dx = rtl ? previous.input.left - targetGap - rightOf(field.input) : rightOf(previous.input) + targetGap - field.input.left
+          else if (next) dx = rtl ? rightOf(next.input) + targetGap - rightOf(field.input) : next.input.left - targetGap - rightOf(field.input)
+        } else {
+          const previous = index > 0 ? fields[ordered[index - 1]] : undefined
+          const next = index + 1 < ordered.length ? fields[ordered[index + 1]] : undefined
+          if (previous) dy = bottomOf(previous.input) + targetGap - field.input.top
+          else if (next) dy = next.input.top - targetGap - bottomOf(field.input)
+        }
+        if (dx || dy) fields[id] = translateCanvasField(field, Math.round(dx), Math.round(dy))
+      }
+      commit(fields)
+    }
+  }
+  const fillTextareaBesideCheckbox = () => {
+    const textareas=new Set(options.textareaFieldIds??[]),checkboxes=new Set(options.checkboxFieldIds??[])
+    if(!textareas.size||!checkboxes.size)return
+    if([...textareas].some(id=>!movableIds.has(id))||[...checkboxes].some(id=>!movableIds.has(id)))return
+    for(const row of rowsFor(ids)){
+      if(row.length!==2)continue
+      const textarea=row.find(id=>textareas.has(id)),checkbox=row.find(id=>checkboxes.has(id))
+      if(!textarea||!checkbox)continue
+      const selectedRects=ids.map(id=>current.fields[id].input)
+      const spanLeft=Math.min(...selectedRects.map(rect=>rect.left)),spanRight=Math.max(...selectedRects.map(rightOf))
+      const checkGroup=fieldGroupRect(current.fields[checkbox]),checkWidth=checkGroup.width,gap=12
+      const textareaField=current.fields[textarea],textareaInput=textareaField.input
+      const fields={...current.fields}
+      if(rtl){
+        const checkboxDx=spanLeft-checkGroup.left,textareaLeft=spanLeft+checkWidth+gap,textareaWidth=spanRight-textareaLeft
+        if(textareaWidth<textareaInput.width||textareaWidth<48)continue
+        fields[checkbox]=translateCanvasField(fields[checkbox],checkboxDx,0)
+        const moved=translateCanvasField(textareaField,textareaLeft-textareaInput.left,0)
+        fields[textarea]={...moved,input:{...moved.input,width:textareaWidth}}
+      }else{
+        const checkboxDx=spanRight-(checkGroup.left+checkGroup.width),textareaWidth=spanRight-checkWidth-gap-spanLeft
+        if(textareaWidth<textareaInput.width||textareaWidth<48)continue
+        fields[checkbox]=translateCanvasField(fields[checkbox],checkboxDx,0)
+        const moved=translateCanvasField(textareaField,spanLeft-textareaInput.left,0)
+        fields[textarea]={...moved,input:{...moved.input,width:textareaWidth}}
+      }
+      commit(fields)
+    }
+  }
+
+  // Equalize approximate dimensions locally in rows and columns, then align and
+  // distribute their gaps. The staged safety check preserves deliberate outliers.
+  for (const row of rowsFor(ids)) { equalize(row, 'width'); equalize(row, 'height') }
+  for (const column of columnsFor(ids)) { equalize(column, 'width'); equalize(column, 'height') }
+  fillTextareaBesideCheckbox()
+  alignRows()
+  alignColumns()
+  distributeGaps(rowsFor(ids), 'horizontal')
+  // A full-width/textarea field can share an edge with a regular column by
+  // coincidence. It may align to that edge, but must not change the regular
+  // fields' vertical gap calculation or undo their row baseline alignment.
+  const verticalSpacingColumns = columnsFor(ids).map(group => {
+    const targetWidth = median(group.map(id => current.fields[id].input.width))
+    const tolerance = Math.max(24, targetWidth * 0.22)
+    return group.filter(id => Math.abs(current.fields[id].input.width - targetWidth) <= tolerance)
+  })
+  distributeGaps(verticalSpacingColumns, 'vertical')
+  return changed ? current : canvas
+}
+
+/**
+ * Rebuild a selected form canvas as a compact, consistently spaced grid.
+ * Unlike local snapping, this is an explicit whole-form operation and includes
+ * F1-exempt fields. RTL forms share a right edge; LTR forms share a left edge.
+ */
+export function levelDesignerCanvas(canvas: DesignerCanvas, options: {
+  rtl?: boolean
+  fieldIds?: readonly string[]
+  textareaFieldIds?: readonly string[]
+  checkboxFieldIds?: readonly string[]
+  activeFieldIds?: readonly string[]
+  horizontalGap?: number
+  verticalGap?: number
+  edgeInset?: number
+} = {}): DesignerCanvas {
+  const ids = [...new Set(options.fieldIds ?? Object.keys(canvas.fields))].filter(id => Boolean(canvas.fields[id]))
+  if (ids.length < 2) return canvas
+  const rtl = options.rtl === true
+  const textareaIds = new Set((options.textareaFieldIds ?? []).filter(id => ids.includes(id)))
+  const checkboxIds = new Set((options.checkboxFieldIds ?? []).filter(id => ids.includes(id)))
+  const activeIds = new Set((options.activeFieldIds ?? []).filter(id => ids.includes(id)))
+  const stable = (id: string) => canvas.fields[id]
+  const group = (id: string) => fieldGroupRect(stable(id))
+  const isLevelable = (id: string) => !textareaIds.has(id) && !checkboxIds.has(id)
+  const ordinaryIds = ids.filter(isLevelable)
+  const labels = new Map<string, { placement: 'above' | 'below' | 'left' | 'right'; gap: number; width: number }>()
+  const overlap = (aStart: number, aEnd: number, bStart: number, bEnd: number) => Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart))
+  for (const id of ids) {
+    const { input, label } = stable(id)
+    const horizontalOverlap = overlap(input.left, rightOf(input), label.left, rightOf(label))
+    const verticalOverlap = overlap(input.top, bottomOf(input), label.top, bottomOf(label))
+    const horizontalRatio = horizontalOverlap / Math.max(1, Math.min(input.width, label.width))
+    const verticalRatio = verticalOverlap / Math.max(1, Math.min(input.height, label.height))
+    const aboveGap = input.top - bottomOf(label)
+    const belowGap = label.top - bottomOf(input)
+    let placement: 'above' | 'below' | 'left' | 'right'
+    let gap: number
+    if (aboveGap >= -4 && aboveGap <= 36 && horizontalRatio >= 0.25) {
+      placement = 'above'; gap = Math.max(0, aboveGap)
+    } else if (belowGap >= -4 && belowGap <= 36 && horizontalRatio >= 0.25) {
+      placement = 'below'; gap = Math.max(0, belowGap)
+    } else if (verticalRatio >= 0.4) {
+      if (label.left + label.width / 2 < input.left + input.width / 2) {
+        placement = 'left'; gap = Math.max(0, input.left - rightOf(label))
+      } else {
+        placement = 'right'; gap = Math.max(0, label.left - rightOf(input))
+      }
+    } else {
+      placement = label.top + label.height / 2 <= input.top + input.height / 2 ? 'above' : 'below'
+      gap = placement === 'above' ? Math.max(0, aboveGap) : Math.max(0, belowGap)
+    }
+    labels.set(id, { placement, gap, width: label.width })
+  }
+  const representativeSize = (values: readonly number[], fallback: readonly number[], min: number, tolerance: number) => {
+    const source = values.filter(value => Number.isFinite(value) && value > 0).length ? values.filter(value => Number.isFinite(value) && value > 0) : fallback
+    if (!source.length) return min
+    const center = median(source)
+    const similar = source.filter(value => Math.abs(value - center) <= Math.max(tolerance, Math.abs(center) * 0.2))
+    return Math.max(min, tenth(mean(similar.length ? similar : source)))
+  }
+  const averageNear = (values: readonly number[], fallback: number, max: number) => {
+    const source = values.filter(value => Number.isFinite(value) && value >= 0 && value <= max)
+    if (!source.length) return fallback
+    const center = median(source)
+    const similar = source.filter(value => Math.abs(value - center) <= Math.max(2, Math.abs(center) * 0.25))
+    return tenth(mean(similar.length ? similar : source))
+  }
+  const labelHeight = representativeSize(ids.map(id => stable(id).label.height), [], 8, 2)
+  const sideLabelWidth = (placement: 'left' | 'right') => representativeSize(
+    ids.filter(id => labels.get(id)?.placement === placement).map(id => stable(id).label.width),
+    [],
+    16,
+    4
+  )
+  const sideLabelWidths = { left: sideLabelWidth('left'), right: sideLabelWidth('right') }
+  const gapFor = (placement: 'above' | 'below' | 'left' | 'right') => averageNear(
+    ids.filter(id => labels.get(id)?.placement === placement).map(id => labels.get(id)!.gap), 3, 36
+  )
+  const labelGaps = { above: gapFor('above'), below: gapFor('below'), left: gapFor('left'), right: gapFor('right') }
+  const labelBox = (id: string, inputWidth: number) => {
+    const info = labels.get(id)!
+    const vertical = info.placement === 'above' || info.placement === 'below'
+    const width = vertical ? inputWidth : info.placement === 'left' || info.placement === 'right' ? sideLabelWidths[info.placement] : info.width
+    return { placement: info.placement, gap: labelGaps[info.placement], width, height: labelHeight }
+  }
+  const groupWidthFor = (id: string, inputWidth: number) => {
+    const label = labelBox(id, inputWidth)
+    return label.placement === 'left' || label.placement === 'right' ? inputWidth + label.width + label.gap : inputWidth
+  }
+  const groupHeightFor = (id: string, inputHeight: number) => {
+    const label = labelBox(id, stable(id).input.width)
+    return label.placement === 'above' || label.placement === 'below' ? inputHeight + label.height + label.gap : Math.max(inputHeight, label.height)
+  }
+
+  const rowAnchorIds = ids.filter(id => !checkboxIds.has(id))
+  const rowAnchorTop = (row: readonly string[]) => {
+    const anchors = row.filter(id => !checkboxIds.has(id))
+    return median((anchors.length ? anchors : row).map(id => group(id).top))
+  }
+  const rowAnchorCenter = (row: readonly string[]) => {
+    const anchors = row.filter(id => !checkboxIds.has(id))
+    return median((anchors.length ? anchors : row).map(id => stable(id).input.top + stable(id).input.height / 2))
+  }
+  let rows = coordinateGroups(
+    rowAnchorIds.length ? rowAnchorIds : ids,
+    id => stable(id).input.top + stable(id).input.height / 2,
+    (_center, row) => Math.max(16, median(row.map(id => stable(id).input.height)) * 0.3)
+  ).sort((a, b) => rowAnchorTop(a) - rowAnchorTop(b))
+
+  // Checkbox controls have a compact box and often sit beside their label, so
+  // their input center can be above the control center of the row they belong
+  // to. Attach each checkbox to the nearest ordinary row before leveling; this
+  // keeps it in that row without letting the checkbox create or anchor a row.
+  if (rowAnchorIds.length) {
+    const checkboxRowTolerance = Math.max(36, median(rowAnchorIds.map(id => stable(id).input.height)) * 0.8)
+    for (const id of ids.filter(item => checkboxIds.has(item))) {
+      const center = stable(id).input.top + stable(id).input.height / 2
+      let nearestIndex = -1, nearestDistance = Number.POSITIVE_INFINITY
+      rows.forEach((row, index) => {
+        const distance = Math.abs(center - rowAnchorCenter(row))
+        if (distance < nearestDistance) { nearestDistance = distance; nearestIndex = index }
+      })
+      if (nearestIndex >= 0 && nearestDistance <= checkboxRowTolerance) rows[nearestIndex].push(id)
+      else rows.push([id])
+    }
+    rows.sort((a, b) => rowAnchorTop(a) - rowAnchorTop(b))
+  }
+
+  const denseRow = rows.map(row => row.filter(isLevelable)).sort((a, b) => b.length - a.length)[0] ?? []
+  const unitWidths = (denseRow.length > 1 ? denseRow : ordinaryIds).map(id => stable(id).input.width)
+  const unitHeights = ordinaryIds.map(id => stable(id).input.height)
+  const cellWidth = representativeSize(unitWidths, ordinaryIds.map(id => stable(id).input.width), 48, 16)
+  const cellHeight = representativeSize(unitHeights, ids.map(id => stable(id).input.height), 24, 6)
+
+  const measuredHorizontalGaps = rows.flatMap(row => {
+    const ordered = [...row].sort((a, b) => group(a).left - group(b).left)
+    return ordered.slice(1).map((id, index) => group(id).left - rightOf(group(ordered[index])))
+  }).filter(gap => gap >= 0 && gap <= 100)
+  const measuredVerticalGaps = rows.slice(1).map((row, index) => {
+    const previousBottom = Math.max(...rows[index].map(id => bottomOf(group(id))))
+    return median(row.map(id => group(id).top)) - previousBottom
+  }).filter(gap => gap >= 0 && gap <= 120)
+  const horizontalGap = Math.max(8, Math.min(40, options.horizontalGap === undefined
+    ? boundedMean(measuredHorizontalGaps, 12, 8, 40)
+    : tenth(options.horizontalGap)))
+  const verticalGap = Math.max(8, Math.min(48, options.verticalGap === undefined
+    ? boundedMean(measuredVerticalGaps, 20, 8, 48)
+    : tenth(options.verticalGap)))
+  const inset = Math.max(8, Math.min(40, tenth(options.edgeInset ?? 96 / 2.54 / 2)))
+
+  // Keep the Notes field with the row derived from its current saved geometry.
+  // It is a textarea with an intentional width, so it must not be stretched to
+  // fill the rest of the panel during global leveling.
+  const notesId = textareaIds.size === 1 ? [...textareaIds][0] : undefined
+  const activeCheckboxId = [...checkboxIds].find(id => activeIds.has(id) || /active/i.test(id))
+    ?? (checkboxIds.size === 1 ? [...checkboxIds][0] : undefined)
+
+  const inputWidthFor = (id: string) => {
+    const originalWidth = stable(id).input.width
+    if (checkboxIds.has(id)) return 14
+    if (!isLevelable(id)) return originalWidth
+    const span = Math.max(1, Math.round((originalWidth + horizontalGap) / (cellWidth + horizontalGap)))
+    return tenth(span * cellWidth + (span - 1) * horizontalGap)
+  }
+  const isFlexibleRow = (row: readonly string[]) => Boolean(
+    notesId && activeCheckboxId && row.length === 2 && row.includes(notesId) && row.includes(activeCheckboxId)
+  )
+  const rowWidthFor = (row: readonly string[]) => row.reduce((sum, id) => sum + groupWidthFor(id, inputWidthFor(id)), 0) + Math.max(0, row.length - 1) * horizontalGap
+  const rowWidths = rows.filter(row => !isFlexibleRow(row)).map(rowWidthFor)
+  const minimumNotesWidth = notesId && activeCheckboxId
+    ? groupWidthFor(notesId, 48) + groupWidthFor(activeCheckboxId, inputWidthFor(activeCheckboxId)) + horizontalGap
+    : 0
+  const contentWidth = Math.max(minimumNotesWidth, ...rowWidths, 0)
+  const width = Math.max(canvas.width, Math.ceil(contentWidth + inset * 2))
+  const fields: DesignerCanvas['fields'] = { ...canvas.fields }
+  let rowTop = Math.max(inset, Math.min(...(rowAnchorIds.length ? rowAnchorIds : ids).map(id => group(id).top)))
+
+  const placeField = (id: string, groupLeft: number, groupTop: number, targetWidth = stable(id).input.width, targetHeight = stable(id).input.height) => {
+    const original = stable(id)
+    const label = labelBox(id, targetWidth)
+    let inputLeft = groupLeft
+    if (label.placement === 'left') inputLeft += label.width + label.gap
+    const groupHeight = groupHeightFor(id, targetHeight)
+    const inputTop = label.placement === 'above'
+      ? groupTop + label.height + label.gap
+      : label.placement === 'below'
+        ? groupTop
+        : groupTop + (groupHeight - targetHeight) / 2
+    const labelLeft = label.placement === 'left'
+      ? groupLeft
+      : label.placement === 'right'
+        ? inputLeft + targetWidth + label.gap
+        : inputLeft
+    const labelTop = label.placement === 'above'
+      ? groupTop
+      : label.placement === 'below'
+        ? inputTop + targetHeight + label.gap
+        : groupTop + (groupHeight - label.height) / 2
+    const dx = inputLeft - original.input.left
+    const dy = inputTop - original.input.top
+    const translated = translateCanvasField(original, dx, dy)
+    fields[id] = {
+      ...translated,
+      ...(translated.select ? { select: { ...translated.select, left: tenth(inputLeft + 4) } } : {}),
+      input: { ...translated.input, left: tenth(inputLeft), top: tenth(inputTop), width: targetWidth, height: targetHeight },
+      label: { ...translated.label, left: tenth(labelLeft), top: tenth(labelTop), width: label.width, height: label.height }
+    }
+  }
+
+  for (const row of rows) {
+    const isNotesRow = isFlexibleRow(row)
+    const ordered = isNotesRow
+      ? (rtl ? [activeCheckboxId!, notesId!] : [notesId!, activeCheckboxId!])
+      : [...row].sort((a, b) => rtl ? rightOf(group(b)) - rightOf(group(a)) : group(a).left - group(b).left)
+    const rowWidth = rowWidthFor(ordered)
+    const inputHeightFor = (id: string) => checkboxIds.has(id) ? 14 : isLevelable(id) ? cellHeight : stable(id).input.height
+    const rowHeight = Math.max(...ordered.map(id => groupHeightFor(id, inputHeightFor(id))))
+    if (isNotesRow) {
+      const checkbox = activeCheckboxId!
+      const notes = notesId!
+      const checkboxWidth = groupWidthFor(checkbox, inputWidthFor(checkbox))
+      const notesWidth = Math.max(48, contentWidth - checkboxWidth - horizontalGap - (groupWidthFor(notes, 48) - 48))
+      const notesGroupWidth = groupWidthFor(notes, notesWidth)
+      const rowWidth = notesGroupWidth + checkboxWidth + horizontalGap
+      const rowLeft = (width - rowWidth) / 2
+      const notesGroupLeft = rtl ? rowLeft + checkboxWidth + horizontalGap : rowLeft
+      const checkboxGroupLeft = rtl ? rowLeft : rowLeft + notesGroupWidth + horizontalGap
+      placeField(notes, notesGroupLeft, rowTop, notesWidth, cellHeight)
+      const notesCenter = fields[notes].input.top + cellHeight / 2
+      const checkboxTop = notesCenter - groupHeightFor(checkbox, inputHeightFor(checkbox)) / 2
+      placeField(checkbox, checkboxGroupLeft, checkboxTop, inputWidthFor(checkbox), inputHeightFor(checkbox))
+    } else {
+      let cursor = rtl ? (width + contentWidth) / 2 : (width - contentWidth) / 2
+      for (const id of ordered) {
+        const targetWidth = inputWidthFor(id)
+        const targetHeight = inputHeightFor(id)
+        const allocationWidth = groupWidthFor(id, targetWidth)
+        const groupLeft = rtl ? cursor - allocationWidth : cursor
+        placeField(id, groupLeft, rowTop, targetWidth, targetHeight)
+        cursor = rtl ? groupLeft - horizontalGap : groupLeft + allocationWidth + horizontalGap
+      }
+    }
+    rowTop = isNotesRow
+      ? Math.max(...row.map(id => bottomOf(fieldGroupRect(fields[id])))) + verticalGap
+      : rowTop + rowHeight + verticalGap
+  }
+
+  const height = Math.max(canvas.height, Math.ceil(rowTop - verticalGap + inset))
+  const exceptions = new Set(canvas.alignmentExceptionFieldIds ?? [])
+  const centeredFieldIds = [...new Set([
+    ...(canvas.centeredFieldIds ?? []).filter(id => !ids.includes(id)),
+    ...ids.filter(id => !exceptions.has(id))
+  ])]
+  return { ...canvas, width, height, fields, preserveHorizontalBounds: true, centeredFieldIds }
+}
+
+/** Move a complete selection to one horizontal canvas edge without changing its vertical layout. */
+export function alignDesignerCanvasFieldsToEdge(canvas: DesignerCanvas, ids: readonly string[], edge: 'left' | 'right', edgeInset = designerCanvasEdgeInset, visibleEdgeWidth = canvas.width, visibleOriginOffset = 0): DesignerCanvas {
+  const selected = [...new Set(ids)].filter(id => Boolean(canvas.fields[id]))
+  if (!selected.length) return canvas
+  const bounds = selected.map(id => fieldGroupRect(canvas.fields[id]))
+  const left = Math.min(...bounds.map(rect => rect.left))
+  const right = Math.max(...bounds.map(rightOf))
+  const groupWidth = right - left
+  const targetWidth = Number.isFinite(visibleEdgeWidth) && visibleEdgeWidth > 0 ? visibleEdgeWidth : canvas.width
+  const inset = Math.max(0, Math.min(targetWidth / 2, edgeInset))
+  // Align to the visible editor edge whenever the selection fits there. If it
+  // does not, retain the wider content Canvas so scrolling can reach its edge.
+  const edgeWidth = groupWidth + inset * 2 <= targetWidth ? targetWidth : canvas.width
+  // Render-only responsive translation moves the visible edge without changing
+  // saved coordinates. Compensate for it here so the rendered inset stays exact.
+  const offset = Number.isFinite(visibleOriginOffset) ? visibleOriginOffset : 0
+  const delta = edge === 'left' ? inset - offset - left : edgeWidth - inset - offset - right
+  const positioned = { ...canvas, preserveHorizontalBounds: true, centeredFieldIds: canvas.centeredFieldIds?.filter(id => !selected.includes(id)) }
+  if (Math.abs(delta) < epsilon) return positioned
+  const fields = { ...canvas.fields }
+  for (const id of selected) fields[id] = translateCanvasField(fields[id], delta, 0)
+  return { ...positioned, fields }
+}
+
 export function resizeCanvasInput(initial: DesignerRect, edge: 'left' | 'right' | 'top' | 'bottom', delta: number, container: DesignerRect, obstacles: readonly DesignerRect[], gap = designerSafetyGap): DesignerRect {
   const horizontal = edge === 'left' || edge === 'right'
   const leading = edge === 'left' || edge === 'top'
@@ -900,7 +1609,7 @@ export function resizeCanvasInput(initial: DesignerRect, edge: 'left' | 'right' 
   const end = horizontal ? rightOf(initial) : bottomOf(initial)
   const size = horizontal ? initial.width : initial.height
   const minimum = Math.min(size, horizontal ? 48 : 24)
-  const maximum = Math.max(size, horizontal ? 1000 : 600)
+  const maximum = 20000
   let low = leading ? Math.min(start, horizontal ? container.left : container.top) : start + minimum
   let high = leading ? end - minimum : Math.max(end, horizontal ? rightOf(container) : bottomOf(container))
   if (leading) low = Math.max(low, end - maximum)
@@ -929,25 +1638,111 @@ export function resizeCanvasInput(initial: DesignerRect, edge: 'left' | 'right' 
   return next
 }
 
-export function resizeCanvasInputs(canvas: DesignerCanvas, ids: readonly string[], edge: 'left' | 'right' | 'top' | 'bottom', delta: number, extra: readonly DesignerObstacle[] = []): DesignerCanvas {
+/** Keep labels and field chrome attached to the input while its geometry changes. */
+function followInputResize(field: DesignerCanvasField, input: DesignerRect): DesignerCanvasField {
+  const before = field.input
+  if (before.left === input.left && before.top === input.top && before.width === input.width && before.height === input.height) return field
+  const horizontalLeftDelta = input.left - before.left
+  const horizontalRightDelta = rightOf(input) - rightOf(before)
+  const alignHorizontally = (part: DesignerRect): DesignerRect => {
+    if (Math.abs(part.width - before.width) <= Math.max(1, before.width * 0.02)) {
+      return { ...part, left: input.left, width: input.width }
+    }
+    const leftAligned = Math.abs(part.left - before.left)
+    const rightAligned = Math.abs(rightOf(part) - rightOf(before))
+    return { ...part, left: part.left + (rightAligned <= leftAligned ? horizontalRightDelta : horizontalLeftDelta) }
+  }
+  const label = alignHorizontally(field.label)
+  const labelVerticalDelta = input.top - before.top
+  const select = field.select ? { ...field.select, left: field.select.left + horizontalLeftDelta, top: field.select.top + labelVerticalDelta } : undefined
+  let error = field.error ? alignHorizontally(field.error) : undefined
+  if (error) {
+    const topAnchorGap = Math.min(Math.abs(error.top - before.top), Math.abs(bottomOf(error) - before.top))
+    const bottomAnchorGap = Math.min(Math.abs(error.top - bottomOf(before)), Math.abs(bottomOf(error) - bottomOf(before)))
+    error.top += bottomAnchorGap <= topAnchorGap ? input.top + input.height - bottomOf(before) : labelVerticalDelta
+    if (Math.abs(error.width - before.width) <= Math.max(1, before.width * 0.02)) error.width = input.width
+  }
+  return { ...field, input, label: { ...label, top: label.top + labelVerticalDelta }, ...(select ? { select } : {}), ...(error ? { error } : {}) }
+}
+
+/** Visible space can exceed a saved, centered layout. Keep its coordinate origin
+ * unchanged and pass these transient bounds only to manual geometry commands. */
+export function designerCanvasInteractionBounds(canvas:DesignerCanvas,visibleWidth:number,viewShift=0):DesignerRect {
+  return {left:Math.min(0,-viewShift),top:0,width:Math.max(canvas.width,visibleWidth),height:canvas.height}
+}
+
+export function resizeCanvasInputs(canvas: DesignerCanvas, ids: readonly string[], edge: 'left' | 'right' | 'top' | 'bottom', delta: number, extra: readonly DesignerObstacle[] = [], bounds?:DesignerRect): DesignerCanvas {
   const parts = [...canvasObstacles(canvas), ...extra]
-  const container = { left: 0, top: 0, width: canvas.width, height: canvas.height }
+  const selected = new Set(ids)
+  const inset=bounds?Math.min(designerCanvasEdgeInset,bounds.width/2):0
+  const container = bounds?{...bounds,left:bounds.left+inset,width:bounds.width-2*inset}:{ left: 0, top: 0, width: canvas.width, height: canvas.height }
   const fields = { ...canvas.fields }
   for (const id of ids) {
     const field = canvas.fields[id]
     if (!field) continue
-    // Selection controls are Designer chrome. A field's own label may have a
-    // smaller normal vertical gap; it must not prevent horizontal resizing.
-    const input = resizeCanvasInput(field.input, edge, delta, container, parts.filter(part => !part.id.endsWith('::select') && part.id !== `${id}::input` && (!['left','right'].includes(edge) || part.id !== `${id}::label`)))
-    fields[id] = { ...field, input }
+    // Selection controls, labels and error overlays are attached parts, not
+    // obstacles to their own input resize; followInputResize updates them.
+    const ownParts = new Set([`${id}::input`, `${id}::label`, `${id}::error`])
+    const input = resizeCanvasInput(field.input, edge, delta, container, parts.filter(part => !part.id.endsWith('::select') && !ownParts.has(part.id) && !selected.has(part.id.split('::')[0])))
+    fields[id] = followInputResize(field, input)
   }
-  return { ...canvas, fields }
+  return { ...canvas, fields, ...(bounds?{preserveHorizontalBounds:true}: {}) }
 }
 
 export const designerResizeHandles = ['left', 'right', 'top', 'bottom', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] as const
 export type DesignerResizeHandle = typeof designerResizeHandles[number]
 export type DesignerNeighborResize = { horizontal:boolean; vertical:boolean }
-export const laboratoryResizeContract = { axes:['horizontal','vertical'], minimumWidth:48, minimumHeight:24, preserveGap:true, preserveOuterSpan:true, persistentRowCentering:true, atomicUndo:true } as const
+export const laboratoryResizeContract = { axes:['horizontal','vertical'], minimumWidth:48, minimumHeight:24, preserveGap:true, preserveOuterSpan:true, persistentRowCentering:true, preserveOppositeEdge:true, atomicUndo:true, automaticLayoutLocksManualGeometry:false, manualHorizontalBounds:'visible-editor-half-centimeter-inset', preserveUnselectedGeometry:true, selectedRowSizing:"arithmetic-mean", selectedRowSpacing:"mean-input-edge-gaps", partialSelectionSmartLayout:true, neighborCompensationDefault:false, neighborCompensationRequiresExplicitChoice:true, missingNeighborResize:"independent-within-editor-bounds" } as const
+
+/** Shared layout calculation for canvas fields and measured component surfaces.
+ * Persistence (Canvas rectangles versus flow offsets) is an adapter concern. */
+export function layoutDesignerCanvasSelection(canvas: DesignerCanvas, ids: readonly string[], options: {
+  operation: DesignerLayoutOperation; orientation: DesignerLayoutOrientation; gap: number; rtl: boolean;
+  referenceId?: string; width?: number; height?: number; verticalGap?: number; wrapWidth?: number
+}, deferValidation = false): { canvas: DesignerCanvas; blockedBy?: string } {
+  const targets = [...new Set(ids)].filter(id => Boolean(canvas.fields[id]))
+  if (targets.length < 2) return { canvas }
+  const measured = targets.map(id => {
+    const field = canvas.fields[id], rect = fieldGroupRect(field)
+    return { id, ...rect, right: rightOf(rect), bottom: bottomOf(rect), inputWidth: field.input.width, inputHeight: field.input.height, labelWidth: field.label.width, labelHeight: field.label.height }
+  })
+  const draft = { overrides: {} } as DesignerDraft
+  const changed = layoutDesignerFields(draft, measured, options, targets)
+  const fields = { ...canvas.fields }
+  for (const id of targets) {
+    const values = changed.overrides[id + '::input'] ?? {}
+    const original = fields[id]
+    const input = { ...original.input, width: Number(values.width ?? original.input.width), height: Number(values.height ?? original.input.height) }
+    if (options.rtl && ['equalWidth', 'equalSize'].includes(options.operation)) input.left += original.input.width - input.width
+    fields[id] = translateCanvasField(followInputResize(original, input), Number(values.offsetX ?? 0), Number(values.offsetY ?? 0))
+  }
+  const height = options.operation === 'arrange' ? Math.max(canvas.height, ...Object.values(fields).map(field => bottomOf(fieldGroupRect(field)) + 12)) : canvas.height
+  const proposed = { ...canvas, fields, height }
+  const blockedBy = deferValidation ? undefined : height > 20000 ? 'container' : validateCanvasArrangement(canvas, proposed, targets, [], Math.min(8, options.gap, options.verticalGap ?? options.gap), true)
+  return blockedBy ? { canvas, blockedBy } : { canvas: proposed }
+}
+
+/** Normalize a selected input-only row using its measured spacing. The same
+ * command is available to any registered surface, independent of its content. */
+export function levelDesignerInputRow(canvas: DesignerCanvas, ids: readonly string[], rtl: boolean, centerWidth?: number): { canvas: DesignerCanvas; blockedBy?: string } {
+  const targets = [...new Set(ids)].filter(id => Boolean(canvas.fields[id]))
+  if (targets.length < 2) return { canvas }
+  const boxes = targets.map(id => canvas.fields[id].input).sort((a, b) => a.left - b.left)
+  const gap = Math.max(0, mean(boxes.slice(1).map((rect, i) => rect.left - rightOf(boxes[i]))))
+  const width = mean(boxes.map(rect => rect.width)), height = mean(boxes.map(rect => rect.height))
+  const ordered = [...targets].sort((a,b)=>canvas.fields[a].input.left-canvas.fields[b].input.left)
+  const span = width * ordered.length + gap * (ordered.length - 1)
+  const left = centerWidth === undefined ? (boxes[0].left + rightOf(boxes[boxes.length-1]) - span) / 2 : (centerWidth-span)/2
+  const top = mean(boxes.map(rect => rect.top))
+  const fields = {...canvas.fields}
+  for (const [index,id] of ordered.entries()) {
+    const original = canvas.fields[id]
+    fields[id] = followInputResize(original,{...original.input,left:left+index*(width+gap),top,width,height})
+  }
+  const proposed = {...canvas,fields}
+  const blockedBy = validateCanvasArrangement(canvas, proposed, targets, [], Math.min(8, gap), true)
+  return blockedBy ? { canvas, blockedBy } : { canvas: proposed }
+}
 
 function canvasResizeNeighbor(canvas:DesignerCanvas,id:string,edge:'left'|'right'|'top'|'bottom') {
   const initial=canvas.fields[id]?.input;if(!initial)return undefined
@@ -971,15 +1766,10 @@ export function resizeCanvasNeighborInput(canvas:DesignerCanvas,id:string,edge:'
   const low=leading?Math.max(initial[size]-ownMax,otherMin-neighbor.field.input[size]):Math.max(ownMin-initial[size],neighbor.field.input[size]-otherMax)
   const high=leading?Math.min(initial[size]-ownMin,otherMax-neighbor.field.input[size]):Math.min(ownMax-initial[size],neighbor.field.input[size]-otherMin)
   const amount=Math.max(low,Math.min(high,delta));if(Math.abs(amount)<0.001)return canvas
-  const adjust=(before:DesignerCanvasField,input:DesignerRect):DesignerCanvasField=>{
-    const dx=horizontal?(Math.abs(rightOf(before.label)-rightOf(before.input))<=Math.abs(before.label.left-before.input.left)?rightOf(input)-rightOf(before.input):input.left-before.input.left):0
-    const dy=horizontal?0:input.top-before.input.top
-    return {...before,input,label:{...before.label,left:before.label.left+dx,top:before.label.top+dy},...(before.select?{select:{...before.select,left:before.select.left+input.left-before.input.left,top:before.select.top+dy}}:{}),...(before.error?{error:{...before.error,left:before.error.left+input.left-before.input.left,top:before.error.top+bottomOf(input)-bottomOf(before.input)}}:{})}
-  }
   const build=(d:number):DesignerCanvas=>{
     const input={...initial,[pos]:start+(leading?d:0),[size]:initial[size]+(leading?-d:d)}
     const other={...neighbor.field.input,[pos]:neighbor.field.input[pos]+(leading?0:d),[size]:neighbor.field.input[size]+(leading?d:-d)}
-    return {...canvas,fields:{...canvas.fields,[id]:adjust(field,input),[neighbor.id]:adjust(neighbor.field,other)}}
+    return {...canvas,fields:{...canvas.fields,[id]:followInputResize(field,input),[neighbor.id]:followInputResize(neighbor.field,other)}}
   }
   const parts=canvasObstacles(canvas).filter(part=>!part.id.endsWith('::select'))
   const area=(a:DesignerRect,b:DesignerRect)=>Math.max(0,Math.min(rightOf(a),rightOf(b))-Math.max(a.left,b.left))*Math.max(0,Math.min(bottomOf(a),bottomOf(b))-Math.max(a.top,b.top))
@@ -998,7 +1788,7 @@ export function resizeCanvasNeighborInput(canvas:DesignerCanvas,id:string,edge:'
 }
 
 /** Numeric sizes use the same physical boundary operation as pointer/keyboard. */
-export function resizeCanvasDimension(canvas:DesignerCanvas,ids:readonly string[],dimension:'width'|'height',value:number,preserve?:Partial<DesignerNeighborResize>,rtl=false):DesignerCanvas {
+export function resizeCanvasDimension(canvas:DesignerCanvas,ids:readonly string[],dimension:'width'|'height',value:number,preserve?:Partial<DesignerNeighborResize>,rtl=false,bounds?:DesignerRect):DesignerCanvas {
   if(!Number.isFinite(value))return canvas
   const horizontal=dimension==='width',locked=horizontal?preserve?.horizontal:preserve?.vertical
   if(locked&&ids.length!==1)return canvas
@@ -1008,19 +1798,70 @@ export function resizeCanvasDimension(canvas:DesignerCanvas,ids:readonly string[
     let edge:'left'|'right'|'top'|'bottom'=horizontal?(rtl?'left':'right'):'bottom'
     if(locked&&!canvasResizeNeighbor(next,id,edge)){const alternate=edge==='left'?'right':edge==='right'?'left':'top';if(canvasResizeNeighbor(next,id,alternate))edge=alternate}
     const delta=(value-rect[dimension])*(edge==='left'||edge==='top'?-1:1)
-    next=resizeCanvasHandle(next,[id],edge,horizontal?delta:0,horizontal?0:delta,preserve)
+    next=resizeCanvasHandle(next,[id],edge,horizontal?delta:0,horizontal?0:delta,preserve,bounds)
   }
   return next
 }
 
-export function resizeCanvasHandle(canvas: DesignerCanvas, ids: readonly string[], handle: DesignerResizeHandle, dx: number, dy: number, preserve?:Partial<DesignerNeighborResize>): DesignerCanvas {
+/** Neighbour compensation is an explicit Designer choice, never a runtime policy default. */
+export function resolveDesignerNeighborResize(draft: Pick<DesignerDraft,'neighborResize'>): DesignerNeighborResize {
+  return {horizontal:draft.neighborResize?.horizontal===true,vertical:draft.neighborResize?.vertical===true}
+}
+
+export function resizeCanvasHandle(canvas: DesignerCanvas, ids: readonly string[], handle: DesignerResizeHandle, dx: number, dy: number, preserve?:Partial<DesignerNeighborResize>, bounds?:DesignerRect): DesignerCanvas {
   let next = canvas
-  if (dx && (handle.includes('left') || handle.includes('right'))) next = preserve?.horizontal ? ids.length===1?resizeCanvasNeighborInput(next,ids[0],handle.includes('left')?'left':'right',dx):next : resizeCanvasInputs(next, ids, handle.includes('left') ? 'left' : 'right', dx)
-  if (dy && (handle.includes('top') || handle.includes('bottom'))) next = preserve?.vertical ? ids.length===1?resizeCanvasNeighborInput(next,ids[0],handle.includes('top')?'top':'bottom',dy):next : resizeCanvasInputs(next, ids, handle.includes('top') ? 'top' : 'bottom', dy)
+  if (dx && (handle.includes('left') || handle.includes('right'))) {
+    const edge=handle.includes('left')?'left':'right'
+    next=preserve?.horizontal
+      ?ids.length===1?(canvasResizeNeighbor(next,ids[0],edge)?resizeCanvasNeighborInput(next,ids[0],edge,dx):resizeCanvasInputs(next,ids,edge,dx,[],bounds)):next
+      :resizeCanvasInputs(next,ids,edge,dx,[],bounds)
+  }
+  if (dy && (handle.includes('top') || handle.includes('bottom'))) {
+    const edge=handle.includes('top')?'top':'bottom'
+    next=preserve?.vertical
+      ?ids.length===1?(canvasResizeNeighbor(next,ids[0],edge)?resizeCanvasNeighborInput(next,ids[0],edge,dy):resizeCanvasInputs(next,ids,edge,dy,[],bounds)):next
+      :resizeCanvasInputs(next,ids,edge,dy,[],bounds)
+  }
   return ids.every(id => {
     const before = canvas.fields[id]?.input, after = next.fields[id]?.input
     return before === after || (before && after && before.left === after.left && before.top === after.top && before.width === after.width && before.height === after.height)
   }) ? canvas : next
+}
+
+/** Snap only the edges the user resized to nearby stationary field edges. */
+export function snapResizedCanvasInputsToPeers(canvas: DesignerCanvas, ids: readonly string[], handle: DesignerResizeHandle, preserve?: Partial<DesignerNeighborResize>,bounds?:DesignerRect): DesignerCanvas {
+  const targets = new Set(ids.filter(id => Boolean(canvas.fields[id])))
+  const exceptions = new Set(canvas.alignmentExceptionFieldIds ?? [])
+  if (!targets.size) return canvas
+  let next = canvas
+  // Snapping a shared boundary after a neighbour-preserving resize would undo
+  // one side of the transaction and leave its peer at the expanded size.
+  const edges = (['left', 'right', 'top', 'bottom'] as const).filter(edge => handle.includes(edge)
+    && !(preserve?.horizontal && (edge === 'left' || edge === 'right'))
+    && !(preserve?.vertical && (edge === 'top' || edge === 'bottom')))
+  for (const id of targets) {
+    if (exceptions.has(id)) continue
+    for (const edge of edges) {
+      const rect = next.fields[id]?.input
+      if (!rect) continue
+      const horizontal = edge === 'left' || edge === 'right'
+      const edgeOf = (candidate: DesignerRect) => edge === 'left' ? candidate.left : edge === 'right' ? rightOf(candidate) : edge === 'top' ? candidate.top : bottomOf(candidate)
+      const currentEdge = edgeOf(rect)
+      const anchors = Object.entries(next.fields)
+        .filter(([peerId]) => !targets.has(peerId) && !exceptions.has(peerId))
+        .map(([, field]) => edgeOf(field.input))
+      if (!anchors.length) continue
+      const anchor = anchors.reduce((closest, value) => Math.abs(value - currentEdge) < Math.abs(closest - currentEdge) ? value : closest)
+      const tolerance = Math.max(12, Math.min(24, (horizontal ? rect.width : rect.height) * 0.08))
+      const delta = anchor - currentEdge
+      if (Math.abs(delta) <= epsilon || Math.abs(delta) > tolerance) continue
+      const snapped = resizeCanvasInputs(next, [id], edge, delta,[],bounds)
+      const snappedEdge = snapped.fields[id] ? edgeOf(snapped.fields[id].input) : currentEdge
+      if (Math.abs(snappedEdge - anchor) > epsilon) continue
+      next = snapped
+    }
+  }
+  return next
 }
 
 export function fieldGroupRect(field: DesignerCanvasField): DesignerRect {
@@ -1032,14 +1873,30 @@ export function translateCanvasField(field: DesignerCanvasField, dx: number, dy:
   return Object.fromEntries(Object.entries(field).map(([part, rect]) => [part, { ...rect, left: rect.left + dx, top: rect.top + dy }])) as DesignerCanvasField
 }
 
-export function moveCanvasFields(canvas: DesignerCanvas, ids: readonly string[], dx: number, dy: number): DesignerCanvas {
-  const parts = ids.flatMap(id => canvas.fields[id] ? Object.values(canvas.fields[id]) : [])
+export function moveCanvasFields(canvas: DesignerCanvas, ids: readonly string[], dx: number, dy: number,bounds?:DesignerRect): DesignerCanvas {
+  // Input rectangles define the editable canvas bounds. Labels can deliberately
+  // span a whole row, while selection/error overlays may have stale geometry;
+  // they move with the field but cannot pin its drag to an invisible edge.
+  const parts = ids.flatMap(id => canvas.fields[id] ? [canvas.fields[id].input] : [])
   if (!parts.length) return canvas
-  const boundedX = Math.max(-Math.min(...parts.map(p => p.left)), Math.min(canvas.width - Math.max(...parts.map(rightOf)), dx))
-  const boundedY = Math.max(-Math.min(...parts.map(p => p.top)), Math.min(canvas.height - Math.max(...parts.map(bottomOf)), dy))
+  const available=bounds??{left:0,top:0,width:canvas.width,height:canvas.height}
+  const inset = Math.min(designerCanvasEdgeInset, available.width / 2)
+  let minX = available.left+inset - Math.min(...parts.map(p => p.left))
+  let maxX = available.left+available.width - inset - Math.max(...parts.map(rightOf))
+  if (maxX < minX) {
+    minX = -Math.min(...parts.map(p => p.left))
+    maxX = canvas.width - Math.max(...parts.map(rightOf))
+  }
+  // Preserve the approved safety inset, but never force a field already beyond
+  // it to jump backwards. Zero is always a valid delta for imported geometry;
+  // inward one-pixel nudges remain incremental until it is inside the inset.
+  minX = Math.min(0, minX)
+  maxX = Math.max(0, maxX)
+  const boundedX = dx === 0 || maxX < minX ? 0 : Math.max(minX, Math.min(maxX, dx))
+  const boundedY = Math.max(Math.min(0, -Math.min(...parts.map(p => p.top))), Math.min(Math.max(0, canvas.height - Math.max(...parts.map(bottomOf))), dy))
   const fields = { ...canvas.fields }
   for (const id of ids) if (fields[id]) fields[id] = translateCanvasField(fields[id], boundedX, boundedY)
-  return { ...canvas, fields }
+  return { ...canvas, fields, preserveHorizontalBounds: true }
 }
 
 export function validateCanvasArrangement(initial: DesignerCanvas, proposed: DesignerCanvas, movedIds: readonly string[], extra: readonly DesignerObstacle[] = [], gap = designerSafetyGap, ignoreSelectionControls = false): string | undefined {

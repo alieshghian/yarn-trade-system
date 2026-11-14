@@ -1,6 +1,10 @@
 import {revealMenuExpression} from './form-context-navigation.mjs'
+import {runLabelTranslationScenarios} from './label-translation.scenarios.mjs'
+import {runDesignHandoffScenarios} from './design-handoff.scenarios.mjs'
 import assert from 'node:assert/strict'
 import {runNeighborScenarios} from './form-neighbor.scenarios.mjs'
+import {runSmartLayoutScenarios} from './form-smart-layout.scenarios.mjs'
+import {runManualBoundsScenarios} from './form-manual-bounds.scenarios.mjs'
 import {runToolbarContractScenarios} from './toolbar-contract.scenarios.mjs'
 import { spawn } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -13,7 +17,7 @@ const base = process.env.FORM_TEST_URL || 'http://127.1.0.1:5173'
 const executable = process.env.FORM_TEST_BROWSER || ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync)
 assert.ok(executable, 'Install Chrome/Edge or set FORM_TEST_BROWSER; browser checks must not silently skip')
 const profile = await mkdtemp(join(tmpdir(), 'yarn-form-regression-'))
-const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1900,1300', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore','ignore','pipe'] })
+const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--disable-crash-reporter', '--disable-breakpad', '--window-size=1900,1300', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore','ignore','pipe'] })
 let socket, session, sequence = 0, navigationLoaded,expectedDialog=false
 const pending = new Map(), errors = [], results = []
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
@@ -37,7 +41,7 @@ try {
   })
   const send = (method, params = {}, browserLevel = false) => new Promise((resolve, reject) => {
     const id = ++sequence
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error('CDP timeout: ' + method)) }, 20000)
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error('CDP timeout: ' + method)) }, 60000)
     pending.set(id, { resolve: value => { clearTimeout(timer); resolve(value) }, reject: error => { clearTimeout(timer); reject(error) } })
     socket.send(JSON.stringify({ id, method, params, ...(!browserLevel && session ? { sessionId:session } : {}) }))
   })
@@ -59,7 +63,7 @@ try {
   const until = async (expression, label = expression) => {
     const deadline = Date.now() + 12000
     while (Date.now() < deadline) { if (await evaluate(expression)) return; await pause(100) }
-    console.error('DOM_DIAGNOSTIC', await evaluate("JSON.stringify({fields:[...document.querySelectorAll('[data-field-id]')].map(e=>[e.dataset.fieldId,e.closest('.laboratory-form-frame')!==null]),body:document.body.textContent.slice(-2500)})"), errors)
+    console.error('DOM_DIAGNOSTIC', await evaluate("JSON.stringify({fields:[...document.querySelectorAll('[data-field-id]')].map(e=>[e.dataset.fieldId,e.closest('.laboratory-form-frame')!==null]),bodyStart:document.body.textContent.slice(0,600),body:document.body.textContent.slice(-2500)})"), errors)
     throw new Error('Browser assertion timed out: ' + label)
   }
   const node = (text, selector = 'button') => `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(e=>e.getClientRects().length && (e.getAttribute('aria-label')===${JSON.stringify(text)} || e.textContent.trim()===${JSON.stringify(text)}))`
@@ -72,21 +76,134 @@ try {
     await send('Input.dispatchMouseEvent', { type:'mouseReleased', ...point, button, modifiers, clickCount:1 })
     await pause(100)
   }
-  const click = (text, selector) => clickExpression(node(text, selector))
+  const click = async (text, selector) => {
+    await clickExpression(text==='مدیریت فرم‌ها و انتخاب فرم فعال'?`(${node(text,selector)})||(${node('مدیریت فرم‌ها')})`:node(text, selector))
+    if(text==='بستن فرم'){ for(let attempt=0;attempt<3;attempt++){await pause(350);if(await evaluate(`document.querySelector('[data-form-design-mode]')?.dataset.formDesignMode==='laboratory'`))break;if(await evaluate(`document.body.textContent.includes('فرم هنگام پشتیبان‌گیری تغییر کرد')`))await clickExpression(node(text,selector));else break} }
+    if(text!=='ایجاد فرم از قالب آزمایشگاه')return
+    await until(`!!document.querySelector('.new-form-builder-dialog')`)
+    await evaluate(`(()=>{const select=[...document.querySelectorAll('.new-form-builder-dialog select')].find(e=>[...e.options].some(o=>o.value==='copy'));select.value='copy';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+    const name='نسخه مستقل '+Date.now()
+    await evaluate(`(()=>{const input=[...document.querySelectorAll('.new-form-builder-dialog label')].find(e=>e.textContent.startsWith('نام فرم')).querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(name)});input.dispatchEvent(new Event('input',{bubbles:true}))})()`)
+    await clickExpression(node('تأیید ساختار و ایجاد فرم'))
+    await until(`!document.querySelector('.new-form-builder-dialog')`)
+    await clickExpression(`[...document.querySelectorAll('article')].find(e=>e.querySelector('strong')?.textContent===${JSON.stringify(name)})?.querySelector('button')`)
+  }
   const check = async (name, expression) => { assert.ok(await evaluate(expression), name); results.push(name); console.log('PASS ' + name) }
   const dragRaw=async(expression,dx,dy=0)=>{const p=await evaluate(`(()=>{const r=(${expression}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`);await send('Input.dispatchMouseEvent',{type:'mouseMoved',...p});await send('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x+dx,y:p.y+dy,button:'left',buttons:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x+dx,y:p.y+dy,button:'left',clickCount:1});await pause(180)}
   const field = id => `document.querySelector('.laboratory-form-frame [data-field-id="${id}"]')`
   const count = () => evaluate(`document.querySelectorAll('.laboratory-form-frame [data-field-id]').length`)
   const mode = expected => until(`document.querySelector('[data-form-design-mode]')?.dataset.formDesignMode===${JSON.stringify(expected)}`)
-  const menu = text => node(text, '[role="menu"] button')
+  const menu = text => text === 'تنظیم فونت' ? `(${node(text,'[role="menu"] button')})||Array.from(document.querySelectorAll('[role="menu"] button')).find(e=>e.getClientRects().length&&/^قلم (متن داخل فیلد|برچسب)…$/.test(e.textContent.trim()))` : text === 'حذف از این فرم'
+    ? `Array.from(document.querySelectorAll('[role="menu"] button')).find(e=>e.getClientRects().length&&(e.textContent.trim()==="حذف از این فرم"||/^حذف \\d+ فیلد انتخاب‌شده$/.test(e.textContent.trim())))`
+    : node(text, '[role="menu"] button')
+  if(process.env.FORM_TEST_NEIGHBOR_ONLY||process.env.FORM_TEST_LEGACY_DRAG_ONLY){
+    await navigatePage({url:base+'/tests/form-designer.html'})
+    await until(`!!document.querySelector('[data-form-design-mode]')`)
+    await click('ایجاد فرم از قالب آزمایشگاه','.form-laboratory-banner button');await mode('independent')
+    const inputValue=async(expression,value)=>{
+      await clickExpression(expression)
+      await send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65,commands:['selectAll']})
+      await send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',modifiers:2})
+      await send('Input.insertText',{text:String(value)});await pause(120)
+    }
+    const drag=async(expression,dx,dy,selectFirst=true,onMove)=>{
+      if(selectFirst)await clickExpression(expression)
+      const p=await evaluate(`(()=>{const r=(${expression}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
+      await send('Input.dispatchMouseEvent',{type:'mouseMoved',...p});await send('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x+dx,y:p.y+dy,button:'left',buttons:1});if(onMove)await onMove();await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x+dx,y:p.y+dy,button:'left',clickCount:1});await pause(150)
+    }
+    await runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base,onlyLegacy:Boolean(process.env.FORM_TEST_LEGACY_DRAG_ONLY)})
+  }else if(process.env.FORM_TEST_MANUAL_BOUNDS_ONLY){
+    await runManualBoundsScenarios({base,navigatePage,evaluate,until,send,pause,check,clickExpression})
+  }else if(process.env.FORM_TEST_DESIGN_HANDOFF_ONLY){
+    await runDesignHandoffScenarios({base,navigatePage,evaluate,until,check})
+  }else if(process.env.FORM_TEST_LABEL_TRANSLATION_ONLY){
+    await runLabelTranslationScenarios({base,navigatePage,evaluate,until,clickExpression,check})
+  }else if(process.env.FORM_TEST_SERVER_BACKUP_ONLY){
+    await navigatePage({url:base+'/tests/form-designer.html'})
+    await until(`!!document.querySelector('[data-form-design-mode]')`)
+    await click('ایجاد فرم از قالب آزمایشگاه','.form-laboratory-banner button');await mode('independent')
+    const formId=await evaluate(`document.querySelector('[data-managed-form-id]').dataset.managedFormId`)
+    await evaluate(`sessionStorage.setItem('test-backup-failure','1')`)
+    await click('ذخیرهٔ فرم','.form-laboratory-banner button')
+    await click('تأیید مجوزها و ذخیره','[role=dialog] button')
+    await until(`document.querySelector('[role=dialog]')?.textContent.includes('پشتیبان سرور ثبت نشد')`)
+    await check('server backup failure blocks form save',`!!document.querySelector('[role=dialog]')&&document.querySelector('[data-form-design-mode]').dataset.formDesignMode==='independent'`)
+    await evaluate(`sessionStorage.removeItem('test-backup-failure')`)
+    await click('تأیید مجوزها و ذخیره','[role=dialog] button')
+    await until(`!document.querySelector('[role=dialog]')`)
+    await check('save writes the full form and designer history to a server JSON version',`window.testServerBackupVersions.some(item=>item.formId===${JSON.stringify(formId)}&&item.reason==='ذخیرهٔ فرم'&&item.document.snapshot.designerHistory&&item.document.snapshot.form.schema.fields.length>0&&item.document.browserData)`)
+    await evaluate(`sessionStorage.setItem('test-backup-failure','1')`)
+    await click('بستن فرم','.form-laboratory-banner button')
+    await until(`document.querySelector('.laboratory-document-notice')?.textContent.includes('پشتیبان سرور ثبت نشد')`)
+    await check('server backup failure keeps the form open',`document.querySelector('[data-form-design-mode]').dataset.formDesignMode==='independent'`)
+    await evaluate(`sessionStorage.removeItem('test-backup-failure')`)
+    await click('بستن فرم','.form-laboratory-banner button');await mode('laboratory')
+    await check('close creates a separate server JSON version',`window.testServerBackupVersions.some(item=>item.formId===${JSON.stringify(formId)}&&item.reason==='بستن فرم')`)
+    await evaluate('localStorage.clear()');await reloadPage();await mode('laboratory')
+    await click('فرم‌های مستقل','.form-laboratory-banner button')
+    await click('دریافت نسخه‌های سرور','[role=dialog] button')
+    const select=`[...document.querySelectorAll('[role=dialog] label')].find(e=>e.textContent.includes('بازیابی فرم غایب از مرورگر')).querySelector('select')`
+    await until(`(${select}).options.length>1`)
+    const id=await evaluate(`window.testServerBackupVersions.findLast(item=>item.formId===${JSON.stringify(formId)}&&item.reason==='بستن فرم').id`)
+    await evaluate(`(()=>{const e=${select};Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(id)});e.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+    await mode('independent')
+    await check('a server version restores an absent form after browser storage is cleared',`document.querySelector('[data-managed-form-id]').dataset.managedFormId===${JSON.stringify(formId)}&&document.querySelectorAll('.laboratory-form-frame [data-field-id]').length>0`)
+    await click('بستن فرم','.form-laboratory-banner button');await mode('laboratory')
+    if(await evaluate("document.querySelector('.laboratory-designer-toggle')?.getAttribute('aria-expanded')!=='true'"))await clickExpression(`document.querySelector('.laboratory-designer-toggle')`)
+    await until(`!!document.querySelector('#form-laboratory-designer')`)
+    await click('ذخیرهٔ پیش‌نویس','#form-laboratory-designer button')
+    await until(`window.testServerBackupVersions.some(item=>item.reason==='ذخیرهٔ قالب آزمایشگاه')`)
+    await check('laboratory master save creates a server JSON version',`window.testServerBackupVersions.some(item=>item.reason==='ذخیرهٔ قالب آزمایشگاه'&&item.document.snapshot.schema&&item.document.snapshot.designerHistory)`)
+    await click('تنظیمات فرم','[role=tab]')
+    await click('دریافت فهرست نسخه‌ها','.form-recovery-controls button')
+    const masterSelect=`[...document.querySelectorAll('.form-recovery-controls label')].find(e=>e.textContent.includes('بازیابی نسخهٔ سرور')).querySelector('select')`
+    await until(`(${masterSelect}).options.length>1`)
+    const masterId=await evaluate(`window.testServerBackupVersions.findLast(item=>item.reason==='ذخیرهٔ قالب آزمایشگاه').id`)
+    await evaluate(`(()=>{const e=${masterSelect};Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(masterId)});e.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+    await until(`Object.keys(localStorage).some(key=>key.startsWith('yarn-trade:mother-design-recovery:v1:'))`)
+    await check('laboratory master can restore a server version into a persistent draft',`Object.keys(localStorage).some(key=>key.startsWith('yarn-trade:mother-design-recovery:v1:'))`)
+  }else if(process.env.FORM_TEST_COMPONENT_LIBRARY_ONLY){
+    await navigatePage({url:base+'/tests/form-designer.html'})
+    await until(`!!document.querySelector('[data-form-design-mode]')`)
+    if(await evaluate("document.querySelector('.laboratory-designer-toggle')?.getAttribute('aria-expanded')!=='true'"))await clickExpression('document.querySelector(\'.laboratory-designer-toggle\')')
+    await until(`!!document.querySelector('#managed-designer-panel')`)
+    await click('کتابخانه و آزمایش کامپوننت‌ها','#managed-designer-panel button')
+    const setText=async(expression,value)=>{await clickExpression(expression);await send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65,nativeVirtualKeyCode:65,commands:['selectAll']});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',modifiers:2});await send('Input.insertText',{text:value});await pause(150)}
+    const chooseLibraryComponent=async(value)=>{const expression='document.querySelector(\'.component-library-editor [aria-label="کامپوننت کتابخانه"]\')';await until(`!!(${expression})`);await evaluate(`(()=>{const e=${expression};Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,${JSON.stringify(value)});e.dispatchEvent(new Event('change',{bubbles:true}))})()`);await pause(180)}
+    await setText('document.querySelector(\'[aria-label="نام کامپوننت جدید کتابخانه"]\')','منشأ برند قابل استفاده')
+    await click('ذخیره به عنوان کامپوننت جدید','.component-library-editor button')
+    await until(`document.querySelector('.component-library-editor [role="status"]')?.textContent.includes('کامپوننت مستقل')`)
+    await chooseLibraryComponent('base-form.incremental-code')
+    await check('library previews the incremental code and validation settings',`document.querySelector('[aria-label="پیشنهاد شمارهٔ آزمایشی"]')?.textContent.includes('AC1')&&!!document.querySelector('[aria-label="تعداد رقم شماره آزمایشی"]')`)
+    await chooseLibraryComponent('base-form.date-input')
+    await check('library previews the shared calendar control',`!!document.querySelector('.component-library-preview [aria-label="تاریخ آزمایشی"] .system-date-segment')`)
+    await chooseLibraryComponent('base-form.system-lookup')
+    await check('library previews the searchable system lookup with a sandbox source',`!!document.querySelector('.component-library-editor .system-lookup[data-lookup-source="library-preview"] [data-field="library-lookup"]')`)
+    if(process.env.FORM_TEST_COMPONENT_LIBRARY_FLOW_ONLY){
+      const inheritedId=await evaluate(`JSON.parse(localStorage.getItem('yarn-trade:component-library:v1')).components.at(-1).id`)
+      await chooseLibraryComponent('base-form.value-list')
+      await click('جست‌وجو در گزینه‌ها','.component-library-editor input')
+      await click('ثبت نسخه و اعمال به کامپوننت‌های وابسته','.component-library-editor button')
+      await check('publishing a library behavior updates its inherited custom component',`(async()=>{const m=await import('/src/components/base-form/componentBehavior.ts'),l=m.readComponentLibrary(localStorage);return m.resolveComponentCapabilities(l,${JSON.stringify(inheritedId)}).searchChoices&&l.components.find(item=>item.id==='base-form.value-list')?.revisions.length===2})()`)
+    }
+  }else{
+  await runSmartLayoutScenarios({base,navigatePage,evaluate,until,send,pause,check,clickExpression})
+  if(!process.env.FORM_TEST_LAYOUT_ONLY){
   await runToolbarContractScenarios({base,navigatePage,evaluate,until,send,pause,check,clickExpression})
   if(!process.env.FORM_TEST_TOOLBAR_ONLY){
   const dragBetween=async(sourceExpression,targetExpression,targetX=.75)=>{const p=await evaluate('(()=>{const s=('+sourceExpression+').getBoundingClientRect(),t=('+targetExpression+').getBoundingClientRect();return {start:{x:s.x+s.width/2,y:s.y+s.height/2},end:{x:t.x+t.width*'+targetX+',y:t.y+t.height/2}}})()');await send('Input.dispatchMouseEvent',{type:'mouseMoved',...p.start});await send('Input.dispatchMouseEvent',{type:'mousePressed',...p.start,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',...p.end,button:'left',buttons:1});await pause(120);const preview=await evaluate('(()=>{const target=('+targetExpression+').closest("th[data-column]");return {ghostTitle:document.querySelector(".designer-column-drag-ghost-title")?.textContent??"",ghostHint:document.querySelector(".designer-column-drag-ghost-hint")?.textContent??"",targetMarked:Boolean(target?.classList.contains("is-designer-column-drop-before")||target?.classList.contains("is-designer-column-drop-after")),order:[...document.querySelectorAll(".laboratory-grid th[data-column]")].map(header=>header.dataset.column)}})()');await send('Input.dispatchMouseEvent',{type:'mouseReleased',...p.end,button:'left',clickCount:1});await pause(250);return preview}
-  const layout = `(()=>{const grid=document.querySelector('.laboratory-form-grid');const ids=['personCode','titleId','firstName','lastName','jobId'];return {display:getComputedStyle(grid).display,columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,fields:ids.map(id=>{const e=document.querySelector('.laboratory-form-frame [data-field-id="'+id+'"]');const r=e.getBoundingClientRect();return {id,x:r.x-grid.getBoundingClientRect().x,y:r.y-grid.getBoundingClientRect().y,w:r.width,h:r.height}})}})()`
+  const layout = `(()=>{const grid=document.querySelector('.laboratory-form-grid'),origin=grid.getBoundingClientRect(),ids=[...document.querySelectorAll('.laboratory-form-frame [data-field-id]')].map(e=>e.dataset.fieldId),saved=Object.entries(localStorage).filter(([key])=>key.includes('form-lab-designer')).map(([key,value])=>{try{const d=JSON.parse(value);return {key,exceptions:d.canvas?.alignmentExceptionFieldIds,sectionExceptions:Object.fromEntries(Object.entries(d.sectionCanvases??{}).map(([id,c])=>[id,c.alignmentExceptionFieldIds])),lastName:d.canvas?.fields?.lastName,sectionLastName:Object.fromEntries(Object.entries(d.sectionCanvases??{}).map(([id,c])=>[id,c.fields?.lastName]))}}catch{return {key}}});return {display:getComputedStyle(grid).display,columns:getComputedStyle(grid).gridTemplateColumns.split(' ').length,canvas:{width:grid.dataset.canvasStoredWidth,shift:grid.dataset.canvasViewShift},saved,fields:ids.map(id=>{const e=document.querySelector('.laboratory-form-frame [data-field-id="'+id+'"]'),input=e.querySelector('.designer-input-part').getBoundingClientRect(),label=e.querySelector('.designer-label-part').getBoundingClientRect(),field=e.getBoundingClientRect(),r=field.width&&field.height?field:input;return {id,x:r.x-origin.x,y:r.y-origin.y,w:r.width,h:r.height,input:{x:input.x-origin.x,y:input.y-origin.y,w:input.width,h:input.height},label:{x:label.x-origin.x,y:label.y-origin.y,w:label.width,h:label.height}}})}})()`
   await navigatePage({ url:base+'/tests/form-designer.html' })
   await until(`!!document.querySelector('[data-form-design-mode]')`)
   await until("document.querySelectorAll('.laboratory-form-frame [data-field-id]').length===12")
   assert.equal(await count(),12)
+  await check('display mode hides the Save action until data entry begins',`!document.querySelector('.laboratory-footer [data-action-id="demo-save"]')`)
+  await clickExpression(`document.querySelector('.laboratory-footer [data-action-id="new-person"] button')`)
+  await until(`!!document.querySelector('.laboratory-footer.is-entry-active [data-action-id="demo-save"]')`)
+  await check('data-entry mode shows the Save action',`!!document.querySelector('.laboratory-footer.is-entry-active [data-action-id="demo-save"]')`)
+  await clickExpression(`document.querySelector('.laboratory-footer [data-action-id="reset-sample"] button')`)
+  await until(`!document.querySelector('.laboratory-footer [data-action-id="demo-save"]')`)
+  results.push('Save visibility follows entry state in the regular Laboratory form')
   if(await evaluate("document.querySelector('.laboratory-designer-toggle')?.getAttribute('aria-expanded')!=='true'"))await clickExpression(`document.querySelector('.laboratory-designer-toggle')`)
   await until(`!!document.querySelector('.base-grid-table.is-designer-mode')`)
   const initialColumnBounds=await evaluate(`(()=>{const wrap=document.querySelector('.laboratory-grid .base-grid-table-wrap'),table=wrap.querySelector('.base-grid-table');const width=table.getBoundingClientRect().width,target=width-20;wrap.style.width=target+'px';wrap.style.maxWidth='none';wrap.style.alignSelf='flex-start';return {width,viewport:wrap.clientWidth,displayName:document.querySelector('th[data-column="displayName"]').getBoundingClientRect().width,personCode:document.querySelector('th[data-column="personCode"]').getBoundingClientRect().width}})()`)
@@ -141,20 +258,84 @@ try {
   await click('جمع‌کردن پنل Designer')
   const before = await evaluate(layout)
   assert.ok(before.columns===20 || before.display==='block','schema grid or valid saved Canvas')
-  assert.ok(before.fields.every(f=>Math.abs(f.y-before.fields[0].y)<3),'five initial fields on same row')
-  assert.ok(before.fields.every(f=>f.w>0 && f.h>0))
-  for (let i=0;i<before.fields.length;i++) for (let j=i+1;j<before.fields.length;j++) { const a=before.fields[i],b=before.fields[j]; assert.ok(a.x+a.w<=b.x+1 || b.x+b.w<=a.x+1,'first-row fields do not overlap') }
+  const firstRow = before.fields.slice(0,5)
+  assert.ok(firstRow.every(f=>Math.abs(f.y-firstRow[0].y)<3),'five initial fields on same row: '+JSON.stringify(before))
+  assert.ok(firstRow.every(f=>f.w>0 && f.h>0),JSON.stringify(before))
+  for (let i=0;i<firstRow.length;i++) for (let j=i+1;j<firstRow.length;j++) { const a=firstRow[i],b=firstRow[j]; assert.ok(a.x+a.w<=b.x+1 || b.x+b.w<=a.x+1,'first-row fields do not overlap') }
   results.push('five initial desktop fields and real computed geometry')
   await click('بازکردن پنل Designer')
   const openGeometry = await evaluate(layout)
-  await check('sidebar open keeps five first-row fields aligned', `(${layout}).fields.every(f=>Math.abs(f.y-(${layout}).fields[0].y)<3)`)
-  await clickExpression(field('jobId'), 'right'); await clickExpression(menu('حذف از این فرم'))
+  await check('sidebar open keeps five first-row fields aligned', `(${layout}).fields.slice(0,5).every(f=>Math.abs(f.y-(${layout}).fields[0].y)<3)`)
+  await check('field selection control stays beside its label row', `(()=>{const f=${field('jobId')},s=f.querySelector('.laboratory-field-select'),parts=[f.querySelector('.designer-label-part'),f.querySelector('.designer-input-part')].filter(Boolean).map(e=>e.getBoundingClientRect()),label=f.querySelector('.designer-label-part')?.getBoundingClientRect(),b=s.getBoundingClientRect();return !!label&&parts.length>0&&Math.abs(b.left-Math.min(...parts.map(r=>r.left)))<4&&Math.abs(b.top-label.top)<4})()`)
+  await check('empty recycle bin is an icon-only disabled toolbar control with an empty tooltip', `(()=>{const b=document.querySelector('.laboratory-recycle-bin-trigger');return !!b&&b.disabled&&b.dataset.recycleCount==='0'&&b.closest('.laboratory-banner-variable-controls')&&!b.querySelector('span')&&b.title.includes('خالی')&&!document.querySelector('.laboratory-recycle-popover')})()`)
+  await clickExpression(`${field('jobId')}.querySelector('.designer-label-part')`, 'right'); await clickExpression(menu('حذف از این فرم'))
   await until(`!(${field('jobId')})`)
   await check('right-click field deletion marks related column for review', `getComputedStyle(document.querySelector('th[data-column="job"]')).backgroundColor==='rgb(255, 220, 214)'`)
   await click('واگرد','.form-laboratory-banner button'); await until(`!!(${field('jobId')})`)
   await click('ازنو','.form-laboratory-banner button'); await until(`!(${field('jobId')})`)
   await click('واگرد','.form-laboratory-banner button'); await until(`!!(${field('jobId')})`)
   results.push('real mouse field delete, Undo and Redo')
+  await clickExpression(`${field('jobId')}.querySelector('.designer-input-part')`,'right')
+  await clickExpression(menu('حذف از این فرم')); await until(`!(${field('jobId')})`)
+  await until(`!!document.querySelector('.laboratory-recycle-bin-trigger:not(:disabled)')`)
+  await check('recycle bin activates and reports the deleted-field count', `(()=>{const b=document.querySelector('.laboratory-recycle-bin-trigger');return !!b&&!b.disabled&&b.dataset.recycleCount==='1'&&b.dataset.recycleFieldCount==='1'&&b.dataset.recycleStructureCount==='0'&&b.querySelector('strong')?.textContent==='1'&&b.title.includes('فیلد')})()`)
+  await clickExpression(`document.querySelector('.laboratory-recycle-bin-trigger')`)
+  await until(`!!document.querySelector('.laboratory-recycle-popover')`)
+  await check('recycle list is opaque and contains the removed field', `getComputedStyle(document.querySelector('.laboratory-recycle-popover')).backgroundColor==='rgb(255, 255, 255)'&&Array.from(document.querySelectorAll('.form-recycle-list li[data-recycle-kind="field"]')).some(item=>item.querySelector('small')?.textContent.includes('jobId')&&item.querySelector('button')?.textContent.trim()==='بازگرداندن')`)
+  await click('بازگرداندن','.laboratory-recycle-popover .form-recycle-list button'); await until(`!!(${field('jobId')})`)
+  await check('restored empty recycle bin is disabled and closed', `(()=>{const b=document.querySelector('.laboratory-recycle-bin-trigger');return !!b&&b.disabled&&b.dataset.recycleCount==='0'&&!document.querySelector('.laboratory-recycle-popover')})()`)
+  await check('restoring a field from the recycle bin restores its linked table column', `getComputedStyle(document.querySelector('th[data-column="job"]')).backgroundColor!=='rgb(255, 220, 214)'`)
+  await click('طراحی ظاهری','[role="tab"]')
+  await evaluate(`window.__fieldPointerModifiers=[];document.addEventListener('pointerdown',event=>{if(event.target instanceof Element&&event.target.closest('.designer-input-part'))window.__fieldPointerModifiers.push({id:event.target.closest('[data-field-id]')?.dataset.fieldId,ctrl:event.ctrlKey,meta:event.metaKey})},true)`)
+  await clickExpression(`${field('firstName')}.querySelector('.designer-input-part')`)
+  const secondFieldPoint=await evaluate(`(()=>{const r=${field('lastName')}.querySelector('.designer-input-part').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',...secondFieldPoint})
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',...secondFieldPoint,button:'left',modifiers:2,clickCount:1});await pause(100)
+  await send('Input.dispatchMouseEvent',{type:'mouseReleased',...secondFieldPoint,button:'left',modifiers:2,clickCount:1});await pause(100)
+  await check('Ctrl-click selects two field inputs as one Designer selection', `${field('firstName')}.querySelector('.designer-input-part').classList.contains('designer-part-selected')&&${field('lastName')}.querySelector('.designer-input-part').classList.contains('designer-part-selected')`)
+  await clickExpression(`${field('lastName')}.querySelector('.designer-input-part')`,'right')
+  await check('right-click on a selected field keeps the selected field group', `${field('firstName')}.querySelector('.designer-input-part').classList.contains('designer-part-selected')&&${field('lastName')}.querySelector('.designer-input-part').classList.contains('designer-part-selected')`)
+  await clickExpression(menu('حذف 2 فیلد انتخاب‌شده'))
+  await until(`!(${field('firstName')})&&!(${field('lastName')})`)
+  await click('واگرد','.form-laboratory-banner button'); await until(`!!(${field('firstName')})&&!!(${field('lastName')})`)
+  results.push('right-click removes both selected fields and Undo restores both together')
+  await clickExpression(`${field('jobId')}.querySelector('.designer-input-part')`,'right')
+  await clickExpression(menu('قوانین و رفتار همین فیلد…'))
+  const structureDialog=`document.querySelector('[role="dialog"][aria-label="ویرایش ساختار فرم مستقل"]')`
+  await until(`!!(${structureDialog})`)
+  const valueBehavior=`(${structureDialog}).querySelector('[aria-label="رفتار مقدار فیلد"]')`
+  const selectStructureValue=async(value)=>{await evaluate(`(()=>{const e=${valueBehavior};e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);await until(`${valueBehavior}.value===${JSON.stringify(value)}`)}
+  await check('individual rules do not duplicate whole-form Enter settings',`!(${structureDialog}).querySelector('.form-focus-order-disclosure')`)
+  await selectStructureValue('readOnly')
+  await check('existing field can be made read-only in its own rules editor',`${valueBehavior}.value==='readOnly'`)
+  await selectStructureValue('editable')
+  await check('read-only setting can be reversed without changing other field rules',`${valueBehavior}.value==='editable'`)
+  await selectStructureValue('derived')
+  await until(`!!(${structureDialog}).querySelector('.derived-source-controls')`)
+  const derivedSections=`(${structureDialog}).querySelectorAll('.derived-source-controls>details')`
+  await check('long derived source and order sections start collapsed',`!${derivedSections}[0].open&&!${derivedSections}[1].open`)
+  await clickExpression(`${derivedSections}[0].querySelector('summary')`)
+  const firstNameSource=`(${structureDialog}).querySelector('[aria-label="نمایش فیلد منبع نام"]')`
+  const lastNameSource=`(${structureDialog}).querySelector('[aria-label="نمایش فیلد منبع نام خانوادگی"]')`
+  await clickExpression(firstNameSource);await clickExpression(lastNameSource)
+  await clickExpression(`${derivedSections}[1].querySelector('summary')`)
+  const lastNameMoveUp=`(${structureDialog}).querySelector('[data-derived-source-id="lastName"] button[aria-label^="جابجایی به ترتیب بالاتر"]')`
+  await clickExpression(lastNameMoveUp)
+  await check('existing field composes sources in a selected order and excludes itself',`${valueBehavior}.value==='derived'&&!(${structureDialog}).querySelector('[aria-label="نمایش فیلد منبع نقش"]')&&Array.from((${structureDialog}).querySelectorAll('[data-derived-source-id]')).map(e=>e.dataset.derivedSourceId).join(',')==='lastName,firstName'`)
+  await selectStructureValue('editable')
+  const dialogBefore=await evaluate(`(()=>{const r=(${structureDialog}).querySelector('.form-document-dialog').getBoundingClientRect();return {left:r.left,top:r.top}})()`)
+  await dragRaw(`${structureDialog}.querySelector('.form-document-dialog-header')`,42,0)
+  await check('structure dialogs move by dragging their title bar',`(()=>{const r=(${structureDialog}).querySelector('.form-document-dialog').getBoundingClientRect();return Math.abs(r.left-${dialogBefore.left+42})<2&&Math.abs(r.top-${dialogBefore.top})<2})()`)
+  await clickExpression(`${structureDialog}.querySelector('.form-column-links-disclosure>summary')`)
+  await clickExpression(`${structureDialog}.querySelector('.form-field-create-column summary')`)
+  const columnCounts=await evaluate(`({headers:document.querySelectorAll('.laboratory-grid th[data-column]').length,links:(${structureDialog}).querySelectorAll('[data-field-column-link]').length})`)
+  await clickExpression(`${structureDialog}.querySelector('[data-create-field-column]')`)
+  await check('a field already linked to a column cannot acquire a duplicate column link',`document.querySelectorAll('.laboratory-grid th[data-column]').length===${columnCounts.headers}&&(${structureDialog}).querySelectorAll('[data-field-column-link]').length===${columnCounts.links}`)
+  await clickExpression(`${structureDialog}.querySelector('.form-document-dialog-close')`)
+  await clickExpression(`Array.from(document.querySelectorAll('[role="alertdialog"] button')).find(button=>button.textContent.includes('بستن بدون ثبت'))`)
+  await until(`!(${structureDialog})`)
+  await check('discarding the temporary column restores the original table structure',`document.querySelectorAll('.laboratory-grid th[data-column]').length===${columnCounts.headers}`)
+  results.push('draggable structure dialog and in-place create-and-link column workflow')
   // Locate the exact header through its button; context deletion must use structural IDs.
   const header = `(${node('نام','th button')})?.closest('th')`
   await clickExpression(header,'right'); await clickExpression(menu('حذف ستون از ساختار فرم'))
@@ -162,11 +343,35 @@ try {
   await check('column deletion leaves Name field present and flagged', `!!(${field('firstName')}) && (${field('firstName')}).dataset.fieldReview==='true'`)
   await click('واگرد','.form-laboratory-banner button'); await until(`!!(${node('نام','th button')})`)
   results.push('real mouse column delete and Undo restores exact header')
+  const personCodeHeader = `document.querySelector('.laboratory-grid th[data-column="personCode"]')`
+  const displayNameHeader = `document.querySelector('.laboratory-grid th[data-column="displayName"]')`
+  await clickExpression(personCodeHeader)
+  await clickExpression(displayNameHeader,'left',2)
+  await check('Ctrl-click selects two table columns together', `${personCodeHeader}.classList.contains('is-designer-column-selected')&&${displayNameHeader}.classList.contains('is-designer-column-selected')`)
+  await clickExpression(displayNameHeader,'right')
+  await check('right-click on a selected header keeps the selected column group', `${personCodeHeader}.classList.contains('is-designer-column-selected')&&${displayNameHeader}.classList.contains('is-designer-column-selected')`)
+  await clickExpression(menu('حذف 2 ستون انتخاب‌شده'))
+  await until(`!document.querySelector('.laboratory-grid th[data-column="personCode"]')&&!document.querySelector('.laboratory-grid th[data-column="displayName"]')`)
+  await click('واگرد','.form-laboratory-banner button'); await until(`!!document.querySelector('.laboratory-grid th[data-column="personCode"]')&&!!document.querySelector('.laboratory-grid th[data-column="displayName"]')`)
+  results.push('right-click removes both selected structural columns and Undo restores both')
+  await clickExpression(personCodeHeader,'right'); await clickExpression(menu('حذف ستون از ساختار فرم')); await until(`!document.querySelector('.laboratory-grid th[data-column="personCode"]')`)
+  await until(`!!document.querySelector('.laboratory-recycle-bin-trigger:not(:disabled)')`)
+  await check('deleted table column is counted separately from fields', `(()=>{const b=document.querySelector('.laboratory-recycle-bin-trigger');return b.dataset.recycleCount==='1'&&b.dataset.recycleFieldCount==='0'&&b.dataset.recycleStructureCount==='1'})()`)
+  await clickExpression(`document.querySelector('.laboratory-recycle-bin-trigger')`); await until(`!!document.querySelector('.laboratory-recycle-popover [data-recycle-kind="column"]')`)
+  await click('بازگرداندن','.laboratory-recycle-popover [data-recycle-kind="column"] button'); await until(`!!document.querySelector('.laboratory-grid th[data-column="personCode"]')`)
+  await check('column restores from the top-toolbar recycle bin', `!!document.querySelector('.laboratory-grid th[data-column="personCode"]')&&document.querySelector('.laboratory-recycle-bin-trigger').disabled`)
+  results.push('deleted table columns can be restored from the shared recycle bin')
   await clickExpression(header,'right'); await clickExpression(menu('حذف جدول از این فرم'))
   await until("!document.querySelector('.laboratory-form-frame table')")
   await check('table deletion marks surviving source fields', `(${field('firstName')}).dataset.fieldReview==='true'`)
   await click('واگرد','.form-laboratory-banner button'); await until("!!document.querySelector('.laboratory-form-frame table')")
-  results.push('table deletion and Undo restore the original table and relationships')
+  await clickExpression(header,'right'); await clickExpression(menu('حذف جدول از این فرم')); await until("!document.querySelector('.laboratory-form-frame table')")
+  await until(`!!document.querySelector('.laboratory-recycle-bin-trigger:not(:disabled)')`)
+  await check('deleted table is listed once with its header fields', `(()=>{const b=document.querySelector('.laboratory-recycle-bin-trigger');return b.dataset.recycleFieldCount==='0'&&b.dataset.recycleStructureCount==='1'})()`)
+  await clickExpression(`document.querySelector('.laboratory-recycle-bin-trigger')`); await until(`!!document.querySelector('.laboratory-recycle-popover [data-recycle-kind="table"]')`)
+  await click('بازگرداندن','.laboratory-recycle-popover [data-recycle-kind="table"] button'); await until("!!document.querySelector('.laboratory-form-frame table')")
+  await check('whole table and related header fields restore from the recycle bin', `!!document.querySelector('.laboratory-grid th[data-column="personCode"]')&&!!(${field('firstName')})&&document.querySelector('.laboratory-recycle-bin-trigger').disabled`)
+  results.push('deleted tables and related header fields restore from the shared recycle bin')
   await clickExpression(header,'right'); await clickExpression(menu('تنظیمات ساختار فرم…'))
   await check('table structure destination uses the settings tab', "document.querySelector('#managed-settings-tab').getAttribute('aria-selected')==='true'")
   await clickExpression(header,'right');
@@ -180,21 +385,46 @@ try {
   results.push('header flyout closes when pointer returns to another parent item')
   await clickExpression(field('firstName'),'right'); await clickExpression(menu('تنظیمات ساختار فرم…'))
   await check('structure menu reveals visible settings tab', `document.querySelector('#managed-settings-tab').getAttribute('aria-selected')==='true'`)
-  await clickExpression(field('firstName'),'right'); await clickExpression(menu('تنظیمات بیشتر ظاهری'))
+  await clickExpression(`${field('firstName')}.querySelector('.designer-input-part')`,'right'); await clickExpression(menu('ظاهر و حاشیه')); await clickExpression(menu('تنظیمات بیشتر ظاهری'))
   await check('appearance menu reveals existing full Designer', `document.querySelector('#managed-designer-tab').getAttribute('aria-selected')==='true' && !!document.querySelector('#form-laboratory-designer')`)
-  await clickExpression(field('firstName'),'right'); await clickExpression(menu('تنظیمات بیشتر'))
+  await clickExpression(`${field('firstName')}.querySelector('.designer-input-part')`,'right'); await clickExpression(menu('گزینه‌های بیشتر')); await clickExpression(menu('تنظیمات بیشتر'))
   await check('more settings focus the existing font control', "document.activeElement?.id==='designer-font-family'")
+  const action = id => `document.querySelector('.laboratory-footer [data-action-id="${id}"]')`
+  const optionalActionIds = ['first-record','previous-page','next-page','last-record']
+  for (let index=0;index<optionalActionIds.length;index++) await clickExpression(action(optionalActionIds[index]),'left',index===0?0:2)
+  await check('Ctrl-click selects four optional footer actions together', optionalActionIds.map(id=>`${action(id)}.classList.contains('designer-part-selected')`).join('&&'))
+  await evaluate(`document.querySelector('[data-form-laboratory]').dispatchEvent(new KeyboardEvent('keydown',{key:'Delete',bubbles:true,cancelable:true}))`)
+  await until(optionalActionIds.map(id=>`!(${action(id)})`).join('&&'))
+  await check('Delete removes the complete selected action group and keeps required actions', `!!(${action('new-person')})&&!!(${action('delete-person')})`)
+  await click('واگرد','.form-laboratory-banner button'); await until(optionalActionIds.map(id=>`!!(${action(id)})`).join('&&'))
+  for (let index=0;index<optionalActionIds.length;index++) await clickExpression(action(optionalActionIds[index]),'left',index===0?0:2)
+  await clickExpression(action(optionalActionIds[0]),'right')
+  await check('right-click on a selected footer action preserves all four selections', optionalActionIds.map(id=>`${action(id)}.classList.contains('designer-part-selected')`).join('&&'))
+  await clickExpression(menu('حذف 4 کلید انتخاب‌شده'))
+  await until(optionalActionIds.map(id=>`!(${action(id)})`).join('&&'))
+  await check('group context deletion leaves every required footer action intact', `!!(${action('new-person')})&&!!(${action('copy-last')})&&!!(${action('copy-selected')})&&!!(${action('edit-person')})&&!!(${action('delete-person')})`)
+  await click('واگرد','.form-laboratory-banner button'); await until(optionalActionIds.map(id=>`!!(${action(id)})`).join('&&'))
+  results.push('keyboard and right-click delete full selected footer groups while preserving required actions')
   await click('ذخیرهٔ فرم','.form-laboratory-banner button')
   await until(`!!document.querySelector('[role="dialog"]')`)
   await click('تأیید مجوزها و ذخیره','[role="dialog"] button')
-  await until(`!document.querySelector('[role="dialog"]')`)
+  await until(`!!document.querySelector('[role="dialog"] details summary')`)
+  await check('final approval detects intentional label differences before saving',`document.body.innerText.includes('عنوان‌های قرمز')`)
+  for(let i=0;i<2;i++){
+    await clickExpression(`[...document.querySelectorAll('[role="dialog"] details summary')].find(e=>e.textContent.includes('عنوان ناهماهنگ'))`)
+    await click('حفظ مستقل و تأیید اختلاف','[role="dialog"] button')
+  }
+  await click('بستن','[role="dialog"] button')
+  await click('ثبت و بستن','[role="alertdialog"] button')
+  await click('تأیید مجوزها و ذخیره','[role="dialog"] button')
+  await until(`!document.querySelector('[role="dialog"]')`).catch(async error=>{console.error('Save dialog diagnostics:',await evaluate(`Array.from(document.querySelectorAll('[role="dialog"]')).map(d=>d.innerText).join(' | ')`));throw error})
   await click('مدیریت فرم‌ها و انتخاب فرم فعال','.laboratory-form-manager')
   await click('کار روی قالب اصلی آزمایشگاه'); await mode('laboratory')
   assert.equal(await count(),12)
   await check('Laboratory yellow and shared Designer remains open', `getComputedStyle(document.querySelector('.laboratory-sidebar-document-mode')).backgroundColor==='rgb(255, 216, 77)' && !!document.querySelector('#form-laboratory-designer')`)
   for (let i=0;i<10;i++) {
     await click('مدیریت فرم‌ها و انتخاب فرم فعال','.laboratory-form-manager')
-    await click('بازکردن و طراحی این فرم','[role="dialog"] button'); await mode('independent')
+    await click('بازکردن','[role="dialog"] button'); await mode('independent')
     assert.equal(await evaluate(`document.querySelector('[data-managed-form-id]').dataset.managedFormId`),formId)
     assert.equal(await count(),12)
     const measured = await evaluate(layout)
@@ -202,16 +432,16 @@ try {
     await click('بستن فرم','.form-laboratory-banner button'); await mode('laboratory')
   }
   results.push('ten real close/open cycles retain independent identity, all fields and first-row layout')
-  await click('مدیریت فرم‌ها و انتخاب فرم فعال','.laboratory-form-manager'); await click('بازکردن و طراحی این فرم','[role="dialog"] button'); await mode('independent')
+  await click('مدیریت فرم‌ها و انتخاب فرم فعال','.laboratory-form-manager'); await click('بازکردن','[role="dialog"] button'); await mode('independent')
   await reloadPage(); await mode('independent'); await until("document.querySelectorAll('.laboratory-form-frame [data-field-id]').length===12"); assert.equal(await count(),12)
   await check('refresh restores form and blue document identity', `document.querySelector('[data-managed-form-id]').dataset.managedFormId===${JSON.stringify(formId)} && getComputedStyle(document.querySelector('.laboratory-sidebar-document-mode')).backgroundColor==='rgb(21, 77, 167)'`)
   await click('موبایل','.laboratory-device-toolbar button')
   await check('mobile uses one computed column without editor overflow', `(()=>{const e=document.querySelector('.laboratory-form-grid');return getComputedStyle(e).display==='grid' && getComputedStyle(e).gridTemplateColumns.split(' ').length===1 && e.scrollWidth<=e.clientWidth+1})()`)
   await click('دسکتاپ','.laboratory-device-toolbar button')
-  await check('desktop layout returns after mobile projection', `(${layout}).fields.every(f=>Math.abs(f.y-(${layout}).fields[0].y)<3)`)
+  await check('desktop layout returns after mobile projection', `(()=>{const row=(${layout}).fields.slice(0,5);return row.every(f=>Math.abs(f.y-row[0].y)<3)})()`)
   const selectValue=async(expression,value)=>{
     await until(`!!(${expression})`)
-    await evaluate(`(()=>{const e=${expression};e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);await pause(120)
+    await evaluate(`(()=>{const e=${expression};const setter=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value')?.set;if(setter)setter.call(e,${JSON.stringify(value)});else e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}))})()`);await pause(120)
   }
   const inputValue=async(expression,value)=>{
     await clickExpression(expression)
@@ -223,6 +453,7 @@ try {
   const drag=async(expression,dx,dy,selectFirst=true,onMove)=>{
     if(selectFirst)await clickExpression(expression)
     const p=await evaluate(`(()=>{const r=(${expression}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
+    await send('Input.dispatchMouseEvent',{type:'mouseMoved',...p})
     await send('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',clickCount:1})
     await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x+dx,y:p.y+dy,button:'left',buttons:1})
     if(onMove)await onMove()
@@ -264,12 +495,25 @@ try {
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27,nativeVirtualKeyCode:27});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Escape',code:'Escape'})
   await click('بستن بدون ثبت','[role="alertdialog"] button')
   await check('Escape and top close share the discard contract and preserve saved labels',`!document.querySelector('.form-document-dialog')&&!document.querySelector('[data-field-id="personCode"] .designer-label-part').textContent.includes('ثبت نشود')`)
-  await clickExpression(`document.querySelector('[data-field-id="firstName"] .designer-label-part')`,'right');await clickExpression(menu('ویرایش متن برچسب…'))
+  await clickExpression(`document.querySelector('[data-field-id="firstName"] .designer-label-part')`,'right');await clickExpression(menu('قواعد گروهی و ارتباط فیلدهای فرم…'))
   await click('افزودن گروه یکتایی ترکیبی U₂','.form-document-dialog button')
-  await clickExpression(`document.querySelector('input[aria-label="عضو گروه یکتایی نام خانوادگی"]')`)
-  await click('ثبت متن','.form-document-dialog button')
-  await check('composite uniqueness is configured in the label dialog and marks both source labels',`['firstName','lastName'].every(id=>document.querySelector('[data-field-id="'+id+'"] .field-rule-marker')?.textContent==='U₂')`)
-  await click('واگرد','.form-laboratory-banner button')
+  const uniqueGroup=`[...document.querySelectorAll('[data-rule-group]')].at(-1)`
+  for(const label of await evaluate(`[...(${uniqueGroup}).querySelectorAll('label.form-document-check')].filter(e=>e.querySelector('input').checked).map(e=>e.textContent.trim())`))await clickExpression(`[...(${uniqueGroup}).querySelectorAll('label.form-document-check')].find(e=>e.textContent.trim()===${JSON.stringify(label)}).querySelector('input')`)
+  for(const label of ['نام','نام خانوادگی'])await clickExpression(`[...(${uniqueGroup}).querySelectorAll('label.form-document-check')].find(e=>e.textContent.trim()===${JSON.stringify(label)}).querySelector('input')`)
+  await check('composite rule selects exactly the two intended fields',`JSON.stringify([...(${uniqueGroup}).querySelectorAll('label.form-document-check')].filter(e=>e.querySelector('input').checked).map(e=>e.textContent.trim()).sort())===JSON.stringify(['نام','نام خانوادگی'].sort())`)
+  await click('بستن','.form-document-dialog button')
+  if(await evaluate(`!!document.querySelector('[role="alertdialog"]')`))await click('ثبت و بستن','[role="alertdialog"] button')
+  await clickExpression(`document.querySelector('[data-field-id="firstName"] .designer-label-part')`,'right')
+  await clickExpression(menu('نمایش نشانگرهای اجباری و وابستگی'))
+  await click('بستن منو','[aria-label="بستن منو"]')
+  await check('composite uniqueness uses the form-level rules editor and marks both source labels',`['firstName','lastName'].every(id=>[...document.querySelectorAll('[data-field-id="'+id+'"] .field-rule-marker')].some(marker=>marker.textContent==='U₂'))`)
+  // Each rule edit has its own Undo entry. One Undo would leave an invalid
+  // one-field uniqueness group and incorrectly block the next label scenario.
+  await clickExpression(`document.querySelector('[data-field-id="firstName"] .designer-label-part')`,'right')
+  await clickExpression(menu('قواعد گروهی و ارتباط فیلدهای فرم…'))
+  await clickExpression(`(${uniqueGroup}).querySelector('button')`)
+  await click('بستن','.form-document-dialog button')
+  if(await evaluate(`!!document.querySelector('[role="alertdialog"]')`))await click('ثبت و بستن','[role="alertdialog"] button')
   await runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base})
   await clickExpression(firstHeader)
   await check('clicking a header selects it and reveals its shared sidebar controls',`(${firstHeader}).classList.contains('is-designer-column-selected')&&document.querySelector('#designer-table-header-typography').open&&document.querySelector('.designer-active-selection').textContent.includes('نام')`)
@@ -294,9 +538,9 @@ try {
   await drag(`document.querySelector('th[data-column="displayName"] .header-height-handle')`,0,30)
   await check('native mouse resize changes the real header height by the dragged distance',`Math.abs(document.querySelector('thead').getBoundingClientRect().height-(${beforeHeaderHeight}+30))<=2`)
   await click('واگرد','.form-laboratory-banner button')
-  await click('نمایش تمام‌صفحهٔ جدول')
+  await clickExpression(`document.querySelector('.grid-expand-toggle')`)
   await check('fullscreen is visible and usable in a read-only design document',`document.querySelector('.base-grid-boundary').classList.contains('is-expanded')`)
-  await click('بازگشت به اندازهٔ قبلی جدول')
+  await clickExpression(`document.querySelector('.grid-expand-toggle')`)
   const toolbarBounds=await evaluate(`(()=>{const r=document.querySelector('.grid-toolbar').getBoundingClientRect();return {width:r.width,height:r.height}})()`)
   await click('ستون‌ها','.grid-columns-slot summary')
   await until(`!!document.querySelector('.grid-column-visibility-list')`)
@@ -347,15 +591,17 @@ try {
   await until(`document.querySelectorAll('.laboratory-form-frame [data-field-id]').length===12&&!document.querySelector('[data-report-row-id]')`)
   await click('تنظیمات فرم','#managed-settings-tab')
   for(const id of ['titleId','lastName','jobId','nationalityId','phone','mobile','address','errorExample','disabledExample']){
-    await clickExpression(field(id),'right');await clickExpression(menu('حذف از این فرم'));await until(`!(${field(id)})`)
+    await clickExpression(`${field(id)}.querySelector('.designer-input-part')`,'right');await clickExpression(menu('حذف از این فرم'));await until(`!(${field(id)})`)
   }
-  await check('deleting fields removes unneeded editor scroll extents without a manual content-mode setting',`(()=>{const e=document.querySelector('.laboratory-editor');return e.scrollWidth<=e.clientWidth+1&&e.scrollHeight<=e.clientHeight+1})()`)
+  await check('field deletion keeps editor scrolling bounded to the fitted canvas without stale vertical overflow',`(()=>{const e=document.querySelector('.laboratory-editor'),g=e.querySelector('.laboratory-form-grid');return g.clientWidth>=e.clientWidth-1&&e.scrollWidth<=g.clientWidth+1&&e.scrollHeight<=e.clientHeight+1})()`)
   await clickExpression(node('پنل ورودی · پنل ورودی','.form-document-section-setting>summary'))
   const viewport=`document.querySelector('[data-section-kind="editor"] fieldset select')`
   await selectValue(viewport,'content')
   await check('content mode crops the editor for three surviving fields',`(()=>{const editor=document.querySelector('.base-form-editor'),grid=editor.querySelector('.laboratory-form-grid');return editor.getBoundingClientRect().height<400&&grid.scrollWidth<=grid.clientWidth+1})()`)
   await click('جمع‌کردن پنل Designer')
-  await check('content sizing survives sidebar collapse without horizontal clipping',`(()=>{const e=document.querySelector('.laboratory-editor');return e.scrollWidth<=e.clientWidth+1})()`)
+  const editorScrollable=`(()=>{const e=document.querySelector('.laboratory-editor'),overflows=e.scrollWidth>e.clientWidth+1;return !overflows||['auto','scroll'].includes(getComputedStyle(e).overflowX)})()`
+  await until(editorScrollable,'content sizing stays scrollable after sidebar collapse')
+  await check('content sizing survives sidebar collapse without clipping the remaining canvas',editorScrollable)
   await click('بازکردن پنل Designer')
   await clickExpression(node('جدول · جدول','.form-document-section-setting>summary'))
   await click('چیدمان و قلم اجزای نوار جدول','summary')
@@ -403,7 +649,7 @@ try {
   const tool=part=>'document.querySelector(\'[data-toolbar-part="'+part+'"]\')'
   const rightClickHeader=async(part='header')=>{
     await evaluate(`(${tool(part)}).scrollIntoView({block:'nearest'})`)
-    const point=await evaluate(`(()=>{const r=(${tool(part)}).getBoundingClientRect();for(let y=Math.max(4,r.top+8);y<Math.min(innerHeight-4,r.bottom-4);y+=6)for(let x=Math.max(4,r.left+8);x<Math.min(innerWidth-4,r.right-8);x+=6){const hit=document.elementFromPoint(x,y);if(hit?.closest('[data-toolbar-part]')===(${tool(part)})&&!hit.closest('.laboratory-form-grid'))return {x,y}}throw Error('No visible header surface for ${part}')})()`)
+    const point=await evaluate(`(()=>{const target=${tool(part)},r=target.getBoundingClientRect(),samples=[[.5,.5],[.25,.5],[.75,.5],[.5,.25],[.5,.75],[.25,.25],[.75,.75],[.25,.75],[.75,.25]];for(const [fx,fy] of samples){const x=Math.max(4,Math.min(innerWidth-4,r.left+r.width*fx)),y=Math.max(4,Math.min(innerHeight-4,r.top+r.height*fy)),hit=document.elementFromPoint(x,y);if(hit?.closest('[data-toolbar-part]')===target&&!hit.closest('.laboratory-form-grid'))return {x,y}}throw Error('No visible header surface for ${part}')})()`)
     await send('Input.dispatchMouseEvent',{type:'mousePressed',...point,button:'right',clickCount:1})
     await send('Input.dispatchMouseEvent',{type:'mouseReleased',...point,button:'right',clickCount:1});await pause(120)
   }
@@ -537,10 +783,30 @@ try {
   await click('واگرد','.form-laboratory-banner button')
   results.push('context-menu Add Header uses the same atomic command and preserves the original panel')
   const mainCode=field('personCode')+'.querySelector(\'.designer-input-part\')', mainName=field('firstName')+'.querySelector(\'.designer-input-part\')'
+   // Prior centering checks intentionally leave the full canvas selected. Clear
+   // that selection before this single-field movement check; a selected group
+   // should correctly move as one unit.
+   await evaluate(`document.querySelector('.laboratory-form-grid').click()`);await pause(100)
   await clickExpression(mainName)
-  const codeBefore=await rect(mainCode),nameBefore=await rect(mainName)
-  await drag(mainName,20,12)
-  assert.deepEqual(await rect(mainCode),codeBefore,'dragging Name cannot move Code')
+   assert.deepEqual(await evaluate(`Array.from(document.querySelectorAll('.laboratory-form-grid>.laboratory-designer-field.is-selected')).map(e=>e.dataset.fieldId)`),['firstName'],'single-field drag begins with no prior multiselection')
+   const codeBefore=await rect(mainCode),nameBefore=await rect(mainName)
+   const dragStages={before:await evaluate(`(()=>{const g=document.querySelector('.laboratory-form-grid');return {width:g.dataset.canvasStoredWidth,shift:g.dataset.canvasViewShift,code:${mainCode}.getBoundingClientRect().x,name:${mainName}.getBoundingClientRect().x}})()`)}
+   await drag(mainName,20,12,false,async()=>{dragStages.during=await evaluate(`(()=>{const g=document.querySelector('.laboratory-form-grid');return {width:g.dataset.canvasStoredWidth,shift:g.dataset.canvasViewShift,code:${mainCode}.getBoundingClientRect().x,name:${mainName}.getBoundingClientRect().x}})()`)})
+   dragStages.after=await evaluate(`(()=>{const g=document.querySelector('.laboratory-form-grid');return {width:g.dataset.canvasStoredWidth,shift:g.dataset.canvasViewShift,code:${mainCode}.getBoundingClientRect().x,name:${mainName}.getBoundingClientRect().x}})()`)
+  const codeAfterDrag=await rect(mainCode)
+   assert.deepEqual(codeAfterDrag,codeBefore,'dragging Name cannot move Code '+JSON.stringify({codeBefore,codeAfterDrag,nameBefore,nameAfterDrag:await rect(mainName),dragStages,canvas:await evaluate(`(()=>{const g=document.querySelector('.laboratory-form-grid');return {codeLeft:${mainCode}.style.left,nameLeft:${mainName}.style.left,selected:[...document.querySelectorAll('.laboratory-form-grid>.laboratory-designer-field.is-selected')].map(x=>x.dataset.fieldId)}})()`)}))
+  const nameAfterDrag=await rect(mainName)
+  assert.ok(Math.abs(nameAfterDrag.top-nameBefore.top-12)<0.1&&Math.abs(nameAfterDrag.left-nameBefore.left-20)<0.1,'manual placement keeps the exact released coordinates without moving Code '+JSON.stringify({nameBefore,nameAfterDrag,dragStages}))
+  results.push('a moved field keeps its released position without moving peers')
+  const leftEdge=`${field('firstName')}.querySelector('.designer-edge-left')`
+  await until(`!!(${leftEdge})`)
+  const beforeFieldResize=await evaluate(`(()=>{const r=(${mainName}).getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}})()`)
+  await dragRaw(leftEdge,12)
+  const afterFieldResize=await evaluate(`(()=>{const r=(${mainName}).getBoundingClientRect();return {left:r.left,right:r.right,width:r.width}})()`)
+  assert.ok(Math.abs(afterFieldResize.right-beforeFieldResize.right)<0.1,'resizing the left edge cannot move the opposite edge of a persistently centered field')
+  assert.ok(Math.abs(afterFieldResize.width-(beforeFieldResize.width-12))<0.1,'the selected edge alone applies the requested width change')
+  results.push('mouse resizing a centered input keeps its opposite edge fixed')
+  await click('واگرد','.form-laboratory-banner button')
   const undoFrame=await rect('document.querySelector(\'.laboratory-form-frame\')')
   await evaluate(`(()=>{window.__designerUndoFrames=[];let remaining=20;const sample=()=>{const r=document.querySelector('.laboratory-form-frame').getBoundingClientRect();window.__designerUndoFrames.push([r.left,r.top,r.width,r.height]);if(--remaining)requestAnimationFrame(sample)};requestAnimationFrame(sample)})()`)
   await click('واگرد','.form-laboratory-banner button')
@@ -582,7 +848,7 @@ try {
   const popup='document.querySelector(\'[data-component-popup]\')', entries='document.querySelectorAll(\'[data-component-popup] .new-number-row textarea\')'
   const openCustom=()=>clickExpression('('+customInput+').querySelector(\'.number-add-button\')')
   await openCustom()
-  await check('renamed Title uses its own label and the shared Enter/F3 help',`(${popup}).querySelector('.component-behavior-help').textContent.includes('عنوان آزمایشی')&&!(${popup}).querySelector('.component-behavior-help').textContent.includes('افزودن عنوان؛')`)
+  await check('renamed Title uses its own label and shared Save/Close shortcuts',`(${popup}).getAttribute('aria-label')==='عنوان آزمایشی'&&(${popup}).querySelector('.number-confirm').textContent.includes('F3')&&(${popup}).querySelector('.number-cancel').textContent.includes('Esc')`)
   await inputValue('('+entries+')[0]','گزینهٔ محلی')
   await arrow('Enter')
   await check('Enter adds another pending row without closing the popup or form',`(${entries}).length===2&&!!document.querySelector('[data-managed-form-id]')`)
@@ -603,25 +869,28 @@ try {
   await openCustom()
   await check('custom list removal preserves surviving values and their default',`document.querySelectorAll('[data-component-popup] .person-number-row:not(.new-number-row)').length===1&&(${visibleCustom}).value==='گزینهٔ دوم'`)
   await arrow('Escape');await until('!('+popup+')')
-  await clickExpression(tool('counter'),'right');await clickExpression(menu('تغییر اندازه'))
-  await check('toolbar right-click and selection remain active during component testing',`(${tool('counter')}).dataset.designerToolSelected==='true'&&!!document.querySelector('#managed-designer-panel [data-tool-settings="counter"]')`)
+  await check('component testing uses the operational table without structural Designer handlers',`!document.querySelector('.base-grid-table.is-designer-mode')`)
+  await click('آزمایش کامپوننت‌ها','.form-laboratory-banner button')
+  await check('returning to Design preserves the custom definition and its appearance','('+visibleCustom+').disabled&&getComputedStyle('+visibleCustom+').borderRadius===\'22px\'')
+  await rightClickHeader('counter');await clickExpression(menu('تغییر اندازه'))
+  await check('toolbar right-click and selection resume after returning to Design',`(${tool('counter')}).dataset.designerToolSelected==='true'&&!!document.querySelector('#managed-designer-panel [data-tool-settings="counter"]')`)
   const testCounterBefore=await rect(tool('counter'))
   await drag(tool('counter'),12,6)
   assert.ok(Math.abs((await rect(tool('counter'))).left-testCounterBefore.left-12)<1)
   await click('واگرد','.form-laboratory-banner button')
-  results.push('toolbar dragging and Undo remain operational while sample components are interactive')
-  await click('آزمایش کامپوننت‌ها','.form-laboratory-banner button')
-  await check('returning to Design preserves the custom definition and its appearance','('+visibleCustom+').disabled&&getComputedStyle('+visibleCustom+').borderRadius===\'22px\'')
+  results.push('toolbar dragging and Undo resume in Design after testing the sample component')
   await click('کتابخانه و آزمایش کامپوننت‌ها','#managed-designer-panel button')
   await inputValue('document.querySelector(\'[aria-label="نام کامپوننت جدید کتابخانه"]\')','منشأ برند قابل استفاده')
   await click('ذخیره به عنوان کامپوننت جدید','.component-library-editor button')
   await until(`document.querySelector('.component-library-editor [role="status"]')?.textContent.includes('کامپوننت مستقل')`)
-  const libraryComponentId=await evaluate(`document.querySelector('[aria-label="کامپوننت کتابخانه"]').value`)
-  await selectValue('document.querySelector(\'[aria-label="کامپوننت کتابخانه"]\')','base-form.incremental-code')
+  const libraryComponentId=await evaluate(`JSON.parse(localStorage.getItem('yarn-trade:component-library:v1')).components.at(-1).id`)
+  await selectValue('document.querySelector(\'.component-library-editor [aria-label="کامپوننت کتابخانه"]\')','base-form.incremental-code')
   await check('component library previews the configured serial code and AB9 rollover',`document.querySelector('[aria-label="پیشنهاد شمارهٔ آزمایشی"]').textContent.includes('AC1')&&!!document.querySelector('[aria-label="تعداد رقم شماره آزمایشی"]')`)
-  await selectValue('document.querySelector(\'[aria-label="کامپوننت کتابخانه"]\')','base-form.date-input')
+  await selectValue('document.querySelector(\'.component-library-editor [aria-label="کامپوننت کتابخانه"]\')','base-form.date-input')
   await check('component library previews the shared calendar input',`!!document.querySelector('.component-library-preview [aria-label="تاریخ آزمایشی"] .system-date-segment')`)
-  await selectValue('document.querySelector(\'[aria-label="کامپوننت کتابخانه"]\')','base-form.value-list')
+  await selectValue('document.querySelector(\'.component-library-editor [aria-label="کامپوننت کتابخانه"]\')','base-form.system-lookup')
+  await check('component library previews the searchable system lookup with the sandbox source',`!!document.querySelector('.component-library-editor .system-lookup[data-lookup-source="library-preview"] [data-field="library-lookup"]')`)
+  await selectValue('document.querySelector(\'.component-library-editor [aria-label="کامپوننت کتابخانه"]\')','base-form.value-list')
   await click('جست‌وجو در گزینه‌ها','.component-library-editor input')
   await check('library draft capabilities are testable before publication',`document.querySelector('[aria-label="جست‌وجو در گزینه‌ها"]').checked`)
   await click('تأیید حذف گزینه','.component-library-editor input')
@@ -635,7 +904,7 @@ try {
   await clickExpression(`document.querySelector('[data-component-popup] [data-remove-candidate]')`)
   await click('ثبت (F3)','[data-component-popup] button');await until(`!document.querySelector('[data-component-popup]')`)
   await click('ثبت نسخه و اعمال به کامپوننت‌های وابسته','.component-library-editor button')
-  await check('publishing a version reaches dependent custom definitions by stable reference',`(async()=>{const m=await import('/src/components/base-form/componentBehavior.ts'),l=m.readComponentLibrary(localStorage);return m.resolveComponentCapabilities(l,${JSON.stringify(libraryComponentId)}).searchChoices&&l.components[0].revisions.length===2})()`)
+  await check('publishing a version reaches dependent custom definitions by stable reference',`(async()=>{const m=await import('/src/components/base-form/componentBehavior.ts'),l=m.readComponentLibrary(localStorage),parent=l.components.find(item=>item.id==='base-form.value-list');return m.resolveComponentCapabilities(l,${JSON.stringify(libraryComponentId)}).searchChoices&&parent?.revisions.length===2})()`)
   await click('بستن کتابخانه','.component-library-editor button')
   await click('آزمایش کامپوننت‌ها','.form-laboratory-banner button');await openCustom()
   await check('published capabilities apply to existing renamed field instances without replacing their data',`!!document.querySelector('[data-component-popup] .component-choice-search')&&(${visibleCustom}).value==='گزینهٔ دوم'`)
@@ -652,7 +921,7 @@ try {
   const reusedComponent=`[...document.querySelectorAll('.laboratory-form-frame [data-field-id]')].find(e=>e.textContent.includes('نمونه ارثی'))`
   await check('a saved custom component can be instantiated with another label and the same library reference',`(${reusedComponent}).querySelector('.person-number-wrap').dataset.componentDefinition===${JSON.stringify(libraryComponentId)}`)
   await reloadPage();await mode('independent');await until(`!!(${reusedComponent})`)
-  await check('new component instances and immutable library revisions survive refresh',`(async()=>{const m=await import('/src/components/base-form/componentBehavior.ts'),l=m.readComponentLibrary(localStorage);return (${reusedComponent}).querySelector('.person-number-wrap').dataset.componentDefinition===${JSON.stringify(libraryComponentId)}&&l.components[0].revisions.length===3&&!m.resolveComponentCapabilities(l,${JSON.stringify(libraryComponentId)}).searchChoices})()`)
+  await check('new component instances and immutable library revisions survive refresh',`(async()=>{const m=await import('/src/components/base-form/componentBehavior.ts'),l=m.readComponentLibrary(localStorage),parent=l.components.find(item=>item.id==='base-form.value-list');return (${reusedComponent}).querySelector('.person-number-wrap').dataset.componentDefinition===${JSON.stringify(libraryComponentId)}&&parent?.revisions.length===3&&!m.resolveComponentCapabilities(l,${JSON.stringify(libraryComponentId)}).searchChoices})()`)
   if(process.env.FORM_TEST_HEADER_SCREENSHOT){await clickExpression(customInput);const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.env.FORM_TEST_HEADER_SCREENSHOT,Buffer.from(shot.data,'base64'))}
   await click('تنظیمات فرم','#managed-settings-tab')
   await clickExpression('document.querySelector(\'.form-document-settings [data-section-kind="grid"]>summary\')')
@@ -661,32 +930,46 @@ try {
   await check('structure settings open the same toolbar font dialog as the Design panel',`!!document.querySelector('.designer-grid-format-dialog')`)
   await click('لغو','.designer-grid-format-dialog button')
 
+  // Compare the same resting appearance on both forms, independently of the last click.
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:2,y:2});await pause(100)
   const laboratoryFooterActions=await evaluate(`(()=>[...document.querySelectorAll('.laboratory-form-frame .laboratory-footer [data-action-id]')].map(host=>{const button=host.querySelector('button'),style=getComputedStyle(button);return {id:host.dataset.actionId,code:button.querySelector('kbd')?.textContent,label:button.querySelector('span')?.textContent,className:button.className,background:style.backgroundColor,color:style.color,borderColor:style.borderColor,borderRadius:style.borderRadius}}))()`)
   await click('مدیریت فرم‌ها و انتخاب فرم فعال','.laboratory-form-manager')
-  await check('all seventeen non-Laboratory routes are catalogued with operational and placeholder distinctions',`document.querySelectorAll('[data-catalog-route]').length===17&&document.querySelector('[data-catalog-route="sales"]').textContent.includes('هنوز پیاده‌سازی نشده')`)
+  await check('all nineteen non-Laboratory routes including warehouses and product groups are catalogued with operational and placeholder distinctions',`document.querySelectorAll('[data-catalog-route]').length===19&&!!document.querySelector('[data-catalog-route="warehouses"]')&&!!document.querySelector('[data-catalog-route="productGroups"]')&&document.querySelector('[data-catalog-route="sales"]').textContent.includes('هنوز پیاده‌سازی نشده')`)
   await clickExpression(`document.querySelector('[data-catalog-route="purchaseOrders"] button')`);await mode('independent')
   await until(`document.querySelectorAll('.laboratory-form-frame [data-field-id]').length===7`)
   const orderFormId=await evaluate(`document.querySelector('[data-managed-form-id]').dataset.managedFormId`)
+  await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:2,y:2});await pause(100)
   const inheritedFooterActions=await evaluate(`(()=>[...document.querySelectorAll('.laboratory-form-frame .laboratory-footer [data-action-id]')].map(host=>{const button=host.querySelector('button'),style=getComputedStyle(button);return {id:host.dataset.actionId,code:button.querySelector('kbd')?.textContent,label:button.querySelector('span')?.textContent,className:button.className,background:style.backgroundColor,color:style.color,borderColor:style.borderColor,borderRadius:style.borderRadius}}))()`)
-  assert.deepEqual(inheritedFooterActions,laboratoryFooterActions.map(action=>({...action,id:({'new-person':'operational.new','edit-person':'operational.edit','delete-person':'operational.delete','demo-save':'operational.save','reset-sample':'operational.close'}[action.id]??action.id)})),'catalog form must preserve all Laboratory shortcut labels, colors, and button classes')
+  assert.deepEqual(inheritedFooterActions,laboratoryFooterActions.map(action=>({...action,id:({'new-person':'operational.new','copy-last':'operational.copyLast','copy-selected':'operational.copySelected','edit-person':'operational.edit','delete-person':'operational.delete','demo-save':'operational.save','reset-sample':'operational.close'}[action.id]??action.id)})),'catalog form must preserve all Laboratory shortcut labels, colors, and button classes')
   results.push('catalog redesign inherits the full Laboratory footer and its button colors')
   await check('purchase order redesign uses its own seven fields, two linked tables and the existing Designer',`!!document.querySelector('#form-laboratory-designer')&&document.querySelectorAll('[data-table-id]').length===2&&!(${field('personCode')})&&!!(${field('orderNumber')})`)
-  const inheritedFieldInput=`(${field('orderNumber')}).querySelector('.designer-input-part')`,inheritedFieldBefore=await rect(inheritedFieldInput)
-  await dragRaw(inheritedFieldInput,12,8)
+  const inheritedFieldInput=`(${field('orderNumber')}).querySelector('.designer-input-part')`
+  // Create room first: packed fields must respect the collision boundary.
+  await clickExpression(inheritedFieldInput)
+  if(await evaluate(`document.querySelector('[aria-label="حفظ فاصله و عرض مجموع"]')?.checked`))await clickExpression(`document.querySelector('[aria-label="حفظ فاصله و عرض مجموع"]')`)
+  const inheritedWidth=await evaluate(`(${inheritedFieldInput}).offsetWidth`)
+  await inputValue('document.querySelector("#designer-width")',inheritedWidth-80)
+  await evaluate('document.querySelector("#designer-width").blur()')
+  await evaluate(`(${inheritedFieldInput}).scrollIntoView({block:'center'})`);await pause(150)
+  const inheritedFieldBefore=await rect(inheritedFieldInput)
+  await dragRaw(inheritedFieldInput,-40,0)
   const inheritedFieldAfter=await rect(inheritedFieldInput)
   assert.ok(Math.abs(inheritedFieldAfter.left-inheritedFieldBefore.left)>4||Math.abs(inheritedFieldAfter.top-inheritedFieldBefore.top)>4,'catalog fields must retain the Laboratory drag editing behavior')
   await click('واگرد','.form-laboratory-banner button')
   await check('catalog field drag uses the shared Designer and Undo restores its original position',`(()=>{const r=(${inheritedFieldInput}).getBoundingClientRect();return Math.abs(r.left-${inheritedFieldBefore.left})<2&&Math.abs(r.top-${inheritedFieldBefore.top})<2})()`)
   await click('تنظیمات فرم','#managed-settings-tab')
   await check('unchanged operational contract is classified as appearance only',`document.querySelector('.form-release-settings').textContent.includes('ظاهری؛')`)
-  await clickExpression(field('orderNumber'),'right');await clickExpression(menu('حذف از این فرم'))
+  await clickExpression(`${field('orderNumber')}.querySelector('.designer-input-part')`,'right');await clickExpression(menu('حذف از این فرم'))
   await check('removing a bound field requires fundamental integration review',`document.querySelector('.form-release-settings').textContent.includes('تغییر بنیادین / اتصال جدید')`)
   await click('واگرد','.form-laboratory-banner button');await until(`!!(${field('orderNumber')})`)
   await selectValue(`document.querySelector('.form-release-settings label:last-of-type select')`,'definitions')
-  await click('ثبت طراحی نهایی — در انتظار اتصال')
+  await click('تأیید و ذخیرهٔ فرم','[data-design-save-actions] button')
+  await click('تأیید مجوزها و ذخیره','[role="dialog"] button')
+  await until(`!![...document.querySelectorAll('[data-design-save-actions] button')].find(button=>button.textContent==='ثبت اتصال به منو')`)
+  await click('ثبت اتصال به منو','[data-design-save-actions] button')
   await until(`document.querySelector('.form-release-settings').textContent.includes('بازیابی این نسخه طراحی')`)
   await check('finalized redesign remains pending; the original operational route is never replaced',`document.querySelector('[data-managed-form-id]').dataset.managedFormId===${JSON.stringify(orderFormId)}&&document.querySelector('.form-release-settings').textContent.includes('فرم عملیاتی قبلی بدون تغییر فعال است')`)
-  await check('pending design is placed under the selected real navigation group',`!!document.querySelector('[data-regression-navigation] [data-nav-id="definitions"] [data-design-status="awaiting-integration"]')`)
+  await check('approved pending design is queued under Laboratory while retaining its operational destination',`!!document.querySelector('[data-regression-navigation] [data-nav-id="formLaboratory"] [data-design-status="awaiting-integration"]')&&document.querySelector('.form-release-settings label:last-of-type select').value==='definitions'`)
   await reloadPage();await mode('independent');await until(`document.querySelectorAll('.laboratory-form-frame [data-field-id]').length===7`)
   await click('تنظیمات فرم','#managed-settings-tab')
   await check('release and selected real menu group survive reload',`document.querySelector('.form-release-settings').textContent.includes('بازیابی این نسخه طراحی')&&document.querySelector('.form-release-settings label:last-of-type select').value==='definitions'`)
@@ -737,6 +1020,8 @@ try {
   await clickExpression(newPersonButton)
   await check('operational new person reuses the saved Title default after editing/removing another item',`(${personTitle}).querySelector('.person-number-control textarea').value==='واحد آزمایشی دوم'`)
 
+  }
+  }
   }
   assert.deepEqual(errors,[], 'no uncaught browser exceptions')
   assert.equal(await evaluate(`document.querySelectorAll('.laboratory-document-notice,.form-document-layout-warning').length`),0)

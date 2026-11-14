@@ -1,0 +1,72 @@
+{
+  "formId": "form.redesign.f743b7d0-d9f9-49e0-a7a8-bb05a00ddde1",
+  "tables": {
+    "yarns": {
+      "server-filters": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+      },
+      "bounded-browser-rendering": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/approved-browser-final.log"
+      },
+      "sticky-header-controls": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/approved-browser-final.log"
+      },
+      "stable-page-order": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+      },
+      "row-selection-binding": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/approved-browser-final.log"
+      },
+      "large-dataset": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+      },
+      "server-filter-options": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+      },
+      "server-sort": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+      },
+      "server-paging": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+      },
+      "server-search": {
+        "status": "passed",
+        "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+      }
+    }
+  },
+  "form": {
+    "keyboard-and-focus": {
+      "status": "passed",
+      "artifact": "artifacts/yarn-operational-integration/approved-browser-final.log"
+    },
+    "approved-appearance": {
+      "status": "passed",
+      "artifact": "artifacts/yarn-operational-integration/approved-browser-final.log"
+    },
+    "runtime-controls": {
+      "status": "passed",
+      "artifact": "artifacts/yarn-operational-integration/approved-browser-final.log"
+    },
+    "permissions": {
+      "status": "passed",
+      "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+    },
+    "save-reload": {
+      "status": "passed",
+      "artifact": "artifacts/yarn-operational-integration/sql-definition-acceptance.log"
+    }
+  },
+  "digest": "8de207e06273ecab06f43cf12cbe3fe206272dca0ed6bf152165e1557a7c8bf5",
+  "releaseId": "a348e3e7-ae39-4ff6-b701-7dc55c3201c5",
+  "version": 1
+}

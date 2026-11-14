@@ -56,12 +56,15 @@ export function resolveFormLayout(schema: FormSchemaDraft, designerDraft: Design
     const rectangles=Object.values(canvas.fields).flatMap(field=>Object.values(field))
     // Automatic overflow is independent on each axis. A fixed height must not
     // preserve unused horizontal space left behind by removed fields.
-    if(viewport?.overflowX!=='scroll'&&!canvas.centeredFieldIds?.length){
+    if(viewport?.overflowX!=='scroll'&&!canvas.centeredFieldIds?.length&&!canvas.preserveHorizontalBounds){
       const left=options.originX??designerCanvasViewOrigin(canvas)
       canvas.fields=Object.fromEntries(Object.entries(canvas.fields).map(([id,field])=>[id,Object.fromEntries(Object.entries(field).map(([part,rect])=>[part,{...rect,left:rect.left-left}])) as typeof field]))
       canvas.width=Math.max(320,options.minimumCanvasWidth??0,...rectangles.map(rect=>rect.left-left+rect.width))
     }
-    if(viewport?.heightMode!=='fixed'&&viewport?.overflowY!=='scroll')canvas.height=Math.max(80,...rectangles.map(rect=>rect.top+rect.height))
+    // A fixed panel height does not make empty design-canvas space content.
+    // Preserve stored editor dimensions and field coordinates; crop only the view.
+    const contentRectangles=Object.values(canvas.fields).flatMap(field=>[field.input,...(field.label?[field.label]:[])])
+    canvas.height=Math.max(80,...contentRectangles.map(rect=>rect.top+rect.height))
   }
   if (canvas && device === 'desktop') return { formId: schema.id, device, kind: 'designer-canvas', fieldIds, canvas, invalidCanvas: false, fieldStyles }
 
@@ -159,7 +162,9 @@ export function inspectRenderedFormLayout(
         if (part && expected) {
           const actual = part.getBoundingClientRect()
           const centerShift=contract.canvas?.centeredFieldIds?.includes(fieldId)?(origin.width-contract.canvas.width)/2:0
-          if (Math.abs(actual.left - origin.left - expected.left-centerShift) > 2 || Math.abs(actual.top - origin.top - expected.top) > 2 || Math.abs(actual.width - expected.width) > 2 || Math.abs(actual.height - expected.height) > 2) issues.push(`Canvas geometry differs from saved layout: ${fieldId}${partSelector}`)
+          const renderedViewShift=grid.dataset.canvasViewShift===undefined?centerShift:Number(grid.dataset.canvasViewShift)
+          const expectedLeft=expected.left+(Number.isFinite(renderedViewShift)?renderedViewShift:centerShift)
+          if (Math.abs(actual.left - origin.left - expectedLeft) > 2 || Math.abs(actual.top - origin.top - expected.top) > 2 || Math.abs(actual.width - expected.width) > 2 || Math.abs(actual.height - expected.height) > 2) issues.push(`Canvas geometry differs from saved layout: ${fieldId}${partSelector}`)
         }
       }
     }

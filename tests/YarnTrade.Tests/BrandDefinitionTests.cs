@@ -17,13 +17,40 @@ namespace YarnTrade.Tests;
 public sealed partial class SecurityBaselineTests
 {
     [Fact]
+    public async Task Brand_case_preservation_digit_normalization_and_hidden_address_roundtrip()
+    {
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var api = new BrandsController(db);
+        var created = Assert.IsType<BrandView>(Assert.IsType<CreatedAtActionResult>((await api.Create(new("aB-۲۰۰", "Brand", "Keep address", "Note"), default)).Result).Value);
+        Assert.Equal("aB-200", created.BrandCode);
+        Assert.IsType<BadRequestObjectResult>((await api.Create(new("Ab-200", "Duplicate", null), default)).Result);
+        var entity = await db.Brands.SingleAsync(); entity.RowVersion = new byte[8]; await db.SaveChangesAsync();
+        var updated = Assert.IsType<BrandView>(Assert.IsType<OkObjectResult>((await api.Update(entity.Id, new("aB-201", "Updated", created.Address, "Changed note"), Convert.ToBase64String(entity.RowVersion), default)).Result).Value);
+        Assert.Equal("Keep address", updated.Address); Assert.Equal("aB-201", updated.BrandCode);
+        Assert.IsType<BadRequestObjectResult>((await api.Create(new("کد", "Invalid", null), default)).Result);
+    }
+
+    [Fact]
+    public async Task Brand_suggestion_uses_last_created_not_maximum_and_does_not_skip_collision()
+    {
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        db.Brands.AddRange(new Brand { BrandCode="zZ-900", BrandName="Older", CreatedAtUtc=DateTime.UtcNow.AddDays(-2) }, new Brand { BrandCode="aB-200", BrandName="Latest", CreatedAtUtc=DateTime.UtcNow });
+        await db.SaveChangesAsync(); var api = new SequenceSuggestionsController(db);
+        var result = JsonSerializer.SerializeToElement(Assert.IsType<OkObjectResult>((await api.Brand(default)).Result).Value);
+        Assert.Equal("aB-201", result.GetProperty("suggestion").GetString());
+        db.Brands.Add(new Brand { BrandCode="AB-201", BrandName="Occupied", CreatedAtUtc=DateTime.UtcNow.AddDays(-1) }); await db.SaveChangesAsync();
+        result = JsonSerializer.SerializeToElement(Assert.IsType<OkObjectResult>((await api.Brand(default)).Result).Value);
+        Assert.Equal("", result.GetProperty("suggestion").GetString()); Assert.False(string.IsNullOrEmpty(result.GetProperty("error").GetString()));
+    }
+
+    [Fact]
     public async Task Brand_creation_update_duplicate_validation_and_stale_update()
     {
         await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         var api = new BrandsController(db);
         Assert.IsType<BadRequestObjectResult>((await api.Create(new("", "Name", null), default)).Result);
         var created = Assert.IsType<BrandView>(Assert.IsType<CreatedAtActionResult>((await api.Create(new(" long-7000 ", " Name ", null), default)).Result).Value);
-        Assert.Equal("LONG-7000", created.BrandCode); Assert.Null(created.Address);
+        Assert.Equal("long-7000", created.BrandCode); Assert.Null(created.Address);
         Assert.IsType<BadRequestObjectResult>((await api.Create(new("long-7000", "Duplicate", "Address"), default)).Result);
         var entity = await db.Brands.SingleAsync(); entity.RowVersion = new byte[8]; await db.SaveChangesAsync();
         var saved = Assert.IsType<BrandView>(Assert.IsType<OkObjectResult>((await api.Update(entity.Id, new("700", "Updated", "Address"), Convert.ToBase64String(entity.RowVersion), default)).Result).Value);
@@ -46,7 +73,7 @@ public sealed partial class SecurityBaselineTests
             var person = Assert.IsType<PersonView>(Assert.IsType<CreatedAtActionResult>((await controller.CreatePerson(input, default)).Result).Value);
             personId = person.Id; Assert.Equal(2, person.BrandIds.Length); Assert.Equal(aId, person.DefaultBrandId);
             var second = BrandPersonInput(titleId, [aId], aId); second.PersonCode = "SECOND"; second.LastName = "Second";
-            Assert.IsType<CreatedAtActionResult>((await controller.CreatePerson(second, default)).Result);
+            Assert.IsType<BadRequestObjectResult>((await controller.CreatePerson(second, default)).Result);
         }
         await using (var db = new AppDbContext(options))
         {
@@ -60,7 +87,7 @@ public sealed partial class SecurityBaselineTests
             Assert.Equal(2, preserved.BrandIds.Length); Assert.Equal(aId, preserved.DefaultBrandId);
             var changed = Assert.IsType<PersonView>(Assert.IsType<OkObjectResult>((await api.UpdatePerson(personId, BrandPersonInput(titleId, [bId], bId), token, default)).Result).Value);
             Assert.Equal(new[] { bId }, changed.BrandIds); Assert.Equal(bId, changed.DefaultBrandId);
-            Assert.Equal(2, await db.PersonBrands.CountAsync()); // Other person's association survives.
+            Assert.Equal(1, await db.PersonBrands.CountAsync()); // Another person cannot own the same brand.
         }
         await using var read = new AppDbContext(options);
         var persisted = await read.Persons.Include(x => x.BrandLinks).SingleAsync(x => x.Id == personId);
@@ -80,8 +107,10 @@ public sealed partial class SecurityBaselineTests
         await using var host = await CreateApp();
         await CreateUser(host.App, "brand-view@example.test", "Customer"); await SignIn(host, "brand-view@example.test");
         Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync("/api/master-data/brands")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.GetAsync("/api/sequence-suggestions/brand")).StatusCode);
         await SetPermissions(host, "brand-view@example.test", "brands.view");
         Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/master-data/brands")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync("/api/sequence-suggestions/brand")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PostAsJsonAsync("/api/master-data/brands", new BrandInput("700", "Brand", null))).StatusCode);
         var navigation = await host.Client.GetFromJsonAsync<JsonElement>("/api/navigation");
         Assert.Contains(navigation.GetProperty("nodes").EnumerateArray(), x => x.GetProperty("routeId").GetString() == "brands");

@@ -1,3 +1,6 @@
+import {useDefinitionRowSelection,deleteSelectedDefinitionRows} from './components/base-form/useDefinitionRowSelection'
+import {FormSettingsButton} from './components/base-form/FormSettingsButton'
+import {useFieldValidation} from './components/base-form/useFieldValidation'
 import { NumberControl, formatInternationalNumber } from './components/base-form/NumberControl'
 import { PersonTitleControl, type PersonTitleOption } from './components/base-form/PersonTitleControl'
 import { functionKeyFromEvent } from './components/base-form/functionKeys'
@@ -5,7 +8,8 @@ import { Field, Shortcut } from './DefinitionControls'
 import { defaultFormTheme } from './components/base-form/formTheme'
 import { ExcelGridColumnHeader, ExcelGridFilterScope } from './components/base-form/ExcelGridColumnHeader'
 import { applyGridFiltersAndSort, gridDistinctValues, type ExcelGridColumn, type GridFilterState, type GridPage, type GridQuery, type GridSortState, type GridValue } from './components/base-form/excelGrid'
-import BrandsPage, { type Brand, type BrandPage } from './BrandsPage'
+import {SystemLookup} from './components/base-form/SystemLookup'
+import {ownsFormShortcut} from './formInteraction'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
@@ -112,12 +116,10 @@ const demoPersons: Person[] = [
 ]
 
 type ContractCreation = { personId?: string, onSaved: (person: Person) => void, onCancel: () => void }
-export default function PersonsPage({ language, demoMode = false, contractCreation, authenticatedUserId }: { language: Language, demoMode?: boolean, contractCreation?: ContractCreation, authenticatedUserId?: string }) {
+export default function PersonsPage({ language, demoMode = false, contractCreation, lookupCreation, authenticatedUserId }: { language: Language, demoMode?: boolean, contractCreation?: ContractCreation, lookupCreation?: Omit<ContractCreation, 'personId'>, authenticatedUserId?: string }) {
   const fa = language === 'fa'
   const [persons, setPersons] = useState<Person[]>([])
-  const [brands, setBrands] = useState<Brand[]>([])
   const [brandCreation, setBrandCreation] = useState(false)
-  const brandSelection = useRef<HTMLSelectElement>(null)
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [selectedId, setSelectedId] = useState<string>('')
   const [mode, setMode] = useState<Mode>('view')
@@ -134,6 +136,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const columnKey = `persons-columns:${authenticatedUserId ?? userKey}`
   const legacyColumnKey = `persons-columns:${userKey}`
   const shortcutKey = `persons-shortcuts:${userKey}`
+  const [settingsOpen,setSettingsOpen]=useState(false)
   const [topHeight, setTopHeight] = useState(() => Number(localStorage.getItem(splitKey)) || defaultFormTheme.editorHeight)
   const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns(columnKey, legacyColumnKey))
   const columnOwner = useRef(columnKey)
@@ -164,6 +167,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   gridQueryRef.current = { page: gridPage, pageSize: 100, search: '', filters, sort, language: fa ? 'fa' : 'en' }
 
   const selected = persons.find(x => x.id === selectedId)
+  const {validateFields}=useFieldValidation(formRef,{enabled:mode!=='view',entity:'persons',demo:demoMode,context:{currentId:mode==='edit'?selectedId:null,personType:draft.personType,titleId:draft.titleId||null,firstName:draft.firstName,lastName:draft.lastName},rules:{personCode:{required:true,maxLength:30,remote:true},lastName:{required:true,maxLength:200,remote:true},firstName:{maxLength:200,remote:true},titleId:{required:true},directorName:{maxLength:200},creditLimitIRR:{min:0}}})
   const dirty = mode !== 'view' && JSON.stringify(draft) !== original.current
   const jobs = parameters.filter(x => x.parameterType === 'Job' && x.code !== 'PARTNER')
   const titles = parameters.filter(x => x.parameterType === 'Title').sort((a, b) => (titleOrder.includes(a.code) ? titleOrder.indexOf(a.code) : 99) - (titleOrder.includes(b.code) ? titleOrder.indexOf(b.code) : 99))
@@ -224,7 +228,8 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
         api<Parameter[]>('/api/master-data/parameters')
       ])
       setGridPage(1); setParameters(refs)
-      const next = people.items.find(x => x.id === preferId) ?? (preferId ? await api<Person>(`/api/master-data/persons/${preferId}`).catch(() => undefined) : undefined) ?? people.items[0]
+      const latest=preferId||contractCreation?undefined:await api<Person>('/api/master-data/persons/latest').catch(()=>undefined)
+      const next = people.items.find(x => x.id === preferId) ?? (preferId ? await api<Person>(`/api/master-data/persons/${preferId}`).catch(() => undefined) : undefined) ?? latest ?? people.items[0]
       setSelectedId(next?.id ?? '')
       if (next) { const value = copyDraft(next); setDraft(value); original.current = JSON.stringify(value) }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
@@ -241,22 +246,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     }, 120)
     return () => window.clearTimeout(timer)
   }, [filters, sort, gridPage, fa, demoMode, loadGrid])
-  useEffect(() => {
-    if (demoMode || !hasPermission('brands.view')) return
-    let alive = true
-    let revision = 0
-    const reloadBrands = () => { const ticket = ++revision; void (async () => {
-      const all: Brand[] = []
-      for (let page = 1; ; page++) {
-        const result = await api<BrandPage>(`/api/master-data/brands?page=${page}&pageSize=500`)
-        all.push(...result.items)
-        if (!result.items.length || all.length >= result.total) break
-      }
-      if (alive && ticket === revision) setBrands(all)
-    })().catch(e => { if (alive && ticket === revision) setError(e instanceof Error ? e.message : String(e)) }) }
-    reloadBrands(); window.addEventListener('brands-changed', reloadBrands)
-    return () => { alive = false; window.removeEventListener('brands-changed', reloadBrands) }
-  }, [demoMode])
   useEffect(() => {
     if (mode !== 'view' || !selected) return
     const value = copyDraft(selected); setDraft(value); original.current = JSON.stringify(value)
@@ -362,17 +351,17 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     setDraft(value); original.current = JSON.stringify(value); setMode('new'); setMessage(''); setFieldErrors({})
   }, [demoMode, persons, parameters, contractCreation,titleDefaultId])
   useEffect(() => {
-    if (contractCreation && !loading && !contractStarted.current && parameters.length) {
+    if ((contractCreation||lookupCreation) && !loading && !contractStarted.current && parameters.length) {
       contractStarted.current = true
-      const person = persons.find(x => x.id === contractCreation.personId)
-      if (contractCreation.personId && person) {
+      const person = persons.find(x => x.id === contractCreation?.personId)
+      if (contractCreation?.personId && person) {
         const value = copyDraft(person)
         if (!value.titleId) value.titleId = parameters.find(x => x.parameterType === 'Title' && x.code === (value.personType === 'Company' ? 'COMPANY' : 'MR'))?.id ?? ''
         setSelectedId(person.id); setDraft(value); original.current = JSON.stringify(value); setMode('edit')
-      } else if (contractCreation.personId) setError(fa ? 'شخص موردنظر در فهرست موجود نیست.' : 'The person is unavailable.')
+      } else if (contractCreation?.personId) setError(fa ? 'شخص موردنظر در فهرست موجود نیست.' : 'The person is unavailable.')
       else void beginNew()
     }
-  }, [contractCreation, loading, parameters, beginNew, persons, fa])
+  }, [contractCreation, lookupCreation, loading, parameters, beginNew, persons, fa])
   const beginEdit = useCallback(() => {
     if (!selected || selected.isContractPartner && !contractCreation) return
     const value = copyDraft(selected)
@@ -381,22 +370,24 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [selected, contractCreation, parameters])
   const cancel = useCallback(() => {
     if (dirty && !window.confirm(fa ? 'اطلاعات تغییر کرده است. از خروج از حالت فعلی اطمینان دارید؟' : 'Information has changed. Exit the current mode?')) return
-    if (contractCreation) { contractCreation.onCancel(); return }
+    if (contractCreation||lookupCreation) { (contractCreation??lookupCreation)!.onCancel(); return }
     setMode('view'); setError(''); setFieldErrors({}); if (selected) { const value = copyDraft(selected); setDraft(value); original.current = JSON.stringify(value) }
-  }, [dirty, fa, selected, contractCreation])
+  }, [dirty, fa, selected, contractCreation,lookupCreation])
   const save = useCallback(async () => {
     if (mode === 'view') return
+    if (!await validateFields()) return
     setError(''); setMessage('')
     if (!validateAll()) return
     try {
       const saved = mode === 'new'
         ? await apiRequest<Person>(contractCreation ? '/api/master-data/contract-persons' : '/api/master-data/persons', { method: 'POST', body: JSON.stringify(personPayload(draft)) })
         : await apiRequest<Person>(withRowVersion(`/api/master-data/${contractCreation ? 'contract-persons' : 'persons'}/${selectedId}`, selected?.rowVersion), { method: 'PUT', body: JSON.stringify(personPayload(draft)) })
-      if (contractCreation) { contractCreation.onSaved(saved); return }
+      if (contractCreation||lookupCreation) { (contractCreation??lookupCreation)!.onSaved(saved); return }
       setMode('view'); setMessage(fa ? 'اطلاعات با موفقیت ثبت شد.' : 'Saved successfully.'); await load(saved.id)
     } catch (e) { if (isConcurrencyConflict(e)) { setMode('view'); setFieldErrors({}); await load(selectedId) }; setError(e instanceof Error ? e.message : String(e)) }
-  }, [selected?.rowVersion, mode, draft, fa, selectedId, load, validateAll, contractCreation])
+  }, [selected?.rowVersion, mode, draft, fa, selectedId, load, validateAll, contractCreation,lookupCreation])
   const remove = useCallback(async () => {
+    if(deleteSelectedDefinitionRows(frameRef.current))return;
     if (!selected || mode !== 'view' || selected.isContractPartner && !contractCreation) return
     if (!window.confirm(fa ? `شخص «${selected.displayName}» حذف شود؟` : `Delete “${selected.displayName}”?`)) return
     try {
@@ -409,6 +400,11 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     }
   }, [selected, mode, fa, load, contractCreation])
 
+  const bulkDeletePending=useRef(false)
+  const bulk=useDefinitionRowSelection<Person>({enabled:!demoMode&&!contractCreation&&mode==='view'&&hasPermission('persons.delete'),scope:JSON.stringify({filters,sort,language}),
+    onDelete:async rows=>{if(bulkDeletePending.current)throw Error('حذف در حال انجام است.');bulkDeletePending.current=true;try{await apiRequest('/api/master-data/persons/bulk-delete',{method:'POST',body:JSON.stringify({rows:rows.map(row=>({id:row.id,rowVersion:row.rowVersion}))})});await load()}finally{bulkDeletePending.current=false}},
+    range:async(start,end,signal)=>{const result:Person[]=[];for(let index=start;index<=end;){const page=Math.floor(index/100)+1;const data=await apiRequest<GridPage<Person>>('/api/master-data/persons/grid',{method:'POST',body:JSON.stringify({...gridQueryRef.current,page}),signal});for(;index<=end&&Math.floor(index/100)+1===page;index++){const row=data.items[index%100];if(!row)throw Error('بازه انتخاب تغییر کرده است؛ دوباره انتخاب کنید.');result.push(row)}}return result}
+  })
   const move = useCallback((where: 'up' | 'down' | 'pageUp' | 'pageDown' | 'home' | 'end') => {
     if (!filtered.length) return
     const delta = where === 'up' ? -1 : where === 'down' ? 1 : where === 'pageUp' ? -10 : where === 'pageDown' ? 10 : 0
@@ -419,7 +415,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
-      if (brandCreation || !frameRef.current) return
+      if (brandCreation || !ownsFormShortcut(frameRef.current, event)) return
       if (frameRef.current?.closest('[aria-hidden="true"]')) return
       const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement
       if (mode !== 'view') {
@@ -589,18 +585,9 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     return { id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? personType }
   }
 
-  if (brandCreation) return <BrandsPage language={language} demoMode={demoMode} creation={{
-    onCancel: () => { setBrandCreation(false); requestAnimationFrame(() => brandSelection.current?.focus()) },
-    onSaved: brand => {
-      setBrands(current => [...current.filter(x => x.id !== brand.id), brand])
-      setDraft(current => ({ ...current, brandIds: [...new Set([...(current.brandIds ?? []), brand.id])] }))
-      setBrandCreation(false); requestAnimationFrame(() => brandSelection.current?.focus())
-    }
-  }} />
-
-  return <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
+  return <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} data-record-presentation={mode!=='view'?'entry':selectedId?'view':'empty'} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
     <section className="person-editor panel">
-      <div className="person-section-head"><div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div><span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span></div>
+      <div className="person-section-head"><div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div><span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span><details className="shortcut-settings person-header-settings" open={settingsOpen}><summary onClick={event=>event.preventDefault()}><FormSettingsButton language={language} expanded={settingsOpen} onClick={()=>setSettingsOpen(open=>!open)}/></summary><div>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div></details></div>
       {error && <div className="form-message error-message">{error}</div>}{message && <div className="form-message success-message">{message}</div>}
       <div className={`person-form-grid ${mode !== 'view' ? 'editing' : ''}`} ref={formRef} onKeyDown={formKeyDown} onBlur={formBlur}>
         <Field className="person-code-field" label={fa ? 'کد شخص *' : 'Person code *'} error={fieldErrors.personCode}><input data-field="personCode" aria-invalid={Boolean(fieldErrors.personCode)} autoFocus={mode === 'new'} disabled={disabled || selected?.isContractPartner} maxLength={30} value={draft.personCode} onChange={e => set('personCode', e.target.value)} /></Field>
@@ -614,18 +601,18 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
         <Field className="person-mobile-field" label={fa ? 'موبایل' : 'Mobile'}><NumberControl field="mobile" label={fa ? 'موبایل' : 'Mobile'} primary={draft.mobile ?? ''} numbers={draft.mobileNumbers ?? []} disabled={disabled} fa={fa} suggestedCode={dialingCode} onChange={(mobile, mobileNumbers) => setDraft(current => ({ ...current, mobile, mobileNumbers }))} /></Field>
         <Field label={fa ? 'آدرس' : 'Address'} wide className="person-address-field"><NumberControl field="address" label={fa ? 'آدرس' : 'Address'} primary={draft.address ?? ''} numbers={draft.addresses ?? []} disabled={disabled} fa={fa} onChange={(address, addresses) => setDraft(current => ({ ...current, address, addresses }))} multiline /></Field>
         <div className="person-notes-active"><Field label={fa ? 'توضیحات' : 'Notes'} className="person-notes-field"><input data-field="notes" disabled={disabled} value={draft.notes} onChange={e => set('notes', e.target.value)} /></Field><label className="active-check"><input data-field="isActive" type="checkbox" disabled={disabled} checked={draft.isActive} onChange={e => set('isActive', e.target.checked)} />{fa ? 'فعال' : 'Active'}</label></div>
-        <Field label={fa ? 'برندها' : 'Brands'} className="person-brands-field"><div className="person-title-wrap"><button type="button" className="title-add-button" disabled={disabled || !hasPermission('brands.create')} aria-label={fa ? 'تعریف برند جدید' : 'New brand'} title="Insert" onClick={() => setBrandCreation(true)}>+</button><select ref={brandSelection} data-field="brandIds" aria-label={fa ? 'برندها' : 'Brands'} multiple size={2} disabled={disabled || !hasPermission('brands.view')} value={draft.brandIds ?? []} onKeyDown={event => { if (event.key === 'Insert' && !disabled && hasPermission('brands.create')) { event.preventDefault(); event.stopPropagation(); setBrandCreation(true) } }} onChange={event => { const ids = [...event.target.selectedOptions].map(x => x.value); setDraft(current => ({ ...current, brandIds: ids, defaultBrandId: ids.includes(current.defaultBrandId ?? '') ? current.defaultBrandId : null })) }}>{brands.map(brand => <option key={brand.id} value={brand.id}>{brand.brandCode} — {brand.brandName}</option>)}</select></div></Field>
-        <Field label={fa ? 'برند پیش‌فرض' : 'Default brand'} className="person-default-brand-field"><select data-field="defaultBrandId" disabled={disabled || !hasPermission('brands.view')} value={draft.defaultBrandId ?? ''} onChange={event => set('defaultBrandId', event.target.value || null)}><option value="">—</option>{brands.filter(brand => draft.brandIds?.includes(brand.id)).map(brand => <option key={brand.id} value={brand.id}>{brand.brandCode} — {brand.brandName}</option>)}</select></Field>
+        <Field label={fa ? 'کد و نام برند' : 'Brand code and name'} className="person-brands-field"><SystemLookup field="defaultBrandId" label={fa?'کد و نام برند':'Brand code and name'} value={draft.defaultBrandId??''} language={language} disabled={disabled} settings={{sourceId:'brands',returnMode:'saveAndSelect'}} ownerId={mode==='new'?'':selectedId} listSettings={{allowEmpty:true,searchEnabled:true,addPlacement:'popup'}} onCreationChange={setBrandCreation} onChange={id=>setDraft(current=>({...current,brandIds:id?[...new Set([...(current.brandIds??[]),id])]:[],defaultBrandId:id||null}))} onSelected={()=>formRef.current?.querySelector<HTMLElement>('[data-field="nationalityId"]')?.focus({preventScroll:true})}/></Field>
       </div>
     </section>
     <div className="split-handle" onPointerDown={resizeStart}><span /></div>
     <section className="person-grid-panel panel">
       <div className="grid-toolbar"><div><h2>{fa ? 'فهرست اشخاص' : 'People'}</h2><span>{fa ? `${gridStart} تا ${gridEnd} از ${gridTotal} رکورد` : `${gridStart}–${gridEnd} of ${gridTotal} records`}</span></div><div className="persons-grid-pager"><button type="button" disabled={gridPage <= 1 || gridLoading} onClick={() => setGridPage(page => page - 1)}>{fa ? 'قبلی' : 'Previous'}</button><span>{gridPage} / {gridPageCount}</span><button type="button" disabled={gridPage >= gridPageCount || gridLoading} onClick={() => setGridPage(page => page + 1)}>{fa ? 'بعدی' : 'Next'}</button></div><details className="column-picker" ref={columnPicker} open={columnMenuOpen}><summary aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>☷ {fa ? 'ستون‌ها' : 'Columns'}</summary></details></div>
       {columnMenuOpen && createPortal(<div ref={columnMenu} className="person-column-menu" dir={fa ? 'rtl' : 'ltr'} style={columnMenuPosition}>{columns.map(column => <label key={column.key}><input type="checkbox" checked={column.visible} disabled={column.visible && visibleColumns.length === 1} onChange={() => toggleColumn(column.key)} />{columnLabel(column.key)}</label>)}<button type="button" onClick={() => setColumns(defaultColumns)}>↺ {fa ? 'حالت پیش‌فرض' : 'Reset'}</button></div>, document.body)}
-      <div className="person-table-wrap"><ExcelGridFilterScope><table className="person-table excel-grid" style={{ minWidth: visibleColumns.reduce((sum, column) => sum + column.width, 0) }}><colgroup>{visibleColumns.map(column => <col key={column.key} style={{ width: column.width }} />)}</colgroup><thead>
+      {(bulk.multiSelection&&(bulk.selection.size>0||bulk.error))&&<div className="definition-bulk-status" role="status">{bulk.selection.size>1&&<span>{bulk.selection.size} ردیف انتخاب شده — Delete: حذف</span>}{bulk.selection.size>0&&<button type="button" data-definition-bulk-delete disabled={bulk.busy} onClick={()=>void bulk.remove()}>حذف انتخاب‌ها</button>}{bulk.error&&<span role="alert">{bulk.error}</span>}</div>}
+      <div className="person-table-wrap" tabIndex={0} onKeyDownCapture={bulk.keyDown}><ExcelGridFilterScope onReset={() => { setFilters({}); setGridPage(1) }}><table className="person-table excel-grid" style={{ minWidth: visibleColumns.reduce((sum, column) => sum + column.width, 0) }}><colgroup>{visibleColumns.map(column => <col key={column.key} style={{ width: column.width }} />)}</colgroup><thead>
         <tr>{visibleColumns.map(column => <ExcelGridColumnHeader key={column.key} column={gridColumns.find(item => item.id === column.key)!} rows={persons} locale={fa ? 'fa' : 'en'} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.key]} sort={sort} onSort={next => { setSort(next); setGridPage(1) }} onApplyFilter={filter => applyFilter(column.key, filter)} loadFilterValues={search => loadGridFilterValues(column.key, search)} thProps={{ 'data-column': column.key, className: columnDrop?.key === column.key ? `column-drop-${columnDrop.before ? 'before' : 'after'}` : undefined, onDragOver: event => columnDragOver(event, column.key), onDrop: event => dropColumn(event, column.key) }} titleProps={{ draggable: true, onDragStart: event => { draggedColumn.current = column.key; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', column.key); setColumnMenuOpen(false) }, onDragEnd: () => { draggedColumn.current = null; setColumnDrop(null) } }} resizer={<i className="column-resizer" onPointerDown={event => resizeColumn(event, column.key)} />} />)}</tr>
       </thead><tbody>
-        {loading || gridLoading ? <tr><td colSpan={visibleColumns.length}>{fa ? 'در حال دریافت…' : 'Loading…'}</td></tr> : filtered.length ? filtered.map(person => <tr key={person.id} data-person-id={person.id} className={person.id === selectedId ? 'selected' : ''} onClick={() => mode === 'view' && setSelectedId(person.id)} onDoubleClick={beginEdit}>{visibleColumns.map(column => <td key={column.key}>{cell(person, column.key)}</td>)}</tr>) : <tr><td colSpan={visibleColumns.length}>{fa ? 'رکوردی یافت نشد.' : 'No records found.'}</td></tr>}
+        {loading || gridLoading ? <tr><td colSpan={visibleColumns.length}>{fa ? 'در حال دریافت…' : 'Loading…'}</td></tr> : filtered.length ? filtered.map((person,index) => <tr key={person.id} data-person-id={person.id} className={(bulk.selection.size?bulk.selection.has(person.id):person.id===selectedId)?'selected'+(bulk.blocked.has(person.id)?' bulk-delete-blocked':''):bulk.blocked.has(person.id)?'bulk-delete-blocked':''} onClick={event=>{if(mode!=='view'||bulk.busy)return;(event.currentTarget.closest('.person-table-wrap') as HTMLElement)?.focus({preventScroll:true});void bulk.select(person,(gridPage-1)*100+index,event);if(event.ctrlKey||event.metaKey||event.shiftKey){event.preventDefault();return}setSelectedId(person.id)}} onDoubleClick={beginEdit}>{visibleColumns.map(column => <td key={column.key}>{cell(person, column.key)}</td>)}</tr>) : <tr><td colSpan={visibleColumns.length}>{fa ? 'رکوردی یافت نشد.' : 'No records found.'}</td></tr>}
       </tbody></table></ExcelGridFilterScope></div>
       <div className="shortcut-bar">
         {mode === 'view' ? <>
@@ -641,7 +628,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
           <Shortcut code="F3" label={fa ? 'ثبت اطلاعات' : 'Save'} onClick={() => void save()} primary />
           <Shortcut code="Esc" label={fa ? 'انصراف' : 'Cancel'} onClick={cancel} />
         </>}
-        <details className="shortcut-settings"><summary title={fa ? 'شخصی‌سازی کلیدها' : 'Customize shortcuts'}>⚙</summary><div>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div></details>
+
       </div>
     </section>
   </div>

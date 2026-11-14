@@ -165,13 +165,13 @@ public sealed class YarnType : AuditedEntity
 
 public sealed class YarnItem : AuditedEntity
 {
+    public Guid? ProductGroupId { get; set; }
     public Guid YarnTypeId { get; set; }
     public YarnType YarnType { get; set; } = null!;
     public required string Code { get; set; }
     public required string NameFa { get; set; }
     public required string NameEn { get; set; }
     public string ComprehensiveName { get; set; } = string.Empty;
-    public string? YarnGroup { get; set; }
     public string? Luster { get; set; }
     public string UnitOfMeasure { get; set; } = "KG";
     public string? FixStatus { get; set; }
@@ -198,12 +198,16 @@ public sealed class YarnItem : AuditedEntity
 
 public sealed class Warehouse : AuditedEntity
 {
+    public int FloorCount { get; set; } = 1;
+    public string? Location { get; set; }
     public required string Code { get; set; }
     public required string NameFa { get; set; }
     public required string NameEn { get; set; }
     public Guid? OwnerPersonId { get; set; }
     public Guid? CustodianPersonId { get; set; }
     public string? Address { get; set; }
+    public string? AddressesJson { get; set; }
+    public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
 }
 

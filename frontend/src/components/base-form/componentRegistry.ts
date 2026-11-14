@@ -1,3 +1,6 @@
+import {PackagingVolumeControl} from './PackagingVolumeControl'
+import {BatchValueList} from './BatchValueList'
+import {SystemLookup} from './SystemLookup'
 import type { ComponentType } from 'react'
 import { Field, Shortcut } from '../../DefinitionControls'
 import { BaseFormGridBoundary } from './BaseFormGridBoundary'
@@ -5,6 +8,7 @@ import { BaseFormShell } from './BaseFormShell'
 import { FormValueList } from './FormValueList'
 import { NumberControl } from './NumberControl'
 import { PersonTitleControl } from './PersonTitleControl'
+import { CascadingTreePanels } from './CascadingTreePanels'
 import SystemDateInput from '../../SystemDateInput'
 import type { FormLocalizedText, FormSchemaFieldKind, FormSchemaMode } from './formSchema'
 
@@ -60,6 +64,10 @@ const valueListPresets: readonly FormComponentPreset[] = [
 ]
 
 const definitions: FormComponentDefinition[] = [
+ {id:'base-form.packaging-volume',exportName:'PackagingVolumeControl',component:PackagingVolumeControl as unknown as ComponentType<never>,title:{fa:'بسته‌بندی و حجم کالا',en:'Product packaging and volume',zh:'商品包装与体积'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'valueList'},
+ {id:'base-form.batch-values',exportName:'BatchValueList',component:BatchValueList as unknown as ComponentType<never>,title:{fa:'رنگ‌ها و مقادیر با ثبت گروهی',en:'Batch colors and values',zh:'批量颜色与值'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'valueList'},
+  {id:'base-form.system-lookup',exportName:'SystemLookup',component:SystemLookup as unknown as ComponentType<never>,title:{fa:'انتخاب از تعاریف سیستم',en:'System definition lookup',zh:'系统定义选择'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'lookup'},
+  {id:'base-form.cascading-tree-panels',exportName:'CascadingTreePanels',component:CascadingTreePanels as unknown as ComponentType<never>,title:{fa:'درخت گروه‌های آبشاری',en:'Cascading Tree Panels',zh:'级联树面板'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'custom'},
   {
     id: 'base-form.value-list', exportName: 'FormValueList', component: FormValueList,
     title: { fa: 'فهرست مقادیر', en: 'Value List', zh: '值列表' }, category: 'input',
@@ -80,6 +88,7 @@ const definitions: FormComponentDefinition[] = [
   { id:'base-form.date-input',exportName:'SystemDateInput',component:SystemDateInput as unknown as ComponentType<never>,title:{fa:'تاریخ مشترک',en:'System date',zh:'系统日期'},category:'input',allowedFormTypes:allFormTypes,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'date' },
   { id:'base-form.code-input',exportName:'CodeInput',component:Field as unknown as ComponentType<never>,title:{fa:'کد قابل تنظیم',en:'Configurable code',zh:'可配置代码'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'text' },
   { id:'base-form.incremental-code',exportName:'IncrementalCodeInput',component:Field as unknown as ComponentType<never>,title:{fa:'شماره افزایشی یکتا',en:'Unique incremental number',zh:'唯一递增编号'},category:'input',allowedFormTypes:entryForms,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'text' },
+  { id:'base-form.derived-display',exportName:'DerivedDisplay',component:Field as unknown as ComponentType<never>,title:{fa:'نمایش محاسبه‌شدهٔ فقط‌خواندنی',en:'Read-only derived display',zh:'只读计算显示'},category:'input',allowedFormTypes:allFormTypes,labelPolicy:'editable',adapterRequired:true,designerSelectable:true,schemaKind:'text' },
   {
     id: 'base-form.grid-boundary', exportName: 'BaseFormGridBoundary', component: BaseFormGridBoundary,
     title: { fa: 'مرز جدول پایه', en: 'Base Grid Boundary', zh: '基础表格边界' }, category: 'table',

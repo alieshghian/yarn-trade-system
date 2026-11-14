@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode, type ThHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
+import { functionKeyFromEvent } from './functionKeys'
 import { NO_FILL, gridAvailableColors, gridDistinctValues, gridValueKey, gridValueLabel, type ExcelGridColumn, type GridColumnFilter, type GridCondition, type GridCustomFilter, type GridFilterOperator, type GridSortState, type GridValue, type GridValueRule } from './excelGrid'
 
 type Props<Row> = {
@@ -19,10 +20,29 @@ type Props<Row> = {
   resizer?: ReactNode
 }
 
-const ExcelGridFilterContext = createContext<{ activeId: string | null, setActiveId: (id: string | null) => void } | null>(null)
-export function ExcelGridFilterScope({ children }: { children: ReactNode }) {
+const ExcelGridFilterContext = createContext<{ activeId: string | null, setActiveId: (id: string | null) => void; scopeId: string } | null>(null)
+export function ExcelGridFilterScope({ children, onReset }: { children: ReactNode; onReset?: () => void }) {
   const [activeId, setActiveId] = useState<string | null>(null)
-  return <ExcelGridFilterContext.Provider value={{ activeId, setActiveId }}>{children}</ExcelGridFilterContext.Provider>
+  const scopeId = useId(), host = useRef<HTMLDivElement>(null)
+  const reset = useRef(onReset); reset.current = onReset
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (functionKeyFromEvent(event) !== 'F8' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !reset.current) return
+      const target = event.target instanceof Element ? event.target : document.activeElement
+      const portal = target?.closest<HTMLElement>('[data-grid-filter-owner]')
+      const direct = target?.closest<HTMLElement>('[data-grid-filter-scope]')
+      const modal = target?.closest('[aria-modal="true"]') ?? [...document.querySelectorAll('[aria-modal="true"]')].filter(element => element.getClientRects().length).at(-1)
+      const form = target?.closest('[data-form-scope],.operational-form-frame,.form-laboratory-page,.persons-page')
+      const candidates = [...(modal ?? form ?? document).querySelectorAll<HTMLElement>('[data-grid-filter-scope]')].filter(element => element.getClientRects().length || element.querySelector('table')?.getClientRects().length)
+      const owner = portal?.dataset.gridFilterOwner ?? direct?.dataset.gridFilterScope ?? candidates[0]?.dataset.gridFilterScope
+      if (owner !== scopeId || !host.current) return
+      event.preventDefault(); event.stopImmediatePropagation()
+      if (!event.repeat) { setActiveId(null); reset.current() }
+    }
+    window.addEventListener('keydown', keydown, true)
+    return () => window.removeEventListener('keydown', keydown, true)
+  }, [scopeId])
+  return <ExcelGridFilterContext.Provider value={{ activeId, setActiveId, scopeId }}><div ref={host} data-grid-filter-scope={scopeId} style={{display:'contents'}}>{children}</div></ExcelGridFilterContext.Provider>
 }
 
 const labels: Record<GridFilterOperator, string> = {
@@ -186,15 +206,16 @@ export function ExcelGridColumnHeader<Row>({ column, rows, locale, language = 'e
   </div>
 
   return <th {...thProps} style={{ ...thProps?.style, width: column.width }}>
+    
     <div className="column-heading">
       <button {...titleProps} type="button" className={`column-title ${columnSort ? 'is-sorted' : ''} ${titleProps?.className ?? ''}`} onClick={event => { titleProps?.onClick?.(event); if (!event.defaultPrevented) requestSort({ id: column.id, direction: columnSort && !columnSort.byColor ? columnSort.direction === 'asc' ? 'desc' : 'asc' : 'asc' }) }}>
-        {column.label}{columnSort && <span className={`column-sort-indicator ${columnSort.byColor ? 'by-color' : columnSort.direction}`} aria-label={columnSort.byColor ? tr('Sorted by color', 'مرتب‌شده بر اساس رنگ', '按颜色排序') : columnSort.direction === 'asc' ? tr('Sorted ascending', 'مرتب‌شده صعودی', '升序') : tr('Sorted descending', 'مرتب‌شده نزولی', '降序')} title={`${sortIndex + 1}. ${columnSort.byColor ? tr('Sorted by color', 'مرتب‌شده بر اساس رنگ', '按颜色排序') : columnSort.direction === 'asc' ? tr('Sorted ascending', 'مرتب‌شده صعودی', '升序') : tr('Sorted descending', 'مرتب‌شده نزولی', '降序')}`}><svg viewBox="0 0 16 10" aria-hidden="true"><path d={columnSort.byColor ? 'M3 5h10' : columnSort.direction === 'asc' ? 'M3 7 8 2l5 5M8 2v7' : 'M3 3l5 5 5-5M8 8V1'} /></svg>{(sort?.length ?? 0) > 1 && <small>{sortIndex + 1}</small>}</span>}
+        <span className="column-label">{column.label}</span>
       </button>
-      <button ref={triggerRef} type="button" className={`excel-filter-trigger${active ? ' active' : ''}`} aria-label={active ? tr(`Filtered column ${column.label}`, `ستون ${column.label} فیلتر شده`, `已筛选列 ${column.label}`) : tr(`Filter column ${column.label}`, `فیلتر ستون ${column.label}`, `筛选列 ${column.label}`)} aria-pressed={active} aria-expanded={open} onClick={event => open ? setActiveId(null) : openMenu(event.currentTarget)}>{active ? <svg className="excel-filter-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 3.5h15L11.5 9v6l-3 2V9L2.5 3.5z" /></svg> : <svg className="excel-filter-triangle" viewBox="0 0 14 10" aria-hidden="true"><path d="M1.5 1.5h11L7 8.5z" /></svg>}</button>
+      <button ref={triggerRef} type="button" className={`excel-filter-trigger${active ? ' active' : ''}`} aria-label={active ? tr(`Filtered column ${column.label}`, `ستون ${column.label} فیلتر شده`, `已筛选列 ${column.label}`) : tr(`Filter column ${column.label}`, `فیلتر ستون ${column.label}`, `筛选列 ${column.label}`)} aria-pressed={active} aria-expanded={open} onClick={event => open ? setActiveId(null) : openMenu(event.currentTarget)}>{columnSort && <span className={`column-sort-indicator ${columnSort.byColor ? 'by-color' : columnSort.direction}`} aria-label={columnSort.byColor ? tr('Sorted by color', 'مرتب‌شده بر اساس رنگ', '按颜色排序') : columnSort.direction === 'asc' ? tr('Sorted ascending', 'مرتب‌شده صعودی', '升序') : tr('Sorted descending', 'مرتب‌شده نزولی', '降序')} title={`${sortIndex + 1}. ${columnSort.byColor ? tr('Sorted by color', 'مرتب‌شده بر اساس رنگ', '按颜色排序') : columnSort.direction === 'asc' ? tr('Sorted ascending', 'مرتب‌شده صعودی', '升序') : tr('Sorted descending', 'مرتب‌شده نزولی', '降序')}`}><svg viewBox="0 0 16 10" aria-hidden="true"><path d={columnSort.byColor ? 'M3 5h10' : columnSort.direction === 'asc' ? 'M3 7 8 2l5 5M8 2v7' : 'M3 3l5 5 5-5M8 8V1'} /></svg>{(sort?.length ?? 0) > 1 && <small>{sortIndex + 1}</small>}</span>}{active ? <svg className="excel-filter-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 3.5h15L11.5 9v6l-3 2V9L2.5 3.5z" /></svg> : <svg className="excel-filter-triangle" viewBox="0 0 14 10" aria-hidden="true"><path d="M1.5 1.5h11L7 8.5z" /></svg>}</button>
     </div>
     {resizer}
     {open && createPortal(<>
-      <div ref={menuRef} className={`excel-filter-menu shared-excel-filter-menu ${submenuOpensLeft ? 'submenu-opens-left' : 'submenu-opens-right'}`} dir={direction} style={{ top: position.top, left: position.left, fontSize: filterPopupFontSize } as CSSProperties} role="dialog" aria-label={`${column.label} filter`}>
+      <div data-grid-filter-owner={filterContext.scopeId} ref={menuRef} className={`excel-filter-menu shared-excel-filter-menu ${submenuOpensLeft ? 'submenu-opens-left' : 'submenu-opens-right'}`} dir={direction} style={{ top: position.top, left: position.left, fontSize: filterPopupFontSize } as CSSProperties} role="dialog" aria-label={`${column.label} filter`}>
         <button type="button" className="filter-command" onClick={() => { requestSort({ id: column.id, direction: 'asc' }); setActiveId(null) }}><b>A→Z</b><span>{tr('Sort Ascending', 'مرتب‌سازی صعودی', '升序排序')}</span></button>
         <button type="button" className="filter-command" onClick={() => { requestSort({ id: column.id, direction: 'desc' }); setActiveId(null) }}><b>Z→A</b><span>{tr('Sort Descending', 'مرتب‌سازی نزولی', '降序排序')}</span></button>
         {column.effectiveCellColor && column.colorAwareSort && <details className="excel-submenu"><summary>{tr('Sort by Color', 'مرتب‌سازی بر اساس رنگ', '按颜色排序')}</summary><div className="excel-submenu-flyout"><button type="button" onClick={() => { requestSort({ id: column.id, direction: 'asc', byColor: true }); setActiveId(null) }}>{tr('Sort by cell color', 'مرتب‌سازی رنگ سلول', '按单元格颜色排序')}</button></div></details>}
@@ -207,19 +228,19 @@ export function ExcelGridColumnHeader<Row>({ column, rows, locale, language = 'e
           </div>
         </details>
         <input className="filter-value-search" value={search} onChange={event => setSearch(event.target.value)} placeholder={tr('Search…', 'جستجو…', '搜索…')} />
-        <div className="filter-values"><label><input type="checkbox" checked={selectedAll} onChange={event => toggleAllVisible(event.target.checked)} />{tr('Select All', '(انتخاب همه)', '全选')}</label>{filteredValues.map(value => <label key={gridValueKey(value)}><input type="checkbox" checked={isSelected(gridValueKey(value))} onChange={event => toggleValue(gridValueKey(value), event.target.checked)} />{gridValueLabel(value) === '(Blanks)' ? tr('(Blanks)', '(خالی)', '(空白)') : gridValueLabel(value)}</label>)}</div>
+        <div className="filter-values"><div className="filter-values-select-all"><label><input type="checkbox" checked={selectedAll} onChange={event => toggleAllVisible(event.target.checked)} />{tr('Select All', '(انتخاب همه)', '全选')}</label><button type="button" className="filter-invert-selection" aria-label={tr('Invert selection', 'معکوس کردن انتخاب', '反向选择')} title={tr('Invert selection', 'معکوس کردن انتخاب', '反向选择')} aria-pressed={selectionMode === 'include'} onClick={() => setSelectionMode(current => current === 'exclude' ? 'include' : 'exclude')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h14m0 0-3-3m3 3-3 3M20 17H6m0 0 3 3m-3-3 3-3" /></svg></button></div>{filteredValues.map(value => <label key={gridValueKey(value)}><input type="checkbox" checked={isSelected(gridValueKey(value))} onChange={event => toggleValue(gridValueKey(value), event.target.checked)} />{gridValueLabel(value) === '(Blanks)' ? tr('(Blanks)', '(خالی)', '(空白)') : gridValueLabel(value)}</label>)}</div>
         <div className="filter-actions"><button type="button" className="primary" onClick={apply}>{tr('OK', 'تأیید', '确定')}</button><button type="button" onClick={() => setActiveId(null)}>{tr('Cancel', 'انصراف', '取消')}</button></div>
       </div>
-      {conditionDialog && <div ref={conditionRef} className="excel-condition-editor" dir={direction} style={{ top: editorPosition.top, left: editorPosition.left, fontSize: filterPopupFontSize }} role="dialog" aria-label={tr('Custom Filter', 'فیلتر سفارشی', '自定义筛选')}>
+      {conditionDialog && <div data-grid-filter-owner={filterContext.scopeId} ref={conditionRef} className="excel-condition-editor" dir={direction} style={{ top: editorPosition.top, left: editorPosition.left, fontSize: filterPopupFontSize }} role="dialog" aria-label={tr('Custom Filter', 'فیلتر سفارشی', '自定义筛选')}>
         <strong>{tr('Custom Filter', 'فیلتر سفارشی', '自定义筛选')}</strong>{renderCondition('first', editingCustom?.first ?? emptyCondition(column.type))}
         <label className="excel-second-condition"><input type="checkbox" checked={Boolean(editingCustom?.second)} onChange={event => setEditingCustom(current => event.target.checked ? { logic: current?.logic ?? 'and', first: current?.first ?? emptyCondition(column.type), second: current?.second ?? emptyCondition(column.type) } : current ? { logic: current.logic, first: current.first } : undefined)} />{tr('Use second condition', 'شرط دوم', '使用第二个条件')}</label>
         {editingCustom?.second && <><select aria-label={tr('Combine conditions', 'ترکیب شرط‌ها', '组合条件')} value={editingCustom.logic} onChange={event => setEditingCustom(current => current && ({ ...current, logic: event.target.value as 'and' | 'or' }))}><option value="and">{tr('And', 'و', '并且')}</option><option value="or">{tr('Or', 'یا', '或者')}</option></select>{renderCondition('second', editingCustom.second)}</>}
         <div className="filter-actions"><button type="button" className="primary" onClick={() => { setCustom(editingCustom); setConditionDialog(false) }}>{tr('OK', 'تأیید', '确定')}</button><button type="button" onClick={() => setConditionDialog(false)}>{tr('Cancel', 'انصراف', '取消')}</button></div>
       </div>}
-      {topTenDialog && <div ref={topTenRef} className="excel-condition-editor" dir={direction} style={{ top: editorPosition.top, left: editorPosition.left, fontSize: filterPopupFontSize }} role="dialog" aria-label={tr('Top 10 Filter', 'فیلتر ۱۰ مقدار برتر', '前 10 项筛选')}>
+      {topTenDialog && <div data-grid-filter-owner={filterContext.scopeId} ref={topTenRef} className="excel-condition-editor" dir={direction} style={{ top: editorPosition.top, left: editorPosition.left, fontSize: filterPopupFontSize }} role="dialog" aria-label={tr('Top 10 Filter', 'فیلتر ۱۰ مقدار برتر', '前 10 项筛选')}>
         <strong>{tr('Top 10 AutoFilter', 'فیلتر خودکار ۱۰ مقدار برتر', '前 10 项自动筛选')}</strong><div className="excel-top-ten-controls"><select value={topTenKind} onChange={event => setTopTenKind(event.target.value as 'top' | 'bottom')}><option value="top">{tr('Top', 'بالاترین', '前')}</option><option value="bottom">{tr('Bottom', 'پایین‌ترین', '后')}</option></select><input type="number" min={1} max={500} value={topTenCount} onChange={event => setTopTenCount(Math.max(1, Math.min(500, Number(event.target.value) || 1)))} /><span>{tr('Items', 'مقدار', '项')}</span></div>
         <div className="filter-actions"><button type="button" className="primary" onClick={() => { setValueRule({ kind: topTenKind, count: topTenCount }); setTopTenDialog(false) }}>{tr('OK', 'تأیید', '确定')}</button><button type="button" onClick={() => setTopTenDialog(false)}>{tr('Cancel', 'انصراف', '取消')}</button></div>
       </div>}
-    </>, document.body)}
+    </>, triggerRef.current?.closest('.form-document-dialog-backdrop') ?? document.body)}
   </th>
 }

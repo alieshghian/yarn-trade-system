@@ -43,6 +43,6 @@ export function applyLabelChange(schema:FormSchemaDraft,target:LabelEditTarget,l
   let next=decision==='sync'?plan.schema:schema
   if(target.kind==='field')next=renameManagedFormField(next,target.id,locale,label)
   else{const column=next.tables?.find(table=>table.id===target.tableId)?.columns.find(item=>item.id===target.id);if(column&&target.tableId)next=updateDocumentColumn(next,target.tableId,target.id,{label:{...column.label,[locale]:label}})}
-  for(const item of suggestions){if(decision==='independent')next=keepColumnLabelIndependent(next,item.tableId,item.columnId);else if(decision==='sync'&&selected.includes(item.key))next=target.kind==='field'?syncColumnLabelFromField(next,item.tableId,item.columnId,item.fieldId,locale):syncColumnLabelToField(next,item.tableId,item.columnId,locale,item.fieldId)}
+  for(const item of suggestions){if(decision==='independent')next=keepColumnLabelIndependent(next,item.tableId,item.columnId);else if(decision==='review')next=updateDocumentColumn(next,item.tableId,item.columnId,{labelSyncDecision:undefined,labelSyncFieldId:undefined});else if(decision==='sync'&&selected.includes(item.key))next=target.kind==='field'?syncColumnLabelFromField(next,item.tableId,item.columnId,item.fieldId,locale):syncColumnLabelToField(next,item.tableId,item.columnId,locale,item.fieldId)}
   return next
 }

@@ -1,3 +1,4 @@
+import {useFieldValidation} from './components/base-form/useFieldValidation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, api, apiRequest, withRowVersion } from './api'
 import { businessContractText, type Language } from './i18n'
@@ -76,6 +77,10 @@ export default function BusinessContractPage({ language, canEdit }: { language: 
   const editable = canEdit && mode !== 'view'
   const canCreate = canEdit && mode === 'view' && server?.state === 'Missing' && !server.contract
   const sole = draft.businessStructure === 'SoleOwnership'
+  const {validateFields}=useFieldValidation(pageRef,{enabled:editable,entity:'investors',rules:Object.fromEntries((sole?[0]:[0,1]).flatMap(index=>[
+    [`identity${index}Code`,{required:!sole,maxLength:30,remote:true,remoteContext:()=>({currentId:(index===0?draft.primaryInvestorId:draft.partnerInvestorId)||null})}],
+    [`identity${index}Name`,{required:true,maxLength:200}]
+  ]))})
 
   async function load() {
     setLoading(true); setError('')
@@ -166,6 +171,7 @@ export default function BusinessContractPage({ language, canEdit }: { language: 
 
   async function save() {
     if (!editable || saving || (mode === 'edit' && server?.state !== 'Editable')) return
+    if(!await validateFields())return
     const validation = validate()
     if (validation) { setError(validation); return }
     setSaving(true); setError(''); setMessage('')
@@ -208,8 +214,8 @@ export default function BusinessContractPage({ language, canEdit }: { language: 
         setDraft(x => ({ ...x, [index === 0 ? 'primaryInvestorId' : 'partnerInvestorId']: selected?.id }))
         setIdentities(current => current.map((x, i) => i === index ? selected ? { investorCode: selected.investorCode, legalName: selected.legalName, personType: selected.personType, phone: selected.phone ?? '' } : emptyIdentity() : x) as [IdentityDraft, IdentityDraft])
       }}><option value="">{t.registerInvestor}</option>{server?.investors.filter(x => sole || x.id !== (index === 0 ? draft.partnerInvestorId : draft.primaryInvestorId)).map(x => <option key={x.id} value={x.id}>{x.investorCode} — {x.legalName}</option>)}</select></Field>
-      {!sole && <Field label={t.investorCode}><input required disabled={locked} maxLength={30} value={identity.investorCode} onChange={e => change('investorCode',e.target.value)} /></Field>}
-      <Field label={t.legalName}><input required disabled={locked} maxLength={200} value={identity.legalName} onChange={e => change('legalName',e.target.value)} /></Field>
+      {!sole && <Field label={t.investorCode}><input data-field={`identity${index}Code`} required disabled={locked} maxLength={30} value={identity.investorCode} onChange={e => change('investorCode',e.target.value)} /></Field>}
+      <Field label={t.legalName}><input data-field={`identity${index}Name`} required disabled={locked} maxLength={200} value={identity.legalName} onChange={e => change('legalName',e.target.value)} /></Field>
       <Field label={t.identityType}><select disabled={locked} value={identity.personType} onChange={e => change('personType', e.target.value)}><option value="Company">{t.companyIdentity}</option><option value="Individual">{t.individualIdentity}</option></select></Field>
       <Field label={t.identityPhone}><input disabled={locked} maxLength={50} value={identity.phone} onChange={e => change('phone',e.target.value)} /></Field>
     </div>

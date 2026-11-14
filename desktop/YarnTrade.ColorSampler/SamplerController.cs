@@ -49,7 +49,12 @@ internal sealed class SamplerController : IDisposable
 
     public void DetachSocket(WebSocket socket)
     {
-        lock (_socketGate) if (ReferenceEquals(_socket, socket)) _socket = null;
+        lock (_socketGate)
+        {
+            // A late disconnect from an older palette must not hide a newer session.
+            if (!ReferenceEquals(_socket, socket)) return;
+            _socket = null;
+        }
         RunOnUi(() => Cancel(notifyClient: false));
     }
 
@@ -83,9 +88,7 @@ internal sealed class SamplerController : IDisposable
         _selectedColor = _candidateColors.LastOrDefault();
         _hoverColor = _selectedColor ?? _previousColor;
         _lastHoverSent = "";
-        if (!window.Visible) window.Show();
-        if (window.WindowState == FormWindowState.Minimized) window.WindowState = FormWindowState.Normal;
-        window.Activate();
+        ShowSamplerWindow(window);
         UpdateWindow();
         UpdatePointer();
     }
@@ -212,9 +215,7 @@ internal sealed class SamplerController : IDisposable
         if (_window is { IsDisposed: false } window)
         {
             window.SetState(_previousColor, _hoverColor, _selectedColor, _candidateColors, true);
-            if (!window.Visible) window.Show();
-            if (window.WindowState == FormWindowState.Minimized) window.WindowState = FormWindowState.Normal;
-            window.Activate();
+            ShowSamplerWindow(window);
         }
         UpdatePointer();
     }
@@ -223,7 +224,7 @@ internal sealed class SamplerController : IDisposable
     {
         var host = _hostWindowHandle;
         if (host == IntPtr.Zero || !Native.IsWindow(host)) return;
-        Native.ShowWindow(host, maximize ? Native.SW_MAXIMIZE : Native.SW_RESTORE);
+        if (Native.IsIconic(host)) Native.ShowWindow(host, Native.SW_RESTORE);
         Native.SetForegroundWindow(host);
     }
 
@@ -242,23 +243,30 @@ internal sealed class SamplerController : IDisposable
         var host = _hostWindowHandle;
         if (host == IntPtr.Zero || !Native.IsWindow(host)) return;
 
-        Native.ShowWindow(host, Native.SW_RESTORE);
         var workArea = Screen.FromHandle(host).WorkingArea;
-        var halfWidth = workArea.Width / 2;
-        var appLeft = workArea.Left + halfWidth;
-        var appWidth = workArea.Width - halfWidth;
-        if (!Native.SetWindowPos(host, IntPtr.Zero, appLeft, workArea.Top, appWidth, workArea.Height,
-            Native.SWP_NOZORDER | Native.SWP_SHOWWINDOW))
-            Native.SetWindowPos(host, IntPtr.Zero, appLeft, workArea.Top, appWidth, workArea.Height, Native.SWP_NOZORDER);
-
         if (_window is { IsDisposed: false } window)
         {
             window.WindowState = FormWindowState.Normal;
             window.StartPosition = FormStartPosition.Manual;
-            var width = Math.Max(window.MinimumSize.Width, Math.Min(window.Width, appWidth - 16));
+            var width = Math.Min(window.Width, workArea.Width - 16);
             var height = Math.Min(window.Height, workArea.Height - 16);
-            window.Bounds = new Rectangle(appLeft + appWidth - width - 8, workArea.Bottom - height - 8, width, height);
+            // Preserve a user-dragged position if it is still on the target monitor.
+            if (!window.Visible || !workArea.Contains(window.Bounds))
+                window.Bounds = new Rectangle(workArea.Right - width - 8, workArea.Top + 8, width, height);
         }
+    }
+
+    private static void ShowSamplerWindow(SamplerWindow window)
+    {
+        window.Opacity = 1;
+        if (window.WindowState == FormWindowState.Minimized) window.WindowState = FormWindowState.Normal;
+        window.TopMost = true;
+        if (!window.Visible) window.Show();
+        Native.ShowWindow(window.Handle, Native.SW_RESTORE);
+        Native.SetWindowPos(window.Handle, new IntPtr(-1), 0, 0, 0, 0,
+            Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_SHOWWINDOW);
+        window.BringToFront();
+        window.Activate();
     }
 
     private void UpdatePointer()
@@ -472,7 +480,7 @@ internal sealed class SamplerController : IDisposable
         public const int WM_KEYDOWN = 0x0100, WM_KEYUP = 0x0101, WM_SYSKEYDOWN = 0x0104, WM_SYSKEYUP = 0x0105;
         public const int VK_F3 = 0x72, VK_VOLUME_MUTE = 0xAD, VK_VOLUME_DOWN = 0xAE, VK_VOLUME_UP = 0xAF;
         public const uint GA_ROOT = 2, SW_RESTORE = 9, SW_MAXIMIZE = 3;
-        public const uint SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010, SWP_SHOWWINDOW = 0x0040;
+        public const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOZORDER = 0x0004, SWP_NOACTIVATE = 0x0010, SWP_SHOWWINDOW = 0x0040;
         [StructLayout(LayoutKind.Sequential)] public struct Point { public int X; public int Y; public Point(int x, int y) { X = x; Y = y; } }
         [StructLayout(LayoutKind.Sequential)] public struct MouseInfo { public Point Point; public uint MouseData, Flags, Time; public IntPtr ExtraInfo; }
         [StructLayout(LayoutKind.Sequential)] public struct KeyboardInfo { public uint VirtualKey, ScanCode, Flags, Time; public IntPtr ExtraInfo; }
@@ -486,6 +494,7 @@ internal sealed class SamplerController : IDisposable
         [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll", SetLastError = true)] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool SetWindowPos(IntPtr handle, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
         [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool IsWindow(IntPtr handle);
+        [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool IsIconic(IntPtr handle);
         [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool SetForegroundWindow(IntPtr handle);
         [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool ShowWindow(IntPtr handle, uint command);
         [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] public static extern bool GetCursorPos(out Point point);

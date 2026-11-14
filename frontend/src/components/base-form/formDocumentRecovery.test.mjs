@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { emptyDesignerDraft, attachDesignerDocument, createDesignerHistory, designerHistoryReducer, layoutDesignerFields, alignCanvasFields, fieldGroupRect, translateCanvasField, validateCanvasArrangement } from './designer.ts'
 import { createManagedLaboratoryForm, createManagedFormStructureHistory, commitManagedFormStructure, removeManagedFormField, undoManagedFormStructure, redoManagedFormStructure, managedLaboratoryFormsStorageKey } from './laboratoryFormDraftState.ts'
 import { readFormRecovery, writeFormRecovery, writeFormRecoveryResult, encodeRecoveryJournal, decodeRecoveryJournal, formRecoveryKey, closeFormRecovery, recoverableDeletedFields, recoverableDeletedTables, restoreRecoverableTable, restoreRecoverableField } from './formDocumentRecovery.ts'
-import { unresolvedTableColumns, unresolvedFormFields, normalizeFormLinks, preserveFormLinks, fieldColumnLinks, linkFieldToColumn, keepIndependentField, addDocumentColumn, removeDocumentColumn, updateDocumentColumn, removeDocumentTable } from './formTableStructure.ts'
+import { columnSourceFields, unresolvedTableColumns, unresolvedFormFields, normalizeFormLinks, preserveFormLinks, fieldColumnLinks, linkFieldToColumn, keepIndependentField, addDocumentColumn, removeDocumentColumn, updateDocumentColumn, removeDocumentTable } from './formTableStructure.ts'
 import { reconcileGridColumns } from './excelGrid.ts'
 
 const text = value => ({ fa: value, en: value, zh: value })
@@ -14,6 +14,33 @@ const snapshot = (id = 'form.recovery') => {
   return { form, designerHistory: createDesignerHistory(designer), structureHistory: createManagedFormStructureHistory(form.schema) }
 }
 const memory = () => { const values = new Map(); return { values, storage: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) } } }
+
+test('last edit and revision advance only when document content changes', () => {
+  const {storage} = memory(), original = snapshot()
+  writeFormRecovery(storage,'owner',original,'initial','2026-11-09T10:00:00Z')
+  writeFormRecovery(storage,'owner',original,'close','2026-11-09T11:00:00Z')
+  let saved=readFormRecovery(storage,'owner').documents[original.form.id]
+  assert.equal(saved.editedAt,'2026-11-09T10:00:00Z');assert.equal(saved.revision,1)
+  const edited={...original,form:{...original.form,frame:{...original.form.frame,width:1400}}}
+  writeFormRecovery(storage,'owner',edited,'edit','2026-11-09T12:00:00Z')
+  saved=readFormRecovery(storage,'owner').documents[original.form.id]
+  assert.equal(saved.editedAt,'2026-11-09T12:00:00Z');assert.equal(saved.revision,2)
+})
+
+test('automatic recovery retains earlier layouts per form across saves and reloads', () => {
+  const {storage} = memory(), original = snapshot(), other = snapshot('form.other')
+  const changed = width => ({...original, form:{...original.form,frame:{...original.form.frame,width}}})
+  assert.equal(writeFormRecovery(storage,'owner',original,undefined,'2026-10-17T10:00:00Z'),true)
+  assert.equal(writeFormRecovery(storage,'owner',changed(1400),undefined,'2026-10-17T10:00:01Z'),true)
+  assert.equal(writeFormRecovery(storage,'owner',changed(1500),undefined,'2026-10-17T10:00:30Z'),true)
+  assert.equal(writeFormRecovery(storage,'owner',other,undefined,'2026-10-17T10:00:45Z'),true)
+  assert.equal(writeFormRecovery(storage,'owner',changed(1600),undefined,'2026-10-17T10:01:02Z'),true)
+  assert.equal(writeFormRecovery(storage,'owner',changed(1700),'ذخیرهٔ نهایی پیش‌نویس','2026-10-17T10:01:03Z'),true)
+  const docs=readFormRecovery(storage,'owner').documents
+  assert.deepEqual(docs[original.form.id].versions.map(version=>version.snapshot.form.frame.width),[1280,1500,1700])
+  assert.equal(docs[other.form.id].versions.length,0)
+  assert.equal(docs[original.form.id].current.form.frame.width,1700)
+})
 
 test('unsaved schema, geometry, typography and native Undo/Redo survive reload independently of explicit saves', () => {
   const { storage, values } = memory(), before = snapshot()
@@ -233,7 +260,7 @@ test('joined legacy histories and unified transactions survive a journal reload 
 })
 
 
-test('lossless recovery compaction retains every version and both Undo histories within a realistic quota', () => {
+test('recovery retains the latest three backups and losslessly packs current Undo histories within quota', () => {
   const { storage, values } = memory(), state = snapshot()
   state.designerHistory = attachDesignerDocument(state.designerHistory, state.form.schema)
   for (let i = 0; i < 35; i++) state.designerHistory = designerHistoryReducer(state.designerHistory, { type: 'change', draft: { ...state.designerHistory.present, tableFont: { size: i + 8 } } })
@@ -241,14 +268,14 @@ test('lossless recovery compaction retains every version and both Undo histories
   const bounded = { ...storage, setItem(key, value) { if (value.length > 200000) throw new DOMException('full', 'QuotaExceededError'); storage.setItem(key, value) } }
   for (let i = 0; i < 45; i++) assert.equal(writeFormRecoveryResult(bounded, 'owner', state, 'before delete ' + i), 'saved')
   const journal = readFormRecovery(storage, 'owner')
-  assert.equal(journal.documents[state.form.id].versions.length, 45)
+  assert.equal(journal.documents[state.form.id].versions.length, 3)
   assert.deepEqual(journal.documents[state.form.id].current.designerHistory, JSON.parse(JSON.stringify(state.designerHistory)))
   const plain = JSON.stringify(journal), packed = values.get(formRecoveryKey('owner'))
-  assert.ok(plain.length > 200000, 'old repeated snapshots exceeded quota')
-  assert.ok(packed.length < plain.length / 4, 'history is deduplicated without removing versions')
+  assert.deepEqual(journal.documents[state.form.id].versions.map(v=>v.reason),['before delete 42','before delete 43','before delete 44'])
+  assert.ok(packed.length < plain.length / 4, 'retained backup history is deduplicated')
   values.set(formRecoveryKey('owner'), plain) // Legacy journal migrates on next successful write.
   assert.equal(writeFormRecovery(storage, 'owner', state), true)
-  assert.equal(readFormRecovery(storage, 'owner').documents[state.form.id].versions.length, 45)
+  assert.equal(readFormRecovery(storage, 'owner').documents[state.form.id].versions.length, 3)
   assert.deepEqual(decodeRecoveryJournal(encodeRecoveryJournal(journal)), JSON.parse(plain))
 })
 
@@ -264,4 +291,41 @@ test('failure reports distinguish quota, damaged journal and inconsistent snapsh
   assert.equal(writeFormRecoveryResult({ ...storage, setItem() { throw new DOMException('full', 'QuotaExceededError') } }, 'owner', state), 'quota')
   assert.equal(values.get(formRecoveryKey('owner')), previous)
   assert.throws(() => decodeRecoveryJournal(JSON.stringify({ format: 'yarn-trade.recovery-interned', version: 1, root: [0], nodes: [{ a: [[0]] }] })))
+})
+
+test('saving prunes legacy backups across forms atomically without touching current histories or handoff records',()=>{
+ const {storage,values}=memory(),one=snapshot(),two=snapshot('form.other')
+ const doc=state=>({current:state,updatedAt:'2026-11-09',versions:Array.from({length:20},(_,i)=>({id:String(i),at:new Date(1000*i).toISOString(),reason:String(i),snapshot:state}))})
+ const legacy={version:1,activeFormId:one.form.id,documents:{[one.form.id]:doc(one),[two.form.id]:doc(two)}}
+ values.set(formRecoveryKey('owner'),JSON.stringify(legacy));values.set('approved-handoff','protected')
+ const old=values.get(formRecoveryKey('owner'))
+ const failing={...storage,setItem(){throw new DOMException('full','QuotaExceededError')}}
+ assert.equal(writeFormRecoveryResult(failing,'owner',one),'quota')
+ assert.equal(values.get(formRecoveryKey('owner')),old)
+ const compactOnly={...storage,setItem(key,value){assert.ok(value.length<old.length/2);storage.setItem(key,value)}}
+ assert.equal(writeFormRecoveryResult(compactOnly,'owner',one),'saved')
+ const journal=readFormRecovery(storage,'owner')
+ for(const state of [one,two]){
+  assert.deepEqual(journal.documents[state.form.id].versions.map(v=>v.id),['17','18','19'])
+  assert.deepEqual(journal.documents[state.form.id].current,JSON.parse(JSON.stringify(state)))
+ }
+ assert.equal(values.get('approved-handoff'),'protected')
+})
+
+
+test('one field cannot feed duplicate columns; deleting a legacy duplicate keeps the surviving binding valid',()=>{
+ const original=normalizeFormLinks(schema()),first=original.tables[0].columns[0],fieldId=columnSourceFields(original,first)[0]
+ assert.ok(fieldId)
+ assert.equal(addDocumentColumn(original,'table','duplicate','Duplicate','text',fieldId),original)
+ const independent=addDocumentColumn(original,'table','independent','Independent','text')
+ assert.equal(linkFieldToColumn(independent,fieldId,'table','independent'),independent)
+ assert.equal(updateDocumentColumn(independent,'table','independent',{sourceFieldIds:[fieldId]}),independent)
+ const legacy=normalizeFormLinks({...original,fields:original.fields.map(f=>({...f,columnLinks:undefined})),tables:original.tables.map(t=>({...t,columns:[...t.columns,{...first,id:'duplicate'}]}))})
+ const before=structuredClone(legacy),fixed=removeDocumentColumn(legacy,'table','duplicate')
+ assert.equal(unresolvedFormFields(fixed).some(f=>f.id===fieldId),false)
+ assert.deepEqual(fieldColumnLinks(fixed,fieldId),[{tableId:'table',columnId:first.id}])
+ const alreadyDeleted={...legacy,tables:legacy.tables.map(t=>({...t,columns:t.columns.filter(c=>c.id!=='duplicate')}))}
+ assert.deepEqual(fieldColumnLinks(normalizeFormLinks(alreadyDeleted),fieldId),[{tableId:'table',columnId:first.id}])
+ assert.deepEqual(legacy,before)
+ assert.equal(unresolvedFormFields(removeDocumentColumn(fixed,'table',first.id)).some(f=>f.id===fieldId),true,'removing the only source still needs a decision')
 })

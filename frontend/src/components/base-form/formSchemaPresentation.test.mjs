@@ -19,10 +19,11 @@ test('shared presentation uses one existing shell and one grid component impleme
   contains(presentation, 'designerDraftForTable(designerDraft, tableId)')
 })
 
-test('read-only presentation excludes operational adapters and contains no API implementation', () => {
-  contains(presentation, 'remoteQuery={readOnly ? undefined : remoteQuery}')
-  contains(presentation, 'onRowSelectionChange={readOnly ? undefined : onRowSelectionChange}')
-  contains(presentation, 'onTotalChange={readOnly ? undefined : onTotalChange}')
+test('design read-only presentation excludes operational adapters and contains no API implementation', () => {
+  contains(presentation, 'remoteQuery={gridReadOnly ? undefined : remoteQuery}')
+  contains(presentation, 'onRowSelectionChange={gridReadOnly ? undefined : onRowSelectionChange}')
+  contains(presentation, 'onTotalChange={gridReadOnly ? undefined : onTotalChange}')
+  contains(presentation, "const gridReadOnly = readOnly && presentationMode === 'design'")
   assert.ok(!/apiRequest|fetch\(|axios/.test(presentation))
 })
 
@@ -51,7 +52,7 @@ test('structural edits reuse the existing history and Designer panel without a s
   contains(laboratory, 'undoManagedFormStructure(oldHistory)')
   contains(laboratory, 'redoManagedFormStructure(oldHistory)')
   contains(laboratory, 'renameManagedFormField(managedFormDraft.schema')
-  contains(laboratory, 'removeManagedFormField(managedFormDraft.schema')
+  contains(laboratory, 'removeManagedFormFields(documentSchema, removableIds)')
 })
 
 test('one collapsible sidebar preserves both tabs and the toolbar confines flexible controls', () => {
@@ -69,7 +70,10 @@ test('one collapsible sidebar preserves both tabs and the toolbar confines flexi
 })
 
 test('Canvas rendering positions the real label and input from validated geometry', () => {
-  contains(laboratory, 'canvas: editorCanvas, gridStyle: layout.fieldStyles[id]')
+  contains(laboratory, 'canvas: displayCanvas, gridStyle: layout.fieldStyles[id]')
+  contains(laboratory, 'fitDesignerCanvasToViewportWithHysteresis(editorCanvas, editorViewportWidth, layoutSchema.fields.map(field => field.id), previousProjection?.overflowing)')
+  contains(laboratory, 'data-canvas-view-shift={canvasViewport?.shift}')
+  contains(laboratory, "scrollbarGutter: 'stable'")
   contains(laboratory, 'const renderCanvas = options.canvas')
   contains(laboratory, '...positionedRect(renderCanvas?.fields[id]?.label)')
   contains(laboratory, '...positionedRect(renderCanvas?.fields[id]?.input)')
@@ -114,11 +118,12 @@ test('recovery is separate from explicit saves, restores native history and flus
 })
 
 
-test('document mode is explicit and independent forms do not expose the Laboratory settings toggle', () => {
+test('document mode stays explicit while every form exposes the shared settings entry', () => {
   contains(laboratory, 'data-form-design-mode={activeManagedForm ?')
   contains(laboratory, 'ویرایش قالب اصلی آزمایشگاه')
   contains(laboratory, 'ساخت/ویرایش فرم مستقل')
-  contains(laboratory, '{!activeManagedForm && <button type="button" className="laboratory-designer-toggle"')
+  contains(laboratory, '<FormSettingsButton language={language}')
+  contains(laboratory, 'onClick={openFormSettings}')
   contains(styles, '[data-form-design-mode=independent]')
   contains(styles, '[data-form-design-mode=laboratory]')
 })
@@ -135,7 +140,7 @@ test('menu destinations reveal their existing sidebar tab and hovering other ite
 test('save and close capture the latest document and expose recovery failures outside hidden tabs', () => {
   contains(laboratory, 'const latest = latestRecoverySnapshot()')
   contains(laboratory, 'const snapshotToSave = latestRecoverySnapshot()')
-  contains(laboratory, 'activeManagedForm && recoveryStatus && <p role="alert"')
+  contains(laboratory, 'className="laboratory-document-notice">{recoveryStatus}</p>')
   contains(styles, '.laboratory-device-label{display:none}')
 })
 

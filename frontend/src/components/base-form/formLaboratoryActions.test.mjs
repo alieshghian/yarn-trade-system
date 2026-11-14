@@ -4,6 +4,7 @@ import { stripTypeScriptTypes } from 'node:module'
 import { runInNewContext } from 'node:vm'
 import test from 'node:test'
 import * as designer from './designer.ts'
+import { formTestActionFor, testActionVisible } from './formBehavior.ts'
 import { applyGridFiltersAndSort, gridValueKey } from './excelGrid.ts'
 import { VirtualPageCache, virtualRange } from './virtualGrid.ts'
 
@@ -17,6 +18,33 @@ const slice = (source, from, to) => {
   assert.ok(start >= 0 && end > start, `Source handler boundaries: ${from}`)
   return stripTypeScriptTypes(source.slice(start, end))
 }
+
+test('editing a recognized action label fills the other two language labels locally', () => {
+  assert.deepEqual(designer.translateDesignerActionLabel('شخص جدید', 'fa'), { en: 'New person', zh: '新建人员' })
+  assert.deepEqual(designer.translateDesignerActionLabel('Save', 'en'), { fa: 'ذخیره', zh: '保存' })
+  assert.deepEqual(designer.translateDesignerActionLabel('删除', 'zh'), { fa: 'حذف', en: 'Delete' })
+  assert.equal(designer.translateDesignerActionLabel('عنوان سفارشی', 'fa'), undefined, 'unknown custom text is left intact instead of guessing')
+  assert.match(page, /translateDesignerActionLabel\(value, part\)/, 'the editor applies suggestions from the language being changed')
+})
+
+test('Save visibility follows display, data-entry, and isolated runtime-test modes', () => {
+  const start = page.indexOf('const isActionAvailable = (action: BaseFormAction) =>')
+  const end = page.indexOf('const visibleActions =', start)
+  const guard = stripTypeScriptTypes(page.slice(start, end))
+  const makeAvailability = ({ formRuntimeTesting, dataEntryActive, runtimeMode }) => runInNewContext(
+    `${guard}; isActionAvailable`,
+    { formRuntimeTesting, dataEntryActive, runtime: { mode: runtimeMode }, formTestActionFor, testActionVisible },
+  )
+  const save = { id: 'save', code: 'F3' }
+  const create = { id: 'new-person', code: 'Space' }
+  assert.equal(makeAvailability({ formRuntimeTesting: false, dataEntryActive: false, runtimeMode: 'view' })(save), false, 'display mode hides Save')
+  assert.equal(makeAvailability({ formRuntimeTesting: false, dataEntryActive: true, runtimeMode: 'view' })(save), true, 'data entry shows Save')
+  assert.equal(makeAvailability({ formRuntimeTesting: false, dataEntryActive: false, runtimeMode: 'view' })(create), true, 'display mode keeps create available')
+  assert.equal(makeAvailability({ formRuntimeTesting: true, dataEntryActive: false, runtimeMode: 'view' })(save), false, 'isolated runtime view hides Save')
+  assert.equal(makeAvailability({ formRuntimeTesting: true, dataEntryActive: false, runtimeMode: 'create' })(save), true, 'isolated runtime entry shows Save')
+  assert.match(guard, /return dataEntryActive/)
+  assert.doesNotMatch(guard, /designerView/)
+})
 const definitions = slice(page, 'const laboratoryDefinition', 'const columns')
 const definition = runInNewContext(definitions + '\nlaboratoryDefinition')
 const actions = definition.actions
@@ -31,7 +59,7 @@ const load = window => runInNewContext(slice(page, 'function loadLaboratoryDraft
 
 test('all five mandatory actions remain checked/locked with legacy hidden settings after save/reload', () => {
   const required = actions.filter(action => action.required)
-  assert.deepEqual(Array.from(required, action => action.id), ['new-person', 'edit-person', 'delete-person', 'demo-save', 'reset-sample'])
+  assert.deepEqual(Array.from(required, action => action.id), ['new-person', 'copy-last', 'copy-selected', 'edit-person', 'delete-person', 'demo-save', 'reset-sample'])
   const storage = storageDouble()
   let draft = designer.emptyDesignerDraft(formId)
   draft.actions = Object.fromEntries(required.map(action => [action.id, { visible: false }]))
@@ -124,7 +152,7 @@ test('saving designer settings handles unavailable localStorage without throwing
   let status, saveAttempts = 0
   const save = runInNewContext(slice(page, '  const saveDraft =', '  const resetSelected =') + '\nsaveDraft', {
     ...designer, window, authenticatedUserId: 'review', laboratoryDefinition: definition,
-    history: { present: designer.emptyDesignerDraft(formId) }, fieldIds, editingBaseline: { current: null },
+    history: { present: designer.emptyDesignerDraft(formId) }, fieldIds, activeManagedForm: null, editingBaseline: { current: null },
     saveSessionDraft: () => { saveAttempts++; return designer.saveDesignerDraft(window.localStorage, 'review', formId, designer.emptyDesignerDraft(formId), fieldIds) },
     dispatchHistory: () => {}, fa: false, language: 'en', setSaveStatus: value => { status = value }
   })

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { PendingFormDesignMenu } from './components/base-form/PendingFormDesignMenu'
+import { integratedDesignReleases } from './components/base-form/formIntegrationRegistry'
 import { api, apiRequest, isConcurrencyConflict, withRowVersion } from './api'
 import { text, type Language } from './i18n'
 import { defaultNavigation, defaultPreferences, icons, moveNavigation, orderedChildren, type DropPlacement, type MenuKey, type NavigationNode, type NavigationPreferences } from './navigation'
@@ -31,7 +32,13 @@ export default function NavigationSidebar({ language, userId, administrator, dem
       setNodes(value.nodes); setPreferences(value.preferences); version.current = value.rowVersion; setReady(true)
     } catch (e) { if (alive.current) setError(e instanceof Error ? e.message : String(e)) }
   }
-  useEffect(() => { alive.current = true; void load(); return () => { alive.current = false } }, [])
+  useEffect(() => {
+    alive.current = true
+    void load()
+    const refresh = () => { void load() }
+    window.addEventListener('form-design-releases-updated', refresh)
+    return () => { alive.current = false; window.removeEventListener('form-design-releases-updated', refresh) }
+  }, [demoMode, userId, integratedDesignReleases])
   useEffect(() => {
     if (!editor) return
     const previous = document.activeElement as HTMLElement | null
@@ -104,7 +111,8 @@ export default function NavigationSidebar({ language, userId, administrator, dem
         style={{ paddingInlineStart: `${13 + depth * 12}px` }} onClick={() => node.routeId ? onOpen(node.routeId) : toggle('collapsed', node.id)}>
         <span>{icons[node.icon]}</span><b>{title(node)}</b>{!node.routeId && <i className="navigation-chevron">{preferences.collapsed.includes(node.id) ? '‹' : '⌄'}</i>}
         {node.routeId === 'commerce' && commerceCount > 0 && <i className="menu-badge">{commerceCount}</i>}
-      </button>{!node.routeId && !preferences.collapsed.includes(node.id) && <>{tree(node.id, depth + 1)}{onOpenDesign&&<PendingFormDesignMenu userId={userId} onOpen={onOpenDesign} parentId={node.id} nodes={permitted} language={language}/>}</>}
+      </button>{!node.routeId && !preferences.collapsed.includes(node.id) && <>{tree(node.id, depth + 1)}</>}
+      {node.routeId==='formLaboratory'&&onOpenDesign&&<PendingFormDesignMenu userId={userId} onOpen={onOpenDesign} onOpenOperational={onOpen} nodes={permitted} language={language}/>}
     </div>)
   }
   async function openGlobal() {
@@ -147,7 +155,7 @@ export default function NavigationSidebar({ language, userId, administrator, dem
   }
   return <>
     <div className="navigation-quick" aria-label={fa ? 'دسترسی سریع' : 'Quick Access'}>{pinned.map(route => <button key={route} draggable data-quick-route={route} title={String(t[route])} onClick={() => onOpen(route)} onDragStart={e => start(e, 'pin', route)} onDragEnd={() => { drag.current = null }} onDragOver={e => e.preventDefault()} onDrop={e => drop(e, route)}>{icons[permitted.find(n => n.routeId === route)?.icon ?? route]}</button>)}<button aria-label={fa ? 'چیدمان شخصی و دسترسی سریع' : 'Personal layout and Quick Access'} title={fa ? 'چیدمان شخصی و دسترسی سریع' : 'Personal layout and Quick Access'} disabled={!ready} onClick={() => { setError(''); setEditor('personal') }}>+</button></div>
-    <nav aria-label={fa ? 'منوی اصلی' : 'Main navigation'}>{ready && tree(null)}{ready&&onOpenDesign&&<PendingFormDesignMenu userId={userId} onOpen={onOpenDesign} nodes={permitted} language={language}/>}</nav>
+    <nav aria-label={fa ? 'منوی اصلی' : 'Main navigation'}>{ready && tree(null)}</nav>
     <div className="navigation-tools">{administrator && !demoMode && <button aria-label={fa ? 'مدیریت منو' : 'Manage menus'} title={fa ? 'مدیریت منو' : 'Manage menus'} onClick={() => void openGlobal()}>☷</button>}{saving && <small>{fa ? 'در حال ذخیره…' : 'Saving…'}</small>}</div>
     {error && !editor && <div className="navigation-error" role="alert">{error}<button onClick={() => void load()}>{fa ? 'تلاش مجدد' : 'Retry'}</button></div>}
     {editor && createPortal(<div className="navigation-backdrop" onClick={() => setEditor(null)}><section role="dialog" aria-modal="true" aria-label={editor === 'global' ? (fa ? 'مدیریت منو' : 'Manage menus') : (fa ? 'چیدمان شخصی' : 'Personal layout')} className="navigation-editor panel" dir={fa ? 'rtl' : 'ltr'} data-form-scope onClick={e => e.stopPropagation()}>

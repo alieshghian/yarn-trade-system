@@ -72,7 +72,7 @@ function windowsColorSamplerPlugin() {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
-  const proxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:5223'
+  const proxyTarget = env.VITE_API_PROXY_TARGET || 'http://127.1.0.1:5223'
 
   return {
     plugins: [react(), windowsColorSamplerPlugin()],

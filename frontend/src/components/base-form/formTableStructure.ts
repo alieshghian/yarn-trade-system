@@ -61,8 +61,13 @@ export function unresolvedTableColumns(schema: FormSchemaDraft, tableId: string)
     return (column.requiresSourceDecision || source.some(id => !ids.has(id))) && !(column.independentPurpose?.trim())
   })
 }
+/** One source field may feed only one column in the same report table. */
+export function fieldColumnConflict(schema: FormSchemaDraft, fieldId: string, tableId: string, columnId?: string): boolean {
+  return schema.tables?.find(table => table.id === tableId)?.columns.some(column => column.id !== columnId && columnSourceFields(schema, column).includes(fieldId)) ?? false
+}
 export function updateDocumentColumn(schema: FormSchemaDraft, tableId: string, columnId: string, patch: Partial<FormSchemaTableColumn>): FormSchemaDraft {
   const oldColumn=schema.tables?.find(table=>table.id===tableId)?.columns.find(column=>column.id===columnId)
+  if (oldColumn && (patch.sourceFieldIds || patch.binding) && columnSourceFields(schema, {...oldColumn,...patch}).some(id => !columnSourceFields(schema,oldColumn).includes(id) && fieldColumnConflict(schema,id,tableId,columnId))) return schema
   if(patch.label&&oldColumn&&!patch.labelSnapshot)patch={...patch,labelSnapshot:oldColumn.labelSnapshot??{...oldColumn.label}}
   if ((patch.sourceFieldIds || patch.binding) && patch.labelSyncDecision === undefined) patch = { ...patch, labelSyncDecision: undefined, labelSyncFieldId: undefined }
   if (patch.sourceFieldIds) patch = { ...patch, requiresSourceDecision: patch.sourceFieldIds.length === 0 && !patch.independentPurpose?.trim() }
@@ -70,6 +75,21 @@ export function updateDocumentColumn(schema: FormSchemaDraft, tableId: string, c
   if (!patch.sourceFieldIds) return next
   const previousSources = columnSourceFields(schema, schema.tables?.find(table => table.id === tableId)?.columns.find(column => column.id === columnId) ?? ({ id: columnId, binding: { kind: 'dataField', dataFieldId: columnId }, label: { fa: '', en: '', zh: '' } } as FormSchemaTableColumn))
   return { ...next, fields: schema.fields.map(field => { const links = fieldColumnLinks(schema, field.id).filter(link => !(link.tableId === tableId && link.columnId === columnId)); const included = patch.sourceFieldIds!.includes(field.id); return { ...field, ...(included ? { independentPurpose: undefined } : {}), columnLinks: included || previousSources.includes(field.id) ? [...links, ...(included ? [{ tableId, columnId }] : [])] : field.columnLinks } }) }
+}
+/** Explicitly edit a column's sources; choosing a live field also resolves stale source IDs. */
+export function setColumnSourceSelection(schema: FormSchemaDraft, tableId: string, columnId: string, fieldId: string, selected: boolean, allowMultipleSources: boolean): FormSchemaDraft {
+  const column = schema.tables?.find(table => table.id === tableId)?.columns.find(item => item.id === columnId)
+  if (!column || !schema.fields.some(field => field.id === fieldId)) return schema
+  const liveSources = columnSourceFields(schema, column).filter(id => schema.fields.some(field => field.id === id))
+  const sourceFieldIds = selected
+    ? allowMultipleSources ? [...new Set([...liveSources, fieldId])] : [fieldId]
+    : liveSources.filter(id => id !== fieldId)
+  return updateDocumentColumn(schema, tableId, columnId, {
+    sourceFieldIds,
+    sourceLinkIntent: sourceFieldIds.length > 1 ? 'composite' : 'single',
+    binding: sourceFieldIds.length ? { kind: 'formField', fieldId: sourceFieldIds[0] } : { kind: 'dataField', dataFieldId: column.id },
+    independentPurpose: sourceFieldIds.length ? undefined : column.independentPurpose
+  })
 }
 export function moveDocumentColumn(schema: FormSchemaDraft, tableId: string, sourceColumnId: string, targetColumnId: string, position: 'before' | 'after'): FormSchemaDraft {
   const table = schema.tables?.find(item => item.id === tableId)
@@ -84,12 +104,20 @@ export function moveDocumentColumn(schema: FormSchemaDraft, tableId: string, sou
   return { ...schema, tables: schema.tables?.map(item => item.id === tableId ? { ...item, columns: orderedColumns } : item) }
 }
 export function removeDocumentColumn(schema: FormSchemaDraft, tableId: string, columnId: string): FormSchemaDraft {
+  return removeDocumentColumns(schema, tableId, [columnId])
+}
+export function removeDocumentColumns(schema: FormSchemaDraft, tableId: string, columnIds: readonly string[]): FormSchemaDraft {
+  const table = schema.tables?.find(item => item.id === tableId)
+  if (!table) return schema
+  const selected = new Set(columnIds.filter(id => table.columns.some(column => column.id === id)))
+  if (!selected.size) return schema
   const linked = normalizeFormLinks(schema)
-  return { ...linked, tables: linked.tables?.map(table => table.id === tableId ? { ...table, columns: table.columns.filter(column => column.id !== columnId) } : table) }
+  return normalizeFormLinks({ ...linked, tables: linked.tables?.map(item => item.id === tableId ? { ...item, columns: item.columns.filter(column => !selected.has(column.id)) } : item) })
 }
 export function addDocumentColumn(schema: FormSchemaDraft, tableId: string, id: string, label: string, valueType: 'text' | 'number' | 'alphanumeric', fieldId?: string, defaultComposition: NonNullable<FormSchemaTableColumn['valueComposition']> = 'space'): FormSchemaDraft {
   if (!label.trim() || schema.tables?.some(table => table.columns.some(column => column.id === id))) return schema
   const field = schema.fields.find(item => item.id === fieldId)
+  if (field && fieldColumnConflict(schema,field.id,tableId)) return schema
   const next = { ...schema, tables: schema.tables?.map(table => table.id === tableId ? { ...table, columns: [...table.columns, { id, label: { fa: label, en: label, zh: label }, binding: field ? { kind: 'formField' as const, fieldId: field.id } : { kind: 'dataField' as const, dataFieldId: id }, ...(field ? { sourceFieldIds: [field.id] } : { sourceFieldIds: [], independentPurpose: 'Developer-defined column' }), valueComposition: defaultComposition, valueType, width: 160, visible: true }] } : table) }
   return field ? linkFieldToColumn(next, field.id, tableId, id) : next
 }
@@ -105,10 +133,15 @@ export function removeDocumentTable(schema: FormSchemaDraft, tableId: string): F
 
 /** Keep links to removed objects as tombstones until the developer explicitly resolves them. */
 export function fieldColumnLinks(schema: FormSchemaDraft, fieldId: string) {
-  return schema.fields.find(field => field.id === fieldId)?.columnLinks ?? (schema.tables ?? []).flatMap(table => table.columns.filter(column => columnSourceFields(schema, column).includes(fieldId)).map(column => ({ tableId: table.id, columnId: column.id })))
+  const live = (schema.tables ?? []).flatMap(table => table.columns.filter(column => columnSourceFields(schema,column).includes(fieldId)).map(column => ({tableId:table.id,columnId:column.id})))
+  const recorded = schema.fields.find(field => field.id === fieldId)?.columnLinks ?? []
+  // A surviving source in the same table supersedes a deleted duplicate column.
+  // Retain tombstones when no replacement exists, so genuine lost bindings stay red.
+  const retained = recorded.filter(link => !live.some(current => current.tableId===link.tableId) || schema.tables?.find(table=>table.id===link.tableId)?.columns.some(column=>column.id===link.columnId))
+  return [...retained,...live.filter(link=>!retained.some(current=>current.tableId===link.tableId&&current.columnId===link.columnId))]
 }
 export function normalizeFormLinks(schema: FormSchemaDraft, baseline?: FormSchemaDraft): FormSchemaDraft {
-  return { ...schema, fields: schema.fields.map(field => ({ ...field, columnLinks: field.columnLinks ?? fieldColumnLinks(baseline ?? schema, field.id) })) }
+  return { ...schema, fields: schema.fields.map(field => ({ ...field, columnLinks: fieldColumnLinks(schema, field.id).length ? fieldColumnLinks(schema, field.id) : field.columnLinks ?? fieldColumnLinks(baseline ?? schema, field.id) })) }
 }
 export function preserveFormLinks(previous: FormSchemaDraft, next: FormSchemaDraft): FormSchemaDraft {
   return { ...next, fields: next.fields.map(field => ({ ...field, columnLinks: field.columnLinks ?? fieldColumnLinks(previous, field.id) })), tables: next.tables?.map(table => ({ ...table, columns: table.columns.map(column => ({ ...column, sourceFieldIds: column.sourceFieldIds ?? columnSourceFields(previous, previous.tables?.find(item => item.id === table.id)?.columns.find(item => item.id === column.id) ?? column) })) })) }
@@ -121,7 +154,7 @@ export function unresolvedFormFields(schema: FormSchemaDraft) {
 }
 export function linkFieldToColumn(schema: FormSchemaDraft, fieldId: string, tableId: string, columnId: string): FormSchemaDraft {
   const column = schema.tables?.find(table => table.id === tableId)?.columns.find(column => column.id === columnId)
-  if (!column || !schema.fields.some(field => field.id === fieldId)) return schema
+  if (!column || !schema.fields.some(field => field.id === fieldId) || fieldColumnConflict(schema,fieldId,tableId,columnId)) return schema
   const sourceFieldIds = [...new Set([...columnSourceFields(schema, column).filter(id => schema.fields.some(field => field.id === id)), fieldId])]
   const next = updateDocumentColumn(schema, tableId, columnId, { sourceFieldIds, sourceLinkIntent: sourceFieldIds.length>1?'composite':'single', independentPurpose: undefined })
   return { ...next, fields: next.fields.map(field => field.id === fieldId ? { ...field, independentPurpose: undefined, columnLinks: [...fieldColumnLinks(schema, fieldId).filter(link => schema.tables?.find(table => table.id === link.tableId)?.columns.some(column => column.id === link.columnId) && !(link.tableId === tableId && link.columnId === columnId)), { tableId, columnId }] } : field) }

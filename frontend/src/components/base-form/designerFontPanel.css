@@ -1,0 +1,33 @@
+/* Font dialogs can be portaled to document.body, outside #root. */
+.designer-grid-font-fields,
+.designer-grid-font-options {
+  /* The global focus rule consumes these variables with !important. */
+  --editable-field-focus-fill: #fff;
+  --editable-focus-ink: #000;
+}
+.designer-grid-font-fields :is(input, select),
+.designer-grid-font-fields :is(input, select):focus,
+.designer-grid-font-options select,
+.designer-grid-font-options select:focus,
+.designer-grid-font-fields select[size] option {
+  background: #fff !important;
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+}
+.designer-grid-font-fields select[size] option:checked {
+  background: #dedede linear-gradient(#dedede, #dedede) !important;
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+}
+.designer-grid-font-fields .designer-font-current-size:focus {
+  outline: 2px solid #9eafab;
+  outline-offset: 1px;
+}
+.designer-grid-font-fields .designer-font-current-size::selection {
+  background: #dedede;
+  color: #000;
+  -webkit-text-fill-color: #000;
+}
+
+.designer-grid-format-dialog>footer button.primary,.designer-grid-format-dialog>footer button.primary:is(:hover,:focus,:active){background:#1d7d73!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#1d7d73!important}
+.operational-font-dialog{gap:0}.operational-font-dialog .form-document-dialog-header{cursor:grab;touch-action:none}.operational-font-dialog .form-document-dialog-header.is-dragging{cursor:grabbing}

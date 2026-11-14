@@ -1,4 +1,9 @@
-import type { FormSchemaDraft, FormSchemaSection } from './formSchema.ts'
+import type { FormSchemaDraft, FormSchemaSection, FormSchemaTable } from './formSchema.ts'
+
+/** Both persisted representations are accepted by the actual grid renderer. */
+export function tableGridSections(schema: Pick<FormSchemaDraft, 'sections'>, table: Pick<FormSchemaTable, 'id' | 'sectionId'>): FormSchemaSection[] {
+  return schema.sections.filter(section => section.kind === 'grid' && section.enabled !== false && !section.tableHeaderFor && (section.id === table.sectionId || section.tableIds?.includes(table.id)))
+}
 
 export type FormSectionKind = FormSchemaSection['kind']
 
@@ -52,7 +57,7 @@ export function addFormSection(schema: FormSchemaDraft, kind: FormSectionKind, i
 export function moveFormSection(schema: FormSchemaDraft, id: string, delta: -1 | 1): FormSchemaDraft {
   const section = schema.sections.find(item => item.id === id)
   if (!section) return schema
-  const siblings = schema.sections.filter(item => item.parentId === section.parentId).sort((a, b) => (a.order ?? schema.sections.indexOf(a)) - (b.order ?? schema.sections.indexOf(b)))
+  const siblings = schema.sections.filter(item => (item.parentId ?? null) === (section.parentId ?? null)).sort((a, b) => (a.order ?? schema.sections.indexOf(a)) - (b.order ?? schema.sections.indexOf(b)))
   const index = siblings.findIndex(item => item.id === id)
   if (index + delta < 0 || index + delta >= siblings.length) return schema
   ;[siblings[index], siblings[index + delta]] = [siblings[index + delta], siblings[index]]

@@ -58,6 +58,7 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
             var manifest = new BackupManifest("YarnTrade", 1, fileName, DateTime.UtcNow, new SqlConnectionStringBuilder(GetConnectionString()).InitialCatalog, await Sha256(bakPath, ct));
             await System.IO.File.WriteAllTextAsync(Path.Combine(work, "manifest.json"), JsonSerializer.Serialize(manifest, JsonOptions), ct);
             CopyAttachments(Path.Combine(environment.ContentRootPath, "App_Data", "attachments"), Path.Combine(work, "attachments"));
+            CopyDesignBackups(Path.Combine(environment.ContentRootPath, "App_Data", "form-design-backups"), Path.Combine(work, "form-design-backups"));
             var zipPath = Path.Combine(Path.GetDirectoryName(work)!, $"{Guid.NewGuid():N}.zip");
             ZipFile.CreateFromDirectory(work, zipPath, CompressionLevel.Optimal, false);
             Directory.Delete(work, true); work = null;
@@ -108,6 +109,7 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
             var database = new SqlConnectionStringBuilder(GetConnectionString()).InitialCatalog;
             if (!string.Equals(manifest.Database, database, StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("نام دیتابیس فایل پشتیبان با دیتابیس جاری سازگار نیست.");
             await VerifyDatabaseBackup(bakPath, ct);
+            CopyDesignBackups(Path.Combine(extracted, "form-design-backups"), Path.Combine(environment.ContentRootPath, "App_Data", "form-design-backups"));
             var attachmentSwap = SwapAttachments(Path.Combine(extracted, "attachments"), Path.Combine(environment.ContentRootPath, "App_Data", "attachments"));
             try { await RestoreDatabase(bakPath, ct); attachmentSwap.Commit(); }
             catch { attachmentSwap.Rollback(); throw; }
@@ -152,8 +154,26 @@ public sealed class SystemBackupController(IConfiguration configuration, IWebHos
     private static async Task Execute(SqlConnection connection, string sql, CancellationToken ct) { await using var command = connection.CreateCommand(); command.CommandTimeout = 0; command.CommandText = sql; await command.ExecuteNonQueryAsync(ct); }
     private static string Quote(string identifier) => $"[{identifier.Replace("]", "]]", StringComparison.Ordinal)}]";
     private static async Task<string> Sha256(string path, CancellationToken ct) { await using var input = System.IO.File.OpenRead(path); return Convert.ToHexString(await SHA256.HashDataAsync(input, ct)); }
-    private static void ValidateArchive(ZipArchive archive) { long total = 0; foreach (var entry in archive.Entries) { total += entry.Length; if (total > MaxRestoreBytes || entry.FullName.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(entry.FullName) || !(entry.FullName is "manifest.json" or "database.bak" || entry.FullName.StartsWith("attachments/", StringComparison.Ordinal))) throw new InvalidDataException("ساختار یا حجم فایل ZIP معتبر نیست."); } }
+    private static void ValidateArchive(ZipArchive archive) { long total = 0; foreach (var entry in archive.Entries) { total += entry.Length; if (total > MaxRestoreBytes || entry.FullName.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(entry.FullName) || !(entry.FullName is "manifest.json" or "database.bak" || entry.FullName.StartsWith("attachments/", StringComparison.Ordinal) || entry.FullName.StartsWith("form-design-backups/", StringComparison.Ordinal))) throw new InvalidDataException("ساختار یا حجم فایل ZIP معتبر نیست."); } }
     private static void CopyAttachments(string source, string target) { if (!Directory.Exists(source)) return; Directory.CreateDirectory(target); foreach (var file in Directory.EnumerateFiles(source)) System.IO.File.Copy(file, Path.Combine(target, Path.GetFileName(file)), true); }
+    private static void CopyDesignBackups(string source, string target)
+    {
+        if (!Directory.Exists(source)) return;
+        foreach (var folder in Directory.EnumerateDirectories(source))
+        {
+            if (!Guid.TryParseExact(Path.GetFileName(folder), "N", out _)) throw new InvalidDataException("Invalid form backup owner.");
+            var destination = Path.Combine(target, Path.GetFileName(folder));
+            Directory.CreateDirectory(destination);
+            foreach (var file in Directory.EnumerateFiles(folder, "*.json"))
+            {
+                if (!Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out _)) throw new InvalidDataException("Invalid form backup name.");
+                using var document = JsonDocument.Parse(System.IO.File.ReadAllBytes(file));
+                if (document.RootElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Invalid form backup JSON.");
+                var output = Path.Combine(destination, Path.GetFileName(file));
+                if (!System.IO.File.Exists(output)) System.IO.File.Copy(file, output, false);
+            }
+        }
+    }
     private static AttachmentDirectorySwap SwapAttachments(string source, string target) => new(source, target);
     private static void TryDeleteDirectory(string path) { try { if (Directory.Exists(path)) Directory.Delete(path, true); } catch { } }
     private static void TryDeleteFile(string path) { try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); } catch { } }

@@ -70,7 +70,18 @@ try {
     await send('Input.dispatchMouseEvent', { type:'mouseReleased', ...point, button, modifiers, clickCount:1 })
     await pause(100)
   }
-  const click = (text, selector) => clickExpression(node(text, selector))
+  const click = async (text, selector) => {
+    await clickExpression(text==='مدیریت فرم‌ها و انتخاب فرم فعال'?`(${node(text,selector)})||(${node('مدیریت فرم‌ها')})`:node(text, selector))
+    if(text==='بستن فرم'){ for(let attempt=0;attempt<3;attempt++){await pause(350);if(await evaluate(`document.querySelector('[data-form-design-mode]')?.dataset.formDesignMode==='laboratory'`))break;if(await evaluate(`document.body.textContent.includes('فرم هنگام پشتیبان‌گیری تغییر کرد')`))await clickExpression(node(text,selector));else break} }
+    if(text!=='ایجاد فرم از قالب آزمایشگاه')return
+    await until(`!!document.querySelector('.new-form-builder-dialog')`)
+    await evaluate(`(()=>{const select=[...document.querySelectorAll('.new-form-builder-dialog select')].find(e=>[...e.options].some(o=>o.value==='copy'));select.value='copy';select.dispatchEvent(new Event('change',{bubbles:true}))})()`)
+    const name='نسخه مستقل '+Date.now()
+    await evaluate(`(()=>{const input=[...document.querySelectorAll('.new-form-builder-dialog label')].find(e=>e.textContent.startsWith('نام فرم')).querySelector('input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(name)});input.dispatchEvent(new Event('input',{bubbles:true}))})()`)
+    await clickExpression(node('تأیید ساختار و ایجاد فرم'))
+    await until(`!document.querySelector('.new-form-builder-dialog')`)
+    await clickExpression(`[...document.querySelectorAll('article')].find(e=>e.querySelector('strong')?.textContent===${JSON.stringify(name)})?.querySelector('button')`)
+  }
   const check = async (name, expression) => { assert.ok(await evaluate(expression), name); results.push(name); console.log('PASS ' + name) }
   const field = id => `document.querySelector('.laboratory-form-frame [data-field-id="${id}"]')`
   const count = () => evaluate(`document.querySelectorAll('.laboratory-form-frame [data-field-id]').length`)
@@ -90,9 +101,15 @@ try {
   const sendKey=async(key)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code:key});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code:key});await pause(140)}
   await navigatePage({url:base+'/tests/form-designer.html'});await mode('laboratory')
   await click('ایجاد فرم از قالب آزمایشگاه');await mode('independent')
+  await check('shared in-form access strip exposes test entry, JSON export and a stable address', `(()=>{const strip=document.querySelector('.laboratory-form-frame .laboratory-form-access');const input=strip?.querySelector('input');return !!strip&&input?.readOnly&&!!new URL(input.value).searchParams.get('formDesign')&&strip.textContent.includes('ورود اطلاعات آزمایشی')&&strip.textContent.includes('خروجی JSON همین فرم')})()`)
+  await evaluate(`(()=>{const original=URL.createObjectURL;window.exportedFormForCheck=null;URL.createObjectURL=function(blob){blob.text().then(text=>window.exportedFormForCheck=JSON.parse(text));return original.call(this,blob)}})()`)
+  await click('خروجی JSON همین فرم')
+  await until('!!window.exportedFormForCheck')
+  const exportedDesign = await evaluate('window.exportedFormForCheck')
+  await check('JSON exports only the active designed form with its matching Designer and direct address', `(()=>{const value=window.exportedFormForCheck;return value.form.id===document.querySelector('[data-managed-form-id]').dataset.managedFormId&&value.designerDraft.formId===value.form.id&&new URL(value.source.address).searchParams.get('formDesign')===value.form.id&&!value.forms})()`)
   const searchInput=`document.querySelector('[data-toolbar-part="searchInput"] input')`
   await clickExpression(searchInput,'right')
-  await check('search context groups text appearance and layout without unrelated structural commands',`(()=>{const menu=document.querySelector('.designer-context-menu:not(.designer-context-submenu)');return ['متن و قلم','ظاهر و حاشیه','اندازه و چیدمان'].every(text=>menu.textContent.includes(text))&&menu.querySelectorAll(':scope>button').length===3&&!menu.textContent.includes('افزودن هدر')&&!menu.textContent.includes('تنظیمات ساختار فرم')})()`)
+  await check('search context groups text appearance and layout without unrelated structural commands',`(()=>{const menu=document.querySelector('.designer-context-menu:not(.designer-context-submenu)');return ['متن و قلم','ظاهر و حاشیه','اندازه و چیدمان'].every(text=>menu.textContent.includes(text))&&menu.querySelectorAll(':scope>button[role=menuitem]').length===3&&!menu.textContent.includes('افزودن هدر')&&!menu.textContent.includes('تنظیمات ساختار فرم')})()`)
   await clickExpression(menu('تغییر اندازه'))
   await until(`!!document.querySelector('#managed-designer-panel [data-tool-settings="searchInput"]')`)
   await check('Size uses the shared sidebar, never a different settings form',`!document.querySelector('.form-document-dialog-backdrop')`)
@@ -119,8 +136,8 @@ try {
   await click('ازنو','.form-laboratory-banner button')
   await check('Redo restores the direct color change',`getComputedStyle(${searchInput}).backgroundColor==='rgb(0, 112, 192)'`)
   await sendKey('Escape');await until(`!document.querySelector('.excel-color-popover')`)
-  const fontShape=`JSON.stringify([...document.querySelector('.designer-grid-format-dialog').querySelectorAll('input,select,button')].map(e=>[e.tagName,e.type,e.getAttribute('aria-label')]))`
-  await clickExpression(field('firstName'),'right');await clickExpression(menu('تنظیم فونت'))
+  const fontShape=`JSON.stringify([...document.querySelector('.designer-grid-format-dialog').querySelectorAll('input,select,button')].filter(e=>e.getAttribute('aria-label')!=='تراز متن داخل فیلد').map(e=>[e.tagName,e.type,e.getAttribute('aria-label')]))`
+  await clickExpression(field('firstName'),'right');await clickExpression(menu('قلم متن داخل فیلد…'))
   await until(`!!document.querySelector('.designer-grid-format-dialog')`)
   const sharedFontShape=await evaluate(fontShape)
   if(process.env.FORM_APPEARANCE_SCREENSHOT){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.env.FORM_APPEARANCE_SCREENSHOT+'-font.png',Buffer.from(shot.data,'base64'))}
@@ -176,7 +193,7 @@ try {
   }
   // Change real designed buttons first; runtime must keep their exact renderer and overrides.
   for(const id of ['new-person','demo-save','reset-sample']){
-    await clickExpression(`document.querySelector('[data-action-id="${id}"]>button')`,'right');await clickExpression(menu('تنظیم فونت'))
+    await clickExpression(`document.querySelector('[data-action-id="${id}"]>button')`,'right');await clickExpression(menu('قلم برچسب…'))
     await until(`!!document.querySelector('.designer-grid-format-dialog')`)
     await inputValue(`document.querySelector('.designer-grid-format-dialog input[type="number"]')`,'19')
     await click('تأیید','.designer-grid-format-dialog button')
@@ -201,7 +218,7 @@ try {
     await evaluate(`document.querySelector('[data-runtime-actions]').scrollIntoView({block:'center'})`);await pause(120)
     const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.env.FORM_FOOTER_SCREENSHOT+'-'+suffix+'.png',Buffer.from(shot.data,'base64'))
   }
-  await click('آزمایش فرم کامل')
+  await click('ورود اطلاعات آزمایشی')
   await until(`document.querySelector('[data-runtime-mode]')?.dataset.runtimeMode==='view'`)
   await assertActionAppearance(['new-person','reset-sample'])
   results.push('entering runtime preserves designed button colors, dimensions, corners and code/label typography')
@@ -210,6 +227,16 @@ try {
   await evaluate(`(()=>{const input=document.querySelector('.laboratory-form-frame [data-field-id="personCode"] input'),event=new KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true,cancelable:true});input.dispatchEvent(event);return event.defaultPrevented})()`)
   await until(`document.querySelector('[data-runtime-mode]')?.dataset.runtimeMode==='create'`)
   results.push('Space starts Create even when the event target is a disabled view field')
+  await check('runtime entry releases designer pointer ownership',"!document.querySelector('.form-laboratory-page').hasAttribute('data-designer-active')")
+  await until("(()=>{const input=document.querySelector('[data-field-id=firstName] input');if(!input)return false;const r=input.getBoundingClientRect();return [...document.querySelectorAll('.field-typing-language')].some(b=>!b.hidden&&Math.abs(b.getBoundingClientRect().left-r.left-4)<2&&Math.abs(b.getBoundingClientRect().top-(r.top+(r.height-24)/2))<2)})()")
+  await evaluate("(()=>{const input=document.querySelector('[data-field-id=firstName] input'),r=input.getBoundingClientRect();input.focus();[...document.querySelectorAll('.field-typing-language')].find(b=>!b.hidden&&Math.abs(b.getBoundingClientRect().left-r.left-4)<2&&Math.abs(b.getBoundingClientRect().top-(r.top+(r.height-24)/2))<2).click()})()")
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'s',code:'KeyS',windowsVirtualKeyCode:83});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'s',code:'KeyS',windowsVirtualKeyCode:83});
+  await check('runtime language button changes actual typing to English',"document.querySelector('[data-field-id=firstName] input').value.endsWith('s')")
+  await sendKey('Alt');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'s',code:'KeyS',windowsVirtualKeyCode:83});await send('Input.dispatchKeyEvent',{type:'keyUp',key:'s',code:'KeyS',windowsVirtualKeyCode:83});
+  await check('runtime Alt tap switches actual typing to Persian',"document.querySelector('[data-field-id=firstName] input').value.endsWith('sس')")
+  await evaluate("(()=>{const e=document.querySelector('[data-field-id=firstName] input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'');e.dispatchEvent(new Event('input',{bubbles:true}))})()")
+
   await assertActionAppearance(['demo-save','reset-sample']);results.push('entry Save and Close retain their own designed appearance');await captureRuntimeFooter('entry')
   await check('create shows only Save and Close and activates sample inputs',`document.querySelector('[data-runtime-mode]').dataset.runtimeMode==='create'&&[...document.querySelectorAll('[data-runtime-action]')].map(e=>e.dataset.runtimeAction).sort().join(',')==='close,save'&&!(${field('personCode')}).querySelector('input').disabled`)
   await clickExpression(`document.querySelector('[data-runtime-action="save"]')`)
@@ -282,6 +309,11 @@ try {
 
   const protectedForms=await evaluate("JSON.parse(localStorage.getItem('yarn-trade:form-laboratory-managed-forms:v1:isolated-browser-regression')).forms")
   await navigatePage({url:base+'/tests/form-designer.html?codeRuntime'});await mode('independent')
+  // The following cases exercise a manually editable code with suggestions.
+  // Incremental-code itself is system generated and intentionally read-only.
+  await navigatePage({url:base+'/tests/form-storage.fixture.html'})
+  await evaluate(`(async()=>{const {readFormRecovery,writeFormRecovery}=await import('/src/components/base-form/formDocumentRecovery.ts');const {designerHistoryReducer}=await import('/src/components/base-form/designer.ts');const {saveManagedLaboratoryForm}=await import('/src/components/base-form/laboratoryFormDraftState.ts');const journal=readFormRecovery(localStorage,'isolated-browser-regression'),snapshot=journal.documents[journal.activeFormId].current;const schema={...snapshot.form.schema,fields:snapshot.form.schema.fields.map(field=>field.id==='personCode'?{...field,componentId:'base-form.code-input'}:field)};const history=designerHistoryReducer(snapshot.designerHistory,{type:'change',draft:snapshot.designerHistory.present,schema});const form={...snapshot.form,schema};if(!saveManagedLaboratoryForm(localStorage,'isolated-browser-regression',form)||!writeFormRecovery(localStorage,'isolated-browser-regression',{form,designerHistory:history,structureHistory:{present:schema,past:[],future:[]}},'Manual code regression'))throw Error('Manual code fixture could not preserve the draft')})()`)
+  await navigatePage({url:base+'/tests/form-designer.html'});await mode('independent')
   await click('آزمایش فرم کامل');await clickExpression(`document.querySelector('[data-runtime-action="create"]')`)
   const codeInput='('+field('personCode')+').querySelector("input")'
   await check('new code suggestion is selected in the actual input', '(()=>{const e='+codeInput+';return e.value==="AA1"&&document.activeElement===e&&e.selectionStart===0&&e.selectionEnd===3})()')
@@ -303,7 +335,7 @@ try {
   await evaluate('(()=>{const e='+codeInput+';e.dispatchEvent(new CompositionEvent("compositionstart",{bubbles:true}));Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(e,"فارسی");e.dispatchEvent(new InputEvent("input",{bubbles:true,isComposing:true,data:"فارسی"}));e.dispatchEvent(new CompositionEvent("compositionend",{bubbles:true,data:"فارسی"}))})()')
   await check('invalid composition restores accepted code', '('+codeInput+').value==="AC1"')
   await inputValue(codeInput,'ab۸');await sendKey('F3')
-  await check('canonical duplicate cannot be saved', 'document.querySelector("[data-runtime-mode]").dataset.runtimeMode==="create"&&document.querySelector(".field-error").textContent.includes("تکراری")')
+  await check('canonical duplicate cannot be saved', 'document.querySelector("[data-runtime-mode]").dataset.runtimeMode==="create"&&document.querySelector(".field-error").textContent.includes("یکتایی")&&document.querySelectorAll("tbody tr[data-row-index]").length===1')
   await inputValue(codeInput,'AC1');await sendKey('F3');await until('document.querySelector("[data-runtime-mode]").dataset.runtimeMode==="view"')
   await click('پایان آزمایش عملکرد')
   const retainedForms=await evaluate("JSON.parse(localStorage.getItem('yarn-trade:form-laboratory-managed-forms:v1:isolated-browser-regression')).forms.filter(form=>form.id!=='form.code-regression')")
@@ -321,6 +353,16 @@ try {
   await click('کتابخانه و آزمایش کامپوننت‌ها');await selectValue('document.querySelector(`.component-library-editor [aria-label="کامپوننت کتابخانه"]`)','base-form.code-input')
   await check('library code settings persist through publication and reopening', 'document.querySelector(`.component-library-editor [aria-label="قالب کد آزمایشی"]`).value==="letters"&&document.querySelector(`.component-library-editor [aria-label="سیاست قالب کد"]`).value==="segments"&&document.querySelector(`.component-library-editor [aria-label="طول ثابت کد"]`).value==="2"')
   await click('بستن کتابخانه')
+  await evaluate(`localStorage.setItem('yarn-trade:form-laboratory-managed-forms:v1:isolated-direct-address',${JSON.stringify(JSON.stringify({version:1,activeFormId:null,forms:[exportedDesign.form]}))})`)
+  await evaluate(`sessionStorage.setItem('accessToken','isolated-direct-address-test')`)
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:`window.fetch=async(input,init)=>{const url=String(input instanceof Request?input.url:input),respond=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});if(url.includes('/api/user-access'))return respond({id:'isolated-direct-address',email:'direct@test.invalid',displayName:'Regression user',preferredLanguage:'fa',sessionTimeoutMinutes:30,theme:'system',compactMode:false,fontFamily:'vazirmatn',fontSize:'normal',roles:['Administrator'],permissions:['formLaboratory.view','dashboard.view','settings.edit']});if(url.includes('/api/purchases'))return respond({items:[],total:0});if(url.includes('/api/work-items'))return respond([]);if(url.includes('/api/presence/notice'))return respond(null);if(url.includes('/api/presence/heartbeat'))return respond({});if(url.includes('/api/form-design-backups'))return respond(init?.method==='POST'?{id:crypto.randomUUID().replaceAll('-','')}:[]);if(url.includes('/api/form-laboratory/synthetic-grid'))return respond({items:[],total:0,page:1,pageSize:50});if(url.includes('/api/navigation')){const m=await import('/src/navigation.ts');return respond({nodes:m.defaultNavigation(),preferences:m.defaultPreferences(),rowVersion:''})}if(url.includes('/api/design-system/themes')){const m=await import('/src/components/base-form/themeDesignSystem.ts');return respond({rowVersion:'',library:{version:1,themes:[m.defaultDesignTheme],previous:[]},preferences:null})}throw Error('Unexpected operational request in direct-address regression: '+url)}`})
+  await navigatePage({url:base+'/?formDesign='+encodeURIComponent(exportedDesign.form.id)})
+  await until(`document.querySelector('[data-managed-form-id]')?.dataset.managedFormId===${JSON.stringify(exportedDesign.form.id)}`)
+  await until(`!!document.querySelector('.laboratory-form-access input')`, 'direct form access strip is rendered')
+  await check('direct address opens the exact saved form through App without a sidebar click', `new URL(document.querySelector('.laboratory-form-access input').value).searchParams.get('formDesign')===${JSON.stringify(exportedDesign.form.id)}`)
+  await reloadPage()
+  await until(`document.querySelector('[data-managed-form-id]')?.dataset.managedFormId===${JSON.stringify(exportedDesign.form.id)}`)
+  results.push('direct form address survives refresh')
   assert.deepEqual(errors,[],'no unexpected requests or browser errors')
   console.log(JSON.stringify({passed:results.length,results},null,2))
 

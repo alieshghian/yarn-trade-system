@@ -33,7 +33,7 @@ test('blank selected defaults and missing selected rows prevent the entire commi
 
 test('blank unselected rows are ignored and duplicate normalized phone entries are rejected', () => {
   assert.deepEqual(resolveFormValueEntries([], '', [{ id: 1, code: '', text: '' }, { id: 2, code: '', text: 'شرکت' }], 2, true), { items: ['شرکت'], defaultValue: 'شرکت' })
-  assert.deepEqual(resolveFormValueEntries(['+989123456789'], '+989123456789', [{ id: 2, code: '+98', text: '0912 345 6789' }], 2, false), { error: { entryId: 2, field: 'text' } })
+  assert.deepEqual(resolveFormValueEntries(['+989123456789'], '+989123456789', [{ id: 2, code: '+98', text: '0912 345 6789' }], 2, false), { error: { entryId: 2, field: 'text', reason:'duplicate' } })
 })
 
 test('invalid country codes or empty numeric values identify the input requiring correction', () => {

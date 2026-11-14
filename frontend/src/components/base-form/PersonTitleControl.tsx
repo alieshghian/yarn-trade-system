@@ -23,9 +23,10 @@ export function PersonTitleControl({value,options,disabled,required=false,invali
  return <div className="person-title-wrap" data-title-adapter data-component-reference={componentDefinitionId}>
   <FormValueList field={field} label={label} primary={nameOf(value)} numbers={options.map(display)} listPrimary={nameOf(defaultValue??value)} disabled={disabled} fa={fa} multiline required={required} designerMode={designerMode} canAdd={canCreate} componentDefinitionId={componentDefinitionId}
    addLabel={(fa?'افزودن ':'Add ')+label} listLabel={(fa?'نمایش ':'Show ')+label} getItemKey={name=>byName(name)?.id??name}
+   getSearchValues={(name,fields)=>{const item=byName(name);return item?fields.flatMap(key=>key==='code'?[item.code??'']:key==='name'||key==='value'?[item.nameFa,item.nameEn,item.nameZh??'']:[]):[name]}}
    canEdit={name=>{const option=byName(name);return Boolean(option&&(onCommit||onUpdate)&&canEdit?.(option)!==false)}}
    canRemove={name=>{const option=byName(name);return Boolean(option&&(onCommit||onRemove)&&canRemove?.(option)!==false)}}
-   onSelectValue={name=>{const option=byName(name);if(option)onChange(option.id,option.personType)}}
+   onSelectValue={name=>{if(!name){onChange('');return}const option=byName(name);if(option)onChange(option.id,option.personType)}}
    onChange={async(primary,names,origins)=>{const saved=await commit(primary,names,origins);const option=saved.options.find(item=>item.id===saved.defaultId);onSetDefault?.(saved.defaultId);if(option)onChange(option.id,option.personType);return true}}/>
   <select ref={validation} className="title-validation-select" tabIndex={-1} aria-hidden="true" aria-invalid={invalid||undefined} disabled={disabled} value={value} onChange={()=>{}} onBlur={()=>validation.current&&onValidateRequired?.(validation.current)} style={{display:'none'}}><option value=""/>{options.map(option=><option key={option.id} value={option.id}>{display(option)}</option>)}</select>
  </div>

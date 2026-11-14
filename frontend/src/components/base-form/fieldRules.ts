@@ -1,9 +1,10 @@
+import {numericFieldError} from './numericField.ts'
 import type { FormSchemaDraft, FormSchemaField } from './formSchema.ts'
 import {normalizeComponentCode,validateComponentCode} from './serialCode.ts'
 import {fieldCodeSettings} from './componentBehavior.ts'
 
 /** Shared Laboratory contract; labels are presentation and never choose behavior. */
-export const laboratoryFieldRuleContract = { version: 1, markers: { required: '*', unique: 'U', composite: 'U₂', dependency: '↔' }, normalizeText: true, scope: 'form-records', partialComposite: 'validate-when-complete', emptyUnique: 'ignore-unless-required', edit: 'exclude-current-record', close: 'save-discard-continue' } as const
+export const laboratoryFieldRuleContract = { version: 1, editingScopes: { form: ['focusOrder','compositeUniqueness','dependencies'], field: ['required','independentUniqueness','normalization','readOnly','valueBehavior'] }, markers: { required: '*', unique: 'U', composite: 'U₂', dependency: '↔' }, normalizeText: true, scope: 'form-records', partialComposite: 'validate-when-complete', emptyUnique: 'ignore-unless-required', edit: 'exclude-current-record', close: 'save-discard-continue' } as const
 export function effectiveFieldRules(field:FormSchemaField) {
   const code=['base-form.code-input','base-form.incremental-code'].includes(field.componentId), settings=code?fieldCodeSettings(field):undefined
   return { required:field.required??(code?settings?.required??true:false),unique:field.validation?.some(rule=>rule.type==='unique')===true||(code?(settings?.unique??true):false),code }
@@ -29,9 +30,10 @@ export function validateRecordRules(schema: FormSchemaDraft, values: Record<stri
     if (field.readOnly && !effectiveFieldRules(field).code || field.kind === 'hidden') continue
     const settings = field.ruleSettings, normalize = settings?.normalizeText !== false, value = normalizeRuleText(values[field.id], normalize)
     const scope = settings?.scopeFieldIds ?? []
+    const numericError=numericFieldError(field,values[field.id]??'');if(numericError)errors[field.id]=numericError
     if(effectiveFieldRules(field).code){const message=validateComponentCode(values[field.id]??'',{...fieldCodeSettings(field),required:effectiveFieldRules(field).required,unique:false});if(message)errors[field.id]=message}
     if (effectiveFieldRules(field).unique && (scope.some(id=>!schema.fields.some(item=>item.id===id)))) errors[field.id]='فیلد دامنهٔ یکتایی حذف شده است؛ قانون را اصلاح کنید.'
-    else if (value && effectiveFieldRules(field).unique && duplicate([field.id], scope, normalize)) errors[field.id]='این مقدار در دامنهٔ تعیین‌شده تکراری است.'
+    else if (value && effectiveFieldRules(field).unique && duplicate([field.id], scope, normalize)) errors[field.id]='قانون یکتایی مستقلِ «'+field.label.fa+'» فعال است؛ این مقدار در رکورد دیگری استفاده شده است. اگر مقدار بین رکوردها مشترک است، قانون یکتایی مستقل این فیلد را در طراحی اصلاح کنید.'
     for (const rule of settings?.dependencies ?? []) {
       const source = schema.fields.find(item=>item.id===rule.fieldId)
       if (!source || source.id===field.id) { errors[field.id]='فیلد وابسته نامعتبر است؛ قانون را اصلاح کنید.'; continue }
@@ -47,4 +49,16 @@ export function validateRecordRules(schema: FormSchemaDraft, values: Record<stri
     if(ids.every(id=>normalizeRuleText(values[id],normalize)) && duplicate(ids,scope,normalize))for(const id of ids)errors[id]='این ترکیب در دامنهٔ تعیین‌شده قبلاً ثبت شده است.'
   }
   return errors
+}
+
+export type FormRuleStructureIssue = { message:string; fieldId?:string; groupId?:string; section:'field'|'relationships' }
+/** Design validation inspects references, never validates a fictitious empty record. */
+export function formRuleStructureIssues(schema:FormSchemaDraft):FormRuleStructureIssue[] {
+ const exists=(id:string)=>schema.fields.some(field=>field.id===id), issues:FormRuleStructureIssue[]=[]
+ for(const field of schema.fields){
+  if(effectiveFieldRules(field).unique&&field.ruleSettings?.scopeFieldIds?.some(id=>!exists(id)))issues.push({section:'field',fieldId:field.id,message:'دامنهٔ یکتایی «'+field.label.fa+'» به فیلد حذف‌شده اشاره می‌کند؛ منبع معتبر انتخاب کنید.'})
+  for(const rule of field.ruleSettings?.dependencies??[])if(!exists(rule.fieldId)||rule.fieldId===field.id)issues.push({section:'relationships',fieldId:field.id,message:'منبع وابستگی «'+field.label.fa+'» نامعتبر است؛ فیلد مرتبط را اصلاح کنید.'})
+ }
+ for(const group of schema.uniqueConstraints??[]){const ids=[...new Set(group.fieldIds)],missing=[...ids,...group.scopeFieldIds??[]].filter(id=>!exists(id));if(ids.length<2||missing.length)issues.push({section:'relationships',groupId:group.id,message:missing.length?'گروه یکتایی به فیلد حذف‌شده اشاره می‌کند: '+missing.join('، ')+'. منابع گروه را اصلاح کنید.':'گروه یکتایی ناقص است؛ حداقل دو فیلد را انتخاب کنید یا گروه اضافی را حذف کنید.'})}
+ return issues
 }

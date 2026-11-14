@@ -211,6 +211,36 @@ test('rendered-layout guard checks actual computed grid columns, first-row geome
   assert.ok(issues.some(issue => issue.includes('Fields overlap')))
 })
 
+test('rendered-layout guard accounts for responsive view translation but still catches real geometry drift', () => {
+  const stored = { width: 300, height: 100, fields: { one: {
+    label: { left: 10, top: 8, width: 100, height: 18 },
+    input: { left: 10, top: 32, width: 100, height: 34 }
+  } } }
+  const origin = { left: 100, top: 200, right: 500, bottom: 320, width: 400, height: 120 }
+  let actualShift = 36
+  let inputOffset = 0
+  const part = (rect, offset = () => 0) => ({
+    getBoundingClientRect: () => ({ left: origin.left + rect.left + actualShift + offset(), top: origin.top + rect.top, right: origin.left + rect.left + actualShift + offset() + rect.width, bottom: origin.top + rect.top + rect.height, width: rect.width, height: rect.height })
+  })
+  const labelNode = part(stored.fields.one.label)
+  const inputNode = part(stored.fields.one.input, () => inputOffset)
+  const field = { dataset: { fieldId: 'one' }, getBoundingClientRect: () => ({ left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 }), querySelector: selector => selector === '.designer-label-part' ? labelNode : selector === '.designer-input-part' ? inputNode : null }
+  const grid = { children: [field], dataset: { canvasViewShift: String(actualShift) }, getBoundingClientRect: () => origin }
+  const contract = { formId: 'form.responsive', device: 'desktop', kind: 'designer-canvas', fieldIds: ['one'], canvas: stored, invalidCanvas: false }
+  const style = { display: 'block', gridTemplateColumns: 'none', position: 'absolute' }
+
+  assert.deepEqual(inspectRenderedFormLayout(grid, contract, () => style), [], 'view-only centering is not reported as a saved-layout mismatch')
+
+  inputOffset = 3
+  assert.ok(inspectRenderedFormLayout(grid, contract, () => style).some(issue => issue.includes('Canvas geometry differs from saved layout: one.designer-input-part')), 'a real part displacement still produces a warning')
+
+  inputOffset = 0
+  actualShift = (origin.width - stored.width) / 2
+  delete grid.dataset.canvasViewShift
+  contract.canvas.centeredFieldIds = ['one']
+  assert.deepEqual(inspectRenderedFormLayout(grid, contract, () => style), [], 'stored centered canvases retain their legacy centering check before responsive projection mounts')
+})
+
 test('saved old Canvas draft keeps its layout through reopen and ten Designer open/close cycles', () => {
   const values = new Map()
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }

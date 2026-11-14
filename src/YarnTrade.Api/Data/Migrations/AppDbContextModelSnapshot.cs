@@ -962,6 +962,8 @@ namespace YarnTrade.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("YarnItemId");
+
                     b.HasIndex("WarehouseId", "YarnItemId", "MovementDateUtc");
 
                     b.ToTable("InventoryMovements");
@@ -1913,7 +1915,8 @@ namespace YarnTrade.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BrandId");
+                    b.HasIndex("BrandId")
+                        .IsUnique();
 
                     b.HasIndex("PersonId", "BrandId")
                         .IsUnique();
@@ -2012,6 +2015,130 @@ namespace YarnTrade.Api.Data.Migrations
                     b.HasIndex("PriceListId");
 
                     b.ToTable("PriceListItems");
+                });
+
+            modelBuilder.Entity("YarnTrade.Api.Domain.ProductGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Depth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("HierarchyCode")
+                        .IsRequired()
+                        .HasMaxLength(104)
+                        .HasColumnType("nvarchar(104)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LockedDepth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RootCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HierarchyCode")
+                        .IsUnique();
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ProductGroups_RootName")
+                        .HasFilter("[ParentId] IS NULL AND [IsDeleted] = 0");
+
+                    b.HasIndex("RequestId")
+                        .IsUnique();
+
+                    b.HasIndex("RootCode")
+                        .IsUnique()
+                        .HasFilter("[ParentId] IS NULL");
+
+                    b.HasIndex("ParentId", "NormalizedName")
+                        .IsUnique()
+                        .HasFilter("[ParentId] IS NOT NULL AND [IsDeleted] = 0");
+
+                    b.ToTable("ProductGroups", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductGroups_Depth", "[Depth] >= 0 AND [Depth] <= 4 AND (([ParentId] IS NULL AND [Depth] = 0) OR ([ParentId] IS NOT NULL AND [Depth] > 0))");
+
+                            t.HasCheckConstraint("CK_ProductGroups_LockedDepth", "[LockedDepth] IS NULL OR ([ParentId] IS NULL AND [LockedDepth] BETWEEN 0 AND 4)");
+                        });
+                });
+
+            modelBuilder.Entity("YarnTrade.Api.Domain.ProductGroupCounter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("LastValue")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProductGroupCounters", (string)null);
+                });
+
+            modelBuilder.Entity("YarnTrade.Api.Domain.ProductGroupPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MaxSubgroups")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProductGroupPolicies", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ProductGroupPolicies_Depth", "[MaxSubgroups] >= 0 AND [MaxSubgroups] <= 4");
+                        });
                 });
 
             modelBuilder.Entity("YarnTrade.Api.Domain.PurchaseContainer", b =>
@@ -2954,6 +3081,9 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("AddressesJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -2964,8 +3094,20 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Property<Guid?>("CustodianPersonId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FloorCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(7)
+                        .HasColumnType("nvarchar(7)");
 
                     b.Property<string>("NameEn")
                         .IsRequired()
@@ -2992,7 +3134,128 @@ namespace YarnTrade.Api.Data.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Warehouses");
+                    b.ToTable("Warehouses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Warehouse_Floors", "[FloorCount] BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_Warehouse_Location", "[Location] IS NULL OR [Location] IN (N'inside',N'outside')");
+                        });
+                });
+
+            modelBuilder.Entity("YarnTrade.Api.Domain.WarehouseCustodianPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ChangedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("EndedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId");
+
+                    b.HasIndex("WarehouseId")
+                        .IsUnique()
+                        .HasFilter("[EndedAtUtc] IS NULL");
+
+                    b.ToTable("WarehouseCustodianPeriods", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WarehouseCustodianPeriod_Dates", "[EndedAtUtc] IS NULL OR [EndedAtUtc] >= [StartedAtUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("YarnTrade.Api.Domain.WarehouseZone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("FloorNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDefaultReceiving")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NormalizedCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)")
+                        .UseCollation("Latin1_General_100_BIN2");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WarehouseId", "FloorNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WarehouseZones_Receiving")
+                        .HasFilter("[IsDefaultReceiving] = 1");
+
+                    b.HasIndex("WarehouseId", "NormalizedCode")
+                        .IsUnique();
+
+                    b.HasIndex("WarehouseId", "FloorNumber", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("WarehouseZones", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_WarehouseZone_Floor", "[FloorNumber] BETWEEN 1 AND 5");
+
+                            t.HasCheckConstraint("CK_WarehouseZones_ReceivingActive", "[IsDefaultReceiving] = 0 OR [IsActive] = 1");
+                        });
                 });
 
             modelBuilder.Entity("YarnTrade.Api.Domain.YarnItem", b =>
@@ -3012,12 +3275,12 @@ namespace YarnTrade.Api.Data.Migrations
                         .HasColumnType("nvarchar(600)");
 
                     b.Property<string>("ContinuityType")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("CountType")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<decimal?>("CountValue")
                         .HasPrecision(20, 6)
@@ -3031,19 +3294,19 @@ namespace YarnTrade.Api.Data.Migrations
                         .HasColumnType("decimal(20,6)");
 
                     b.Property<string>("FixStatus")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Luster")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("Material")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("NameEn")
                         .IsRequired()
@@ -3060,6 +3323,9 @@ namespace YarnTrade.Api.Data.Migrations
 
                     b.Property<byte>("PlyCount")
                         .HasColumnType("tinyint");
+
+                    b.Property<Guid?>("ProductGroupId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Property1NameEn")
                         .HasColumnType("nvarchar(max)");
@@ -3090,32 +3356,28 @@ namespace YarnTrade.Api.Data.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("SpinType")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("SpinningMethod")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<decimal?>("TwistAmount")
                         .HasPrecision(20, 6)
                         .HasColumnType("decimal(20,6)");
 
                     b.Property<string>("TwistType")
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<string>("UnitOfMeasure")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<DateTime?>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("YarnGroup")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
 
                     b.Property<Guid>("YarnTypeId")
                         .HasColumnType("uniqueidentifier");
@@ -3126,6 +3388,8 @@ namespace YarnTrade.Api.Data.Migrations
                         .IsUnique();
 
                     b.HasIndex("ComprehensiveName");
+
+                    b.HasIndex("ProductGroupId");
 
                     b.HasIndex("SearchText");
 
@@ -3387,6 +3651,16 @@ namespace YarnTrade.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("YarnTrade.Api.Domain.ProductGroup", b =>
+                {
+                    b.HasOne("YarnTrade.Api.Domain.ProductGroup", "Parent")
+                        .WithMany()
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("YarnTrade.Api.Domain.PurchaseContainer", b =>
                 {
                     b.HasOne("YarnTrade.Api.Domain.PurchaseInvoice", null)
@@ -3520,8 +3794,37 @@ namespace YarnTrade.Api.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("YarnTrade.Api.Domain.WarehouseCustodianPeriod", b =>
+                {
+                    b.HasOne("YarnTrade.Api.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("YarnTrade.Api.Domain.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("YarnTrade.Api.Domain.WarehouseZone", b =>
+                {
+                    b.HasOne("YarnTrade.Api.Domain.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("YarnTrade.Api.Domain.YarnItem", b =>
                 {
+                    b.HasOne("YarnTrade.Api.Domain.ProductGroup", null)
+                        .WithMany()
+                        .HasForeignKey("ProductGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("YarnTrade.Api.Domain.YarnType", "YarnType")
                         .WithMany()
                         .HasForeignKey("YarnTypeId")
@@ -3578,6 +3881,55 @@ namespace YarnTrade.Api.Data.Migrations
 
                     b.Navigation("PaymentSchedules");
                 });
+            modelBuilder.Entity("YarnTrade.Api.Domain.YarnDefinitionState",b=>{
+                b.Property<Guid>("YarnId").HasColumnType("uniqueidentifier");
+                b.Property<string>("ReleaseId").IsRequired().HasMaxLength(36).HasColumnType("nvarchar(36)");
+                b.Property<string>("ValuesJson").IsRequired().HasColumnType("nvarchar(max)");
+                b.Property<string>("NormalizedName").IsRequired().HasMaxLength(240).HasColumnType("nvarchar(240)").UseCollation("Latin1_General_100_BIN2");
+                b.HasKey("YarnId");
+                b.HasIndex("NormalizedName").IsUnique();
+                b.ToTable("YarnDefinitionStates",(string)null);
+                b.HasOne("YarnTrade.Api.Domain.YarnItem",null).WithOne().HasForeignKey("YarnTrade.Api.Domain.YarnDefinitionState","YarnId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                            });
+            modelBuilder.Entity("YarnTrade.Api.Domain.YarnColor",b=>{
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<Guid>("YarnId").HasColumnType("uniqueidentifier");
+                b.Property<string>("Value").IsRequired().HasMaxLength(120).HasColumnType("nvarchar(120)");
+                b.Property<string>("NormalizedValue").IsRequired().HasMaxLength(240).HasColumnType("nvarchar(240)").UseCollation("Latin1_General_100_BIN2");
+                b.Property<bool>("IsDefault").HasColumnType("bit");
+                b.HasKey("Id");
+                b.HasIndex("YarnId","NormalizedValue").IsUnique();
+                b.HasIndex("YarnId").IsUnique().HasFilter("[IsDefault] = 1");
+                b.ToTable("YarnColors",(string)null);
+                b.HasOne("YarnTrade.Api.Domain.YarnItem",null).WithMany().HasForeignKey("YarnId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                            });
+            modelBuilder.Entity("YarnTrade.Api.Domain.YarnDefinitionReference",b=>{
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<DateTime>("CreatedAtUtc").HasColumnType("datetime2");
+                b.Property<DateTime?>("UpdatedAtUtc").HasColumnType("datetime2");
+                b.Property<byte[]>("RowVersion").IsConcurrencyToken().IsRequired().ValueGeneratedOnAddOrUpdate().HasColumnType("rowversion");
+                b.Property<string>("FieldId").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                b.Property<string>("Name").IsRequired().HasMaxLength(120).HasColumnType("nvarchar(120)");
+                b.Property<string>("NormalizedName").IsRequired().HasMaxLength(240).HasColumnType("nvarchar(240)").UseCollation("Latin1_General_100_BIN2");
+                b.Property<bool>("IsDefault").HasColumnType("bit");
+                b.HasKey("Id");
+                b.HasIndex("FieldId","NormalizedName").IsUnique();
+                b.ToTable("YarnDefinitionReferences",(string)null);
+                            });
+            modelBuilder.Entity("YarnTrade.Api.Domain.YarnPackagingCoefficient",b=>{
+                b.Property<Guid>("Id").ValueGeneratedOnAdd().HasColumnType("uniqueidentifier");
+                b.Property<Guid>("YarnId").HasColumnType("uniqueidentifier");
+                b.Property<Guid>("PackagingId").HasColumnType("uniqueidentifier");
+                b.Property<decimal>("CbmPerTon").HasPrecision(20,6).HasColumnType("decimal(20,6)");
+                b.Property<bool>("IsDefault").HasColumnType("bit");
+                b.HasKey("Id");
+                b.HasIndex("YarnId","PackagingId").IsUnique();
+                b.HasIndex("YarnId").IsUnique().HasFilter("[IsDefault] = 1");
+                b.HasIndex("PackagingId");
+                b.ToTable("YarnPackagingCoefficients",t=>t.HasCheckConstraint("CK_YarnPackagingCoefficients_Positive","[CbmPerTon] > 0"));
+                b.HasOne("YarnTrade.Api.Domain.YarnItem",null).WithMany().HasForeignKey("YarnId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                b.HasOne("YarnTrade.Api.Domain.YarnDefinitionReference",null).WithMany().HasForeignKey("PackagingId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                            });
 #pragma warning restore 612, 618
         }
     }

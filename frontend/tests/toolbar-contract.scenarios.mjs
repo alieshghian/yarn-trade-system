@@ -22,7 +22,7 @@ export async function runToolbarContractScenarios({base,navigatePage,evaluate,un
       if(delta>-100)assert.ok(Math.abs(live.height-before.height-delta)<2,'live edge follows the pointer before release')
       await send('Input.dispatchMouseEvent',{type:'mouseReleased',...end,button:'left',clickCount:1});await pause(120)
       const committed=await rect(panel)
-      assert.ok(Math.abs(committed.height-live.height)<1&&Math.abs(committed.top-live.top)<1,'release must keep the live geometry')
+      assert.ok(Math.abs(committed.height-live.height)<1&&Math.abs(committed.top-live.top)<1,'release must keep the live geometry '+JSON.stringify({language,delta,before,live,committed}))
       await check(language+' header content stays visible above the table after release',contained)
     }
     await resize(60)
@@ -46,7 +46,7 @@ export async function runToolbarContractScenarios({base,navigatePage,evaluate,un
     const wide=await evaluate(`(()=>{const p=${panel},r=p.getBoundingClientRect(),c=p.querySelector('.grid-columns-slot').getBoundingClientRect(),e=p.querySelector('.grid-expand-toggle').getBoundingClientRect(),t=p.querySelector('[data-toolbar-part="title"]').getBoundingClientRect(),s=p.querySelector('[data-toolbar-part="search"]').getBoundingClientRect();return {left:c.left-r.left,expand:e.left-r.left,searchRight:s.right-r.right,searchWidth:s.width,titleCenter:(t.left+t.right)/2}})()`)
     assert.ok(Math.abs(narrow.left-wide.left)<1&&Math.abs(narrow.expand-wide.expand)<1,'left controls stay pinned as the toolbar grows')
     assert.ok(Math.abs(narrow.searchRight-wide.searchRight)<1&&Math.abs(narrow.searchWidth-wide.searchWidth)<2,'search stays pinned at the right without growing its track')
-    assert.ok(wide.titleCenter-narrow.titleCenter>100,'the center spacer absorbs added width')
+    assert.ok(wide.titleCenter-narrow.titleCenter>100,'the center spacer absorbs added width '+JSON.stringify({language,narrow,wide}))
     await evaluate(`(${panel}).style.width=${JSON.stringify(originalPanelWidth)}`);await pause(160)
     await clickExpression(`document.querySelector('.grid-search-control input')`)
     await check(language+' clicking search selects only the actual input',`(()=>{const selected=[...document.querySelectorAll('[data-toolbar-part][data-designer-tool-selected="true"]')].map(e=>e.dataset.toolbarPart);return selected.length===1&&selected[0]==='searchInput'&&!document.querySelector('[data-toolbar-part="search"]').dataset.designerToolSelected&&!document.querySelector('[data-toolbar-part="searchOptions"]').dataset.designerToolSelected})()`)

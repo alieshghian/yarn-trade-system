@@ -2,12 +2,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { addFormSection, assignFormFieldSection, formSectionChildren, moveFormSection, sectionFormSchema, updateFormSection, usesFormComposition } from './formDocumentStructure.ts'
 import { designerDraftForEditor, designerDraftForTable, designerRectStyle, updateTableDesigner } from './formDocumentDesigner.ts'
-import { createManagedLaboratoryForm, createManagedFormStructureHistory, commitManagedFormStructure, undoManagedFormStructure, redoManagedFormStructure, loadManagedLaboratoryForms, saveManagedLaboratoryForm, managedLaboratoryFormsStorageKey, resolveManagedLaboratoryDesigner, managedFormWithDesigner, renameManagedFormField } from './laboratoryFormDraftState.ts'
+import { createManagedLaboratoryForm, createManagedFormStructureHistory, commitManagedFormStructure, undoManagedFormStructure, redoManagedFormStructure, loadManagedLaboratoryForms, saveManagedLaboratoryForm, managedLaboratoryFormsStorageKey, resolveManagedLaboratoryDesigner, managedFormWithDesigner, renameManagedFormField, removeManagedFormFields } from './laboratoryFormDraftState.ts'
 import { emptyDesignerDraft, setDesignerTableColumnStyle, validateDesignerDraft } from './designer.ts'
 import { registerTemplateRevision } from './formTemplateInheritance.ts'
 import { inspectRegisteredFormLayouts, inspectRenderedFormLayout, resolveFormLayout } from './formLayoutContract.ts'
-import { addDocumentField, addDocumentAction, addTableHeaderRow, setTableMaster, parseFrameDimension, copyFormDimensions, saveFieldBlueprint, loadFieldBlueprints } from './formDocumentControls.ts'
-import { columnLabelMismatch, composeColumnFieldValue, fieldColumnLinks, keepColumnLabelIndependent, moveDocumentColumn, syncColumnLabelFromField, syncColumnLabelToField, updateDocumentColumn, unlinkFieldFromColumn } from './formTableStructure.ts'
+import { addDocumentField, addDocumentAction, removeOptionalDocumentActions, addTableHeaderRow, setTableMaster, parseFrameDimension, copyFormDimensions, saveFieldBlueprint, loadFieldBlueprints } from './formDocumentControls.ts'
+import { columnLabelMismatch, composeColumnFieldValue, fieldColumnLinks, keepColumnLabelIndependent, moveDocumentColumn, removeDocumentColumns, setColumnSourceSelection, syncColumnLabelFromField, syncColumnLabelToField, unresolvedTableColumns, updateDocumentColumn, unlinkFieldFromColumn } from './formTableStructure.ts'
 import {applyLabelChange,labelChangeSuggestions,labelChangePlan} from './labelChanges.ts'
 
 const localized = value => ({ fa: value, en: value, zh: value })
@@ -92,6 +92,9 @@ test('label suggestions synchronize both directions in one immutable schema and 
  assert.ok(columnLabelMismatch(later,later.tables[0].columns[0],'fa').length)
  const independent=applyLabelChange(schema,edit,'نام برند','fa','independent')
  assert.deepEqual(columnLabelMismatch(independent,independent.tables[0].columns[0],'fa'),[])
+ const reviewedAgain=applyLabelChange(independent,{...edit,value:'نام برند'},'نام تازه','fa','review')
+ assert.ok(columnLabelMismatch(reviewedAgain,reviewedAgain.tables[0].columns[0],'fa').length,'a new deferred decision invalidates an earlier independent-label approval')
+ assert.deepEqual(reviewedAgain.tables[0].columns[0].sourceFieldIds,independent.tables[0].columns[0].sourceFieldIds,'review never disconnects the field')
  assert.equal(schema.fields[0].label.fa,'نام')
 })
 
@@ -124,6 +127,17 @@ test('one table column can retain multiple bidirectional source-field links',()=
   const removed=updateDocumentColumn(next,'table','displayName',{sourceFieldIds:['lastName'],binding:{kind:'formField',fieldId:'lastName'}})
   assert.deepEqual(fieldColumnLinks(removed,'firstName'),[])
   assert.deepEqual(fieldColumnLinks(removed,'lastName'),[{tableId:'table',columnId:'displayName'}])
+})
+
+test('explicitly reconnecting a column replaces stale sources and supports read-only derived fields',()=>{
+ const base=template(),derived={...base.fields[0],id:'comprehensiveName',label:localized('نام کامل'),readOnly:true,componentId:'base-form.derived-display'}
+ const schema={...base,fields:[derived],tables:[{...base.tables[0],columns:[{...base.tables[0].columns[0],id:'comprehensiveName',label:localized('نام کامل'),binding:{kind:'formField',fieldId:'removed-old-field'},sourceFieldIds:['removed-old-field'],requiresSourceDecision:true}]}]}
+ const linked=setColumnSourceSelection(schema,'table','comprehensiveName','comprehensiveName',true,false)
+ assert.deepEqual(linked.tables[0].columns[0].sourceFieldIds,['comprehensiveName'])
+ assert.deepEqual(linked.tables[0].columns[0].binding,{kind:'formField',fieldId:'comprehensiveName'})
+ assert.deepEqual(fieldColumnLinks(linked,'comprehensiveName'),[{tableId:'table',columnId:'comprehensiveName'}])
+ assert.equal(linked.fields[0].readOnly,true,'linking must not change a derived field’s read-only behavior')
+ assert.deepEqual(unresolvedTableColumns(linked,'table'),[],'an explicit live selection resolves stale source IDs')
 })
 
 test('composite column label changes flag its source fields and can explicitly follow a chosen primary field',()=>{
@@ -300,6 +314,38 @@ test('Master–Detail is a declarative relation, rejects cycles and keeps behavi
   const added = addDocumentAction(schema, 'footer', 'report.print', 'چاپ گزارش')
   assert.equal(added.actions.at(-1).operationId, undefined)
   assert.deepEqual(added.actions.at(-1).keys, [])
+})
+
+test('group removal deletes selected optional footer actions and preserves required actions', () => {
+  const schema = { ...template(), actions: [
+    { id: 'save', code: 'F3', required: true, label: localized('Save') },
+    { id: 'end', code: 'End', required: false, label: localized('End') },
+    { id: 'home', code: 'Home', required: false, label: localized('Home') }
+  ] }
+  const removed = removeOptionalDocumentActions(schema, ['save', 'end', 'home'])
+  assert.deepEqual(removed.actions.map(action => action.id), ['save'])
+  assert.equal(removeOptionalDocumentActions(schema, ['save']), schema, 'a required-only selection is an identity no-op')
+  assert.equal(removeOptionalDocumentActions(schema, ['missing']), schema, 'unknown IDs are ignored without replacing the document')
+})
+
+test('group removal deletes only selected structural fields and table columns in one immutable schema', () => {
+  const source = template()
+  const schema = {
+    ...source,
+    fields: [...source.fields, { ...source.fields[0], id: 'lastName', label: localized('Last name') }, { ...source.fields[0], id: 'phone', label: localized('Phone') }],
+    tables: [{ ...source.tables[0], columns: [
+      ...source.tables[0].columns,
+      { id: 'code', binding: { kind: 'dataField', dataFieldId: 'code' }, label: localized('Code') },
+      { id: 'status', binding: { kind: 'dataField', dataFieldId: 'status' }, label: localized('Status') }
+    ] }]
+  }
+  const withoutFields = removeManagedFormFields(schema, ['firstName', 'lastName', 'missing', 'lastName'])
+  assert.deepEqual(withoutFields.fields.map(field => field.id), ['phone'], 'a batch removes each selected field once and leaves unselected fields intact')
+  assert.equal(removeManagedFormFields(schema, ['missing']), schema, 'a batch with no valid IDs is an identity no-op')
+  const withoutColumns = removeDocumentColumns(schema, 'table', ['name', 'code', 'missing', 'code'])
+  assert.deepEqual(withoutColumns.tables[0].columns.map(column => column.id), ['status'], 'a batch removes only selected columns')
+  assert.equal(removeDocumentColumns(schema, 'table', ['missing']), schema, 'a batch with no valid columns is an identity no-op')
+  assert.deepEqual(schema.fields.map(field => field.id), ['firstName', 'lastName', 'phone'], 'batch edits never mutate their source schema')
 })
 
 test('reusable definitions persist per user and instantiate without sharing field identity', () => {

@@ -15,7 +15,12 @@ test('all eight handles move only the selected sides while keeping opposite side
     assert.equal(rect.top, 100 + (handle.includes('top') ? -1 : 0), handle)
     assert.equal(rect.width, 120 + (dx ? 1 : 0), handle)
     assert.equal(rect.height, 40 + (dy ? 1 : 0), handle)
-    assert.deepEqual(resized.fields.field.label, original.fields.field.label)
+    assert.deepEqual(resized.fields.field.label, {
+      ...original.fields.field.label,
+      left: dx ? rect.left : original.fields.field.label.left,
+      top: dy && handle.includes('top') ? rect.top - original.fields.field.input.top + original.fields.field.label.top : original.fields.field.label.top,
+      width: dx ? rect.width : original.fields.field.label.width
+    }, `${handle} keeps a label attached when it shares the input width`)
     assert.equal(original.fields.field.input.width, 120)
   }
 })

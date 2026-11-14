@@ -101,7 +101,7 @@ export function suggestComponentCode(values: readonly string[], input: Partial<C
 export function nextIncrementalCode(values: readonly string[], settings: Partial<CodeComponentSettings> = defaultCodeComponentSettings): string { return suggestComponentCode(values, settings).value }
 
 /** Local input policy only; does not change Windows or other fields. Invalid paste/composition is rejected atomically. */
-export function codeInputProps(value: string, settings: CodeComponentSettings, commit: (value: string) => void): InputHTMLAttributes<HTMLInputElement> {
+export function codeInputProps(value: string, settings: CodeComponentSettings, commit: (value: string) => void): InputHTMLAttributes<HTMLInputElement> & { 'data-code-input': true } {
   const accept = (input: HTMLInputElement, text: string, caret?: number) => {
     const next = formatComponentCode(text)
     if (!codeCharactersAllowed(next, settings) || next.length > (settings.maxLength ?? 128)) { input.value = value; return }
@@ -110,7 +110,7 @@ export function codeInputProps(value: string, settings: CodeComponentSettings, c
     if(typeof requestAnimationFrame==='function')requestAnimationFrame(() => { if (document.activeElement === input) input.setSelectionRange(position,position) })
   }
   const insert = (input: HTMLInputElement, text: string) => { const start = input.selectionStart ?? value.length, end = input.selectionEnd ?? start; accept(input, input.value.slice(0, start) + text + input.value.slice(end), start + text.length) }
-  return { type: 'text', dir: 'ltr', inputMode: settings.mode === 'number' ? 'numeric' : 'text', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false,
+  return { 'data-code-input': true, type: 'text', dir: 'ltr', inputMode: settings.mode === 'number' ? 'numeric' : 'text', autoCapitalize: 'none', autoCorrect: 'off', spellCheck: false,
     onChange: event => { if (!(event.nativeEvent as InputEvent).isComposing) accept(event.currentTarget, event.currentTarget.value) },
     onCompositionEnd: event => accept(event.currentTarget, event.currentTarget.value),
     onPaste: event => { event.preventDefault(); insert(event.currentTarget, event.clipboardData.getData('text')) },

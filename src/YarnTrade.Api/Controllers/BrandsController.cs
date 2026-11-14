@@ -28,6 +28,8 @@ public sealed class BrandsController(AppDbContext db) : ControllerBase
         return new { items = items.Select(BrandView.From), total, page = Math.Max(page, 1), pageSize = size };
     }
 
+    [HttpGet("latest"), RequirePermission("brands.view")]
+    public async Task<ActionResult<BrandView>> Latest(CancellationToken ct){var brand=await db.Brands.AsNoTracking().OrderByDescending(x=>x.UpdatedAtUtc??x.CreatedAtUtc).ThenByDescending(x=>x.Id).FirstOrDefaultAsync(ct);return brand is null?NotFound():Ok(BrandView.From(brand));}
     [HttpGet("{id:guid}"), RequirePermission("brands.view")]
     public async Task<ActionResult<BrandView>> Get(Guid id, CancellationToken ct)
     {
@@ -38,6 +40,7 @@ public sealed class BrandsController(AppDbContext db) : ControllerBase
     [HttpPost, RequirePermission("brands.create")]
     public async Task<ActionResult<BrandView>> Create(BrandInput input, CancellationToken ct)
     {
+        return await Mutate(async () => {
         if (await Validate(input, null, ct) is { } error) return BadRequest(new { error });
         var brand = new Brand { BrandCode = Code(input), BrandName = input.BrandName!.Trim(), Address = Clean(input.Address), Description = Clean(input.Description) };
         db.Brands.Add(brand);
@@ -45,11 +48,13 @@ public sealed class BrandsController(AppDbContext db) : ControllerBase
         catch (DbUpdateException e) when (e.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
         { return Conflict(new { code = "DUPLICATE_BRAND_CODE", error = "کد برند تکراری است." }); }
         return CreatedAtAction(nameof(Get), new { id = brand.Id }, BrandView.From(brand));
+        }, ct);
     }
 
     [HttpPut("{id:guid}"), RequirePermission("brands.edit")]
     public async Task<ActionResult<BrandView>> Update(Guid id, BrandInput input, [FromQuery] string? rowVersion, CancellationToken ct)
     {
+        return await Mutate(async () => {
         var brand = await db.Brands.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (brand is null) return NotFound();
         if (AggregateConcurrency.Apply(db, brand, rowVersion) is { } conflict) return conflict;
@@ -60,8 +65,12 @@ public sealed class BrandsController(AppDbContext db) : ControllerBase
         catch (DbUpdateException e) when (e.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
         { return Conflict(new { code = "DUPLICATE_BRAND_CODE", error = "کد برند تکراری است." }); }
         return Ok(BrandView.From(brand));
+        }, ct);
     }
 
+    [HttpPost("bulk-delete"), RequirePermission("brands.delete")]
+    public Task<IActionResult> DeleteMany(DefinitionBulkDeleteInput input,CancellationToken ct) =>
+        DefinitionBulkDelete.Run(db,input,(row,token)=>Delete(row.Id,row.RowVersion,token),ct);
     [HttpDelete("{id:guid}"), RequirePermission("brands.delete")]
     public async Task<IActionResult> Delete(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
     {
@@ -84,9 +93,29 @@ public sealed class BrandsController(AppDbContext db) : ControllerBase
         if (string.IsNullOrWhiteSpace(input.BrandName) || input.BrandName.Trim().Length > 200) return "نام برند الزامی و حداکثر ۲۰۰ کاراکتر است.";
         if (input.Address?.Trim().Length > 2000) return "آدرس حداکثر ۲۰۰۰ کاراکتر است.";
         if (input.Description?.Trim().Length > 4000) return "توضیحات حداکثر ۴۰۰۰ کاراکتر است.";
-        return await db.Brands.AnyAsync(x => x.BrandCode == code && x.Id != id, ct) ? "کد برند تکراری است." : null;
+        if (SerialCode.ValidateCode(code, new CodeOptions { MaxLength = 30, SuffixWidth = 1 }) is not null) return "کد برند باید از حروف انگلیسی، عدد و جداکننده‌های مجاز تشکیل شود.";
+        var comparison = code.ToUpperInvariant();
+        var duplicate = db.Database.IsSqlServer()
+            ? await db.Brands.AnyAsync(x => EF.Functions.Collate(x.BrandCode, "Latin1_General_100_CI_AS") == code && x.Id != id, ct)
+            : await db.Brands.AnyAsync(x => x.BrandCode.ToUpper() == comparison && x.Id != id, ct);
+        return duplicate ? "کد برند تکراری است." : null;
     }
-    private static string Code(BrandInput input) => input.BrandCode?.Trim().ToUpperInvariant() ?? "";
+    // Serialize API brand writes on SQL Server as well as checking the existing unique index.
+    // This keeps mixed-case uniqueness independent of the database's default collation.
+    private async Task<ActionResult<BrandView>> Mutate(Func<Task<ActionResult<BrandView>>> operation, CancellationToken ct)
+    {
+        var attempt = 0;
+        return await db.Database.CreateExecutionStrategy().ExecuteAsync(async () => {
+            if (attempt++ > 0) db.ChangeTracker.Clear();
+            await using var transaction = db.Database.IsSqlServer() ? await db.Database.BeginTransactionAsync(ct) : null;
+            if (transaction is not null)
+                await db.Database.ExecuteSqlRawAsync("DECLARE @result int; EXEC @result = sys.sp_getapplock @Resource=N'yarn-trade.brands.write.v1', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=10000; IF @result < 0 THROW 51000, 'Brand write lock unavailable', 1;", ct);
+            var result = await operation();
+            if (transaction is not null && result.Result is OkObjectResult or CreatedAtActionResult) await transaction.CommitAsync(ct);
+            return result;
+        });
+    }
+    private static string Code(BrandInput input) => SerialCode.FormatCode(input.BrandCode ?? "");
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     private static ConflictObjectResult Referenced() => new(new { code = "BRAND_IN_USE", error = "برند دارای ارتباط یا سابقهٔ خرید قابل حذف نیست." });
 }

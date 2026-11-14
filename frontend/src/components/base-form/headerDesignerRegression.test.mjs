@@ -18,11 +18,11 @@ test('toolbar content recovers outside offsets within its own header, including 
  assert.deepEqual(toolbarContainmentDelta({left:100,top:40,width:100,height:24},parent),{x:0,y:0})
 })
 
-test('own label and selection chrome cannot block horizontal field resize',()=>{
+test('own label tracks horizontal input resize and selection chrome cannot block it',()=>{
  const source={width:600,height:400,fields:{a:{input:box(100,100),label:{left:100,top:73,width:140,height:24},select:{left:100,top:80,width:24,height:18}}}}
  const after=resizeCanvasHandle(source,['a'],'right',20,0)
  assert.equal(after.fields.a.input.width,160)
- assert.deepEqual(after.fields.a.label,source.fields.a.label)
+ assert.deepEqual(after.fields.a.label,{left:100,top:73,width:160,height:24})
  assert.equal(after.fields.a.input.left,100)
 })
 
@@ -64,7 +64,10 @@ test('legacy independent Canvas crops empty extents without moving fields or mod
  assert.deepEqual(view.canvas.fields.a,before.canvas.fields.a);assert.deepEqual(draft,before)
  const manual=structuredClone(schema);manual.sections[0].settings={viewport:{heightMode:'fixed'}}
  const fixed=resolveFormLayout(manual,designerDraftForEditor(draft,manual),'desktop',1440,{cropEmptyCanvas:true}).canvas
- assert.equal(fixed.width,350,'fixed height must not force horizontal overflow');assert.equal(fixed.height,1600)
+ assert.equal(fixed.width,350,'fixed height must not force horizontal overflow');assert.equal(fixed.height,80,'fixed panel height must not preserve phantom vertical content')
+ manual.sections[0].settings.viewport.overflowY='scroll'
+ assert.equal(resolveFormLayout(manual,designerDraftForEditor(draft,manual),'desktop',1440,{cropEmptyCanvas:true}).canvas.height,80,'legacy forced scroll must not retain an empty canvas tail')
+ assert.equal(draft.canvas.height,1600,'saved Canvas height stays unchanged')
  manual.sections[0].settings.viewport.overflowX='scroll'
  assert.equal(resolveFormLayout(manual,designerDraftForEditor(draft,manual),'desktop',1440,{cropEmptyCanvas:true}).canvas.width,2200,'explicit horizontal scroll remains respected')
 })
@@ -148,3 +151,5 @@ test('report rows never replace the original outer editor grid footer layout or 
  assert.equal(usesFormComposition(original),false);assert.equal(usesFormComposition(rows),false)
  assert.equal(usesFormComposition({...rows,sections:[...rows.sections,{id:'second-editor',kind:'editor'}]}),true,'real extra form panes still use composition')
 })
+
+test('scroll extent ignores obsolete selection and validation rectangles but follows manual field movement',()=>{const draft={...emptyDesignerDraft('mother'),canvas:{width:600,height:1600,fields:{a:{input:box(10,40),label:box(10,4),select:box(10,1400),error:box(10,1500)},b:{input:box(210,40),label:box(210,4)}}}};const original=structuredClone(draft);const view=resolveFormLayout(schema,draft,'desktop',600,{cropEmptyCanvas:true}).canvas;assert.equal(view.height,80);assert.deepEqual(draft,original);draft.canvas.fields.b.input.top=700;assert.equal(resolveFormLayout(schema,draft,'desktop',600,{cropEmptyCanvas:true}).canvas.height,732);});

@@ -13,10 +13,29 @@ import { emptyDesignerDraft } from './designer.ts'
 const server = await createServer({ root: resolve(dirname(fileURLToPath(import.meta.url)), '../../..'), configFile: false, plugins: [react()], logLevel: 'error', resolve: { preserveSymlinks: true }, server: { middlewareMode: true, hmr: false }, optimizeDeps: { noDiscovery: true, include: [] } })
 after(() => server.close())
 const { FormSchemaPresentation } = await server.ssrLoadModule('/src/components/base-form/FormSchemaPresentation.tsx')
+const {FormSettingsButton}=await server.ssrLoadModule('/src/components/base-form/FormSettingsButton.tsx')
+const {withCascadingTreeDepth}=await server.ssrLoadModule('/src/components/base-form/CascadingTreeSettingsControls.tsx')
 const text = value => ({ fa: value, en: value, zh: value })
 const base = () => ({ id: 'form.render', schemaVersion: 1, version: 1, status: 'draft', mode: 'hybrid', title: text('Preview'), fields: [], layout: { direction: 'vertical', gap: 8 }, sections: [{ id: 'editor', kind: 'editor' }, { id: 'grid', kind: 'grid' }, { id: 'footer', kind: 'footer' }], tables: [{ id: 'table', sectionId: 'grid', title: text('First table'), dataSourceId: 'local.synthetic', columns: [{ id: 'name', binding: { kind: 'dataField', dataFieldId: 'name' }, label: text('Name') }] }] })
 const props = schema => ({ schema, designerDraft: emptyDesignerDraft(schema.id), language: 'fa', readOnly: true, editor: React.createElement('div', { 'data-original-editor': true }, 'Original editor'), footer: React.createElement('div', { 'data-original-actions': true }, 'Original actions'), grid: { rows: [{ name: 'Synthetic row' }], columns: [{ id: 'name', label: 'Name', width: 160, type: 'text', value: row => row.name }] } })
 const render = schema => renderToStaticMarkup(React.createElement(FormSchemaPresentation, props(schema)))
+
+test('the shared settings entry remains available and hierarchy configuration preserves saved data and presentation',()=>{
+  const button=renderToStaticMarkup(React.createElement(FormSettingsButton,{language:'fa',onClick:()=>{}}))
+  assert.match(button,/aria-label="تنظیمات فرم"/);assert.match(button,/aria-expanded="false"/)
+  const schema=base(),nodes=[{id:'root',parentId:null,name:'گروه',code:'007'},{id:'child',parentId:'root',name:'زیرگروه',code:'008'}]
+  schema.fields=[{id:'tree',sectionId:'editor',componentId:'base-form.cascading-tree-panels',settings:{cascadingTree:{maxSubgroups:4,nodes,initialPath:['root','child'],columnTitles:['اول','دوم']},binding:'untouched'}}]
+  for(const count of [0,2,3,4]){
+    const next=withCascadingTreeDepth(schema,'tree',count)
+    assert.equal(next.fields[0].settings.cascadingTree.maxSubgroups,count)
+    assert.equal(next.fields[0].settings.cascadingTree.nodes,nodes)
+    assert.equal(next.tables,schema.tables);assert.equal(next.sections,schema.sections)
+    assert.deepEqual(next.fields[0].settings.cascadingTree.initialPath,['root','child'])
+    assert.equal(next.fields[0].settings.binding,'untouched')
+  }
+  for(const count of [-1,5,2.5,NaN])assert.equal(withCascadingTreeDepth(schema,'tree',count),schema)
+  assert.equal(schema.fields[0].settings.cascadingTree.maxSubgroups,4)
+})
 
 test('the unchanged three-section template uses the original shared frame and splitter', () => {
   const html = render(base())
@@ -25,6 +44,23 @@ test('the unchanged three-section template uses the original shared frame and sp
   assert.match(html, /data-original-actions/)
   assert.equal((html.match(/data-table-id=/g) ?? []).length, 1)
   assert.doesNotMatch(html, /form-document-composition/)
+})
+
+test('chrome-only layout preview keeps the standard grids, settings and source rows', () => {
+  const schema = addFormSection(base(), 'grid', 'grid.two')
+  const properties = props(schema)
+  const before = structuredClone({ schema, draft: properties.designerDraft, rows: properties.grid.rows })
+  const html = renderToStaticMarkup(React.createElement(FormSchemaPresentation, {
+    ...properties, layoutPreview: true, readOnly: false,
+    grids: { 'grid.two.table': { ...properties.grid, rows: [{ name: 'Private second source' }] } }
+  }))
+  assert.equal((html.match(/data-layout-preview="true"/g) ?? []).length, 2)
+  assert.equal((html.match(/class="base-grid-boundary/g) ?? []).length, 2)
+  assert.equal(html.includes('base-form-splitter'), render(schema).includes('base-form-splitter'))
+  assert.match(html, /Synthetic row/); assert.match(html, /Private second source/); assert.doesNotMatch(html, /base-grid-virtual-spacer/)
+  assert.match(html, /data-original-editor/)
+  assert.match(html, /data-original-actions/)
+  assert.deepEqual({ schema, draft: properties.designerDraft, rows: properties.grid.rows }, before)
 })
 
 test('the real shared React tree renders one input panel and two or four independent grid components', () => {
@@ -37,7 +73,7 @@ test('the real shared React tree renders one input panel and two or four indepen
     assert.equal((html.match(/data-original-editor=/g) ?? []).length, 1)
     assert.equal((html.match(/data-original-actions=/g) ?? []).length, 1)
     assert.ok(html.indexOf('data-document-section-id="footer"') > html.indexOf(`data-document-section-id="grid.${count}"`))
-    assert.match(html, /(?:disabled|readOnly)=""[^>]*type="search"|type="search"[^>]*(?:disabled|readOnly)=""/i)
+    assert.doesNotMatch(html, /(?:disabled|readOnly)=""[^>]*type="search"|type="search"[^>]*(?:disabled|readOnly)=""/i)
   }
 })
 
@@ -77,7 +113,7 @@ test('report field rows render above only their own table using the shared edito
 
 test('review highlighting is a temporary view projection and structural table deletion removes the actual grid', () => {
   const schema = base(), properties = props(schema), originalDraft = JSON.stringify(properties.designerDraft)
-  const html = renderToStaticMarkup(React.createElement(FormSchemaPresentation, { ...properties, columnReview: { table: ['name'] } }))
+  const html = renderToStaticMarkup(React.createElement(FormSchemaPresentation, { ...properties, presentationMode: 'design', columnReview: { table: ['name'] } }))
   assert.match(html, /data-table-review="1"/)
   assert.match(html, /form-table-review-warning/)
   assert.match(html, /#fff0ed/)

@@ -12,6 +12,7 @@ export type ManagedFormFrame = { device: 'desktop' | 'tablet' | 'mobile'; width:
 export type ManagedFormCustomization = { colors: boolean; typography: boolean; formSize: boolean; tablePresentation: boolean }
 export type ManagedLaboratoryForm = {
   id: string
+  designEdition?: {familyId: string; number: number; sourceFormId?: string; createdAt: string}
   schema: FormSchemaDraft
   frame: ManagedFormFrame
   template: { formId: string; version: number; schema?: FormSchemaDraft; frame?: ManagedFormFrame }
@@ -147,8 +148,13 @@ export function renameManagedFormField(schema: FormSchemaDraft, fieldId: string,
 }
 
 export function removeManagedFormField(schema: FormSchemaDraft, fieldId: string): FormSchemaDraft {
-  if (!schema.fields.some(field => field.id === fieldId)) return schema
-  return { ...schema, fields: schema.fields.filter(field => field.id !== fieldId) }
+  return removeManagedFormFields(schema, [fieldId])
+}
+
+export function removeManagedFormFields(schema: FormSchemaDraft, fieldIds: readonly string[]): FormSchemaDraft {
+  const selected = new Set(fieldIds.filter(id => schema.fields.some(field => field.id === id)))
+  if (!selected.size) return schema
+  return { ...schema, fields: schema.fields.filter(field => !selected.has(field.id)) }
 }
 
 export function managedLaboratoryFormsStorageKey(userId?: string): string {
@@ -170,6 +176,7 @@ export function createManagedLaboratoryForm(input: {
   const baseline = copy(input.templateDesigner)
   const source = copy(input.templateSchema)
   const frame = copy(input.frame)
+  const { operationalSource: _sourceRoute, redesignIntent: _redesignIntent, integrationOrigin: _origin, ...independentValues } = source.settings?.specific?.values ?? {}
   const schema = ensureLaboratoryTemplateFieldLayout({
     ...source,
     id,
@@ -177,12 +184,12 @@ export function createManagedLaboratoryForm(input: {
     status: 'draft',
     mode: input.mode,
     title: { fa: name, en: name, zh: name },
-    actions: source.actions?.map(action => ({ ...action, required: false })),
+    actions: source.actions?.map(action => ({ ...action })),
     templateFormId: laboratoryTemplateFormId,
     settings: {
       ...source.settings,
       shared: { ...source.settings?.shared, standardId: laboratoryTemplateFormId, version: input.templateVersion ?? laboratoryTemplateVersion, designer: baseline },
-      specific: { ...source.settings?.specific, designer: { properties: {}, appearance: {}, components: {} } }
+      specific: { ...source.settings?.specific, values: { ...independentValues, integrationOrigin: { kind: 'new' } }, designer: { properties: {}, appearance: {}, components: {} } }
     }
   })
   return {
@@ -224,6 +231,7 @@ function restoreForm(value: unknown): ManagedLaboratoryForm | null {
   const restoredSchema = ensureLaboratoryTemplateFieldLayout({ ...schema, actions: schema.actions?.map(action => ({ ...action, required: false })), settings: { ...schema.settings, shared: { ...schema.settings?.shared, designer } } })
   return {
     id: value.id,
+    ...(record(value.designEdition) && typeof value.designEdition.familyId === 'string' && Number.isInteger(value.designEdition.number) && Number(value.designEdition.number) > 0 && typeof value.designEdition.createdAt === 'string' ? {designEdition: value.designEdition as ManagedLaboratoryForm['designEdition']} : {}),
     schema: restoredSchema,
     frame: value.frame as ManagedFormFrame,
     template: value.template as ManagedLaboratoryForm['template'],
@@ -233,6 +241,8 @@ function restoreForm(value: unknown): ManagedLaboratoryForm | null {
   }
 }
 
+/** The same normalization used by persistence, exposed for exact saved-version comparisons. */
+export function normalizeManagedLaboratoryForm(value:unknown):ManagedLaboratoryForm|null{return restoreForm(value)}
 export function loadManagedLaboratoryForms(storage: FormStorage | undefined, userId?: string): ManagedLaboratoryForms | null {
   if (!storage) return null
   try {

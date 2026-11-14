@@ -45,7 +45,11 @@ export type FormSchemaField = BaseFormField & {
   dataSourceId?: string
   format?: string
   order?: number
+  /** False skips Enter/horizontal sequence navigation; pointer interaction stays available. */
+  enterEnabled?: boolean
   focusOrder?: number
+  /** Shared in-field typing mode; omitted keeps native typing until explicitly toggled. */
+  typingLanguage?: { enabled?: boolean; initial?: 'auto' | 'fa' | 'en' }
   settings?: Readonly<Record<string, unknown>>
 }
 
@@ -144,6 +148,11 @@ export type FormSchemaPermissions = {
 
 export type FormSchemaPropertySetting = { inherited: boolean; value?: DesignerValue }
 export type FormSchemaSettings = {
+  fieldValidation?: {
+    entity: 'warehouses' | 'zones' | 'brands' | 'persons' | 'yarns' | 'users' | 'investors'
+    uniqueFields: readonly string[]
+    context?: Readonly<Record<string, string | number | null>>
+  }
   shared?: {
     behaviorId?: string
     standardId?: string

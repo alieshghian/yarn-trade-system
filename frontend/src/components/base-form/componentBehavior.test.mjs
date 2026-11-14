@@ -4,11 +4,38 @@ import {initialComponentLibrary,addLibraryComponent,publishComponentRevision,res
 import {saveFieldBlueprint,loadFieldBlueprints,addDocumentField} from './formDocumentControls.ts'
 import {readFileSync} from 'node:fs'
 import {nextIncrementalCode,validateComponentCode,defaultCodeComponentSettings} from './serialCode.ts'
+import {evaluateDerivedFields,evaluateDerivedFieldParts,moveDerivedSource} from './derivedField.ts'
 
 test('date, configurable code and incremental code are reusable library targets',()=>{
  const registry=readFileSync(new URL('./componentRegistry.ts',import.meta.url),'utf8')
  for(const id of ['base-form.date-input','base-form.code-input','base-form.incremental-code'])assert.ok(registry.includes(`id:'${id}'`))
  assert.ok(registry.includes("schemaKind:'date'"))
+})
+test('derived display and incremental code are built-in reusable library components',()=>{
+ const registry=readFileSync(new URL('./componentRegistry.ts',import.meta.url),'utf8'),library=initialComponentLibrary()
+ for(const id of ['base-form.incremental-code','base-form.derived-display']){assert.ok(registry.includes(`id:'${id}'`));assert.ok(library.components.some(item=>item.id===id))}
+})
+test('derived display composes ordered values, skips blanks and safely breaks cycles',()=>{
+ const field=(id,componentId,sourceFieldIds,separator=' ')=>({id,componentId,settings:{derivedSettings:{sourceFieldIds,separator}}})
+ const fields=[field('full','base-form.derived-display',['first','middle','last'],' '),field('cycleA','base-form.derived-display',['cycleB']),field('cycleB','base-form.derived-display',['cycleA']),{id:'first',componentId:'base-form.code-input'},{id:'middle',componentId:'base-form.code-input'},{id:'last',componentId:'base-form.code-input'}]
+ assert.deepEqual(evaluateDerivedFields(fields,{first:'Ada',middle:'',last:'Lovelace',cycleA:'old'}),{first:'Ada',middle:'',last:'Lovelace',cycleA:'',full:'Ada Lovelace',cycleB:''})
+})
+test('derived display source order is explicit, reversible, persists and isolates mixed-direction values',()=>{
+ const full={id:'full',componentId:'base-form.derived-display',settings:{derivedSettings:{sourceFieldIds:['nameFa','brandEn','weight'],separator:' · '}}}
+ const fields=[full,{id:'nameFa',componentId:'definition.field'},{id:'brandEn',componentId:'definition.field'},{id:'weight',componentId:'definition.field'},{id:'productCode',componentId:'base-form.incremental-code'}]
+ const values={nameFa:'نخ پلی استر',brandEn:'Global Trade NM',weight:'300',productCode:'AA17'}
+ assert.deepEqual(evaluateDerivedFieldParts(fields,values,'full'),{parts:['نخ پلی استر','Global Trade NM','300'],separator:' · '})
+ assert.equal(evaluateDerivedFields(fields,values).full,'نخ پلی استر · Global Trade NM · 300')
+ assert.deepEqual(JSON.parse(JSON.stringify(full.settings.derivedSettings)),{sourceFieldIds:['nameFa','brandEn','weight'],separator:' · '})
+ assert.deepEqual(moveDerivedSource(full.settings.derivedSettings.sourceFieldIds,'weight',-1),['nameFa','weight','brandEn'])
+ assert.deepEqual(moveDerivedSource(full.settings.derivedSettings.sourceFieldIds,'nameFa',-1),['nameFa','brandEn','weight'])
+ assert.ok(!evaluateDerivedFieldParts(fields,values,'full').parts.includes(values.productCode),'unselected fields such as the product code do not appear')
+})
+test('new derived fields are saved as read-only text with per-form source settings',()=>{
+ const schema={fields:[{id:'name',label:{fa:'نام',en:'Name',zh:'名称'},componentId:'base-form.code-input'}],sections:[{id:'editor',kind:'editor',layout:{columns:20}}]}
+ const next=addDocumentField(schema,'editor','full-name','نام کامل',{kind:'text',componentId:'base-form.derived-display',valueType:'text',derivedSettings:{sourceFieldIds:['name'],separator:' — '}})
+ const field=next.fields.find(item=>item.id==='full-name')
+ assert.equal(field.readOnly,true);assert.equal(field.kind,'text');assert.deepEqual(field.settings.derivedSettings,{sourceFieldIds:['name'],separator:' — '})
 })
 
 test('Title aliases and renamed components inherit one stable behavior reference',()=>{

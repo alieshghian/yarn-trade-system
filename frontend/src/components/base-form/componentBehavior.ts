@@ -1,19 +1,21 @@
+import {normalizeListSettings,type ListSettingsPatch} from './componentListSettings.ts'
 import type {FormStorage} from './laboratoryFormDraftState'
 import {normalizeCodeComponentSettings,type CodeComponentSettings} from './serialCode.ts'
 
 export const componentLibraryKey='yarn-trade:component-library:v1'
 export const componentLibraryEvent='yarn-component-library-changed'
-export type ListCapabilities={searchChoices:boolean;confirmRemoval:boolean;maxEntryLength:number}
+export type ListCapabilities={searchChoices:boolean;confirmRemoval:boolean;maxEntryLength:number;listSettings?:ListSettingsPatch}
 export type ComponentRevision={version:number;createdAt:string;capabilities:Partial<ListCapabilities>;codeSettings?:Partial<CodeComponentSettings>}
 export type LibraryComponent={id:string;name:string;parentId?:string;rendererId:string;revisions:ComponentRevision[]}
 export type ComponentLibrary={version:1;components:LibraryComponent[]}
 export const defaultListCapabilities:ListCapabilities={searchChoices:false,confirmRemoval:false,maxEntryLength:1000}
 export const canonicalBehaviorId=(id:string)=>['persons.title-control','base-form.number-control'].includes(id)?'base-form.value-list':id
-export function initialComponentLibrary():ComponentLibrary{return {version:1,components:[{id:'base-form.value-list',name:'فهرست مقادیر مشترک — عنوان و آدرس',rendererId:'base-form.value-list',revisions:[{version:1,createdAt:'',capabilities:{...defaultListCapabilities}}]},{id:'base-form.date-input',name:'تاریخ مشترک',rendererId:'base-form.date-input',revisions:[{version:1,createdAt:'',capabilities:{}}]},{id:'base-form.code-input',name:'کد قابل تنظیم',rendererId:'base-form.code-input',revisions:[{version:1,createdAt:'',capabilities:{}}]},{id:'base-form.incremental-code',name:'شماره افزایشی یکتا',rendererId:'base-form.incremental-code',revisions:[{version:1,createdAt:'',capabilities:{}}]}]}}
+export function initialComponentLibrary():ComponentLibrary{return {version:1,components:[{id:'base-form.value-list',name:'فهرست مقادیر مشترک — عنوان و آدرس',rendererId:'base-form.value-list',revisions:[{version:1,createdAt:'',capabilities:{...defaultListCapabilities}}]},{id:'base-form.date-input',name:'تاریخ مشترک',rendererId:'base-form.date-input',revisions:[{version:1,createdAt:'',capabilities:{}}]},{id:'base-form.code-input',name:'کد قابل تنظیم',rendererId:'base-form.code-input',revisions:[{version:1,createdAt:'',capabilities:{}}]},{id:'base-form.incremental-code',name:'شماره افزایشی یکتا',rendererId:'base-form.incremental-code',revisions:[{version:1,createdAt:'',capabilities:{}}]},{id:'base-form.derived-display',name:'نمایش محاسبه‌شدهٔ فقط‌خواندنی',rendererId:'base-form.derived-display',revisions:[{version:1,createdAt:'',capabilities:{}}]},{id:'base-form.system-lookup',name:'انتخاب از تعاریف سیستم',rendererId:'base-form.system-lookup',revisions:[{version:1,createdAt:'',capabilities:{listSettings:{searchEnabled:true,allowEmpty:true,addPlacement:'popup'}}}]},{id:'base-form.batch-values',name:'رنگ‌ها و مقادیر با ثبت گروهی',rendererId:'base-form.batch-values',parentId:'base-form.value-list',revisions:[{version:1,createdAt:'',capabilities:{searchChoices:true}}]},{id:'base-form.packaging-volume',name:'بسته‌بندی و حجم کالا',rendererId:'base-form.packaging-volume',parentId:'base-form.value-list',revisions:[{version:1,createdAt:'',capabilities:{searchChoices:true}}]}]}}
 export function normalizeCapabilities(value:Partial<ListCapabilities>):Partial<ListCapabilities>{
  const next:Partial<ListCapabilities>={}
  for(const key of ['searchChoices','confirmRemoval'] as const)if(typeof value[key]==='boolean')next[key]=value[key]
  if(typeof value.maxEntryLength==='number'&&Number.isFinite(value.maxEntryLength))next.maxEntryLength=Math.max(1,Math.min(10000,Math.round(value.maxEntryLength)))
+ if(value.listSettings)next.listSettings=normalizeListSettings(value.listSettings)
  return next
 }
 export function readComponentLibrary(storage?:FormStorage|null):ComponentLibrary{
@@ -34,7 +36,8 @@ export function resolveComponentCapabilities(library:ComponentLibrary,id:string,
  if(!definition){if(key!=='base-form.value-list')return resolveComponentCapabilities(library,'base-form.value-list',seen);throw Error('مرجع رفتار مشترک موجود نیست.')}
  seen.add(key)
  const parent=definition.parentId?resolveComponentCapabilities(library,definition.parentId,seen):defaultListCapabilities
- return {...parent,...normalizeCapabilities(definition.revisions.at(-1)!.capabilities)}
+ const child=normalizeCapabilities(definition.revisions.at(-1)!.capabilities)
+ return {...parent,...child,...(parent.listSettings||child.listSettings?{listSettings:{...parent.listSettings,...child.listSettings,permissions:{...parent.listSettings?.permissions,...child.listSettings?.permissions}}}:{})}
 }
 export function addLibraryComponent(library:ComponentLibrary,id:string,name:string,rendererId:string,parentId=rendererId,capabilities:Partial<ListCapabilities>={},codeSettings?:Partial<CodeComponentSettings>):ComponentLibrary{
  if(library.components.some(item=>item.id===id))throw Error('شناسهٔ کامپوننت تکراری است.')

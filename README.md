@@ -50,10 +50,10 @@ dotnet user-secrets set "Seed:AdminPassword" "<یک-رمز-محلی-قوی-ان�
 ```powershell
 dotnet restore
 dotnet build --configuration Release
-dotnet run --project src/YarnTrade.Api --urls http://localhost:5223
+dotnet run --project src/YarnTrade.Api --urls http://127.1.0.1:5223
 ```
 
-در Development، API پس از پیکربندی رشته اتصال، migration را اعمال و داده نمونه را seed می‌کند. Swagger در محیط Development در `http://localhost:5223/swagger` است.
+در Development، API پس از پیکربندی رشته اتصال، migration را اعمال و داده نمونه را seed می‌کند. Swagger در محیط Development در `http://127.1.0.1:5223/swagger` است.
 
 3. در ترمینال دوم:
 
@@ -63,7 +63,7 @@ pnpm install
 pnpm dev
 ```
 
-رابط در `http://localhost:5173` اجرا می‌شود. تنظیم proxy توسعه به `VITE_API_PROXY_TARGET` در محیط یا فایل محلی `.env.local` وابسته است؛ پیش‌فرض آن با پروفایل توسعهٔ API برابر است.
+رابط در `http://127.1.0.1:5173` اجرا می‌شود. تنظیم proxy توسعه به `VITE_API_PROXY_TARGET` در محیط یا فایل محلی `.env.local` وابسته است؛ پیش‌فرض آن با پروفایل توسعهٔ API برابر است.
 
 حساب توسعه با ایمیل `admin@yarntrade.local` ساخته می‌شود و رمز همان مقداری است که در User Secrets برای `Seed:AdminPassword` تنظیم کرده‌اید. رمز را در فایل تنظیمات یا مخزن قرار ندهید.
 
@@ -78,7 +78,7 @@ pnpm dev
 - SQL Server و ذخیره‌سازی پیوست/پشتیبان فقط در شبکهٔ خصوصی قرار گیرند و مجوز دسترسی شبکه فقط به سرویس‌های لازم داده شود. این تنظیمات شبکه و گواهی‌ها باید در استقرار اعمال شوند.
 - در build فرانت‌اند، `VITE_API_URL` را به origin امن API تنظیم کنید؛ اگر reverse proxy رابط و `/api` را روی یک origin سرو می‌کند، مقدار را خالی بگذارید. فایل نمونهٔ `frontend/.env.example` فقط شامل مقادیر غیرمحرمانه است. فایل‌های `.env.local` و `.env.production` محلی در Git نادیده گرفته می‌شوند.
 
-برای مشاهده نمای رابط بدون داده و ورود، فقط در محیط محلی از `http://localhost:5173/?demo=1` استفاده کنید. این حالت به API دسترسی مجاز ایجاد نمی‌کند.
+برای مشاهده نمای رابط بدون داده و ورود، فقط در محیط محلی از `http://127.1.0.1:5173/?demo=1` استفاده کنید. این حالت به API دسترسی مجاز ایجاد نمی‌کند.
 
 ### امنیت احراز هویت — A2
 
@@ -113,7 +113,7 @@ Cookieهای Identity از `HttpOnly` و `SameSite=Strict` و در Production ا
 
 نبود پیکربندی SMTP الزامی در غیر Development مانع شروع برنامه می‌شود. خرابی ارسال کد/دعوت پاسخ امن 503 دارد؛ بازیابی برای جلوگیری از افشای وجود حساب همچنان پاسخ خنثی می‌دهد. لینک‌ها token را در fragment مرورگر دارند؛ رابط fragment را پس از خواندن پاک می‌کند. کلیدهای پایدار Data Protection باید بیرون سورس با دسترسی محدود ذخیره شوند و بین نمونه‌های یک محیط مشترک باشند. application name شامل نام محیط است تا توکن Development در Production معتبر نباشد. تست‌ها sender جعلی دارند و ایمیل واقعی نمی‌فرستند؛ ارسال واقعی SMTP در این محیط آزمایش نشده است.
 
-**ورود خودکار محلی توسعه:** مقدار پایهٔ `Security:DevelopmentAutoLogin:Enabled` برابر false است؛ فایل مخصوص Development آن را صریحاً برای `admin@yarntrade.local` روشن می‌کند. ابتدا SQL محلی و رمز seed قوی را طبق بخش راه‌اندازی در User Secrets تنظیم کنید. `runapp1.bat` محیط Development را روی `localhost:5223` اجرا می‌کند؛ `runapp2.bat` رابط Vite را روی پورت ثابت ۵۱۷۳ اجرا می‌کند. رابط فقط در build توسعه، `GET /api/auth/development-session` را یک بار امتحان می‌کند؛ نشست واقعی حساب مدیر با نقش/اختیارات موجود دریافت می‌شود، بدون رمز، OTP یا SMTP. اگر غیرفعال یا در دسترس نباشد فرم عادی نمایش داده می‌شود؛ خروج باعث ورود خودکار مجدد در همان صفحه نمی‌شود. build تولید هیچ probe خودکاری ندارد.
+**ورود خودکار محلی توسعه:** مقدار پایهٔ `Security:DevelopmentAutoLogin:Enabled` برابر false است؛ فایل مخصوص Development آن را صریحاً برای `admin@yarntrade.local` روشن می‌کند. ابتدا SQL محلی و رمز seed قوی را طبق بخش راه‌اندازی در User Secrets تنظیم کنید. `runapp1.bat` محیط Development را روی `127.1.0.1:5223` اجرا می‌کند؛ `runapp2.bat` رابط Vite را روی `127.1.0.1:5173` اجرا می‌کند. رابط فقط در build توسعه، `GET /api/auth/development-session` را یک بار امتحان می‌کند؛ نشست واقعی حساب مدیر با نقش/اختیارات موجود دریافت می‌شود، بدون رمز، OTP یا SMTP. اگر غیرفعال یا در دسترس نباشد فرم عادی نمایش داده می‌شود؛ خروج باعث ورود خودکار مجدد در همان صفحه نمی‌شود. build تولید هیچ probe خودکاری ندارد.
 
 این امکان به محیط Development، تنظیم صریح، حساب مدیر فعال، اتصال واقعی loopback و Host/Origin محلی محدود است. هدرهای forwarded رد می‌شوند؛ ReverseProxy هم‌زمان با آن قابل فعال‌سازی نیست. پروکسی Vite هدر peer را از socket واقعی بازنویسی می‌کند و مشتری LAN رد می‌شود؛ spoof کردن هدر توسط مرورگر آن را تغییر نمی‌دهد. اعتبار نشست توسعه در هر درخواست دوباره به محلی بودن اتصال وابسته است. روشن بودن flag در هر محیط دیگر startup را متوقف می‌کند و مسیر ورود خودکار در Production پاسخ 404 دارد. fallback تولید یا رمز پنهان وجود ندارد.
 

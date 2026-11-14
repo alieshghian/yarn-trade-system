@@ -23,7 +23,7 @@ public static class NavigationRules
 {
     public static readonly NavigationRoute[] Routes = [
         new("dashboard", "dashboard", "dashboard.view"), new("persons", "persons", "persons.view"),
-        new("brands", "brands", "brands.view"), new("formLaboratory", "formLaboratory", "formLaboratory.view"),
+        new("warehouses", "warehouses", "warehouses.view"), new("brands", "brands", "brands.view"), new("productGroups", "productGroups", "productGroups.view"), new("formLaboratory", "formLaboratory", "formLaboratory.view"),
         new("yarns", "yarns", "yarns.view"), new("purchaseOrders", "purchaseOrders", "purchaseOrders.view"),
         new("commerce", "commerce", "commerce.view"), new("purchases", "purchases", "purchases.view"),
         new("inventory", "inventory", "inventory.view"), new("sales", "sales", "sales.view"),
@@ -33,7 +33,7 @@ public static class NavigationRules
         new("businessContract", "businessContract", "settings.view"), new("settings", "settings", null)
     ];
     public static List<NavigationNode> Defaults() => Routes.Select(x => new NavigationNode(x.Id,
-        x.Id is "businessContract" or "settings" or "brands" or "formLaboratory" ? "definitions" : null, x.Id, "", x.Icon, true))
+        x.Id is "businessContract" or "settings" or "brands" or "warehouses" or "productGroups" or "formLaboratory" ? "definitions" : null, x.Id, "", x.Icon, true))
         .Append(new NavigationNode("definitions", null, null, "تعاریف و تنظیمات", "settings", true)).ToList();
 
     public static string? Validate(List<NavigationNode>? nodes)
@@ -95,9 +95,18 @@ public sealed class NavigationController(AppDbContext db, PermissionService perm
     private static List<NavigationNode> Nodes(SystemSetting? setting)
     {
         if (setting is null) return NavigationRules.Defaults();
-        var nodes = JsonSerializer.Deserialize<List<NavigationNode>>(setting.Value, Json);
+        var nodes = JsonSerializer.Deserialize<List<NavigationNode>>(setting.Value, Json) ?? throw new InvalidOperationException("Stored navigation is empty.");
         if (NavigationRules.Validate(nodes) is not null) throw new InvalidOperationException("Stored navigation is invalid; an administrator must restore the default layout.");
-        return nodes!;
+        // New operational route joins existing saved menus without replacing user layout.
+        if (!nodes.Any(x=>x.RouteId=="productGroups")) {
+            if(!nodes.Any(x=>x.Id=="definitions")) nodes.Add(new("definitions",null,null,"تعاریف و تنظیمات","settings",true));
+            nodes.Add(new("productGroups","definitions","productGroups","","productGroups",true));
+        }
+        if (!nodes.Any(x=>x.RouteId=="warehouses")) {
+            if(!nodes.Any(x=>x.Id=="definitions")) nodes.Add(new("definitions",null,null,"تعاریف و تنظیمات","settings",true));
+            nodes.Add(new("warehouses","definitions","warehouses","","warehouses",true));
+        }
+        return nodes;
     }
     private async Task<Guid?> OwnUser(CancellationToken ct) => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id)
         && await db.Users.AnyAsync(x => x.Id == id && x.IsActive, ct) ? id : null;
@@ -122,7 +131,7 @@ public sealed class NavigationController(AppDbContext db, PermissionService perm
         if (global is not null)
         {
             // A corrupt layout must still be recoverable through the admin UI.
-            try { var saved = JsonSerializer.Deserialize<List<NavigationNode>>(global.Value, Json); if (NavigationRules.Validate(saved) is null) nodes = saved!; else recoveryRequired = true; }
+            try { var saved = JsonSerializer.Deserialize<List<NavigationNode>>(global.Value, Json); if (NavigationRules.Validate(saved) is null) nodes = Nodes(global); else recoveryRequired = true; }
             catch (JsonException) { recoveryRequired = true; }
         }
         return Ok(new { nodes,

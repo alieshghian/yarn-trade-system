@@ -1,0 +1,57 @@
+.operational-form-frame{display:flex;flex-direction:column;gap:0;flex:none!important;min-height:600px;box-sizing:border-box;overflow:hidden}
+.operational-form-frame>.form-laboratory-banner{flex:none;margin:0 var(--form-frame-content-inset-inline,12px);box-sizing:border-box}
+.operational-form-frame>.operational-settings-tools{margin-inline:12px}
+.operational-form-frame>.base-form-shell{flex:1 1 0;height:0;width:100%;min-height:0;overflow:hidden}
+.operational-form-frame .base-form-editor{box-sizing:border-box;min-height:0;overflow:hidden;padding:0 var(--form-frame-content-inset-inline,12px) var(--form-frame-content-inset-bottom,12px)}
+.operational-form-frame .base-form-editor>.person-editor{box-sizing:border-box;height:100%;min-height:0;max-height:100%;overflow:hidden}
+/* Match the Laboratory's usable Canvas width without moving saved rectangles. */
+.operational-form-frame .base-form-editor>.person-editor:has(>.has-fixed-geometry){scrollbar-gutter:stable}
+.operational-form-frame .base-form-grid{padding:0 var(--form-frame-content-inset-inline,12px) var(--form-frame-content-inset-bottom,12px);box-sizing:border-box;overflow:hidden;min-height:0}
+.operational-form-frame .base-form-grid>.laboratory-grid{height:100%;min-height:0;box-sizing:border-box;padding:0}
+.operational-form-frame .base-grid-boundary{height:100%;min-height:0;overflow:hidden}
+.operational-form-frame .base-grid-table-wrap{flex:1 1 0;min-height:0;overflow:auto;scrollbar-gutter:auto}
+.operational-form-frame .base-form-footer{min-height:0;flex:none}
+.operational-form-notice{flex:none;min-height:24px;max-height:60px;overflow:auto;padding-inline:12px}
+.operational-form-notice:empty{display:none;min-height:0;padding:0}
+.operational-form-frame .grid-toolbar.personal-selected,.operational-form-frame .base-grid-table th.personal-selected{position:relative}
+.operational-form-frame[data-personal-edit=true] .base-grid-boundary:has(.grid-toolbar.personal-selected){overflow:visible}
+.operational-form-frame[data-personal-edit=true] .grid-toolbar-panels:has(.grid-toolbar.personal-selected){position:relative;z-index:30;overflow:visible}
+.operational-form-frame[data-personal-edit=true] .grid-toolbar.personal-selected{z-index:31}
+.operational-form-frame[data-personal-edit=true] .form-laboratory-banner:is(.personal-selected,:has(.personal-selected)){position:relative;z-index:31;overflow:visible}
+.operational-form-frame[data-personal-edit=true] .operational-region-resize-handle[data-resize-kind="toolbarHeight"],.operational-form-frame[data-personal-edit=true] .operational-region-resize-handle[data-resize-kind="headerHeight"],.operational-form-frame[data-personal-edit=true] .operational-region-resize-handle[data-resize-kind="formHeaderHeight"]{z-index:60}
+.operational-form-frame[data-personal-edit=true] .operational-region-resize-handle.is-bottom[data-resize-kind="toolbarHeight"],.operational-form-frame[data-personal-edit=true] .operational-region-resize-handle.is-bottom[data-resize-kind="formHeaderHeight"]{left:calc(50% - 32px);bottom:-8px;width:64px;height:16px;border:1px solid #fff;border-radius:0 0 9px 9px;background:#208579;box-shadow:0 2px 5px #102a2a45}
+.operational-form-frame[data-personal-edit=true] .operational-region-resize-handle.is-bottom[data-resize-kind="toolbarHeight"]::before,.operational-form-frame[data-personal-edit=true] .operational-region-resize-handle.is-bottom[data-resize-kind="formHeaderHeight"]::before{content:"";position:absolute;left:50%;top:4px;width:26px;height:3px;border-radius:3px;background:#fff;transform:translateX(-50%);pointer-events:none}
+.operational-form-frame .operational-region-resize-handle{position:absolute;z-index:20;left:calc(50% - 24px);bottom:-5px;width:48px;height:10px;padding:0;border:0;border-radius:8px;background:#208579;cursor:row-resize;touch-action:none}
+.operational-form-frame .operational-region-resize-handle:focus-visible{outline:2px solid #154e48;outline-offset:3px}
+.operational-form-frame .operational-region-resize-handle.is-left,.operational-form-frame .operational-region-resize-handle.is-right{top:calc(50% - 24px);bottom:auto;width:10px;height:48px;cursor:col-resize}
+.operational-form-frame .operational-region-resize-handle.is-left{left:-5px;right:auto}
+.operational-form-frame .operational-region-resize-handle.is-right{right:-5px;left:auto}
+.operational-form-frame .operational-region-resize-handle.is-bottom{left:calc(50% - 24px);right:auto;top:auto;bottom:-5px;width:48px;height:10px;cursor:row-resize}
+.operational-form-frame .base-form-grid>.laboratory-grid{margin-block-start:0}
+.operational-form-frame .base-form-grid>.laboratory-grid{width:100%;max-width:100%;min-width:0;margin:0}
+.operational-form-frame .grid-toolbar-panels{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+.operational-form-frame .base-grid-table{max-width:none!important;flex:none}
+.operational-form-frame .base-grid-table :is(th,td){box-sizing:border-box;min-width:0;overflow:hidden}
+.operational-form-frame[data-personal-edit=true]{outline:2px solid #208579;overflow:visible}
+.operational-form-frame[data-personal-edit=true] .personal-selected{outline:2px solid #208579}
+.operational-settings-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 12px;flex:none;background:#eef6f3}
+.operational-settings-header-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.operational-settings-header-actions button{min-height:32px}
+.operational-form-frame .grid-search-options label.is-active-search-mode{font-weight:700}
+.operational-form-frame .grid-search-options label[data-search-active="true"]{font-weight:700!important}
+.operational-form-frame .grid-search-options label[data-search-active="false"]{font-weight:400!important}
+.operational-form-frame .designer-context-menu>strong{display:block;padding:6px 10px;font-size:12px;color:var(--muted,#667773)}
+.form-laboratory-page[data-entry-active=true] .laboratory-editor .designer-input-part[data-entry-focus-indicator=true] :is(input,select,textarea){background:var(--form-entry-focus-background,#ffffe0)!important;outline:none!important;box-shadow:0 0 0 2px #cbd2ce!important}
+
+/* Entry highlighting is shared by legacy and designed forms; Designer selection is separate. */
+
+/* View values stay readable; entry labels remain prominent without enabling view controls. */
+.laboratory-editor[data-field-presentation=view] .designer-input-part :is(input,textarea,select){opacity:1!important;color:var(--ink,#263a38)!important;-webkit-text-fill-color:var(--ink,#263a38)!important;font-weight:500}
+.laboratory-editor[data-field-presentation=view] .designer-label-part{color:var(--muted,#738481)!important;font-weight:400!important}
+.laboratory-editor[data-field-presentation=entry] .designer-label-part{color:var(--ink,#263a38)!important;font-weight:700!important}
+
+/* Empty/view/entry are distinct; only populated view labels are muted. */
+#root [data-record-presentation=empty] .laboratory-form-grid .designer-label-part,
+#root .laboratory-editor[data-field-presentation=empty] .designer-label-part{color:var(--ink,#263a38)!important;font-weight:700!important;opacity:1!important}
+#root [data-record-presentation=entry] .laboratory-form-grid .designer-label-part{color:var(--ink,#263a38)!important;font-weight:700!important;opacity:1!important}
+#root [data-record-presentation=view] .laboratory-form-grid .designer-label-part{color:var(--muted,#738481)!important;font-weight:400!important;opacity:.78}

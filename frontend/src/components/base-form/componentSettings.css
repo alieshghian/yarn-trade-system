@@ -1,0 +1,29 @@
+.system-lookup{min-width:0;width:100%}
+.system-lookup>.person-number-wrap{width:100%;margin:0}
+.system-lookup>.person-number-wrap>.person-number-control{width:100%;min-width:0}
+#root .person-number-wrap .lookup-add-action{flex:0 0 auto!important;width:auto!important;min-width:100px!important;white-space:nowrap;padding-inline:8px!important}
+.component-clear-choice{flex:0 0 auto;text-align:start}
+.component-inline-add{flex:0 0 28px;min-width:28px;border:0;border-inline-end:1px solid var(--line);background:transparent;color:inherit}
+.form-document-dialog.system-lookup-create-dialog{width:min(1300px,calc(100vw - 40px));max-width:calc(100vw - 40px);max-height:calc(100vh - 40px);overflow:auto}
+.system-lookup-create-dialog>.persons-page,.system-lookup-create-dialog>.brands-page{height:min(750px,calc(100vh - 140px));min-height:360px}
+.lookup-sample-create{display:grid;gap:12px;padding:16px}
+.lookup-sample-create label{display:grid;gap:4px}
+.lookup-saved-record{padding:20px}
+
+/* Every wrapper in a lookup must carry the saved Designer border-box height. */
+#root .designer-input-part>.system-lookup{height:var(--lab-height,auto);box-sizing:border-box;min-height:0}
+#root .designer-input-part>.system-lookup>.person-number-wrap{height:100%;min-height:0;box-sizing:border-box}
+#root .laboratory-form-grid.has-fixed-geometry .designer-input-part>.system-lookup{height:100%}
+#root .designer-input-part>.system-lookup>.person-number-wrap>.person-number-control{height:100%;min-height:0;box-sizing:border-box}
+
+/* Source lookups keep their search viewport stable across server responses. */
+.person-number-list:has(>.component-choice-search) .system-lookup-search-status{min-height:22px;flex-shrink:0;font-size:12px}
+/* The focus fill belongs to the complete composite field, including its controls. */
+:is(#root,.form-document-dialog) .form-laboratory-page[data-entry-active="true"] .designer-input-part[data-entry-focus-indicator="true"] .person-number-control,
+:is(#root,.form-document-dialog) .form-laboratory-page[data-entry-active="true"] .designer-input-part[data-entry-focus-indicator="true"] .person-number-control>:is(input,textarea,button){background:var(--form-entry-focus-background,#ffffe0)!important;background-color:var(--form-entry-focus-background,#ffffe0)!important}
+
+:is(#root,.form-document-dialog) .form-laboratory-page[data-entry-active="true"] .laboratory-editor .person-number-wrap[data-standard-list]:is(:focus-within,:has(>.person-number-control>.number-chevron[aria-expanded="true"])) .person-number-control,
+:is(#root,.form-document-dialog) .form-laboratory-page[data-entry-active="true"] .laboratory-editor .person-number-wrap[data-standard-list]:is(:focus-within,:has(>.person-number-control>.number-chevron[aria-expanded="true"])) .person-number-control>:is(input,textarea,button){background:var(--form-entry-focus-background,#ffffe0)!important;background-color:var(--form-entry-focus-background,#ffffe0)!important}
+
+/* Compact group caption; the full selected ancestry is available on hover. */
+.system-lookup[data-lookup-selected-display="root-name"] .person-number-control>textarea{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

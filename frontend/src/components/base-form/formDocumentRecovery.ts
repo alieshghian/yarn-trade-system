@@ -6,7 +6,9 @@ import { fieldColumnLinks } from './formTableStructure.ts'
 
 export type RecoverableForm = { form: ManagedLaboratoryForm; designerHistory: DesignerHistory; structureHistory: ManagedFormStructureHistory<FormSchemaDraft> }
 export type FormRecoveryVersion = { id: string; at: string; reason: string; snapshot: RecoverableForm }
-export type FormRecoveryDocument = { current: RecoverableForm; updatedAt: string; versions: FormRecoveryVersion[] }
+export type FormRecoveryDocument = { current: RecoverableForm; updatedAt: string; editedAt?: string; revision?: number; versions: FormRecoveryVersion[] }
+export const laboratoryRecoveryRetention = { versionsPerForm: 3, preserveCurrent: true, preserveCurrentUndoRedo: true, scope: 'local-recovery-only' } as const
+
 type RecoveryCollection = { version: 1; activeFormId: string | null; documents: Record<string, FormRecoveryDocument> }
 export const formRecoveryKey = (userId?: string) => `yarn-trade:form-document-recovery:v1:${encodeURIComponent(userId || 'developer-local')}`
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
@@ -77,6 +79,13 @@ export function readFormRecovery(storage: FormStorage | undefined, userId?: stri
   } catch { return null }
 }
 
+/** Bound only historical backup entries. Never alter current forms or their Undo/Redo. */
+function retainedRecoveryDocuments(documents: RecoveryCollection['documents']): RecoveryCollection['documents'] {
+  return Object.fromEntries(Object.entries(documents).map(([id, document]) => [id, {
+    ...document, versions: document.versions.slice(-laboratoryRecoveryRetention.versionsPerForm)
+  }]))
+}
+
 export type RecoveryWriteResult = 'saved' | 'unavailable' | 'invalid-snapshot' | 'invalid-journal' | 'quota' | 'storage-error'
 export function writeFormRecovery(storage: FormStorage | undefined, userId: string | undefined, snapshot: RecoverableForm, reason?: string, now?: string): boolean {
   return writeFormRecoveryResult(storage, userId, snapshot, reason, now) === 'saved'
@@ -89,15 +98,25 @@ export function writeFormRecoveryResult(storage: FormStorage | undefined, userId
   const id = snapshot.form.id, previous = collection.documents[id]
   const committed = { ...snapshot, designerHistory: designerHistoryReducer(snapshot.designerHistory, { type: 'commitTransaction' }) }
   const version: FormRecoveryVersion = { id: `${now}.${previous?.versions.length ?? 0}`, at: now, reason: reason ?? '', snapshot: committed }
-  const versions = reason ? [...previous?.versions ?? [], version] : previous?.versions ?? []
-  const documents = { ...collection.documents, [id]: { current: committed, updatedAt: now, versions } }
-  try { storage.setItem(formRecoveryKey(userId), encodeRecoveryJournal({ ...collection, activeFormId: id, documents })); return 'saved' } catch (error) { return error instanceof Error && (error.name === 'QuotaExceededError' || error.message.includes('QuotaExceeded')) ? 'quota' : 'storage-error' }
+  let versions = previous?.versions ?? []
+  if (!reason && previous) {
+    const lastAutomatic = [...versions].reverse().find(item => item.reason === 'نسخهٔ خودکار')
+    const elapsed = lastAutomatic ? Date.parse(now) - Date.parse(lastAutomatic.at) : Infinity
+    const changed = JSON.stringify([previous.current.form.schema, previous.current.form.frame, previous.current.designerHistory.present]) !== JSON.stringify([committed.form.schema, committed.form.frame, committed.designerHistory.present])
+    if (changed && elapsed >= 60_000) versions = [...versions, { id: `${now}.auto.${versions.length}`, at: now, reason: 'نسخهٔ خودکار', snapshot: previous.current }]
+  }
+  if (reason) versions = [...versions, version]
+  const contentChanged = !previous || JSON.stringify([previous.current.form, previous.current.designerHistory.present]) !== JSON.stringify([committed.form, committed.designerHistory.present])
+  const editedAt = contentChanged ? now : previous.editedAt ?? previous.updatedAt
+  const revision = (previous?.revision ?? (previous ? 1 : 0)) + (contentChanged ? 1 : 0)
+  const documents = { ...collection.documents, [id]: { current: committed, updatedAt: now, editedAt, revision, versions } }
+  try { storage.setItem(formRecoveryKey(userId), encodeRecoveryJournal({ ...collection, activeFormId: id, documents: retainedRecoveryDocuments(documents) })); return 'saved' } catch (error) { return error instanceof Error && (error.name === 'QuotaExceededError' || error.message.includes('QuotaExceeded')) ? 'quota' : 'storage-error' }
 }
 
 export function closeFormRecovery(storage: FormStorage | undefined, userId?: string): boolean {
   const collection = readFormRecovery(storage, userId)
   if (!storage || !collection) return false
-  try { storage.setItem(formRecoveryKey(userId), encodeRecoveryJournal({ ...collection, activeFormId: null })); return true } catch { return false }
+  try { storage.setItem(formRecoveryKey(userId), encodeRecoveryJournal({ ...collection, activeFormId: null, documents: retainedRecoveryDocuments(collection.documents) })); return true } catch { return false }
 }
 
 /** Recover a removed field from the most recent available full snapshot, preserving its ID. */

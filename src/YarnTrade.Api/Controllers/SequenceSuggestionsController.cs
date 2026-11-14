@@ -16,6 +16,20 @@ public sealed class SequenceSuggestionsController(AppDbContext db) : ControllerB
     public Task<ActionResult<object>> Person(CancellationToken ct) => Suggest("person", ct);
     [HttpGet("yarn"), RequirePermission("yarns.view")]
     public Task<ActionResult<object>> Yarn(CancellationToken ct) => Suggest("yarn", ct);
+    [HttpGet("brand"), RequirePermission("brands.view")]
+    public async Task<ActionResult<object>> Brand(CancellationToken ct)
+    {
+        var previous = await db.Brands.AsNoTracking().OrderByDescending(x => x.CreatedAtUtc).ThenByDescending(x => x.Id).Select(x => x.BrandCode).FirstOrDefaultAsync(ct);
+        var options = new CodeOptions { Incremental = true, SuffixWidth = 1, MaxLength = 30 };
+        var candidate = previous is null ? new CodeSuggestion("BRD-0001") : SerialCode.ValidateCode(previous, options) is not null ? new CodeSuggestion("", "کد آخرین ثبت با قالب مجاز سازگار نیست؛ کد را دستی وارد کنید.") : SerialCode.Suggest([previous], options);
+        var comparison = candidate.Value.ToUpperInvariant();
+        var occupied = candidate.Value.Length > 0 && (db.Database.IsSqlServer()
+            ? await db.Brands.AnyAsync(x => EF.Functions.Collate(x.BrandCode, "Latin1_General_100_CI_AS") == candidate.Value, ct)
+            : await db.Brands.AnyAsync(x => x.BrandCode.ToUpper() == comparison, ct));
+        if (occupied)
+            candidate = new("", "کد بعدی قبلاً ثبت شده است؛ کد موردنظر را دستی وارد کنید.");
+        return Ok(new { suggestion = candidate.Value, error = candidate.Error, previous });
+    }
     [HttpGet("purchase-order"), RequirePermission("purchaseOrders.view")]
     public Task<ActionResult<object>> PurchaseOrder(CancellationToken ct) => Suggest("purchase-order", ct);
     [HttpGet("purchase-invoice"), RequirePermission("purchases.view")]

@@ -1,0 +1,24 @@
+.base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar{grid-template-columns:max-content max-content max-content minmax(0,1fr) max-content;grid-template-areas:"columns expand export title search"}
+.base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar[data-toolbar-compact="true"]{grid-template-columns:max-content max-content max-content minmax(0,1fr);grid-template-areas:"columns expand export title" "search search search search"}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-export-slot{grid-area:export;display:flex;align-items:center;justify-content:center;min-width:0;position:relative}
+.base-grid-boundary[data-toolbar-layout="laboratory"] :is(.grid-export-toggle,.grid-expand-toggle,.grid-columns-slot summary){position:relative;display:grid;place-items:center;box-sizing:border-box;min-width:36px;min-height:36px;padding:7px;border:1px solid #cbdad6;border-radius:8px;background:#f8fbfa;color:#214b44;cursor:pointer}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-export-toggle:hover,.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-expand-toggle:hover,.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-columns-slot summary:hover{background:#e9f3f0;border-color:#83aaa2}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-export-toggle:focus-visible,.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-expand-toggle:focus-visible,.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-columns-slot summary:focus-visible{outline:2px solid #208579;outline-offset:2px}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-export-toggle:disabled{opacity:.55;cursor:wait}
+.base-grid-boundary[data-toolbar-layout="laboratory"] :is(.grid-export-toggle,.grid-expand-toggle,.grid-columns-slot summary)>svg{display:block;width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-export-toggle>svg{color:#287a52}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-columns-slot details>summary{list-style:none}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-columns-slot details>summary::-webkit-details-marker{display:none}
+.base-grid-boundary[data-toolbar-layout="laboratory"] [data-action-tooltip]::after{content:attr(data-action-tooltip);position:absolute;z-index:100;left:50%;bottom:calc(100% + 7px);transform:translateX(-50%);padding:5px 8px;border:1px solid #d2dfdc;border-radius:6px;background:#173d39;color:#fff;font:12px Tahoma,Arial,sans-serif;line-height:1.35;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s ease}
+.base-grid-boundary[data-toolbar-layout="laboratory"] [data-action-tooltip]:is(:hover,:focus-visible)::after{opacity:1;visibility:visible}
+.base-grid-boundary[data-toolbar-layout="laboratory"] .grid-export-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.base-grid-boundary .base-grid-table tbody tr.is-selected > td,
+.base-grid-boundary .base-grid-table tbody tr.is-selected:hover > td{background:var(--lab-row-selected-bg,#d7ebe6)!important}
+.base-grid-boundary .base-grid-table-wrap{overflow-anchor:none;scroll-behavior:auto}
+
+/* Definition selection is independent of report cell selection and cannot resize the grid. */
+.base-grid-boundary,.person-grid-panel{position:relative}
+.definition-bulk-status{position:absolute;inset-inline-start:10px;top:6px;z-index:3;display:flex;align-items:center;gap:8px;max-width:calc(100% - 20px);padding:4px 8px;border-radius:6px;background:#fff;box-shadow:0 1px 5px #0002;font-size:13px}
+.definition-bulk-status [role=alert]{color:#b3261e}
+.definition-bulk-status button{font:inherit;padding:3px 8px;border:1px solid #bc3c32;border-radius:5px;color:#a3231a;background:#fff}
+:is(.base-grid-table,.person-table) tr.bulk-delete-blocked>td{box-shadow:inset 0 2px #bc3c32,inset 0 -2px #bc3c32;background-color:#fff0ed!important}

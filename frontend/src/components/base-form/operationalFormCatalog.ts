@@ -14,17 +14,18 @@ const fields = (spec: string): FieldContract[] => spec.split('|').filter(Boolean
 })
 const definitions: Partial<Record<MenuKey, Partial<OperationalFormContract>>> = {
   persons: { title: 'تعریف اشخاص', availability: 'operational', sourceFiles: ['frontend/src/PersonsPage.tsx'], api: ['/api/master-data/persons', '/api/master-data/parameters', '/api/master-data/brands'], fields: fields('personCode:کد شخص:text:personCode:required|titleId:عنوان:lookup|firstName:نام|lastName:نام خانوادگی|directorName:نام مدیر|jobId:نقش:lookup|nationalityId:ملیت:lookup|phone:تلفن:valueList|mobile:موبایل:valueList|address:آدرس:valueList|notes:توضیحات:textarea|isActive:فعال:checkbox|brandIds:برندها:multiSelect|defaultBrandId:برند پیش‌فرض:lookup'), tables: [{ id:'persons',title:'اشخاص',columns:['personCode','displayName','job','nationality','mobile','phone','isActive'] }], risks:['عنوان و نوع شخص، فهرست شماره‌ها و برند پیش‌فرض، اعتبارسنجی و مجوزهای اشخاص'] },
+  productGroups: { title:'تعریف گروه کالاها',availability:'operational',sourceFiles:['frontend/src/forms/ProductGroupOperationalPage.tsx'],api:['/api/master-data/product-groups'],fields:[],tables:[{id:'form.new.8e77aae6-9477-41f9-b473-9d52511535a1.report',title:'گزارش گروه کالا',columns:['code','level0','level1','level2','level3','level4']}],risks:['گروه مرتبط با گردش انبار و اجداد آن قابل ویرایش یا حذف نیستند.'] },
   brands: { title:'تعریف برند',availability:'operational',sourceFiles:['frontend/src/BrandsPage.tsx'],api:['/api/master-data/brands'], fields:fields('brandCode:کد برند:text:brandCode:required|brandName:نام برند:text:brandName:required|brandAddress:آدرس:text:address|brandDescription:توضیحات:textarea:description'),tables:[{id:'brands',title:'برندها',columns:['brandCode','brandName','address','description']}],risks:['کد یکتا، ارتباط برند با اشخاص و اسناد خرید'] },
-  yarns: {title:'تعریف نخ',availability:'operational',sourceFiles:['frontend/src/YarnsPage.tsx'],api:['/api/yarns'],fields:fields('code:کد نخ|name:نام نخ|yarnGroup:گروه نخ:select|luster:درخشندگی:select|unitOfMeasure:واحد:select|fixStatus:وضعیت تثبیت:select|material:جنس:select|spinType:نوع ریسندگی:select|filamentNumber:تعداد فیلامنت:number|spinningMethod:روش ریسندگی:select|continuityType:پیوستگی:select|countValue:نمره نخ:number|countType:نوع نمره:select|twistAmount:مقدار تاب:number|twistType:نوع تاب:select|plyCount:تعداد لا:number|notes:توضیحات:textarea|isActive:فعال:checkbox'),tables:[{id:'yarns',title:'نخ‌ها',columns:['code','comprehensiveName','yarnGroup','material','countValue','countType','unitOfMeasure','isActive']}],risks:['نام فراگیر محاسباتی، واحد و ارجاع از اقلام سفارش']},
+  yarns: {title:'تعریف نخ',availability:'operational',sourceFiles:['frontend/src/YarnsPage.tsx'],api:['/api/yarns'],fields:fields('code:کد نخ|name:نام نخ|yarnGroup:گروه کالا:lookup:productGroupId|luster:درخشندگی:select|unitOfMeasure:واحد:select|fixStatus:وضعیت تثبیت:select|material:جنس:select|spinType:نوع ریسندگی:select|filamentNumber:تعداد فیلامنت:number|spinningMethod:روش ریسندگی:select|continuityType:پیوستگی:select|countValue:نمره نخ:number|countType:نوع نمره:select|twistAmount:مقدار تاب:number|twistType:نوع تاب:select|plyCount:تعداد لا:number|notes:توضیحات:textarea|isActive:فعال:checkbox'),tables:[{id:'yarns',title:'نخ‌ها',columns:['code','comprehensiveName','yarnGroup','material','countValue','countType','unitOfMeasure','isActive']}],risks:['نام فراگیر محاسباتی، واحد و ارجاع از اقلام سفارش']},
   purchaseOrders: {title:'سفارش خرید',availability:'operational',sourceFiles:['frontend/src/PurchaseOrdersPage.tsx','src/YarnTrade.Api/Controllers/PurchaseOrdersController.cs'],api:['/api/purchase-orders','/api/yarns','/api/master-data/persons'],fields:fields('orderNumber:شماره سفارش:text:orderNumber:required|orderDate:تاریخ سفارش:date:orderDate:required|requiredByDate:تاریخ مورد نیاز:date|priority:اولویت:select|currency:ارز:select|preferredSupplierId:تأمین‌کننده:lookup|notes:توضیحات:textarea'),tables:[{id:'orders',title:'فهرست سفارش‌های خرید',columns:['id','orderNumber','orderDate','requiredByDate','status','priority','itemCount','totalQuantity','estimatedTotal','currency']},{id:'items',title:'اقلام سفارش',columns:['id','purchaseOrderId','yarnItemId','descriptionSnapshot','quantity','unit','estimatedUnitPrice','estimatedAmount','requiredSpecifications','notes'],masterId:'orders',detailKey:'purchaseOrderId'}],risks:['Master–Detail اقلام، جمع مقدار و مبلغ، RowVersion، ارسال و پذیرش سفارش، مجوز و محدودیت وضعیت سند']},
-  commerce: {title:'بازرگانی و خرید',availability:'operational',sourceFiles:['frontend/src/CommercePage.tsx','src/YarnTrade.Api/Controllers/PurchasesController.cs'],api:['/api/commerce/workbench','/api/commerce/orders/{id}/workbench','/api/purchases','/api/attachments'],fields:fields('internalNumber:شماره داخلی|externalInvoiceNumber:شماره فاکتور|invoiceDate:تاریخ فاکتور:date|supplierId:تأمین‌کننده:lookup|brandId:برند:lookup|notes:توضیحات:textarea'),tables:[{id:'orders',title:'سفارش‌ها',columns:['id','orderNumber','status']},{id:'invoices',title:'فاکتورها',columns:['id','purchaseOrderId','internalNumber','externalInvoiceNumber','invoiceDate','supplierId','grandTotal','status'],masterId:'orders',detailKey:'purchaseOrderId'},{id:'items',title:'اقلام فاکتور',columns:['id','purchaseInvoiceId','yarnItemId','originalDescription','unit','netWeight','grossWeight','packageCount','unitPriceUSD','goodsAmountUSD','notes'],masterId:'invoices',detailKey:'purchaseInvoiceId'},{id:'containers',title:'کانتینرها',columns:['id','purchaseInvoiceId','containerNumber','sealNumber','containerType','billOfLadingNumber','netWeight','grossWeight','packageCount','notes'],masterId:'invoices',detailKey:'purchaseInvoiceId'}],risks:['تطبیق سفارش و فاکتور، ورود فایل، پیوست‌ها، کانتینرها، هزینه‌ها، ارسال انبار و سند قطعی']},
-  users: {title:'تعریف کاربران',availability:'operational',sourceFiles:['frontend/src/UsersPage.tsx'],api:['/api/users','/api/users/catalog'],fields:fields('personId:شخص:lookup|email:ایمیل|preferredLanguage:زبان:select|isActive:فعال:checkbox|roles:نقش‌ها:multiSelect|permissions:مجوزها:multiSelect'),tables:[{id:'users',title:'کاربران',columns:['id','email','displayName','preferredLanguage','isActive','pendingInvitation']}],risks:['مجوز و نقش، دعوت ایمیلی، جلوگیری از افزایش دسترسی و غیرفعال‌کردن حساب خود']},
+  commerce: {title:'بازرگانی و خرید',availability:'operational',sourceFiles:['frontend/src/CommercePage.tsx','src/YarnTrade.Api/Controllers/PurchasesController.cs'],api:['/api/commerce/workbench','/api/commerce/orders/{id}/workbench','/api/purchases','/api/attachments'],fields:fields('internalNumber:شماره داخلی|externalInvoiceNumber:شماره فاکتور|invoiceDate:تاریخ فاکتور:date|supplierId:تأمین‌کننده:lookup|brandId:برند:lookup|notes:توضیحات:textarea'),tables:[{id:'orders',title:'سفارش‌ها',columns:['id','orderNumber','status']},{id:'invoices',title:'فاکتورها',columns:['id','purchaseOrderId','internalNumber','externalInvoiceNumber','invoiceDate','supplierId','grandTotal','status'],masterId:'orders',detailKey:'purchaseOrderId'},{id:'items',title:'اقلام فاکتور',columns:['id','purchaseInvoiceId','yarnItemId','originalDescription','unit','netWeight','grossWeight','packageCount','unitPriceUSD','goodsAmountUSD','notes'],masterId:'invoices',detailKey:'purchaseInvoiceId'},{id:'containers',title:'کانتینرها',columns:['id','purchaseInvoiceId','containerNumber','sealNumber','containerType','billOfLadingNumber','netWeight','grossWeight','packageCount','notes'],masterId:'invoices',detailKey:'purchaseInvoiceId'}],risks:['تطبیق سفارش و فاکتور، ورود فایل، پیوست‌ها، کانتینرها، هزینه‌ها، ارسال انبار و سند قطعی']},  users: {title:'تعریف کاربران',availability:'operational',sourceFiles:['frontend/src/UsersPage.tsx'],api:['/api/users','/api/users/catalog'],fields:fields('personId:شخص:lookup|email:ایمیل|preferredLanguage:زبان:select|isActive:فعال:checkbox|roles:نقش‌ها:multiSelect|permissions:مجوزها:multiSelect'),tables:[{id:'users',title:'کاربران',columns:['id','email','displayName','preferredLanguage','isActive','pendingInvitation']}],risks:['مجوز و نقش، دعوت ایمیلی، جلوگیری از افزایش دسترسی و غیرفعال‌کردن حساب خود']},
   businessContract: {title:'قرارداد و قواعد کسب‌وکار',availability:'operational',sourceFiles:['frontend/src/BusinessContractPage.tsx'],api:['/api/business-contracts'],fields:fields('effectiveFrom:تاریخ اجرا:date|businessStructure:ساختار کسب‌وکار:select|contractName:نام قرارداد|baseCurrency:ارز پایه:select|partnerPersonId:شریک:lookup|creditCalculationMethod:روش محاسبه اعتبار:select|defaultCreditRatePercent:نرخ اعتبار:number|checkCollectionGracePeriodDays:مهلت وصول:number|responsiblePartyAfterGracePeriod:مسئول پس از مهلت:select|financingCostResponsibleParty:مسئول هزینه تأمین:select|financedCheckPrincipalRiskParty:ریسک اصل چک:select|creditSaleClaimPayableWhen:زمان مطالبه اعتباری:select|partnerEntitlementCreatedWhen:زمان استحقاق شریک:select|cashSaleClaimPayableWhen:زمان مطالبه نقدی:select'),tables:[{id:'contracts',title:'قراردادها',columns:['id','contractName','effectiveFrom','businessStructure','baseCurrency']}],risks:['تاریخ اعتبار، محاسبات مالی، شرکا و آثار اسناد قبلی']},
   settings: {title:'تنظیمات کاربر و تم',availability:'operational',sourceFiles:['frontend/src/UserSettingsPage.tsx','src/YarnTrade.Api/Controllers/UserSettingsController.cs'],api:['/api/user-settings'],fields:fields('preferredLanguage:زبان:select|sessionTimeoutMinutes:مهلت نشست:number|theme:تم برنامه:select|compactMode:نمای فشرده:checkbox|fontFamily:قلم:select|fontSize:اندازه قلم:select'),tables:[],risks:['تنظیمات فقط برای کاربر جاری، تغییر رمز مسیر مستقل و حساس دارد']},
   dataBackup: {title:'تهیه و بازخوانی اطلاعات',availability:'operational',sourceFiles:['frontend/src/DataBackupPage.tsx'],api:['/api/data-backup'],fields:fields('backupFile:فایل پشتیبان:file|confirmation:تأیید بازخوانی'),tables:[],risks:['بازخوانی عملیاتی و خروج نشست؛ در Designer هرگز اجرا نشود']},
   dashboard:{title:'داشبورد',availability:'operational',sourceFiles:['frontend/src/App.tsx'],fields:[],tables:[{id:'recentPurchases',title:'خریدهای اخیر',columns:['internalNumber','externalInvoiceNumber','invoiceDate','totalNetWeight','grandTotal','status']}],risks:['شاخص‌ها و جمع‌های محاسباتی']},
   purchases:{title:'خرید کالا',availability:'partial',sourceFiles:['frontend/src/CommercePage.tsx','src/YarnTrade.Api/Controllers/PurchasesController.cs'],api:['/api/purchases'],risks:['API موجود است؛ مسیر مستقل فعلی صفحه کامل ندارد. نسخه سالم خرید در بازرگانی حفظ شود.']},
   formLaboratory:{title:'قالب اصلی آزمایشگاه',availability:'laboratory',sourceFiles:['frontend/src/FormLaboratoryPage.tsx']},
+  warehouses:{title:'تعریف انبار',availability:'operational',sourceFiles:['frontend/src/WarehousesPage.tsx','frontend/src/forms/warehouse-design.json','frontend/src/WarehouseZones.tsx','frontend/src/forms/warehouse-zone-design.json'],api:['/api/warehouses','/api/warehouses/grid'],fields:fields('code:کد انبار|name:نام انبار|floorCount:تعداد طبقات|location:موقعیت انبار|custodianPersonId:انباردار:lookup|address:آدرس انبار:textarea|description:توضیحات:textarea'),tables:[{id:'warehouses',title:'انبارها',columns:['code','name','custodian','address','description']}],risks:['SQL و API انبار با پایگاه موقت و صد هزار رکورد آزموده شده؛ انتقال موجودی مرحله مستقل است.']},
   inventory:{title:'انبار'},sales:{title:'فروش'},finance:{title:'عملیات مالی'},checks:{title:'مدیریت چک'},partners:{title:'شرکا'},reports:{title:'گزارش‌ها'}
 }
 export const operationalFormCatalog: readonly OperationalFormContract[] = (Object.keys(icons) as MenuKey[]).map(route => ({ route,title:route,sourceFiles:[],api:[],availability:'placeholder',fields:[],tables:[],risks:['این مسیر هنوز فرم عملیاتی مستقل ندارد.'],...definitions[route] }))
@@ -40,6 +41,8 @@ function catalogActions(contract: OperationalFormContract, sharedActions?: reado
   const defaults: CatalogAction[] = [
     { id: 'operational.new', code: 'Space', keys: [' '], label: text('جدید'), primary: true, required: true, sectionId: 'catalog.footer', operationId: contract.route + '.new' },
     { id: 'operational.edit', code: 'Insert', keys: ['Insert'], label: text('ویرایش'), required: true, sectionId: 'catalog.footer', operationId: contract.route + '.edit' },
+    { id: 'operational.copyLast', code: 'F2', keys: ['F2'], label: {fa:'کپی آخرین',en:'Copy last',zh:'复制上一条'}, required: true, sectionId: 'catalog.footer', operationId: contract.route + '.copyLast' },
+    { id: 'operational.copySelected', code: 'F4', keys: ['F4'], label: {fa:'کپی انتخابی',en:'Copy selected',zh:'复制所选'}, required: true, sectionId: 'catalog.footer', operationId: contract.route + '.copySelected' },
     { id: 'operational.save', code: 'F3', keys: ['F3'], label: text('ذخیره'), primary: true, required: true, sectionId: 'catalog.footer', operationId: contract.route + '.save' },
     { id: 'operational.delete', code: 'Delete', keys: ['Delete'], label: text('حذف'), required: true, sectionId: 'catalog.footer', operationId: contract.route + '.delete' },
     { id: 'operational.close', code: 'Esc', keys: ['Escape'], label: text('بستن'), required: true, sectionId: 'catalog.footer', operationId: contract.route + '.close' }
@@ -73,7 +76,7 @@ function inheritedSectionDefaults(schema: FormSchemaDraft, sharedSchema?: FormSc
   })
 }
 
-function inheritedToolbarSettings(settings: unknown): Record<string, unknown> | undefined {
+function inheritedToolbarSettings(settings: unknown, preserveFormColors: boolean): Record<string, unknown> | undefined {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return undefined
   const source = (settings as Record<string, unknown>).toolbar
   if (!source || typeof source !== 'object' || Array.isArray(source)) return undefined
@@ -83,6 +86,14 @@ function inheritedToolbarSettings(settings: unknown): Record<string, unknown> | 
       const style = normalizeToolbarStyle(value as GridToolbarPartStyle)
       // A custom panel is form structure and may contain fields that do not exist in this catalog form.
       if (style.panelId && style.panelId !== 'header') delete style.panelId
+      // Runtime toolbars always span their table; viewport geometry belongs to the Designer canvas.
+      if (part === 'header') { delete style.width; delete style.x; delete style.y }
+      // Form-specific colors are user preferences, not shared behavior defaults.
+      if (!preserveFormColors) {
+        delete style.backgroundColor
+        delete style.textColor
+        delete style.borderColor
+      }
       return [part, style]
     }))
   return Object.keys(toolbar).length ? toolbar : undefined
@@ -91,10 +102,11 @@ function inheritedToolbarSettings(settings: unknown): Record<string, unknown> | 
 function inheritSharedTablePresentation(schema: FormSchemaDraft, sharedSchema?: FormSchemaDraft): FormSchemaDraft['tables'] {
   if (!sharedSchema?.tables?.length || !schema.tables?.length) return schema.tables
   const source = sharedSchema.tables[0]
+  const sameRouteSource = Boolean(operationalSource(sharedSchema)?.route === schema.id.slice('operational.'.length) || sharedSchema.id === schema.id)
   const tableBehaviorKeys = ['searchable', 'columnSelection', 'rowSelection', 'contextMenu', 'lazyLoading', 'virtualScrolling'] as const
   return schema.tables.map(table => {
     const behavior = Object.fromEntries(tableBehaviorKeys.flatMap(key => source[key] === undefined ? [] : [[key, source[key]]]))
-    const toolbar = inheritedToolbarSettings(source.settings)
+    const toolbar = inheritedToolbarSettings(source.settings, sameRouteSource)
     return {
       ...table,
       ...behavior,
@@ -117,10 +129,20 @@ export function catalogSchema(contract: OperationalFormContract, sharedSchema?: 
     shared:sharedSchema.settings.shared?((value)=>{const {designer:_designer,...settings}=value;return settings})(structuredClone(sharedSchema.settings.shared)):undefined,
     ...(sameRouteSource&&sharedSchema.settings.specific?{specific:structuredClone(sharedSchema.settings.specific)}:{})
   }:undefined
+  if(!sameRouteSource&&inheritedSettings?.shared){
+    delete inheritedSettings.shared.appearance
+    const defaults=inheritedSettings.shared.designerDefaults
+    if(defaults){
+      delete defaults.appearance
+      if(defaults.input)defaults.input=withoutCustomColors(defaults.input)
+      if(defaults.label)defaults.label=withoutCustomColors(defaults.label)
+    }
+  }
   const schema: FormSchemaDraft = {id:'operational.'+contract.route,schemaVersion:1,version:1,status:'draft',mode:'operational',title:text(contract.title),layout:sharedSchema?.layout?structuredClone(sharedSchema.layout):{direction:'vertical',gap:12},
     sections,
     fields:source.fields.map((field,index)=>{
-      const generated: FormSchemaDraft['fields'][number] = {id:field.id,sectionId:'catalog.editor',minTracks:5,span:5,componentId:'definition.field',label:text(field.label),kind:field.kind,required:field.required,dataBinding:{kind:'dataField',dataFieldId:field.binding},settings:{layout:{grid:{columns:20,columnStart:(index%4)*5+1,columnSpan:5,rowStart:Math.floor(index/4)+1}}}}
+      const composite=field.kind==='custom'
+      const generated: FormSchemaDraft['fields'][number] = {id:field.id,sectionId:'catalog.editor',minTracks:composite?20:5,span:composite?20:5,componentId:composite?'base-form.custom-field':'definition.field',label:text(field.label),kind:field.kind,required:field.required,dataBinding:{kind:'dataField',dataFieldId:field.binding},settings:{layout:{grid:{columns:20,columnStart:composite?1:(index%4)*5+1,columnSpan:composite?20:5,rowStart:composite?Math.floor(index/4)+1:index<16?Math.floor(index/4)+1:5}}}}
       const inherited=sameRouteSource?sharedSchema?.fields.find(candidate=>candidate.id===field.id):undefined
       return inherited?{...generated,...structuredClone(inherited),id:generated.id,dataBinding:generated.dataBinding,sectionId:sections.some(section=>section.id===inherited.sectionId)?inherited.sectionId:generated.sectionId}:generated
     }),
@@ -146,7 +168,7 @@ export function catalogSchema(contract: OperationalFormContract, sharedSchema?: 
 
 /** Inherit shared Laboratory presentation; map scoped actions/tables by stable IDs and shortcuts. */
 export function designSystemDefaults(template: DesignerDraft, sharedSchema?: FormSchemaDraft, targetSchema?: FormSchemaDraft): DesignerDraft {
-  const {canvas:sourceCanvas,sectionCanvases:sourceSections,tables:sourceTables,overrides:sourceOverrides,actions:sourceActions,tableColumns:sourceColumnStyles,tableHeaders:sourceHeaderStyles,...defaults}=structuredClone(template)
+  const {canvas:sourceCanvas,sectionCanvases:sourceSections,tables:sourceTables,overrides:sourceOverrides,actions:sourceActions,tableColumns:sourceColumnStyles,tableHeaders:sourceHeaderStyles,appearance:sourceAppearance,...defaults}=structuredClone(template)
   const sourceRoute=sharedSchema?operationalSource(sharedSchema)?.route??(sharedSchema.id.startsWith('operational.')?sharedSchema.id.slice('operational.'.length) as MenuKey:undefined):undefined
   const sameRouteSource=Boolean(sourceRoute&&targetSchema?.id==='operational.'+sourceRoute)
   const actions: NonNullable<DesignerDraft['actions']> = {}
@@ -159,6 +181,10 @@ export function designSystemDefaults(template: DesignerDraft, sharedSchema?: For
   const mapColumnStyles = <T extends Record<string, unknown> | undefined>(styles:T, ids:ReadonlySet<string>):T => {
     if(!styles)return undefined as T
     const matching=Object.fromEntries(Object.entries(styles).filter(([id])=>ids.has(id)))
+    if(!sameRouteSource)for(const style of Object.values(matching))if(style&&typeof style==='object'){
+      const record=style as Record<string,unknown>
+      delete record.textColor;delete record.backgroundColor;delete record.borderColor
+    }
     return (Object.keys(matching).length?matching:undefined) as T
   }
   const targetFieldIds=new Set((targetSchema?.fields??[]).map(field=>field.id))
@@ -169,6 +195,14 @@ export function designSystemDefaults(template: DesignerDraft, sharedSchema?: For
     if(!scoped)continue
     const ids=new Set(target.columns.map(column=>column.id))
     const settings:DesignerTableSettings=structuredClone(scoped)
+    if(!sameRouteSource){
+      for(const style of Object.values(settings.tableColumns??{})){
+        delete style.textColor;delete style.backgroundColor
+      }
+      for(const style of Object.values(settings.tableHeaders??{})){
+        delete style.textColor;delete style.backgroundColor;delete style.borderColor
+      }
+    }
     const columnStyles=mapColumnStyles(settings.tableColumns,ids),headerStyles=mapColumnStyles(settings.tableHeaders,ids)
     if(columnStyles)settings.tableColumns=columnStyles;else delete settings.tableColumns
     if(headerStyles)settings.tableHeaders=headerStyles;else delete settings.tableHeaders
@@ -186,13 +220,30 @@ export function designSystemDefaults(template: DesignerDraft, sharedSchema?: For
     if(valid)sectionCanvases[targetSection.id]=valid
   }
   const hasCanvas=Boolean(canvas||Object.keys(sectionCanvases).length)
-  return {...defaults,overrides,...(Object.keys(actions).length?{actions}:{}),...(Object.keys(tables).length?{tables}:{}),...(tableColumns?{tableColumns}:{}),...(tableHeaders?{tableHeaders}:{}),...(canvas?{canvas}:{}),...(Object.keys(sectionCanvases).length?{sectionCanvases}:{}),layoutMode:hasCanvas?(template.layoutMode??'canvas'):'schema'}
+  const inheritedDefaults=defaults.defaults?(sameRouteSource?structuredClone(defaults.defaults):{...defaults.defaults,
+    ...(defaults.defaults.input?{input:withoutCustomColors(defaults.defaults.input)}:{}),
+    ...(defaults.defaults.label?{label:withoutCustomColors(defaults.defaults.label)}:{})}):undefined
+  const presentationDefaults: NonNullable<DesignerDraft['defaults']> = structuredClone(inheritedDefaults ?? {})
+  presentationDefaults.input = { ...presentationDefaults.input, ...(presentationDefaults.input?.bold === undefined && presentationDefaults.input?.fontWeight === undefined ? { bold: false } : {}) }
+  presentationDefaults.label = { ...presentationDefaults.label, ...(presentationDefaults.label?.bold === undefined && presentationDefaults.label?.fontWeight === undefined ? { bold: false } : {}) }
+  // Laboratory appearance is the shared form default. Route-specific field
+  // geometry and business overrides stay isolated above, but controls such as
+  // shared action colors must carry over to newly created operational forms.
+  const inheritedAppearance=sourceAppearance
+  return {...defaults,defaults:presentationDefaults,...(inheritedAppearance?{appearance:inheritedAppearance}:{}),overrides,...(Object.keys(actions).length?{actions}:{}),...(Object.keys(tables).length?{tables}:{}),...(tableColumns?{tableColumns}:{}),...(tableHeaders?{tableHeaders}:{}),...(canvas?{canvas}:{}),...(Object.keys(sectionCanvases).length?{sectionCanvases}:{}),layoutMode:hasCanvas?(template.layoutMode??'canvas'):'schema'}
 }
+
+function withoutCustomColors<T extends object>(style:T):T {
+  const clean={...style} as T & Record<string,unknown>
+  for(const property of ['backgroundColor','textColor','labelColor','borderColor','focusColor','focusBackgroundColor','focusTextColor','focusBorderColor','focusLabelColor','hoverColor','hoverTextColor','hoverBorderColor','selectedColor','disabledColor','disabledTextColor','disabledBorderColor','errorColor'])delete clean[property]
+  return clean
+}
+
 export function createOperationalRedesign(contract: OperationalFormContract, id: string, template: DesignerDraft, frame: ManagedFormFrame, version=1, sharedSchema?: FormSchemaDraft): ManagedLaboratoryForm {
   const baseline=catalogSchema(contract, sharedSchema)
   const form=createManagedLaboratoryForm({id,name:contract.title+' — بازطراحی',mode:'operational',templateSchema:baseline,templateDesigner:designSystemDefaults(template, sharedSchema, baseline),frame,templateVersion:version})
   if(sharedSchema?.settings?.specific&&operationalSource(sharedSchema)?.route===contract.route)form.schema.settings={...form.schema.settings,specific:{...form.schema.settings?.specific,...structuredClone(sharedSchema.settings.specific)}}
-  const values={...form.schema.settings?.specific?.values,operationalSource:{route:contract.route,sourceFiles:contract.sourceFiles,api:contract.api,availability:contract.availability,baseline:structuredClone(baseline)},redesignIntent:'appearance'}
+  const values={...form.schema.settings?.specific?.values,integrationOrigin:{kind:'replacement',route:contract.route,sourceSchemaId:baseline.id,navigationAddress:'navigation.route:'+contract.route,sourceFiles:[...contract.sourceFiles],api:[...contract.api],capturedAt:new Date().toISOString()},operationalSource:{route:contract.route,sourceFiles:contract.sourceFiles,api:contract.api,availability:contract.availability,baseline:structuredClone(baseline)},redesignIntent:'appearance'}
   form.schema.settings={...form.schema.settings,specific:{...form.schema.settings?.specific,values}}
   return form
 }

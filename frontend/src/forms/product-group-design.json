@@ -1,0 +1,2602 @@
+{
+  "provenance": {
+    "requestId": "b649f4ed1229492095c6da709333d815",
+    "releaseId": "71bde8e8-51d2-4d93-b73a-a8bab7f687cc",
+    "digest": "52c3e388e158d790c8820b72d4685aa11c4767ae81e8e89958552d4548a840fc",
+    "jsonAddress": "/api/form-design-backups/05d31bb57d1d463d8f2f3025e10645a9?handoff=true",
+    "activation": "not-authorized"
+  },
+  "form": {
+    "id": "form.new.8e77aae6-9477-41f9-b473-9d52511535a1",
+    "schema": {
+      "id": "form.new.8e77aae6-9477-41f9-b473-9d52511535a1",
+      "schemaVersion": 1,
+      "version": 1,
+      "status": "draft",
+      "mode": "operational",
+      "title": {
+        "fa": "تعریف گروه کالاها — آزمایشی",
+        "en": "تعریف گروه کالا — آزمایشی",
+        "zh": "تعریف گروه کالا — آزمایشی"
+      },
+      "sections": [
+        {
+          "id": "product-group.editor",
+          "kind": "editor",
+          "order": 0,
+          "layout": {
+            "columns": 20,
+            "direction": "vertical",
+            "gap": 12,
+            "minimumWidth": 1440
+          }
+        },
+        {
+          "id": "product-group.footer",
+          "kind": "footer",
+          "order": 2,
+          "layout": {
+            "columns": 20,
+            "direction": "horizontal",
+            "gap": 8
+          }
+        },
+        {
+          "id": "form.new.8e77aae6-9477-41f9-b473-9d52511535a1.report-panel",
+          "kind": "grid",
+          "enabled": true,
+          "order": 1,
+          "tableIds": [
+            "form.new.8e77aae6-9477-41f9-b473-9d52511535a1.report"
+          ],
+          "initialSize": {
+            "height": 300
+          }
+        }
+      ],
+      "fields": [
+        {
+          "id": "product-group.cascading-tree",
+          "sectionId": "product-group.editor",
+          "minTracks": 1,
+          "span": 20,
+          "kind": "custom",
+          "componentId": "base-form.cascading-tree-panels",
+          "label": {
+            "fa": "ساختار گروه کالا",
+            "en": "Product group hierarchy",
+            "zh": "商品组层级"
+          },
+          "labelPolicy": "fixed",
+          "settings": {
+            "cascadingTree": {
+              "nodes": [],
+              "columnTitles": [
+                "گروه اصلی",
+                "زیرگروه ۱",
+                "زیرگروه ۲",
+                "زیرگروه ۳",
+                "زیرگروه ۴"
+              ],
+              "initialPath": []
+            },
+            "layout": {
+              "grid": {
+                "columns": 20,
+                "columnStart": 1,
+                "columnSpan": 20,
+                "rowStart": 1
+              }
+            }
+          },
+          "columnLinks": []
+        }
+      ],
+      "actions": [
+        {
+          "id": "new-person",
+          "code": "Space",
+          "keys": [
+            " "
+          ],
+          "label": {
+            "fa": "شخص جدید",
+            "en": "New person",
+            "zh": "新建人员"
+          },
+          "primary": true,
+          "required": false,
+          "sectionId": "product-group.footer"
+        },
+        {
+          "id": "copy-last",
+          "code": "F2",
+          "keys": [
+            "F2"
+          ],
+          "label": {
+            "fa": "کپی آخرین",
+            "en": "Copy last",
+            "zh": "复制上一条"
+          },
+          "required": false,
+          "sectionId": "product-group.footer"
+        },
+        {
+          "id": "copy-selected",
+          "code": "F4",
+          "keys": [
+            "F4"
+          ],
+          "label": {
+            "fa": "کپی انتخابی",
+            "en": "Copy selected",
+            "zh": "复制所选"
+          },
+          "required": false,
+          "sectionId": "product-group.footer"
+        },
+        {
+          "id": "edit-person",
+          "code": "Insert",
+          "keys": [
+            "Insert"
+          ],
+          "label": {
+            "fa": "ویرایش",
+            "en": "Edit",
+            "zh": "编辑"
+          },
+          "required": false,
+          "sectionId": "product-group.footer"
+        },
+        {
+          "id": "delete-person",
+          "code": "Delete",
+          "keys": [
+            "Delete"
+          ],
+          "label": {
+            "fa": "حذف",
+            "en": "Delete",
+            "zh": "删除"
+          },
+          "required": false,
+          "sectionId": "product-group.footer"
+        },
+        {
+          "id": "demo-save",
+          "code": "F3",
+          "keys": [
+            "F3"
+          ],
+          "label": {
+            "fa": "ذخیره",
+            "en": "Save",
+            "zh": "保存"
+          },
+          "primary": true,
+          "required": false,
+          "sectionId": "product-group.footer"
+        },
+        {
+          "id": "reset-sample",
+          "code": "Esc",
+          "keys": [
+            "Escape"
+          ],
+          "label": {
+            "fa": "خروج",
+            "en": "Exit",
+            "zh": "退出"
+          },
+          "required": false,
+          "sectionId": "product-group.footer"
+        }
+      ],
+      "tables": [
+        {
+          "id": "form.new.8e77aae6-9477-41f9-b473-9d52511535a1.report",
+          "sectionId": "form.new.8e77aae6-9477-41f9-b473-9d52511535a1.report-panel",
+          "title": {
+            "fa": "گزارش تعریف گروه کالاها",
+            "en": "Product group report",
+            "zh": "商品组报表"
+          },
+          "dataSourceId": "local.synthetic",
+          "columns": [
+            {
+              "id": "product-group.cascading-tree.code",
+              "label": {
+                "fa": "کد گروه",
+                "en": "کد گروه",
+                "zh": "کد گروه"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "product-group.cascading-tree.code"
+              },
+              "width": 100,
+              "visible": true,
+              "sortable": true,
+              "filterable": true,
+              "sourceFieldIds": [],
+              "independentPurpose": "Hierarchy node code and ancestry",
+              "valueType": "text"
+            },
+            {
+              "id": "product-group.cascading-tree.level.0",
+              "label": {
+                "fa": "گروه اصلی",
+                "en": "گروه اصلی",
+                "zh": "گروه اصلی"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "product-group.cascading-tree.level.0"
+              },
+              "width": 226,
+              "visible": true,
+              "sortable": true,
+              "filterable": true,
+              "sourceFieldIds": [],
+              "independentPurpose": "Hierarchy node code and ancestry",
+              "valueType": "text"
+            },
+            {
+              "id": "product-group.cascading-tree.level.1",
+              "label": {
+                "fa": "زیرگروه ۱",
+                "en": "زیرگروه ۱",
+                "zh": "زیرگروه ۱"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "product-group.cascading-tree.level.1"
+              },
+              "width": 194,
+              "visible": true,
+              "sortable": true,
+              "filterable": true,
+              "sourceFieldIds": [],
+              "independentPurpose": "Hierarchy node code and ancestry",
+              "valueType": "text"
+            },
+            {
+              "id": "product-group.cascading-tree.level.2",
+              "label": {
+                "fa": "زیرگروه ۲",
+                "en": "زیرگروه ۲",
+                "zh": "زیرگروه ۲"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "product-group.cascading-tree.level.2"
+              },
+              "width": 194,
+              "visible": true,
+              "sortable": true,
+              "filterable": true,
+              "sourceFieldIds": [],
+              "independentPurpose": "Hierarchy node code and ancestry",
+              "valueType": "text"
+            },
+            {
+              "id": "product-group.cascading-tree.level.3",
+              "label": {
+                "fa": "زیرگروه ۳",
+                "en": "زیرگروه ۳",
+                "zh": "زیرگروه ۳"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "product-group.cascading-tree.level.3"
+              },
+              "width": 224,
+              "visible": true,
+              "sortable": true,
+              "filterable": true,
+              "sourceFieldIds": [],
+              "independentPurpose": "Hierarchy node code and ancestry",
+              "valueType": "text"
+            },
+            {
+              "id": "product-group.cascading-tree.level.4",
+              "label": {
+                "fa": "زیرگروه ۴",
+                "en": "زیرگروه ۴",
+                "zh": "زیرگروه ۴"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "product-group.cascading-tree.level.4"
+              },
+              "width": 217,
+              "visible": true,
+              "sortable": true,
+              "filterable": true,
+              "sourceFieldIds": [],
+              "independentPurpose": "Hierarchy node code and ancestry",
+              "valueType": "text"
+            }
+          ],
+          "searchable": true,
+          "columnSelection": true,
+          "rowSelection": "single",
+          "contextMenu": true,
+          "exportable": true,
+          "settings": {
+            "toolbar": {
+              "header": {
+                "x": 0,
+                "y": 0,
+                "width": 1187.488525390625,
+                "height": 79.24768829345703
+              },
+              "title": {
+                "fontSize": 15,
+                "bold": true,
+                "italic": false,
+                "strikeThrough": false,
+                "textColor": "#263a38",
+                "fontFamily": "inherit"
+              }
+            }
+          }
+        }
+      ],
+      "resources": {},
+      "layout": {
+        "direction": "vertical",
+        "gap": 12
+      },
+      "templateFormId": "form-laboratory.persons-synthetic",
+      "settings": {
+        "shared": {
+          "standardId": "form-laboratory.persons-synthetic",
+          "version": 1,
+          "designer": {
+            "format": "yarn-trade.form-designer-draft",
+            "schemaVersion": 1,
+            "formId": "form-laboratory.persons-synthetic",
+            "overrides": {},
+            "defaults": {
+              "input": {
+                "focusBackgroundColor": "#f6eeb8",
+                "focusBorderColor": "#d8d8d8",
+                "backgroundColor": "#f4f6f5"
+              }
+            },
+            "appearance": {
+              "headerBackground": "#dee2de",
+              "headerBorder": "#3a7d22",
+              "entryFieldBackground": "#d8d8d8"
+            },
+            "layoutMode": "schema"
+          }
+        },
+        "specific": {
+          "designer": {
+            "properties": {},
+            "appearance": {},
+            "components": {}
+          },
+          "values": {
+            "productGroupReportInitialized": true
+          }
+        }
+      },
+      "uniqueConstraints": [],
+      "menuPlacement": {
+        "menuId": "definitions"
+      }
+    },
+    "frame": {
+      "device": "desktop",
+      "width": 1218.8657531738281,
+      "height": 975.9374084472656,
+      "fitToPage": false
+    },
+    "template": {
+      "formId": "form-laboratory.persons-synthetic",
+      "version": 1,
+      "schema": {
+        "id": "form.new.8e77aae6-9477-41f9-b473-9d52511535a1",
+        "schemaVersion": 1,
+        "version": 1,
+        "status": "draft",
+        "mode": "operational",
+        "title": {
+          "fa": "تعریف گروه کالا — آزمایشی",
+          "en": "تعریف گروه کالا — آزمایشی",
+          "zh": "تعریف گروه کالا — آزمایشی"
+        },
+        "sections": [
+          {
+            "id": "product-group.editor",
+            "kind": "editor",
+            "order": 0,
+            "layout": {
+              "columns": 20,
+              "direction": "vertical",
+              "gap": 12
+            }
+          },
+          {
+            "id": "product-group.footer",
+            "kind": "footer",
+            "order": 1,
+            "layout": {
+              "columns": 20,
+              "direction": "horizontal",
+              "gap": 8
+            }
+          }
+        ],
+        "fields": [
+          {
+            "id": "product-group.cascading-tree",
+            "sectionId": "product-group.editor",
+            "minTracks": 1,
+            "span": 20,
+            "kind": "custom",
+            "componentId": "base-form.cascading-tree-panels",
+            "label": {
+              "fa": "ساختار گروه کالا",
+              "en": "Product group hierarchy",
+              "zh": "商品组层级"
+            },
+            "labelPolicy": "fixed",
+            "settings": {
+              "cascadingTree": {
+                "nodes": [
+                  {
+                    "id": "demo-yarn",
+                    "parentId": null,
+                    "name": "نخ"
+                  },
+                  {
+                    "id": "demo-fabric",
+                    "parentId": null,
+                    "name": "پارچه"
+                  },
+                  {
+                    "id": "demo-yarn-chenille",
+                    "parentId": "demo-yarn",
+                    "name": "شنیل"
+                  },
+                  {
+                    "id": "demo-yarn-root-polyester",
+                    "parentId": "demo-yarn",
+                    "name": "پلی‌استر"
+                  },
+                  {
+                    "id": "demo-yarn-cotton",
+                    "parentId": "demo-yarn",
+                    "name": "پنبه"
+                  },
+                  {
+                    "id": "demo-yarn-acrylic",
+                    "parentId": "demo-yarn-chenille",
+                    "name": "اکریلیک"
+                  },
+                  {
+                    "id": "demo-yarn-polyester",
+                    "parentId": "demo-yarn-chenille",
+                    "name": "پلی‌استر"
+                  },
+                  {
+                    "id": "demo-yarn-mix",
+                    "parentId": "demo-yarn-chenille",
+                    "name": "مخلوط"
+                  },
+                  {
+                    "id": "demo-yarn-grade-6",
+                    "parentId": "demo-yarn-polyester",
+                    "name": "نمره ۶"
+                  },
+                  {
+                    "id": "demo-yarn-grade-8",
+                    "parentId": "demo-yarn-polyester",
+                    "name": "نمره ۸"
+                  },
+                  {
+                    "id": "demo-yarn-grade-12",
+                    "parentId": "demo-yarn-polyester",
+                    "name": "نمره ۱۲"
+                  },
+                  {
+                    "id": "demo-yarn-shiny",
+                    "parentId": "demo-yarn-grade-8",
+                    "name": "براق"
+                  },
+                  {
+                    "id": "demo-yarn-matte",
+                    "parentId": "demo-yarn-grade-8",
+                    "name": "مات"
+                  },
+                  {
+                    "id": "demo-yarn-grade-6-shiny",
+                    "parentId": "demo-yarn-grade-6",
+                    "name": "براق"
+                  },
+                  {
+                    "id": "demo-fabric-velvet",
+                    "parentId": "demo-fabric",
+                    "name": "مخمل"
+                  },
+                  {
+                    "id": "demo-fabric-upholstery",
+                    "parentId": "demo-fabric",
+                    "name": "مبلی"
+                  },
+                  {
+                    "id": "demo-fabric-plain",
+                    "parentId": "demo-fabric-velvet",
+                    "name": "ساده"
+                  }
+                ],
+                "columnTitles": [
+                  "گروه اصلی",
+                  "زیرگروه ۱",
+                  "زیرگروه ۲",
+                  "زیرگروه ۳",
+                  "زیرگروه ۴"
+                ],
+                "initialPath": [
+                  "demo-yarn",
+                  "demo-yarn-chenille",
+                  "demo-yarn-polyester",
+                  "demo-yarn-grade-8"
+                ]
+              },
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 1,
+                  "columnSpan": 20,
+                  "rowStart": 1
+                }
+              }
+            }
+          }
+        ],
+        "actions": [
+          {
+            "id": "new-person",
+            "code": "Space",
+            "keys": [
+              " "
+            ],
+            "label": {
+              "fa": "شخص جدید",
+              "en": "New person",
+              "zh": "新建人员"
+            },
+            "primary": true,
+            "required": true,
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "copy-last",
+            "code": "F2",
+            "keys": [
+              "F2"
+            ],
+            "label": {
+              "fa": "کپی آخرین",
+              "en": "Copy last",
+              "zh": "复制上一条"
+            },
+            "required": true,
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "copy-selected",
+            "code": "F4",
+            "keys": [
+              "F4"
+            ],
+            "label": {
+              "fa": "کپی انتخابی",
+              "en": "Copy selected",
+              "zh": "复制所选"
+            },
+            "required": true,
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "edit-person",
+            "code": "Insert",
+            "keys": [
+              "Insert"
+            ],
+            "label": {
+              "fa": "ویرایش",
+              "en": "Edit",
+              "zh": "编辑"
+            },
+            "required": true,
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "delete-person",
+            "code": "Delete",
+            "keys": [
+              "Delete"
+            ],
+            "label": {
+              "fa": "حذف",
+              "en": "Delete",
+              "zh": "删除"
+            },
+            "required": true,
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "first-record",
+            "code": "Home",
+            "keys": [
+              "Home"
+            ],
+            "label": {
+              "fa": "اول",
+              "en": "First",
+              "zh": "首条"
+            },
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "previous-page",
+            "code": "PgUp",
+            "keys": [
+              "PageUp"
+            ],
+            "label": {
+              "fa": "صفحه قبل",
+              "en": "Previous page",
+              "zh": "上一页"
+            },
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "browse-records",
+            "code": "↑ ↓",
+            "keys": [
+              "ArrowUp",
+              "ArrowDown"
+            ],
+            "label": {
+              "fa": "مرور",
+              "en": "Browse",
+              "zh": "浏览"
+            },
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "next-page",
+            "code": "PgDn",
+            "keys": [
+              "PageDown"
+            ],
+            "label": {
+              "fa": "صفحه بعد",
+              "en": "Next page",
+              "zh": "下一页"
+            },
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "last-record",
+            "code": "End",
+            "keys": [
+              "End"
+            ],
+            "label": {
+              "fa": "آخر",
+              "en": "Last",
+              "zh": "末条"
+            },
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "action-settings",
+            "code": "⚙",
+            "label": {
+              "fa": "تنظیمات",
+              "en": "Settings",
+              "zh": "设置"
+            },
+            "iconOnly": true,
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "demo-save",
+            "code": "F3",
+            "keys": [
+              "F3"
+            ],
+            "label": {
+              "fa": "ذخیره",
+              "en": "Save",
+              "zh": "保存"
+            },
+            "primary": true,
+            "required": true,
+            "sectionId": "product-group.footer"
+          },
+          {
+            "id": "reset-sample",
+            "code": "Esc",
+            "keys": [
+              "Escape"
+            ],
+            "label": {
+              "fa": "خروج",
+              "en": "Exit",
+              "zh": "退出"
+            },
+            "required": true,
+            "sectionId": "product-group.footer"
+          }
+        ],
+        "tables": [],
+        "resources": {},
+        "layout": {
+          "direction": "vertical",
+          "gap": 12
+        },
+        "templateFormId": "form-laboratory.persons-synthetic",
+        "settings": {
+          "shared": {
+            "standardId": "form-laboratory.persons-synthetic",
+            "version": 1,
+            "designer": {
+              "format": "yarn-trade.form-designer-draft",
+              "schemaVersion": 1,
+              "formId": "form.redesign.f743b7d0-d9f9-49e0-a7a8-bb05a00ddde1",
+              "layoutMode": "canvas",
+              "defaults": {
+                "input": {
+                  "bold": false
+                },
+                "label": {
+                  "bold": false
+                }
+              },
+              "overrides": {
+                "code::input": {
+                  "width": 109.2,
+                  "offsetX": -303.6000793457032,
+                  "offsetY": 77.10624389648436
+                },
+                "name::input": {
+                  "width": 239.2,
+                  "offsetX": -39.10004310607917,
+                  "offsetY": 77.10624389648436
+                },
+                "name::label": {
+                  "offsetX": -39.10004882812507,
+                  "offsetY": 76.49999084472654,
+                  "width": 239.2,
+                  "height": 21.7
+                },
+                "yarnGroup::input": {
+                  "offsetX": -376.6000672828494,
+                  "offsetY": 76.10626525878914,
+                  "width": 109.2,
+                  "height": 34
+                },
+                "yarnGroup::label": {
+                  "offsetX": -376.6000367652713,
+                  "offsetY": 75.4999969482422,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "luster::input": {
+                  "offsetX": 246.39992794877912,
+                  "offsetY": 77.10624389648436,
+                  "width": 109.2
+                },
+                "luster::label": {
+                  "offsetX": 246.3999174583612,
+                  "offsetY": 76.50000610351566,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "unitOfMeasure::input": {
+                  "width": 109.2,
+                  "offsetX": -1213.600036765271,
+                  "offsetY": -11.341671752929699,
+                  "height": 34
+                },
+                "unitOfMeasure::label": {
+                  "offsetX": -1213.6000272285278,
+                  "offsetY": -11.947940063476608,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "material::input": {
+                  "offsetX": 14.399932717150818,
+                  "offsetY": -11.341671752929699,
+                  "width": 109.2,
+                  "height": 34
+                },
+                "material::label": {
+                  "offsetX": 14.399963234728943,
+                  "offsetY": -11.947909545898455,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "code::label": {
+                  "offsetX": -303.600033569336,
+                  "width": 109.2,
+                  "height": 21.7,
+                  "offsetY": 76.49999084472654
+                },
+                "countValue::input": {
+                  "offsetX": 762.5999937523068,
+                  "offsetY": 22.164587402343784,
+                  "width": 109.2
+                },
+                "countValue::label": {
+                  "offsetX": 762.5999327171505,
+                  "offsetY": 21.558319091796903,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "countType::input": {
+                  "width": 109.2,
+                  "offsetX": -429.40006728284936,
+                  "offsetY": -45.42919311523434
+                },
+                "countType::label": {
+                  "offsetX": -429.40006728284936,
+                  "offsetY": -46.0354309082031,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "twistAmount::input": {
+                  "offsetX": -594.4000825416384,
+                  "offsetY": -44.42919311523434,
+                  "width": 109.2
+                },
+                "twistAmount::label": {
+                  "offsetX": -594.4000367652712,
+                  "offsetY": -45.0354309082031,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "twistType::input": {
+                  "offsetX": -245.60003676527128,
+                  "offsetY": -144.52916259765624,
+                  "width": 109.2,
+                  "height": 34
+                },
+                "twistType::label": {
+                  "offsetX": -245.60003676527128,
+                  "offsetY": -145.1354309082031,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "filamentNumber::input": {
+                  "offsetX": -559.4000672828495,
+                  "offsetY": 23.164587402343784,
+                  "width": 109.2
+                },
+                "filamentNumber::label": {
+                  "offsetX": -559.4000520240604,
+                  "offsetY": 22.558319091796847,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "notes::input": {
+                  "offsetX": -1032.3916947852906,
+                  "offsetY": -111.0802146911621,
+                  "width": 172.49620361328118,
+                  "height": 34.11982727050781
+                },
+                "notes::label": {
+                  "offsetX": -1154.600067282849,
+                  "offsetY": -111.68648300170904,
+                  "height": 21.7,
+                  "width": 172.49620361328118
+                },
+                "isActive::input": {
+                  "offsetX": -964.706240988904,
+                  "offsetY": -121.73543701171874,
+                  "width": 144
+                },
+                "isActive::label": {
+                  "offsetX": -953.4062409889041,
+                  "offsetY": -121.74376220703121,
+                  "width": 27.1,
+                  "height": 21.7,
+                  "fontSize": 13
+                },
+                "fixStatus::input": {
+                  "offsetX": 16.66668701171875,
+                  "offsetY": -14
+                },
+                "fixStatus::label": {
+                  "offsetX": 16.66668701171875,
+                  "offsetY": -14
+                },
+                "spinningMethod::input": {
+                  "offsetX": 3.66668701171875,
+                  "offsetY": -75.00003051757812
+                },
+                "spinningMethod::label": {
+                  "offsetX": 3.66668701171875,
+                  "offsetY": -75.00003051757812
+                },
+                "continuityType::input": {
+                  "offsetX": 208.5999694824219,
+                  "offsetY": 28.16456298828126,
+                  "width": 109.2
+                },
+                "continuityType::label": {
+                  "offsetX": -75.26462402343742,
+                  "offsetY": 27.412499999999994,
+                  "width": 109.2,
+                  "height": 21.7
+                },
+                "spinType::input": {
+                  "offsetX": 174.6666717529297,
+                  "offsetY": -63.33331298828125,
+                  "width": 328
+                },
+                "spinType::label": {
+                  "offsetX": 174.6666717529297,
+                  "offsetY": -63.33331298828125
+                },
+                "plyCount::input": {
+                  "width": 109.2,
+                  "offsetX": 440.60000000000025,
+                  "offsetY": -44.42918701171874
+                },
+                "plyCount::label": {
+                  "width": 109.2,
+                  "height": 21.7,
+                  "offsetX": 142.0270629882815,
+                  "offsetY": -45.181250000000006
+                },
+                "field.ad0617df-aa97-41b8-b54b-0d8dac8e92e4::input": {
+                  "offsetX": 15.066687011718756,
+                  "offsetY": -382.3791564941406,
+                  "height": 34,
+                  "width": 1019.2,
+                  "fontSize": 18,
+                  "bold": true,
+                  "italic": false,
+                  "strikeThrough": false,
+                  "textColor": "#000000",
+                  "textAlign": "center",
+                  "verticalTextAlign": "center"
+                },
+                "field.ad0617df-aa97-41b8-b54b-0d8dac8e92e4::label": {
+                  "offsetX": 15.066687011718756,
+                  "offsetY": -379.57915649414065,
+                  "width": 1019.2,
+                  "height": 21.7,
+                  "textColor": "#ffffff"
+                }
+              },
+              "actions": {
+                "operational.new": {
+                  "visible": true,
+                  "labels": {
+                    "fa": "جدید",
+                    "en": "New"
+                  }
+                },
+                "operational.edit": {
+                  "visible": true
+                },
+                "operational.delete": {
+                  "visible": true
+                },
+                "operational.save": {
+                  "visible": true
+                },
+                "operational.close": {
+                  "visible": true
+                }
+              },
+              "canvas": {
+                "width": 1148,
+                "height": 592,
+                "fields": {
+                  "code": {
+                    "input": {
+                      "left": 974.4,
+                      "top": 114.69999999999999,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 974.4,
+                      "top": 89.5,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 978.4,
+                      "top": 83.93568725585936,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "name": {
+                    "input": {
+                      "left": 714.4,
+                      "top": 114.69999999999999,
+                      "width": 239.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 714.4,
+                      "top": 89.5,
+                      "width": 239.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 718.4,
+                      "top": 83.93568725585936,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "yarnGroup": {
+                    "input": {
+                      "left": 194.4,
+                      "top": 114.69999999999999,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 194.4,
+                      "top": 89.5,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 198.4,
+                      "top": 16.16588134765624,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "luster": {
+                    "input": {
+                      "left": 454.4,
+                      "top": 114.69999999999999,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 454.4,
+                      "top": 89.5,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 458.4,
+                      "top": 15.362719726562489,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "unitOfMeasure": {
+                    "input": {
+                      "left": 64.4,
+                      "top": 114.69999999999999,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 64.4,
+                      "top": 89.5,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 68.4,
+                      "top": 103.94713134765624,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "material": {
+                    "input": {
+                      "left": 584.4,
+                      "top": 114.69999999999999,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 584.4,
+                      "top": 89.5,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 588.4,
+                      "top": 104.28047485351561,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "filamentNumber": {
+                    "input": {
+                      "left": 718.6,
+                      "top": 214.8,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 718.6,
+                      "top": 189.6,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 722.6,
+                      "top": 196.02521972656248,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "countValue": {
+                    "input": {
+                      "left": 978.6,
+                      "top": 214.8,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 978.6,
+                      "top": 189.6,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 982.6,
+                      "top": 270.69187622070314,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "countType": {
+                    "input": {
+                      "left": 848.6,
+                      "top": 214.8,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 848.6,
+                      "top": 189.6,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 852.6,
+                      "top": 264.47312622070314,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "twistAmount": {
+                    "input": {
+                      "left": 328.6,
+                      "top": 214.8,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 328.6,
+                      "top": 189.6,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 332.6,
+                      "top": 263.4731262207031,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "twistType": {
+                    "input": {
+                      "left": 324.4,
+                      "top": 114.69999999999999,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 324.4,
+                      "top": 89.5,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 328.4,
+                      "top": 236.70650024414067,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "plyCount": {
+                    "input": {
+                      "left": 458.6,
+                      "top": 214.8,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 458.6,
+                      "top": 189.6,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 462.6,
+                      "top": 190.33356933593754,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "notes": {
+                    "input": {
+                      "left": 135.4,
+                      "top": 214.8,
+                      "width": 172.49620361328118,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 135.4,
+                      "top": 189.6,
+                      "width": 172.49620361328118,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 139.4,
+                      "top": 330.3076293945313,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "isActive": {
+                    "input": {
+                      "left": 60.2,
+                      "top": 220.4,
+                      "width": 14,
+                      "height": 14
+                    },
+                    "label": {
+                      "left": 87.5,
+                      "top": 216.6,
+                      "width": 27.1,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 64.2,
+                      "top": 362.5773193359375,
+                      "width": 19,
+                      "height": 18
+                    }
+                  },
+                  "field.ad0617df-aa97-41b8-b54b-0d8dac8e92e4": {
+                    "label": {
+                      "left": 64.4,
+                      "top": -3.6000000000000014,
+                      "width": 1019.2,
+                      "height": 21.7
+                    },
+                    "input": {
+                      "left": 64.4,
+                      "top": 21.6,
+                      "width": 1019.2,
+                      "height": 34
+                    }
+                  },
+                  "continuityType": {
+                    "input": {
+                      "left": 588.6,
+                      "top": 214.8,
+                      "width": 109.2,
+                      "height": 34
+                    },
+                    "label": {
+                      "left": 588.6,
+                      "top": 189.6,
+                      "width": 109.2,
+                      "height": 21.7
+                    },
+                    "select": {
+                      "left": 592.6,
+                      "top": 190.33356933593748,
+                      "width": 19,
+                      "height": 18
+                    }
+                  }
+                },
+                "preserveHorizontalBounds": true,
+                "centeredFieldIds": [
+                  "code",
+                  "name",
+                  "yarnGroup",
+                  "luster",
+                  "unitOfMeasure",
+                  "material",
+                  "filamentNumber",
+                  "countValue",
+                  "continuityType",
+                  "countType",
+                  "twistAmount",
+                  "twistType",
+                  "plyCount",
+                  "notes",
+                  "isActive",
+                  "field.ad0617df-aa97-41b8-b54b-0d8dac8e92e4"
+                ]
+              },
+              "sectionCanvases": {},
+              "tables": {
+                "yarns": {
+                  "gridSearchPosition": "center"
+                }
+              },
+              "neighborResize": {
+                "horizontal": true
+              }
+            }
+          },
+          "specific": {
+            "designer": {
+              "properties": {},
+              "appearance": {},
+              "components": {}
+            }
+          }
+        },
+        "uniqueConstraints": []
+      },
+      "frame": {
+        "device": "desktop",
+        "width": 1214.4444580078125,
+        "height": 920.3819580078125,
+        "fitToPage": false
+      }
+    },
+    "designerOverrides": {
+      "overrides": {
+        "product-group.cascading-tree::input": {
+          "width": 1338.7699709866947,
+          "offsetX": 442.2247275625846,
+          "height": 461,
+          "offsetY": -26.323167008308076,
+          "gradientEnabled": false,
+          "backgroundColor": "#d8d8d8"
+        },
+        "product-group.cascading-tree::label": {
+          "offsetX": 132.59508126131504,
+          "offsetY": -26.323167008308076,
+          "width": 1338.7699709866947
+        },
+        "product-group.cascading-tree.tree.3.title::input": {
+          "gradientEnabled": false,
+          "backgroundColor": "#dbe9f7"
+        },
+        "product-group.cascading-tree.tree.path::input": {
+          "width": 442.536005924795,
+          "height": 41,
+          "offsetX": 182.507399215595,
+          "offsetY": 7.444610526026253,
+          "fontSize": 13,
+          "bold": true,
+          "italic": false,
+          "strikeThrough": false,
+          "textColor": "#263a38",
+          "textAlign": "right",
+          "verticalTextAlign": "center",
+          "gradientEnabled": false,
+          "backgroundColor": "#95dcf7"
+        },
+        "product-group.cascading-tree.tree.2.column::input": {
+          "width": 218.77454648016055,
+          "height": 343,
+          "offsetY": 0.6840011811527802,
+          "offsetX": 5.449925266226614,
+          "fontSize": 15,
+          "bold": false,
+          "italic": false,
+          "strikeThrough": false,
+          "textColor": "#000000"
+        },
+        "product-group.cascading-tree.tree.header::input": {
+          "width": 1149,
+          "height": 52.91663787100234,
+          "offsetX": 50.37213431466439,
+          "offsetY": -9.80795654473684,
+          "gradientEnabled": false,
+          "backgroundColor": "#95dcf7",
+          "borderRadius": 6
+        },
+        "product-group.cascading-tree.tree.2.add::input": {
+          "width": 194,
+          "height": 33,
+          "offsetX": -0.7413954199935041,
+          "offsetY": -2.789827424071273
+        },
+        "product-group.cascading-tree.tree.node.demo-yarn-polyester::input": {
+          "width": 142,
+          "height": 38,
+          "offsetX": -8.175380168439052,
+          "offsetY": 38.52083704368676
+        },
+        "product-group.cascading-tree.tree.0.column::input": {
+          "width": 218.7051253275339,
+          "height": 343,
+          "offsetX": -6.185169177341095,
+          "offsetY": 0.6839844654659544,
+          "borderRadius": 7,
+          "fontSize": 15,
+          "bold": false,
+          "italic": false,
+          "strikeThrough": false,
+          "textColor": "#000000"
+        },
+        "product-group.cascading-tree.tree.0.column::label": {
+          "offsetX": -190.64168315528593,
+          "offsetY": -2.2225476413175613
+        },
+        "product-group.cascading-tree.tree.1.column::label": {
+          "offsetX": -102.74578952112574,
+          "offsetY": -31.841615246287233
+        },
+        "product-group.cascading-tree.tree.1.column::input": {
+          "offsetX": -0.3733423194707939,
+          "offsetY": 0.6839982252211882,
+          "width": 218.7051253275339,
+          "height": 343,
+          "fontSize": 15,
+          "bold": false,
+          "italic": false,
+          "strikeThrough": false,
+          "textColor": "#000000"
+        },
+        "product-group.cascading-tree.tree.2.column::label": {
+          "offsetX": -73.2995687951996,
+          "offsetY": -39.20521579976571
+        },
+        "product-group.cascading-tree.tree.3.column::label": {
+          "offsetX": -38.96565528997894,
+          "offsetY": -36.29712836700949
+        },
+        "product-group.cascading-tree.tree.3.column::input": {
+          "offsetX": 12.7420933198172,
+          "offsetY": -0.05680048430136253,
+          "width": 218.7051253275339,
+          "height": 343,
+          "fontSize": 15,
+          "bold": false,
+          "italic": false,
+          "strikeThrough": false,
+          "textColor": "#000000"
+        },
+        "product-group.cascading-tree.tree.4.column::label": {
+          "offsetX": 2.0646678811075958e-14,
+          "offsetY": -32.586400625370885
+        },
+        "product-group.cascading-tree.tree.4.column::input": {
+          "offsetX": 17.085048040135547,
+          "offsetY": 0.684000136590754,
+          "width": 218.7051253275339,
+          "height": 343,
+          "fontSize": 15,
+          "bold": false,
+          "italic": false,
+          "strikeThrough": false,
+          "textColor": "#263a38"
+        },
+        "product-group.cascading-tree.tree.body::input": {
+          "backgroundColor": "#95dcf7",
+          "borderRadius": 7
+        },
+        "product-group.cascading-tree.tree.all::input": {
+          "width": 138,
+          "height": 39,
+          "offsetX": -22.074331667701813,
+          "offsetY": 7.092603767977138
+        },
+        "product-group.cascading-tree.tree.limit::input": {
+          "offsetX": 16.99999999999999,
+          "offsetY": 8.999999999999986,
+          "width": 113,
+          "height": 24
+        },
+        "product-group.cascading-tree.tree.status::input": {
+          "height": 31.402919239365488,
+          "offsetY": 4.7772035498091725,
+          "offsetX": 82.33831207424274,
+          "width": 142.131687224863,
+          "borderRadius": 6,
+          "gradientEnabled": false,
+          "backgroundColor": "#95dcf7",
+          "textAlign": "center",
+          "verticalTextAlign": "center",
+          "fontSize": 13,
+          "bold": false,
+          "italic": false,
+          "strikeThrough": false,
+          "textColor": "#000000"
+        },
+        "product-group.cascading-tree.tree.back::input": {
+          "offsetX": -26,
+          "offsetY": 7
+        }
+      },
+      "defaults": {
+        "input": {
+          "bold": false
+        },
+        "label": {
+          "bold": false
+        }
+      },
+      "actions": {
+        "new-person": {
+          "labels": {
+            "fa": "گروه جدید",
+            "en": "New group",
+            "zh": "新建分组"
+          },
+          "manualLabels": {
+            "fa": true,
+            "en": false,
+            "zh": false
+          },
+          "autoLabels": {
+            "en": "New group",
+            "zh": "新建分组"
+          }
+        }
+      },
+      "sectionCanvases": {
+        "product-group.editor": {
+          "width": 1439.988525390625,
+          "height": 758.6805877685547,
+          "fields": {
+            "product-group.cascading-tree": {
+              "input": {
+                "left": 272.8125305175781,
+                "top": 37.43055725097656,
+                "width": 1149.1783294677734,
+                "height": 460.82183837890625
+              },
+              "label": {
+                "left": 1322.3959045410156,
+                "top": 12.9976806640625,
+                "width": 99.59490966796875,
+                "height": 21.4351863861084
+              },
+              "select": {
+                "left": 1657.8125457763672,
+                "top": 12.9976806640625,
+                "width": 18.993057250976562,
+                "height": 17.9976863861084
+              }
+            }
+          }
+        }
+      },
+      "tables": {
+        "form.new.8e77aae6-9477-41f9-b473-9d52511535a1.report": {
+          "tableColumns": {
+            "product-group.cascading-tree.level.1": {
+              "fontSize": 15,
+              "bold": false,
+              "italic": false,
+              "strikeThrough": false,
+              "textColor": "#263a38",
+              "fontFamily": "vazirmatn"
+            },
+            "product-group.cascading-tree.level.0": {
+              "fontSize": 15,
+              "bold": false,
+              "italic": false,
+              "strikeThrough": false,
+              "textColor": "#263a38"
+            }
+          }
+        }
+      },
+      "tableColumns": {},
+      "tableHeaders": {},
+      "layoutMode": "canvas",
+      "canvas": {
+        "width": 1546.1711164256956,
+        "height": 498.2523498535156,
+        "fields": {
+          "product-group.cascading-tree": {
+            "input": {
+              "left": 199.40114543900086,
+              "top": 11.107390242668487,
+              "width": 1338.7699709866947,
+              "height": 376.0157357493605
+            },
+            "label": {
+              "left": 1194.1696963118036,
+              "top": -13.33705250635495,
+              "width": 1338.7699709866947,
+              "height": 21.4351863861084
+            },
+            "select": {
+              "left": 215.69491915815456,
+              "top": -3.7036895751953125,
+              "width": 18.993057250976562,
+              "height": 17.9976863861084
+            }
+          }
+        },
+        "preserveHorizontalBounds": true
+      },
+      "actionBarHeight": 66,
+      "actionBarOffsetY": 99,
+      "flowSlots": {
+        "product-group.cascading-tree.tree.back": {
+          "width": 160.29586393485823,
+          "height": 39.16628056184843
+        },
+        "product-group.cascading-tree.tree.all": {
+          "width": 138.03319562103593,
+          "height": 38.992671591682225
+        },
+        "product-group.cascading-tree.tree.path": {
+          "width": 658.1901488962579,
+          "height": 40.99496730909979
+        },
+        "product-group.cascading-tree.tree.status": {
+          "width": 68.45510544317966,
+          "height": 23.992819948590423
+        },
+        "product-group.cascading-tree.tree.limit": {
+          "width": 113.02675677755833,
+          "height": 23.992819948590423
+        }
+      }
+    },
+    "customization": {
+      "colors": true,
+      "typography": true,
+      "formSize": true,
+      "tablePresentation": true
+    },
+    "structurePermissions": {
+      "fieldAddRemove": false,
+      "fieldTypeChange": false,
+      "tableSchemaChange": false,
+      "businessBehaviorChange": false
+    }
+  },
+  "designerDraft": {
+    "format": "yarn-trade.form-designer-draft",
+    "schemaVersion": 1,
+    "formId": "form.new.8e77aae6-9477-41f9-b473-9d52511535a1",
+    "overrides": {
+      "product-group.cascading-tree::input": {
+        "width": 1338.7699709866947,
+        "offsetX": 442.2247275625846,
+        "height": 461,
+        "offsetY": -26.323167008308076,
+        "gradientEnabled": false,
+        "backgroundColor": "#d8d8d8"
+      },
+      "product-group.cascading-tree::label": {
+        "offsetX": 132.59508126131504,
+        "offsetY": -26.323167008308076,
+        "width": 1338.7699709866947
+      },
+      "product-group.cascading-tree.tree.3.title::input": {
+        "gradientEnabled": false,
+        "backgroundColor": "#dbe9f7"
+      },
+      "product-group.cascading-tree.tree.path::input": {
+        "width": 442.536005924795,
+        "height": 41,
+        "offsetX": 182.507399215595,
+        "offsetY": 7.444610526026253,
+        "fontSize": 13,
+        "bold": true,
+        "italic": false,
+        "strikeThrough": false,
+        "textColor": "#263a38",
+        "textAlign": "right",
+        "verticalTextAlign": "center",
+        "gradientEnabled": false,
+        "backgroundColor": "#95dcf7"
+      },
+      "product-group.cascading-tree.tree.2.column::input": {
+        "width": 218.77454648016055,
+        "height": 343,
+        "offsetY": 0.6840011811527802,
+        "offsetX": 5.449925266226614,
+        "fontSize": 15,
+        "bold": false,
+        "italic": false,
+        "strikeThrough": false,
+        "textColor": "#000000"
+      },
+      "product-group.cascading-tree.tree.header::input": {
+        "width": 1149,
+        "height": 52.91663787100234,
+        "offsetX": 50.37213431466439,
+        "offsetY": -9.80795654473684,
+        "gradientEnabled": false,
+        "backgroundColor": "#95dcf7",
+        "borderRadius": 6
+      },
+      "product-group.cascading-tree.tree.2.add::input": {
+        "width": 194,
+        "height": 33,
+        "offsetX": -0.7413954199935041,
+        "offsetY": -2.789827424071273
+      },
+      "product-group.cascading-tree.tree.node.demo-yarn-polyester::input": {
+        "width": 142,
+        "height": 38,
+        "offsetX": -8.175380168439052,
+        "offsetY": 38.52083704368676
+      },
+      "product-group.cascading-tree.tree.0.column::input": {
+        "width": 218.7051253275339,
+        "height": 343,
+        "offsetX": -6.185169177341095,
+        "offsetY": 0.6839844654659544,
+        "borderRadius": 7,
+        "fontSize": 15,
+        "bold": false,
+        "italic": false,
+        "strikeThrough": false,
+        "textColor": "#000000"
+      },
+      "product-group.cascading-tree.tree.0.column::label": {
+        "offsetX": -190.64168315528593,
+        "offsetY": -2.2225476413175613
+      },
+      "product-group.cascading-tree.tree.1.column::label": {
+        "offsetX": -102.74578952112574,
+        "offsetY": -31.841615246287233
+      },
+      "product-group.cascading-tree.tree.1.column::input": {
+        "offsetX": -0.3733423194707939,
+        "offsetY": 0.6839982252211882,
+        "width": 218.7051253275339,
+        "height": 343,
+        "fontSize": 15,
+        "bold": false,
+        "italic": false,
+        "strikeThrough": false,
+        "textColor": "#000000"
+      },
+      "product-group.cascading-tree.tree.2.column::label": {
+        "offsetX": -73.2995687951996,
+        "offsetY": -39.20521579976571
+      },
+      "product-group.cascading-tree.tree.3.column::label": {
+        "offsetX": -38.96565528997894,
+        "offsetY": -36.29712836700949
+      },
+      "product-group.cascading-tree.tree.3.column::input": {
+        "offsetX": 12.7420933198172,
+        "offsetY": -0.05680048430136253,
+        "width": 218.7051253275339,
+        "height": 343,
+        "fontSize": 15,
+        "bold": false,
+        "italic": false,
+        "strikeThrough": false,
+        "textColor": "#000000"
+      },
+      "product-group.cascading-tree.tree.4.column::label": {
+        "offsetX": 2.0646678811075958e-14,
+        "offsetY": -32.586400625370885
+      },
+      "product-group.cascading-tree.tree.4.column::input": {
+        "offsetX": 17.085048040135547,
+        "offsetY": 0.684000136590754,
+        "width": 218.7051253275339,
+        "height": 343,
+        "fontSize": 15,
+        "bold": false,
+        "italic": false,
+        "strikeThrough": false,
+        "textColor": "#263a38"
+      },
+      "product-group.cascading-tree.tree.body::input": {
+        "backgroundColor": "#95dcf7",
+        "borderRadius": 7
+      },
+      "product-group.cascading-tree.tree.all::input": {
+        "width": 138,
+        "height": 39,
+        "offsetX": -22.074331667701813,
+        "offsetY": 7.092603767977138
+      },
+      "product-group.cascading-tree.tree.limit::input": {
+        "offsetX": 16.99999999999999,
+        "offsetY": 8.999999999999986,
+        "width": 113,
+        "height": 24
+      },
+      "product-group.cascading-tree.tree.status::input": {
+        "height": 31.402919239365488,
+        "offsetY": 4.7772035498091725,
+        "offsetX": 82.33831207424274,
+        "width": 142.131687224863,
+        "borderRadius": 6,
+        "gradientEnabled": false,
+        "backgroundColor": "#95dcf7",
+        "textAlign": "center",
+        "verticalTextAlign": "center",
+        "fontSize": 13,
+        "bold": false,
+        "italic": false,
+        "strikeThrough": false,
+        "textColor": "#000000"
+      },
+      "product-group.cascading-tree.tree.back::input": {
+        "offsetX": -26,
+        "offsetY": 7
+      }
+    },
+    "defaults": {
+      "input": {
+        "focusBackgroundColor": "#f6eeb8",
+        "focusBorderColor": "#d8d8d8",
+        "backgroundColor": "#f4f6f5",
+        "bold": false
+      },
+      "label": {
+        "bold": false
+      }
+    },
+    "actions": {
+      "new-person": {
+        "labels": {
+          "fa": "گروه جدید",
+          "en": "New group",
+          "zh": "新建分组"
+        },
+        "manualLabels": {
+          "fa": true,
+          "en": false,
+          "zh": false
+        },
+        "autoLabels": {
+          "en": "New group",
+          "zh": "新建分组"
+        }
+      }
+    },
+    "appearance": {
+      "headerBackground": "#dee2de",
+      "headerBorder": "#3a7d22",
+      "entryFieldBackground": "#d8d8d8"
+    },
+    "sectionCanvases": {
+      "product-group.editor": {
+        "width": 1439.988525390625,
+        "height": 758.6805877685547,
+        "fields": {
+          "product-group.cascading-tree": {
+            "input": {
+              "left": 272.8125305175781,
+              "top": 37.43055725097656,
+              "width": 1149.1783294677734,
+              "height": 460.82183837890625
+            },
+            "label": {
+              "left": 1322.3959045410156,
+              "top": 12.9976806640625,
+              "width": 99.59490966796875,
+              "height": 21.4351863861084
+            },
+            "select": {
+              "left": 1657.8125457763672,
+              "top": 12.9976806640625,
+              "width": 18.993057250976562,
+              "height": 17.9976863861084
+            }
+          }
+        }
+      }
+    },
+    "tables": {
+      "form.new.8e77aae6-9477-41f9-b473-9d52511535a1.report": {
+        "tableColumns": {
+          "product-group.cascading-tree.level.1": {
+            "fontSize": 15,
+            "bold": false,
+            "italic": false,
+            "strikeThrough": false,
+            "textColor": "#263a38",
+            "fontFamily": "vazirmatn"
+          },
+          "product-group.cascading-tree.level.0": {
+            "fontSize": 15,
+            "bold": false,
+            "italic": false,
+            "strikeThrough": false,
+            "textColor": "#263a38"
+          }
+        }
+      }
+    },
+    "tableColumns": {},
+    "tableHeaders": {},
+    "layoutMode": "canvas",
+    "canvas": {
+      "width": 1546.1711164256956,
+      "height": 498.2523498535156,
+      "fields": {
+        "product-group.cascading-tree": {
+          "input": {
+            "left": 199.40114543900086,
+            "top": 11.107390242668487,
+            "width": 1338.7699709866947,
+            "height": 376.0157357493605
+          },
+          "label": {
+            "left": 1194.1696963118036,
+            "top": -13.33705250635495,
+            "width": 1338.7699709866947,
+            "height": 21.4351863861084
+          },
+          "select": {
+            "left": 215.69491915815456,
+            "top": -3.7036895751953125,
+            "width": 18.993057250976562,
+            "height": 17.9976863861084
+          }
+        }
+      },
+      "preserveHorizontalBounds": true
+    },
+    "actionBarHeight": 66,
+    "actionBarOffsetY": 99,
+    "flowSlots": {
+      "product-group.cascading-tree.tree.back": {
+        "width": 160.29586393485823,
+        "height": 39.16628056184843
+      },
+      "product-group.cascading-tree.tree.all": {
+        "width": 138.03319562103593,
+        "height": 38.992671591682225
+      },
+      "product-group.cascading-tree.tree.path": {
+        "width": 658.1901488962579,
+        "height": 40.99496730909979
+      },
+      "product-group.cascading-tree.tree.status": {
+        "width": 68.45510544317966,
+        "height": 23.992819948590423
+      },
+      "product-group.cascading-tree.tree.limit": {
+        "width": 113.02675677755833,
+        "height": 23.992819948590423
+      }
+    }
+  },
+  "operationalBehaviorContract": {
+    "contractId": "yarn-trade.form-laboratory.operational-behavior",
+    "version": 13,
+    "source": "Form Laboratory",
+    "futureFormPolicy": {
+      "scope": "all-forms-created-or-redesigned-through-the-form-laboratory",
+      "requiredSharedComponents": [
+        "FormSchemaPresentation",
+        "BaseFormGridBoundary",
+        "ExcelGridColumnHeader",
+        "OperationalFormFrame",
+        "DesignerFontPanel",
+        "ExcelColorPicker",
+        "exportGridWorkbook"
+      ],
+      "requiredMembersInExportedJson": [
+        "form",
+        "designerDraft",
+        "operationalBehaviorContract"
+      ],
+      "operationalUserPreferencePersistence": "localStorage-keyed-by-user-and-form-id",
+      "formIdentityMustRemainStableForPreferencePersistence": true,
+      "userPreferencesAreSeparateFromDesignerDraft": true,
+      "sharedRuntimeForksAllowed": false,
+      "formSpecificStructureAndDataSourceStayInSchema": true,
+      "presentationInheritance": {
+        "preserveFormSpecificFieldsAndDataBindings": true,
+        "inheritUserCustomizedColors": false,
+        "newFormTheme": "laboratory-default-before-user-customization",
+        "toolbarHeaderWidth": "match-full-table-width",
+        "renderOnlySchemaDefinedInformationBars": true,
+        "frameContentInsets": {
+          "unit": "css-px",
+          "inline": 12,
+          "blockEnd": 12,
+          "approximateMillimetersAt96Dpi": 3.2,
+          "edges": [
+            "left",
+            "right",
+            "bottom"
+          ],
+          "laboratoryAndOperationalPreviewMustMatch": true
+        }
+      },
+      "fieldPresentationDefaults": {
+        "labelFontWeight": 400,
+        "inputFontWeight": 400,
+        "viewModeDisabledTextColor": "preserve-existing-muted-gray",
+        "checkbox": {
+          "labelFontWeight": 400,
+          "layout": "inline-and-adjacent",
+          "labelControlGapPx": 2,
+          "controlSizePx": 14
+        }
+      },
+      "keyboardShortcuts": {
+        "aliases": {
+          "F2": {
+            "action": "copy-last-record-to-new",
+            "enabledByDefault": true,
+            "userDisableable": true,
+            "mode": "view",
+            "permission": "create"
+          },
+          "F4": {
+            "action": "copy-selected-grid-record-to-new",
+            "enabledByDefault": true,
+            "userDisableable": true,
+            "mode": "view",
+            "permission": "create"
+          }
+        },
+        "keepExistingShortcuts": true,
+        "disablement": "remove-alias-from-operation-keys",
+        "futureFormsInheritAliases": true,
+        "copyActions": {
+          "placement": "bottom-toolbar",
+          "createNewRecord": true,
+          "copyReusableVisibleFields": true,
+          "excludeFields": [
+            "hidden",
+            "read-only",
+            "system-identity",
+            "row-version",
+            "unique"
+          ],
+          "regenerateCodeFromLatestCreatedRecord": true,
+          "F2": "copy-most-recently-created-record",
+          "F4": "copy-selected-grid-record"
+        }
+      },
+      "workspaceLayout": {
+        "fixedFrameDimensionsRemainUnchangedOnViewportChange": true,
+        "fitToPageModeResizesToAvailableWorkspace": true,
+        "framePlacementByDirection": {
+          "rtl": {
+            "anchor": "right",
+            "unusedSpace": "left"
+          },
+          "ltr": {
+            "anchor": "left",
+            "unusedSpace": "right"
+          }
+        },
+        "fieldSelectionExpandsCollapsedDesignerSidebar": false,
+        "toolbarSelectionExpandsCollapsedDesignerSidebar": false
+      },
+      "smartFieldAlignment": {
+        "enabledByDefault": true,
+        "activation": "initial-canvas-capture-and-completed-field-geometry-edits",
+        "rowAlignment": "align-field-group-centers-and-input-centers-within-tolerance",
+        "columnAlignment": "align-trailing-edge-in-rtl-and-leading-edge-in-ltr-within-tolerance",
+        "positionTolerancePx": 12,
+        "columnToleranceRatio": 0.08,
+        "similarInputSizeTolerance": {
+          "ratio": 0.22,
+          "minimumWidthPx": 24,
+          "minimumHeightPx": 8
+        },
+        "gapEqualization": {
+          "horizontal": true,
+          "vertical": true,
+          "maximumSpreadPx": 24,
+          "maximumRelativeSpread": 0.6
+        },
+        "preserveSizeAndPositionOutliers": true,
+        "preventNewCanvasCollisions": true,
+        "manualGlobalLeveling": {
+          "key": "Ctrl+L",
+          "requiresAllEditorFieldsSelected": true,
+          "alignsRowsAndColumns": true,
+          "equalizesSimilarWidthsAndHeights": true,
+          "equalizesHorizontalAndVerticalGaps": true,
+          "textareaBesideCheckbox": "textarea-fills-available-form-width-and-checkbox-sits-adjacent-at-inline-start",
+          "includesF1ExceptionFields": true,
+          "preservesF1ExceptionsForLaterAutomaticAlignment": true,
+          "preserveExistingCollisions": true
+        },
+        "exceptions": {
+          "key": "F1",
+          "scope": "single-selected-canvas-field-in-design-mode",
+          "toggle": true,
+          "persistWithDesignerDraft": true
+        },
+        "runtimeShortcuts": {
+          "F1": "preserve-existing-search-behavior",
+          "F3": "preserve-data-entry-save-behavior"
+        }
+      },
+      "operationalPreview": {
+        "availableForAllLaboratoryForms": true,
+        "sharedRenderer": "FormSchemaPresentation",
+        "presentationMode": "operational",
+        "useCurrentSchemaAndDesignerDraft": true,
+        "hideDesignerAndTestChrome": true,
+        "hideTableStructureAndReviewTools": true,
+        "preserveSchemaAndData": true,
+        "returnToPreviousDesignerState": true,
+        "releaseMustUseSameOperationalPresentation": true,
+        "hideLaboratoryDocumentTitle": true,
+        "hideCompositeLabelWhenComponentHasOwnHeading": true,
+        "hiddenChromeMustNotReserveLayoutSpace": true
+      },
+      "compositeDesignerGeometry": {
+        "sharedSelectionAndAppearance": true,
+        "geometryOwner": "designer-input-part",
+        "paintedContentFitsOwner": true,
+        "coordinateSystem": "physical-left-top-css-pixels",
+        "pointerDeltasRespectRenderedScale": true,
+        "resizeAxesIndependent": true,
+        "resizePreservesOppositeEdge": true,
+        "manualDragDoesNotAutoArrange": true,
+        "multiSelectLayoutUsesSharedDesigner": true,
+        "numericEditorMustNotOverwriteExternalGeometryOnBlur": true,
+        "reportTableCanFillViewport": true,
+        "browserRegression": "tests/tree-geometry.browser.mjs",
+        "treeEditorLayout": {
+          "version": 1,
+          "fullWidthTitleHeightOnly": true,
+          "inputSurfaceFillsRemainingEditorSpace": true,
+          "surfaceBackgroundIndependentOfColumns": true,
+          "sharedEditorAndReportInsets": true,
+          "splitterMinimumFromVisibleFieldBounds": true,
+          "preserveSavedColumnGeometry": true,
+          "automaticColumnGap": "mean-existing-gaps",
+          "layoutBrowserRegression": "tests/tree-report.browser.mjs"
+        }
+      }
+    },
+    "table": {
+      "rtlLanguages": [
+        "fa"
+      ],
+      "initialScroll": "logical-start",
+      "resize": "single-column-logical-inline-end",
+      "overflow": "scroll-only-when-content-exceeds-viewport",
+      "reserveScrollbarGutter": false,
+      "toolbarHeaderWidth": "match-full-table-width"
+    },
+    "settings": {
+      "entry": "topbar",
+      "save": "explicit",
+      "cancel": "exit-without-saving",
+      "fieldAppearanceMenu": "laboratory-context-menu",
+      "fontPanel": "DesignerFontPanel",
+      "colorPicker": "ExcelColorPicker"
+    },
+    "entryFocus": {
+      "retainVisualIndicatorOnBlur": true,
+      "moveIndicatorOnFocus": true,
+      "clearIndicatorOn": [
+        "save",
+        "exit"
+      ]
+    },
+    "entryEditorSpacing": {
+      "bannerToEditor": 0,
+      "collapseEmptyNotice": true,
+      "panelInsetPx": 12,
+      "matchEditorAndBannerInsetsToGrid": true,
+      "collapseEmptyOperationalToolbarPanels": true,
+      "persistEditorGridSplitRatio": true,
+      "fieldRowSpacing": "uniform-within-form",
+      "manyFieldForms": "use-uniform-compact-row-gap"
+    },
+    "gridExport": {
+      "enabled": true,
+      "format": "xlsx",
+      "placement": "beside-expand-and-columns",
+      "button": "icon-only",
+      "tooltip": "hover-or-focus",
+      "scope": "all-filtered-sorted-records-and-visible-columns",
+      "presentation": "title-styled-header-banded-rows-borders-frozen-header-autofilter",
+      "futureUserConfiguration": true
+    },
+    "filterValueSelection": {
+      "invertSelection": {
+        "enabled": true,
+        "placement": "beside-select-all",
+        "control": "icon-only-with-tooltip",
+        "operation": "complement-selected-and-unselected-values",
+        "scope": "all-distinct-values-for-current-column",
+        "secondClickRestoresOriginalSelection": true,
+        "localizedTooltip": {
+          "fa": "معکوس کردن انتخاب",
+          "en": "Invert selection",
+          "zh": "反向选择"
+        }
+      }
+    },
+    "keyboardSelection": {
+      "ctrlA": "editable-content-or-visible-grid-data-only",
+      "selectInterfaceControls": false
+    },
+    "gridCellSelection": {
+      "leftClick": "select-row-and-clear-cell-selection",
+      "cellSelection": "right-click",
+      "multipleSelection": "ctrl-or-command-right-click",
+      "rangeSelection": "shift-right-click-in-same-column",
+      "rowNavigation": "ArrowUp-ArrowDown-in-filtered-sorted-order",
+      "retainGridFocusDuringRowNavigation": true,
+      "hierarchyRowIndicator": "ancestry-path-with-row-selection-color-not-keyboard-focus",
+      "copySelectedCells": true,
+      "copyContextMenu": true,
+      "formLabelsSelectable": false,
+      "tableHeadersSelectableOutsideDesigner": false
+    },
+    "colorPreview": {
+      "live": true,
+      "cancelRestoresPreviousValue": true,
+      "commitOnPickerConfirm": true,
+      "inputSurfaceIsSeparateFromEmptyEditorArea": true
+    },
+    "gridLayout": {
+      "permission": "customization.tablePresentation",
+      "persistence": "account-form-table",
+      "settingsMode": "save-or-discard",
+      "normalModeResizePersistsImmediately": true,
+      "editorGridSplitRatio": {
+        "minimum": 0.08,
+        "maximum": 12,
+        "persistence": "account-form-settings"
+      },
+      "columnWidth": {
+        "minimum": 80,
+        "maximum": 1200
+      },
+      "tableHeaderHeight": {
+        "minimum": 28,
+        "maximum": 120
+      },
+      "toolbarHeaderHeight": {
+        "minimum": 56,
+        "maximum": 260,
+        "adjustment": "visible-bottom-handle-and-arrow-keys",
+        "focusHandleOnSelection": true,
+        "keyboard": {
+          "decrease": "ArrowUp",
+          "increase": "ArrowDown",
+          "stepPx": 2
+        }
+      },
+      "rtlInitialScroll": "logical-start"
+    },
+    "search": {
+      "activeModeEmphasis": "bold",
+      "radioMustMatchEmphasis": true,
+      "rightClickDoesNotChangeMode": true,
+      "reverseResultsToolbarPart": "searchReverse",
+      "reverseResultsToggle": {
+        "enabled": true,
+        "operation": "show-nonmatching-instead-of-matching-results",
+        "secondClickRestoresMatchingResults": true
+      },
+      "inputAppearanceStates": {
+        "unfocused": {
+          "targetId": "toolbar:searchInput",
+          "properties": [
+            "backgroundColor",
+            "fontFamily",
+            "fontSize",
+            "textColor"
+          ]
+        },
+        "focused": {
+          "targetId": "toolbar:searchInput:focus",
+          "properties": [
+            "backgroundColor",
+            "fontFamily",
+            "fontSize",
+            "textColor"
+          ]
+        }
+      }
+    },
+    "personalCustomization": {
+      "version": 1,
+      "permissions": {
+        "fontAndTypography": "customization.typography",
+        "allColorsAndBackgrounds": "customization.colors",
+        "tablePresentationPermissionIsRequiredForVisualStyles": false
+      },
+      "menu": {
+        "component": "designer-context-menu",
+        "groups": [
+          "text",
+          "appearance"
+        ],
+        "fontPanel": "DesignerFontPanel",
+        "colorPicker": "ExcelColorPicker"
+      },
+      "fixedPositionTargets": [
+        "form-title"
+      ],
+      "resizableTargets": {
+        "form-header": "formHeaderHeight",
+        "form-editor": "editorRatio",
+        "grid-toolbar": "toolbarHeight",
+        "table-header:{columnId}": "headerHeight"
+      },
+      "resizeInteraction": {
+        "handle": "visible-bottom-grip",
+        "focusHandleOnSelection": true,
+        "pointer": "drag",
+        "keyboard": {
+          "decrease": "ArrowUp",
+          "increase": "ArrowDown",
+          "stepPx": 2
+        },
+        "settingsMode": "save-or-discard",
+        "persistence": "localStorage-keyed-by-user-and-form-id",
+        "targets": {
+          "form-header": {
+            "preference": "formHeaderHeight",
+            "permission": "customization.formSize",
+            "minimum": 48,
+            "maximum": 180
+          },
+          "grid-toolbar": {
+            "preference": "gridLayouts.toolbarHeight",
+            "permission": "customization.tablePresentation",
+            "width": "match-full-table-width",
+            "minimum": 56,
+            "maximum": 260
+          }
+        }
+      },
+      "toolbarParts": [
+        "expand",
+        "title",
+        "counter",
+        "search",
+        "searchInput",
+        "searchReverse",
+        "searchOptions",
+        "searchOption:startsWith",
+        "searchOption:contains",
+        "searchOption:exact",
+        "columns",
+        "header"
+      ],
+      "targets": [
+        {
+          "id": "form-header",
+          "selector": ".form-laboratory-banner, .form-laboratory-banner *",
+          "backgroundSelector": ".form-laboratory-banner",
+          "borderSelector": ".form-laboratory-banner",
+          "label": {
+            "fa": "هدر فرم",
+            "en": "Form header"
+          },
+          "positionEditable": false,
+          "resize": "formHeaderHeight"
+        },
+        {
+          "id": "form-title",
+          "selector": ".form-laboratory-banner .laboratory-banner-title, .form-laboratory-banner .laboratory-banner-title *",
+          "backgroundSelector": ".form-laboratory-banner .laboratory-banner-title",
+          "borderSelector": ".form-laboratory-banner .laboratory-banner-title",
+          "label": {
+            "fa": "عنوان فرم",
+            "en": "Form title"
+          },
+          "positionEditable": false,
+          "resize": "formHeaderHeight"
+        },
+        {
+          "id": "form-editor",
+          "selector": ".person-editor",
+          "backgroundSelector": ".person-editor, .person-editor .person-form-grid",
+          "borderSelector": ".person-editor",
+          "label": {
+            "fa": "زمینهٔ پنل فرم",
+            "en": "Form panel background"
+          },
+          "positionEditable": false,
+          "resize": "editorRatio"
+        },
+        {
+          "id": "form-fields",
+          "selector": ".person-form-grid, .person-form-grid .designer-label-part, .person-form-grid .designer-input-part, .person-form-grid .designer-input-part *",
+          "backgroundSelector": ".person-form-grid .designer-input-part, .person-form-grid .designer-input-part :is(input,textarea,select)",
+          "borderSelector": ".person-form-grid .designer-input-part, .person-form-grid .designer-input-part :is(input,textarea,select)",
+          "label": {
+            "fa": "سطح فیلدهای فرم",
+            "en": "Form fields"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "form-notice",
+          "selector": ".operational-form-notice, .operational-form-notice *",
+          "backgroundSelector": ".operational-form-notice",
+          "borderSelector": ".operational-form-notice",
+          "label": {
+            "fa": "پیام فرم",
+            "en": "Form message"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "grid-panel",
+          "selector": ".person-grid-panel",
+          "backgroundSelector": ".person-grid-panel",
+          "borderSelector": ".person-grid-panel",
+          "label": {
+            "fa": "قاب جدول",
+            "en": "Table panel"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "grid-toolbar",
+          "selector": ".grid-toolbar-panels > .grid-toolbar[data-toolbar-part=\"header\"]",
+          "backgroundSelector": ".grid-toolbar-panels > .grid-toolbar[data-toolbar-part=\"header\"]",
+          "borderSelector": ".grid-toolbar-panels > .grid-toolbar[data-toolbar-part=\"header\"]",
+          "label": {
+            "fa": "نوار ابزار جدول",
+            "en": "Table toolbar"
+          },
+          "positionEditable": false,
+          "resize": "toolbarHeight"
+        },
+        {
+          "id": "grid-table",
+          "selector": ".base-grid-table-wrap, .base-grid-table",
+          "backgroundSelector": ".base-grid-table-wrap, .base-grid-table",
+          "borderSelector": ".base-grid-table",
+          "label": {
+            "fa": "زمینهٔ جدول",
+            "en": "Table background"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-headers",
+          "selector": ".base-grid-table thead, .base-grid-table thead th, .base-grid-table thead th *",
+          "backgroundSelector": ".base-grid-table thead th",
+          "borderSelector": ".base-grid-table thead th",
+          "label": {
+            "fa": "همهٔ سرستون‌ها",
+            "en": "All table headers"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-rows",
+          "selector": ".base-grid-table tbody tr, .base-grid-table tbody tr *",
+          "backgroundSelector": ".base-grid-table tbody tr, .base-grid-table tbody td",
+          "borderSelector": ".base-grid-table tbody td",
+          "label": {
+            "fa": "ردیف‌های جدول",
+            "en": "Table rows"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-cells",
+          "selector": ".base-grid-table tbody td, .base-grid-table tbody td *",
+          "backgroundSelector": ".base-grid-table tbody td",
+          "borderSelector": ".base-grid-table tbody td",
+          "label": {
+            "fa": "داده‌های جدول",
+            "en": "Table data"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "toolbar:{part}",
+          "selector": ".grid-toolbar-panels [data-toolbar-part=\"{part}\"], .grid-toolbar-panels [data-toolbar-part=\"{part}\"] *",
+          "backgroundSelector": ".grid-toolbar-panels [data-toolbar-part=\"{part}\"], .grid-toolbar-panels [data-toolbar-part=\"{part}\"] :is(input,button,select)",
+          "borderSelector": ".grid-toolbar-panels [data-toolbar-part=\"{part}\"], .grid-toolbar-panels [data-toolbar-part=\"{part}\"] :is(input,button,select)",
+          "label": {
+            "fa": "جزء نوار جدول",
+            "en": "Table toolbar part"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "toolbar:searchInput",
+          "selector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus), .grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus)::placeholder",
+          "backgroundSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus)",
+          "borderSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:not(:focus)",
+          "label": {
+            "fa": "کادر جست‌وجو بدون فوکوس",
+            "en": "Search input without focus"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "toolbar:searchInput:focus",
+          "selector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus, .grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus::placeholder",
+          "backgroundSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus",
+          "borderSelector": ".grid-toolbar-panels [data-toolbar-part=\"searchInput\"] input:focus",
+          "label": {
+            "fa": "کادر جست‌وجو هنگام فوکوس",
+            "en": "Search input while focused"
+          },
+          "positionEditable": false
+        },
+        {
+          "id": "table-header:{columnId}",
+          "selector": ".base-grid-table thead th[data-column=\"{columnId}\"], .base-grid-table thead th[data-column=\"{columnId}\"] *",
+          "backgroundSelector": ".base-grid-table thead th[data-column=\"{columnId}\"]",
+          "borderSelector": ".base-grid-table thead th[data-column=\"{columnId}\"]",
+          "label": {
+            "fa": "سرستون",
+            "en": "Table column header"
+          },
+          "positionEditable": false,
+          "resize": "headerHeight"
+        },
+        {
+          "id": "table-column:{columnId}",
+          "selector": ".base-grid-table tbody td[data-column=\"{columnId}\"], .base-grid-table tbody td[data-column=\"{columnId}\"] *",
+          "backgroundSelector": ".base-grid-table tbody td[data-column=\"{columnId}\"]",
+          "borderSelector": ".base-grid-table tbody td[data-column=\"{columnId}\"]",
+          "label": {
+            "fa": "داده‌های ستون",
+            "en": "Table column data"
+          },
+          "positionEditable": false
+        }
+      ],
+      "styleProperties": [
+        "fontFamily",
+        "fontSize",
+        "bold",
+        "italic",
+        "underline",
+        "strikeThrough",
+        "script",
+        "textColor",
+        "backgroundColor",
+        "borderColor"
+      ]
+    },
+    "selection": {
+      "designerToolbarParts": "individually-selectable",
+      "multiSelectModifier": "ctrl-or-command",
+      "dragMovesAllSelectedPartsTogether": true,
+      "operationalFormTitlePositionEditable": false
+    }
+  },
+  "operationalTitle": {
+    "fa": "تعریف گروه کالاها",
+    "en": "تعریف گروه کالا",
+    "zh": "تعریف گروه کالا"
+  }
+}

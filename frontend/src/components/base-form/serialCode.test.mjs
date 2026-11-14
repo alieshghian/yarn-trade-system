@@ -42,6 +42,7 @@ test('canonical storage and fieldRules uniqueness share code comparison, includi
 })
 test('input rejects invalid paste/composition and maps only a focused physical Latin letter',()=>{
  let value='AB12';const input={value,selectionStart:4,selectionEnd:4};let props=codeInputProps(value,defaultCodeComponentSettings,next=>{value=next})
+ assert.equal(props['data-code-input'],true,'code component stays excluded from language switching even with a custom field ID')
  props.onChange({currentTarget:{...input,value:'ab۱۲'},nativeEvent:{isComposing:false}});assert.equal(value,'ab12')
  input.value=value;props=codeInputProps(value,defaultCodeComponentSettings,next=>{value=next})
  const composing={...input,value:'ABبرند'};props.onChange({currentTarget:composing,nativeEvent:{isComposing:true}});assert.equal(value,'ab12');props.onCompositionEnd({currentTarget:composing});assert.equal(composing.value,'ab12')

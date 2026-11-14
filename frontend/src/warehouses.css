@@ -1,0 +1,41 @@
+.warehouse-page .warehouse-fields{position:relative;min-width:628px;display:block}
+.warehouse-page .warehouse-fields>.lab-custom-field{position:static;display:contents}
+.warehouse-page .warehouse-fields .designer-input-part>input{width:100%;height:100%;box-sizing:border-box}
+.warehouse-page .warehouse-fields .designer-label-part{text-align:start;display:block}
+.warehouse-page .warehouse-fields .person-number-wrap,.warehouse-page .warehouse-fields .system-lookup{width:100%;height:100%}
+.warehouse-page .laboratory-footer{flex-wrap:wrap;gap:6px}
+.warehouse-details{width:min(640px,calc(100vw - 32px));max-height:90vh;overflow:auto}
+.warehouse-details table{width:100%;border-collapse:collapse}
+.warehouse-details :is(td,th){padding:8px;text-align:start;border-bottom:1px solid #dce5e2}
+.warehouse-zone-editor{display:grid;gap:10px;margin-top:12px}
+.warehouse-zone-editor>label{display:flex;gap:8px;align-items:center}
+.warehouse-zone-editor>label:has(input:not([type=checkbox])){display:grid}
+.warehouse-zones-dialog{width:min(800px,calc(100vw - 24px));padding:12px;overflow:auto;max-height:96vh}
+.warehouse-zones-dialog .form-document-dialog-header{margin-bottom:8px}
+.warehouse-zones-page{min-width:0}.warehouse-zones-page .zone-editor{padding:16px 24px;box-sizing:border-box}
+.zone-floor{display:flex;gap:12px;align-items:end;margin-bottom:14px}.zone-floor>label{width:180px}.zone-floor span{font-size:13px}
+.zone-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}.zone-fields .field{min-width:0}
+.zone-code{display:flex;align-items:center;gap:5px;background:var(--lab-bg,#f4f6f5);border:1px solid var(--line);border-radius:8px;padding-inline:8px;height:34px}.zone-code input{min-width:0;width:100%;border:0;background:transparent;height:100%}
+.zone-fields input:not([type=checkbox]),.zone-floor select{width:100%;height:34px;box-sizing:border-box}
+.zone-active{display:flex;align-items:center;gap:6px;align-self:end;height:34px}.warehouse-zones-page .laboratory-footer{flex-wrap:wrap;gap:6px}
+.warehouse-zones-page .zone-fields input:focus{background:#f6eeb8}.zone-copy-dialog{width:min(520px,calc(100vw - 32px));max-height:90vh;overflow:auto}
+.zone-copy-list{max-height:45vh;overflow:auto;min-height:120px}.zone-copy-list>label{display:flex;align-items:center;gap:8px;padding-block:4px}.zone-copy-list input{width:auto;margin:0}
+
+.warehouse-zones-page .zone-fields>.laboratory-designer-field,.warehouse-zones-page .zone-floor>.laboratory-designer-field{display:grid;gap:4px}
+.warehouse-zones-page .zone-code input{border:0!important;border-radius:0!important;background:transparent!important;padding:0!important}
+
+.warehouse-zones-page:focus{outline:none}
+.warehouse-zones-page .base-grid-table td[data-column="code"]{direction:ltr;unicode-bidi:isolate;text-align:right}
+
+.zone-name{display:flex;align-items:center;gap:6px;min-width:0}.zone-name>span{flex:none;white-space:nowrap}.zone-name>input{flex:1;min-width:0}
+
+.zone-name>button{flex:none;width:28px;height:28px;min-width:0;padding:0;font-size:16px;line-height:1;border-radius:5px}.zone-batch-rows input{flex:1;min-width:0;height:34px;font:inherit;box-sizing:border-box}.zone-batch-rows button{flex:none;min-width:24px;padding:3px 6px;font-size:12px}
+
+/* Same single-input queue as CascadingTreePanels, with the plus at physical left. */
+.zone-name>button{order:3}.zone-name>input{order:2}.zone-name>span{order:1}
+.zone-batch-rows ul{list-style:none;margin:4px 0;padding:0}.zone-batch-rows li{display:flex;align-items:center;gap:8px;padding-block:3px}.zone-batch-rows li output{min-width:70px}.zone-batch-rows li span{flex:1;min-width:0;overflow-wrap:anywhere}
+
+.zone-name{direction:rtl}
+
+.zone-name-input{position:relative;flex:1;min-width:0}.zone-name-input>input{width:100%;min-width:0}.zone-name-input>button{position:absolute;left:36px;top:50%;transform:translateY(-50%);width:26px;height:26px;min-width:0;padding:0;border:1px solid #cbd8d7;border-radius:5px;background:#fff;color:#193330;font:16px Tahoma;visibility:hidden}.zone-name-input:focus-within>button{visibility:visible}
+.zone-batch-popup{z-index:2147483647;box-sizing:border-box;overflow:auto;padding:8px 10px;border:1px solid #cbd8d7;border-radius:8px;background:#fff;color:#193330;box-shadow:0 6px 18px #102a2a26;font:14px Tahoma}.zone-batch-popup ul{margin:4px 0}.zone-batch-popup button{font:inherit;border:1px solid #d2dce0;border-radius:5px;background:#fff;color:#193330;padding:3px 6px}.zone-batch-popup li{display:flex;align-items:center;gap:8px}.zone-batch-popup li span{flex:1;overflow-wrap:anywhere}.zone-batch-popup li output{min-width:64px}

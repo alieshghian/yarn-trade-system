@@ -1,13 +1,32 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
-import {initialFormBehaviors,addFormBehavior,publishFormBehavior,resolveFormBehavior,resolveColumnLinkBehavior,readFormBehaviors,writeFormBehaviors,formBehaviorKey,laboratoryBehaviorId,emptyBehaviorInstructions,behaviorManifest,formTestReducer,initialFormTest,formTestActionFor,testActionVisible,validateTestRecord} from './formBehavior.ts'
+import {initialFormBehaviors,addFormBehavior,publishFormBehavior,resolveFormBehavior,resolveColumnLinkBehavior,readFormBehaviors,writeFormBehaviors,formBehaviorKey,laboratoryBehaviorId,emptyBehaviorInstructions,behaviorManifest,formTestReducer,initialFormTest,formTestActionFor,formActionVisible,testActionVisible,validateTestRecord} from './formBehavior.ts'
 import {registerTemplateRevision} from './formTemplateInheritance.ts'
 import {finalizeDesign,loadDesignReleases} from './formDesignReleases.ts'
 import {createManagedLaboratoryForm} from './laboratoryFormDraftState.ts'
-import {fieldRuleMarkers,validateRecordRules} from './fieldRules.ts'
+import {fieldRuleMarkers,validateRecordRules,formRuleStructureIssues} from './fieldRules.ts'
+import {approvedYarnDesignId,repairApprovedYarnRules} from './approvedYarnRuleRepair.ts'
 const field=(id,required=false)=>({id,kind:'text',componentId:'text',label:{fa:id,en:id,zh:id},sectionId:'editor',required})
 const schema={schemaVersion:1,version:1,id:'form-laboratory',mode:'operational',title:{fa:'فرم',en:'Form',zh:'Form'},sections:[{id:'editor',kind:'editor'}],fields:[field('code',true),field('name')],actions:[]}
+
+test('approved yarn correction permits shared material but retains identity, tuple rules and later owner edits',()=>{
+ const unique=id=>({...field(id,true),validation:[{type:'unique'}]})
+ const source={...schema,id:approvedYarnDesignId,fields:[unique('code'),unique('material'),field('countValue')],uniqueConstraints:[{id:'spec',fieldIds:['material','countValue']} ]}
+ const before=structuredClone(source),fixed=repairApprovedYarnRules(source)
+ assert.deepEqual(source,before,'do not mutate saved schema or recovery history')
+ assert.deepEqual(fixed.uniqueConstraints,source.uniqueConstraints)
+ assert.deepEqual(fixed.fields[0],source.fields[0]);assert.equal(fixed.fields[1].required,true)
+ const records=[{id:'a',values:{code:'001',material:'پلی استر',countValue:'300'}}]
+ assert.match(validateTestRecord(source,{code:'002',material:'پلی استر',countValue:'150'},records).material,/یکتایی مستقل/)
+ assert.deepEqual(validateTestRecord(fixed,{code:'002',material:'پلی استر',countValue:'150'},records),{})
+ assert.ok(validateTestRecord(fixed,{code:'001',material:'پلی استر',countValue:'150'},records).code)
+ assert.ok(validateTestRecord(fixed,{code:'002',material:'پلی استر',countValue:'300'},records).material)
+ assert.deepEqual(validateTestRecord(fixed,records[0].values,records,'a'),{})
+ assert.equal(repairApprovedYarnRules(fixed),fixed,'one correction only')
+ const edited={...fixed,fields:source.fields};assert.equal(repairApprovedYarnRules(edited),edited,'subsequent owner rule edits win')
+ const unrelated={...source,id:'another-form'};assert.equal(repairApprovedYarnRules(unrelated),unrelated)
+})
 
 test('spacing defaults inherit from the Laboratory while child overrides and integration contracts persist',()=>{
  let library=initialFormBehaviors()
@@ -20,6 +39,16 @@ test('spacing defaults inherit from the Laboratory while child overrides and int
  writeFormBehaviors(storage,library)
  const saved=readFormBehaviors(storage),manifest=behaviorManifest({...schema,settings:{shared:{behaviorId:'paired.child'}}},saved)
  assert.equal(manifest.resizeContract.preserveOuterSpan,true)
+ assert.equal(manifest.resizeContract.preserveOppositeEdge,true)
+ assert.equal(manifest.geometryContract.physicalCoordinates,true)
+ assert.equal(manifest.layoutPreviewContract.data,'preserve')
+ assert.equal(manifest.layoutPreviewContract.remoteRequests,'existing-virtual-source')
+ assert.equal(manifest.layoutPreviewContract.preserveFrame,true)
+ assert.equal(manifest.settingsContract.personal.scope,'user-and-form')
+ assert.equal(manifest.settingsContract.administrator.hierarchy.retainInactiveNodes,true)
+ assert.equal(manifest.geometryContract.pointerCommit,'release')
+ assert.deepEqual(manifest.geometryContract.storage,['canvas','flow'])
+ assert.ok(manifest.geometryContract.commands.includes('equalSpacing'))
  assert.equal(manifest.toolbarContract.containContents,true)
  assert.equal(manifest.toolbarContract.documentLocalGeometry,true)
  assert.equal(manifest.toolbarContract.version,2)
@@ -77,7 +106,7 @@ test('runtime footer uses the design renderer and its exact action and text styl
  const source=readFileSync(new URL('../../FormLaboratoryPage.tsx',import.meta.url),'utf8')
  assert.doesNotMatch(source,/renderRuntimeFooter/)
  const footer=source.slice(source.indexOf('  const renderLaboratoryFooter'),source.indexOf('  const latestRecoverySnapshot'))
- for(const name of ['designerActionStyle','designerActionTextStyle','designerActionCode','designerActionLabel','testActionVisible','runRuntimeAction'])assert.ok(footer.includes(name),name)
+ for(const name of ['designerActionStyle','designerActionTextStyle','designerActionCode','designerActionLabel','formActionVisible','runRuntimeAction'])assert.ok(footer.includes(name),name)
  assert.match(footer,/<Shortcut code=\{entryActive/)
  assert.match(footer,/runtimeAction=\{runtimeAction\} codeStyle=/)
  assert.match(footer,/if \(formRuntimeTesting \|\|/)
@@ -161,4 +190,26 @@ test('editing an old sample keeps registration order for incremental-code sugges
  state=formTestReducer(state,{type:'save',id:'unused'})
  assert.deepEqual(state.records.map(row=>row.values.code),['AB8','AB9'])
  assert.equal(state.records[0].id,'r1')
+})
+
+
+test('all footer renderers share mode visibility regardless of translated labels or action identifiers',()=>{
+ const actions=[{id:'custom-save',code:'F3'},{id:'demo-save',code:'F3'},{id:'operational.save',operationId:'record.save',code:'F3'},{id:'new-person',code:'Space'},{id:'edit-person',code:'Insert'},{id:'copy-selected',code:'F4'},{id:'delete-person',code:'Delete'},{id:'reset-sample',code:'Esc'},{id:'custom',code:'Other'}]
+ for(const action of actions){
+  const operation=formTestActionFor(action)
+  assert.equal(formActionVisible('design',action),true)
+  assert.equal(formActionVisible('view',action),operation!=='save')
+  for(const mode of ['create','edit'])assert.equal(formActionVisible(mode,action),operation==='save'||operation==='close')
+ }
+})
+
+test('design rule diagnostics locate broken references without validating empty record data',()=>{
+ const base={...schema,fields:[{...field('code'),componentId:'base-form.code-input',required:true},field('name')]}
+ assert.deepEqual(formRuleStructureIssues(base),[])
+ const broken={...base,uniqueConstraints:[{id:'u2',fieldIds:['name','deleted']}],fields:base.fields.map(f=>f.id==='code'?{...f,validation:[{type:'unique'}],ruleSettings:{scopeFieldIds:['gone']}}:f)}
+ const issues=formRuleStructureIssues(broken)
+ assert.equal(issues[0].section,'field');assert.equal(issues[0].fieldId,'code')
+ assert.equal(issues[1].groupId,'u2');assert.match(issues[1].message,/deleted/)
+ assert.equal(formRuleStructureIssues({...base,uniqueConstraints:[{id:'empty',fieldIds:[]} ]})[0].groupId,'empty')
+ assert.deepEqual(formRuleStructureIssues({...base,uniqueConstraints:[{id:'valid',fieldIds:['code','name']}] }),[])
 })

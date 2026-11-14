@@ -9,7 +9,7 @@ using YarnTrade.Api.Domain;
 namespace YarnTrade.Api.Controllers;
 
 [ApiController, Route("api/yarns"), Authorize]
-public sealed class YarnsController(AppDbContext db) : ControllerBase
+public sealed partial class YarnsController(AppDbContext db) : ControllerBase
 {
     private static readonly Dictionary<string, string> Labels = new()
     {
@@ -27,7 +27,6 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
 
     private static readonly Dictionary<string, HashSet<string>> Allowed = new()
     {
-        [nameof(YarnInput.YarnGroup)] = Set("CN", "IR", "SOHAIL"),
         [nameof(YarnInput.Luster)] = Set("BRIGHT", "SEMI_DULL", "DULL"),
         [nameof(YarnInput.UnitOfMeasure)] = Set("KG", "COUNT", "CONE", "HANK"),
         [nameof(YarnInput.FixStatus)] = Set("SHRINK", "FIXED"),
@@ -56,12 +55,13 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
     public async Task<ActionResult<YarnView>> ById(Guid id, CancellationToken ct)
     {
         var item = await db.YarnItems.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
-        return item is null ? NotFound() : Ok(YarnView.From(item));
+        return item is null ? NotFound() : Ok(await DefinitionView(item, ct));
     }
 
     [RequirePermission("yarns.create")]
     [HttpPost]
-    public async Task<ActionResult<YarnView>> Create(YarnInput input, CancellationToken ct)
+    public Task<ActionResult<YarnView>> Create(YarnInput input, CancellationToken ct) => ProductGroupWriteScope.Run(db, () => CreateCore(input, ct), ct, r => (r.Result as Microsoft.AspNetCore.Mvc.Infrastructure.IStatusCodeActionResult)?.StatusCode is null or < 400);
+    private async Task<ActionResult<YarnView>> CreateCore(YarnInput input, CancellationToken ct)
     {
         var error = await Validate(input, null, ct);
         if (error is not null) return BadRequest(new { error });
@@ -74,15 +74,17 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         var item = new YarnItem { YarnTypeId = yarnType.Id, YarnType = yarnType, Code = string.Empty, NameFa = string.Empty, NameEn = string.Empty };
         Apply(item, input);
         db.YarnItems.Add(item);
+        if (input.Definition is not null) await ApplyDefinition(item, input.Definition, ct);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
         catch (DbUpdateException) { return Conflict(new { error = "کد نخ تکراری است.", code = "DUPLICATE_YARN_CODE" }); }
-        return CreatedAtAction(nameof(ById), new { id = item.Id }, YarnView.From(item));
+        return CreatedAtAction(nameof(ById), new { id = item.Id }, await DefinitionView(item, ct));
     }
 
     [RequirePermission("yarns.edit")]
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<YarnView>> Update(Guid id, YarnInput input, [FromQuery] string? rowVersion, CancellationToken ct)
+    public Task<ActionResult<YarnView>> Update(Guid id, YarnInput input, [FromQuery] string? rowVersion, CancellationToken ct) => ProductGroupWriteScope.Run(db, () => UpdateCore(id, input, rowVersion, ct), ct, r => (r.Result as Microsoft.AspNetCore.Mvc.Infrastructure.IStatusCodeActionResult)?.StatusCode is null or < 400);
+    private async Task<ActionResult<YarnView>> UpdateCore(Guid id, YarnInput input, string? rowVersion, CancellationToken ct)
     {
         var item = await db.YarnItems.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
@@ -91,21 +93,61 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         var error = await Validate(input, id, ct);
         if (error is not null) return BadRequest(new { error });
         Apply(item, input);
+        if (input.Definition is not null) await ApplyDefinition(item, input.Definition, ct);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateConcurrencyException) { return AggregateConcurrency.Conflict(); }
         catch (DbUpdateException) { return Conflict(new { error = "کد نخ تکراری است.", code = "DUPLICATE_YARN_CODE" }); }
-        return Ok(YarnView.From(item));
+        return Ok(await DefinitionView(item, ct));
     }
 
+    [HttpPost("bulk-delete"),RequirePermission("yarns.delete")]
+    public Task<IActionResult> DeleteDefinitionRows(DefinitionBulkDeleteInput input,CancellationToken ct)
+    {
+        var processed=new HashSet<Guid>();
+        return DefinitionBulkDelete.Run(db,input,async(row,token)=>{
+            if(processed.Contains(row.Id))return NoContent();
+            var color=await db.Set<YarnColor>().SingleOrDefaultAsync(x=>x.Id==row.Id,token);
+            var yarnId=color?.YarnId??row.Id;
+            var colors=await db.Set<YarnColor>().Where(x=>x.YarnId==yarnId).ToListAsync(token);
+            if(color is null) {
+                if(colors.Count>0)return DefinitionBulkDelete.Blocked(row.Id,"رنگ‌های این کالا تغییر کرده‌اند؛ جدول را دوباره دریافت کنید.");
+                return await DeleteCore(yarnId,row.RowVersion,token);
+            }
+            var selected=input.Rows.Where(x=>colors.Any(c=>c.Id==x.Id)).ToArray();
+            if(selected.Any(x=>x.RowVersion!=row.RowVersion))return DefinitionBulkDelete.Blocked(row.Id,"نسخهٔ ردیف‌های یک کالا یکسان نیست؛ جدول را دوباره دریافت کنید.");
+            if(selected.Length==colors.Count){var result=await DeleteCore(yarnId,row.RowVersion,token);if(result is NoContentResult)foreach(var chosenRow in selected)processed.Add(chosenRow.Id);return result;}
+            var yarn=await db.YarnItems.SingleAsync(x=>x.Id==yarnId,token);
+            if(AggregateConcurrency.Apply(db,yarn,row.RowVersion) is {} conflict)return conflict;
+            if(await HasHistory(yarnId,token))return DefinitionBulkDelete.Blocked(row.Id,"این کالا سابقهٔ استفاده دارد؛ رنگ آن قابل حذف نیست.");
+            var chosen=selected.Select(x=>x.Id).ToHashSet();
+            var remaining=colors.Where(x=>!chosen.Contains(x.Id)).ToArray();
+            db.RemoveRange(colors.Where(x=>chosen.Contains(x.Id)));
+            await db.SaveChangesAsync(token);
+            if(!remaining.Any(x=>x.IsDefault)){remaining[0].IsDefault=true;await db.SaveChangesAsync(token);}
+            yarn.SearchText=PersianTextNormalizer.Normalize(yarn.Code+" "+yarn.ComprehensiveName+" "+string.Join(' ',remaining.Select(x=>x.Value)));
+            await db.SaveChangesAsync(token);foreach(var chosenRow in selected)processed.Add(chosenRow.Id);return NoContent();
+        },ct,()=>processed.Clear());
+    }
     [RequirePermission("yarns.delete")]
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id, [FromQuery] string? rowVersion, CancellationToken ct)
+    public Task<IActionResult> Delete(Guid id, [FromQuery] string? rowVersion, CancellationToken ct) => ProductGroupWriteScope.Run<IActionResult>(db, () => DeleteCore(id,rowVersion,ct),ct);
+    private async Task<IActionResult> DeleteCore(Guid id,string? rowVersion,CancellationToken ct)
     {
         var item = await db.YarnItems.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
         var concurrency = AggregateConcurrency.Apply(db, item, rowVersion, touch: false);
         if (concurrency is not null) return concurrency;
-        var hasHistory =
+        var hasHistory = await HasHistory(id,ct);
+        if (hasHistory) return Conflict(new { error = "این نخ در تراکنش‌های سیستم استفاده شده و قابل حذف نیست.", code = "YARN_HAS_HISTORY" });
+        db.RemoveRange(await db.Set<YarnColor>().Where(x=>x.YarnId==id).ToListAsync(ct));
+        db.RemoveRange(await db.Set<YarnPackagingCoefficient>().Where(x=>x.YarnId==id).ToListAsync(ct));
+        db.RemoveRange(await db.Set<YarnDefinitionState>().Where(x=>x.YarnId==id).ToListAsync(ct));
+        db.YarnItems.Remove(item);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    private async Task<bool> HasHistory(Guid id,CancellationToken ct) =>
             await db.PurchaseOrderItems.AnyAsync(x => x.YarnItemId == id, ct) ||
             await db.PurchaseInvoiceItems.AnyAsync(x => x.YarnItemId == id, ct) ||
             await db.InventoryMovements.AnyAsync(x => x.YarnItemId == id, ct) ||
@@ -114,11 +156,6 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
             await db.CreditRateRules.AnyAsync(x => x.YarnItemId == id, ct) ||
             await db.SaleItems.AnyAsync(x => x.YarnItemId == id, ct) ||
             await db.PartnerShareRules.AnyAsync(x => x.YarnItemId == id, ct);
-        if (hasHistory) return Conflict(new { error = "این نخ در تراکنش‌های سیستم استفاده شده و قابل حذف نیست.", code = "YARN_HAS_HISTORY" });
-        db.YarnItems.Remove(item);
-        await db.SaveChangesAsync(ct);
-        return NoContent();
-    }
 
     private async Task<string?> Validate(YarnInput input, Guid? currentId, CancellationToken ct)
     {
@@ -131,25 +168,46 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
         foreach (var pair in Allowed)
         {
             var value = typeof(YarnInput).GetProperty(pair.Key)!.GetValue(input) as string;
-            if (!string.IsNullOrWhiteSpace(value) && !pair.Value.Contains(value)) return $"مقدار {pair.Key} معتبر نیست.";
+            if (!string.IsNullOrWhiteSpace(value) && !pair.Value.Contains(value) && (input.Definition is null || !await IsReferenceValue(pair.Key, value, ct))) return $"مقدار {pair.Key} معتبر نیست.";
         }
         if (await db.YarnItems.AnyAsync(x => x.Code == input.Code && x.Id != currentId, ct)) return "کد نخ تکراری است.";
-        return null;
+        if (input.ProductGroupSpecified)
+        {
+            ProductGroupAssignment.Resolution? assignment = null;
+            if (input.ProductGroupId is Guid groupId)
+            {
+                assignment = await ProductGroupAssignment.Resolve(db, groupId, ct);
+                if (assignment is null) return "گروه کالا موجود یا فعال نیست.";
+                if (!assignment.Selectable) return assignment.Message;
+                if (!assignment.InUse && input.ConfirmedProductGroupDepth != assignment.Depth)
+                    return "ساختار گروه باید دوباره بررسی و قفل عمق نهایی آن پیش از ثبت کالا تأیید شود.";
+            }
+            if (currentId is Guid yarnId)
+            {
+                var oldGroup = await db.YarnItems.Where(x => x.Id == yarnId).Select(x => x.ProductGroupId).SingleAsync(ct);
+                if (oldGroup != input.ProductGroupId && await db.InventoryMovements.AnyAsync(x => x.YarnItemId == yarnId, ct))
+                    return "کالای دارای گردش انبار را نمی‌توان به گروه دیگری منتقل کرد.";
+            }
+            if (assignment is not null) assignment.Root.LockedDepth = assignment.Depth;
+        }
+        return input.Definition is null ? null : await ValidateDefinition(input, currentId, ct);
     }
 
     private static void Apply(YarnItem item, YarnInput input)
     {
         item.Code = input.Code.Trim();
+        // Older forms omit this optional binding; never detach their existing group.
+        if (input.ProductGroupSpecified) item.ProductGroupId = input.ProductGroupId;
         item.NameFa = input.Name.Trim();
         item.NameEn = input.Name.Trim();
-        item.YarnGroup = Clean(input.YarnGroup); item.Luster = Clean(input.Luster); item.UnitOfMeasure = input.UnitOfMeasure;
+        item.Luster = Clean(input.Luster); item.UnitOfMeasure = input.UnitOfMeasure;
         item.FixStatus = Clean(input.FixStatus); item.Material = Clean(input.Material); item.SpinType = Clean(input.SpinType);
         item.FilamentNumber = input.FilamentNumber; item.SpinningMethod = Clean(input.SpinningMethod);
         item.ContinuityType = Clean(input.ContinuityType); item.CountValue = input.CountValue; item.CountType = Clean(input.CountType);
         item.TwistAmount = input.TwistAmount; item.TwistType = Clean(input.TwistType); item.PlyCount = (byte)input.PlyCount;
         item.Notes = Clean(input.Notes); item.IsActive = input.IsActive;
         item.ComprehensiveName = BuildName(input);
-        item.SearchText = PersianTextNormalizer.Normalize($"{item.Code} {item.NameFa} {item.ComprehensiveName} {Label(item.YarnGroup)} {Label(item.Material)}");
+        item.SearchText = PersianTextNormalizer.Normalize($"{item.Code} {item.NameFa} {item.ComprehensiveName} {Label(item.Material)}");
     }
 
     private static string BuildName(YarnInput x)
@@ -171,9 +229,14 @@ public sealed class YarnsController(AppDbContext db) : ControllerBase
 
 public sealed class YarnInput
 {
+    public YarnDefinitionInput? Definition { get; set; }
+    private Guid? productGroupId;
+    public Guid? ProductGroupId { get => productGroupId; set { productGroupId = value; ProductGroupSpecified = true; } }
+    public int? ConfirmedProductGroupDepth { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool ProductGroupSpecified { get; private set; }
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
-    public string? YarnGroup { get; set; }
     public string? Luster { get; set; }
     public string UnitOfMeasure { get; set; } = "KG";
     public string? FixStatus { get; set; }
@@ -191,12 +254,13 @@ public sealed class YarnInput
     public bool IsActive { get; set; } = true;
 }
 
-public sealed record YarnView(Guid Id, string Code, string Name, string ComprehensiveName, string? YarnGroup, string? Luster,
+public sealed record YarnView(Guid Id, string Code, string Name, string ComprehensiveName, Guid? ProductGroupId, string? Luster,
     string UnitOfMeasure, string? FixStatus, string? Material, string? SpinType, decimal? FilamentNumber,
     string? SpinningMethod, string? ContinuityType, decimal? CountValue, string? CountType, decimal? TwistAmount,
     string? TwistType, byte PlyCount, string? Notes, bool IsActive, byte[] RowVersion)
 {
-    public static YarnView From(YarnItem x) => new(x.Id, x.Code, x.NameFa, x.ComprehensiveName, x.YarnGroup, x.Luster,
+    public YarnDefinitionResult? Definition { get; init; }
+    public static YarnView From(YarnItem x) => new(x.Id, x.Code, x.NameFa, x.ComprehensiveName, x.ProductGroupId, x.Luster,
         x.UnitOfMeasure, x.FixStatus, x.Material, x.SpinType, x.FilamentNumber, x.SpinningMethod, x.ContinuityType,
         x.CountValue, x.CountType, x.TwistAmount, x.TwistType, x.PlyCount, x.Notes, x.IsActive, x.RowVersion);
 }

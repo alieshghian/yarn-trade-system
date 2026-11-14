@@ -1,0 +1,3221 @@
+{
+  "formId": "form.redesign.f743b7d0-d9f9-49e0-a7a8-bb05a00ddde1",
+  "releaseId": "a348e3e7-ae39-4ff6-b701-7dc55c3201c5",
+  "digest": "8de207e06273ecab06f43cf12cbe3fe206272dca0ed6bf152165e1557a7c8bf5",
+  "schema": {
+    "id": "form.redesign.f743b7d0-d9f9-49e0-a7a8-bb05a00ddde1",
+    "schemaVersion": 1,
+    "version": 1,
+    "status": "draft",
+    "mode": "operational",
+    "title": {
+      "fa": "تعریف نخ — بازطراحی",
+      "en": "تعریف نخ — بازطراحی",
+      "zh": "تعریف نخ — بازطراحی"
+    },
+    "layout": {
+      "direction": "vertical",
+      "gap": 0
+    },
+    "sections": [
+      {
+        "id": "catalog.editor",
+        "kind": "editor",
+        "layout": {
+          "columns": 20,
+          "direction": "horizontal",
+          "gap": 12,
+          "minimumWidth": 1440
+        }
+      },
+      {
+        "id": "catalog.grid.yarns",
+        "kind": "grid"
+      },
+      {
+        "id": "catalog.footer",
+        "kind": "footer"
+      },
+      {
+        "id": "report-row.05670425-8286-4aa1-bbbc-cd8e38565ffd",
+        "kind": "editor",
+        "tableHeaderFor": "yarns",
+        "purpose": "reporting",
+        "title": {
+          "fa": "ردیف گزارش 1",
+          "en": "Report row 1",
+          "zh": "报表行 1"
+        },
+        "layout": {
+          "columns": 20,
+          "direction": "horizontal",
+          "gap": 12
+        }
+      }
+    ],
+    "fields": [
+      {
+        "id": "code",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "base-form.code-input",
+        "label": {
+          "fa": "کد نخ",
+          "en": "کد نخ",
+          "zh": "کد نخ"
+        },
+        "kind": "text",
+        "required": true,
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "code"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 1
+            }
+          },
+          "componentSettings": {
+            "mode": "alphanumeric",
+            "required": true,
+            "unique": true,
+            "incremental": true,
+            "suffixWidth": 3,
+            "format": "legacy",
+            "maxLength": 4
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "code"
+          }
+        ],
+        "valueType": "text",
+        "validation": [
+          {
+            "type": "unique"
+          }
+        ],
+        "ruleSettings": {
+          "normalizeText": false,
+          "scopeFieldIds": [
+            "name",
+            "yarnGroup",
+            "luster",
+            "unitOfMeasure",
+            "material",
+            "filamentNumber",
+            "countValue",
+            "countType",
+            "twistAmount",
+            "twistType"
+          ]
+        }
+      },
+      {
+        "id": "name",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "definition.field",
+        "label": {
+          "fa": "نام نخ",
+          "en": "نام نخ",
+          "zh": "نام نخ"
+        },
+        "kind": "text",
+        "required": true,
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "name"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 6,
+              "columnSpan": 5,
+              "rowStart": 1
+            }
+          }
+        },
+        "columnLinks": [],
+        "validation": [
+          {
+            "type": "unique"
+          }
+        ],
+        "valueType": "alphanumeric"
+      },
+      {
+        "id": "yarnGroup",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "base-form.system-lookup",
+        "label": {
+          "fa": "گروه نخ",
+          "en": "گروه نخ",
+          "zh": "گروه نخ"
+        },
+        "kind": "lookup",
+        "required": true,
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "yarnGroup"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 11,
+              "columnSpan": 5,
+              "rowStart": 1
+            }
+          },
+          "lookupSettings": {
+            "selectedDisplay": "codeAndName",
+            "sourceId": "productGroups",
+            "returnMode": "selectAfterSave"
+          },
+          "listSettings": {
+            "searchEnabled": true,
+            "searchFields": [
+              "value",
+              "code",
+              "name"
+            ],
+            "allowEmpty": false,
+            "addPlacement": "popup",
+            "permissions": {
+              "add": "everyone",
+              "edit": "everyone",
+              "remove": "everyone",
+              "setDefault": "everyone"
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "column.b8333027-77de-440f-9769-088ab7237040"
+          }
+        ],
+        "validation": [],
+        "valueType": "alphanumeric"
+      },
+      {
+        "id": "luster",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "persons.title-control",
+        "label": {
+          "fa": "درخشندگی",
+          "en": "درخشندگی",
+          "zh": "درخشندگی"
+        },
+        "kind": "select",
+        "required": true,
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "luster"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 16,
+              "columnSpan": 5,
+              "rowStart": 1
+            }
+          },
+          "listSettings": {
+            "searchEnabled": false,
+            "searchFields": [
+              "value",
+              "code",
+              "name"
+            ],
+            "permissions": {
+              "add": "everyone",
+              "edit": "everyone",
+              "remove": "everyone",
+              "setDefault": "everyone"
+            },
+            "allowEmpty": false,
+            "addPlacement": "beside"
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "column.ad8b5e40-4de7-4a0e-b95f-198835c163bb"
+          }
+        ],
+        "validation": [],
+        "valueType": "alphanumeric"
+      },
+      {
+        "id": "unitOfMeasure",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "persons.title-control",
+        "label": {
+          "fa": "واحد",
+          "en": "واحد",
+          "zh": "واحد"
+        },
+        "kind": "select",
+        "required": true,
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "unitOfMeasure"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 2
+            }
+          },
+          "listSettings": {
+            "searchEnabled": true,
+            "searchFields": [
+              "name"
+            ],
+            "allowEmpty": false,
+            "addPlacement": "beside",
+            "permissions": {
+              "add": "admin",
+              "edit": "admin",
+              "remove": "admin",
+              "setDefault": "everyone"
+            }
+          }
+        },
+        "columnLinks": [],
+        "valueType": "alphanumeric"
+      },
+      {
+        "id": "material",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "persons.title-control",
+        "label": {
+          "fa": "جنس",
+          "en": "جنس",
+          "zh": "جنس"
+        },
+        "kind": "select",
+        "required": true,
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "material"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 11,
+              "columnSpan": 5,
+              "rowStart": 2
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "material"
+          }
+        ],
+        "validation": [],
+        "ruleSettings": {
+          "dependencies": []
+        },
+        "valueType": "text"
+      },
+      {
+        "id": "filamentNumber",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "definition.field",
+        "label": {
+          "fa": "تعداد فیلامنت",
+          "en": "تعداد فیلامنت",
+          "zh": "تعداد فیلامنت"
+        },
+        "kind": "number",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "filamentNumber"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 3
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "column.ba7b2b93-f002-4589-819b-b01163be086f"
+          }
+        ]
+      },
+      {
+        "id": "countValue",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "definition.field",
+        "label": {
+          "fa": "نمره نخ",
+          "en": "نمره نخ",
+          "zh": "نمره نخ"
+        },
+        "kind": "number",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "countValue"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 16,
+              "columnSpan": 5,
+              "rowStart": 3
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "countValue"
+          }
+        ]
+      },
+      {
+        "id": "continuityType",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "persons.title-control",
+        "label": {
+          "fa": "پیوستگی",
+          "en": "پیوستگی",
+          "zh": "پیوستگی"
+        },
+        "kind": "select",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "continuityType"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 11,
+              "columnSpan": 5,
+              "rowStart": 3
+            }
+          },
+          "listSettings": {
+            "searchEnabled": true,
+            "searchFields": [
+              "value",
+              "code",
+              "name"
+            ],
+            "allowEmpty": false,
+            "addPlacement": "beside",
+            "permissions": {
+              "add": "admin",
+              "edit": "admin",
+              "remove": "admin",
+              "setDefault": "everyone"
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "column.19234477-4bdc-4408-b983-05b95397dd74"
+          }
+        ],
+        "valueType": "alphanumeric",
+        "required": true,
+        "validation": []
+      },
+      {
+        "id": "countType",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "persons.title-control",
+        "label": {
+          "fa": "نوع نمره",
+          "en": "نوع نمره",
+          "zh": "نوع نمره"
+        },
+        "kind": "select",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "countType"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 4
+            }
+          },
+          "listSettings": {
+            "searchEnabled": true,
+            "searchFields": [
+              "name"
+            ],
+            "allowEmpty": false,
+            "addPlacement": "beside",
+            "permissions": {
+              "add": "admin",
+              "edit": "admin",
+              "remove": "admin",
+              "setDefault": "everyone"
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "countType"
+          }
+        ],
+        "valueType": "text"
+      },
+      {
+        "id": "twistAmount",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "definition.field",
+        "label": {
+          "fa": "مقدار تاب",
+          "en": "مقدار تاب",
+          "zh": "مقدار تاب"
+        },
+        "kind": "number",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "twistAmount"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 6,
+              "columnSpan": 5,
+              "rowStart": 4
+            }
+          }
+        },
+        "columnLinks": []
+      },
+      {
+        "id": "twistType",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "persons.title-control",
+        "label": {
+          "fa": "نوع ریس",
+          "en": "نوع تاب",
+          "zh": "نوع تاب"
+        },
+        "kind": "select",
+        "required": true,
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "twistType"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 11,
+              "columnSpan": 5,
+              "rowStart": 4
+            }
+          },
+          "listSettings": {
+            "searchEnabled": false,
+            "searchFields": [
+              "value",
+              "code",
+              "name"
+            ],
+            "allowEmpty": false,
+            "addPlacement": "beside",
+            "permissions": {
+              "add": "everyone",
+              "edit": "everyone",
+              "remove": "everyone",
+              "setDefault": "everyone"
+            }
+          }
+        },
+        "columnLinks": [],
+        "validation": [],
+        "ruleSettings": {
+          "dependencies": [
+            {
+              "fieldId": "code",
+              "mode": "requiredWhenFilled"
+            }
+          ]
+        },
+        "enterEnabled": true,
+        "valueType": "text"
+      },
+      {
+        "id": "plyCount",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "definition.field",
+        "label": {
+          "fa": "تعداد لا",
+          "en": "تعداد لا",
+          "zh": "تعداد لا"
+        },
+        "kind": "number",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "plyCount"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 16,
+              "columnSpan": 5,
+              "rowStart": 4
+            }
+          }
+        },
+        "columnLinks": []
+      },
+      {
+        "id": "notes",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "definition.field",
+        "label": {
+          "fa": "توضیحات",
+          "en": "توضیحات",
+          "zh": "توضیحات"
+        },
+        "kind": "textarea",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "notes"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 5
+            }
+          }
+        },
+        "columnLinks": []
+      },
+      {
+        "id": "isActive",
+        "sectionId": "catalog.editor",
+        "minTracks": 5,
+        "span": 5,
+        "componentId": "definition.field",
+        "label": {
+          "fa": "فعال",
+          "en": "فعال",
+          "zh": "فعال"
+        },
+        "kind": "checkbox",
+        "dataBinding": {
+          "kind": "dataField",
+          "dataFieldId": "isActive"
+        },
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 6,
+              "columnSpan": 5,
+              "rowStart": 5
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "isActive"
+          }
+        ],
+        "enterEnabled": false
+      },
+      {
+        "id": "field.ad0617df-aa97-41b8-b54b-0d8dac8e92e4",
+        "sectionId": "catalog.editor",
+        "minTracks": 1,
+        "span": 5,
+        "label": {
+          "fa": "نام کامل",
+          "en": "نام کامل",
+          "zh": "نام کامل"
+        },
+        "kind": "text",
+        "componentId": "base-form.derived-display",
+        "valueType": "text",
+        "labelPolicy": "editable",
+        "readOnly": true,
+        "settings": {
+          "derivedSettings": {
+            "sourceFieldIds": [
+              "name",
+              "material",
+              "luster",
+              "countValue",
+              "countType",
+              "filamentNumber",
+              "plyCount",
+              "twistAmount"
+            ],
+            "separator": " ",
+            "sourceFormats": {
+              "filamentNumber": {
+                "mode": "valueLabel",
+                "label": "فیلامنت"
+              },
+              "plyCount": {
+                "mode": "valueLabel",
+                "label": "لا"
+              },
+              "twistAmount": {
+                "mode": "valueLabel",
+                "label": "تاب"
+              }
+            }
+          },
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 6
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "comprehensiveName"
+          }
+        ]
+      },
+      {
+        "id": "field.4d30f7f6-d535-4a4b-b799-70178626c641",
+        "sectionId": "catalog.editor",
+        "minTracks": 1,
+        "span": 5,
+        "label": {
+          "fa": "سی بی ام (تن)",
+          "en": "سی بی ام (تن)",
+          "zh": "سی بی ام (تن)"
+        },
+        "kind": "valueList",
+        "componentId": "base-form.packaging-volume",
+        "valueType": "number",
+        "labelPolicy": "editable",
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 7
+            }
+          },
+          "packagingVolumeSettings": {
+            "decimalPlaces": 3,
+            "allowNewTypes": true
+          },
+          "listSettings": {
+            "searchEnabled": false,
+            "searchFields": [
+              "value",
+              "code",
+              "name"
+            ],
+            "allowEmpty": true,
+            "addPlacement": "beside",
+            "permissions": {
+              "add": "everyone",
+              "edit": "everyone",
+              "remove": "everyone",
+              "setDefault": "everyone"
+            }
+          }
+        },
+        "columnLinks": [],
+        "required": true
+      },
+      {
+        "id": "field.74b142df-2a91-4036-afa8-8a52a8a6e4f4",
+        "sectionId": "catalog.editor",
+        "minTracks": 1,
+        "span": 5,
+        "label": {
+          "fa": "رنگ",
+          "en": "رنگ",
+          "zh": "رنگ"
+        },
+        "kind": "valueList",
+        "componentId": "base-form.batch-values",
+        "valueType": "alphanumeric",
+        "labelPolicy": "editable",
+        "settings": {
+          "layout": {
+            "grid": {
+              "columns": 20,
+              "columnStart": 1,
+              "columnSpan": 5,
+              "rowStart": 8
+            }
+          }
+        },
+        "columnLinks": [
+          {
+            "tableId": "yarns",
+            "columnId": "column.0c471b21-c8b1-4742-b909-dceb1d3a44c5"
+          }
+        ],
+        "required": true,
+        "validation": []
+      }
+    ],
+    "tables": [
+      {
+        "id": "yarns",
+        "sectionId": "catalog.grid.yarns",
+        "title": {
+          "fa": "نخ‌ها",
+          "en": "نخ‌ها",
+          "zh": "نخ‌ها"
+        },
+        "dataSourceId": "operational.yarns.yarns",
+        "columns": [
+          {
+            "id": "code",
+            "label": {
+              "fa": "کد نخ",
+              "en": "کد نخ",
+              "zh": "کد نخ"
+            },
+            "binding": {
+              "kind": "dataField",
+              "dataFieldId": "code"
+            },
+            "sourceFieldIds": [
+              "code"
+            ],
+            "sourceLinkIntent": "single",
+            "requiresSourceDecision": false,
+            "order": 0
+          },
+          {
+            "id": "comprehensiveName",
+            "label": {
+              "fa": "نام کامل",
+              "en": "comprehensiveName",
+              "zh": "comprehensiveName"
+            },
+            "binding": {
+              "kind": "formField",
+              "fieldId": "field.ad0617df-aa97-41b8-b54b-0d8dac8e92e4"
+            },
+            "sourceFieldIds": [
+              "field.ad0617df-aa97-41b8-b54b-0d8dac8e92e4"
+            ],
+            "sourceLinkIntent": "single",
+            "requiresSourceDecision": false,
+            "labelSnapshot": {
+              "fa": "نام کامل",
+              "en": "comprehensiveName",
+              "zh": "comprehensiveName"
+            },
+            "sourceFieldLabelSnapshot": {
+              "field.0ecf2c2d-6d0e-453e-9fbe-ffee1d164312": {
+                "fa": "نام کامل",
+                "en": "نام کامل",
+                "zh": "نام کامل"
+              }
+            },
+            "valueType": "alphanumeric",
+            "order": 1
+          },
+          {
+            "id": "column.0c471b21-c8b1-4742-b909-dceb1d3a44c5",
+            "label": {
+              "fa": "رنگ",
+              "en": "رنگ",
+              "zh": "رنگ"
+            },
+            "binding": {
+              "kind": "formField",
+              "fieldId": "field.74b142df-2a91-4036-afa8-8a52a8a6e4f4"
+            },
+            "sourceFieldIds": [
+              "field.74b142df-2a91-4036-afa8-8a52a8a6e4f4"
+            ],
+            "valueComposition": "space",
+            "valueType": "alphanumeric",
+            "width": 160,
+            "visible": true,
+            "sourceLinkIntent": "single",
+            "requiresSourceDecision": false,
+            "order": 2
+          },
+          {
+            "id": "material",
+            "label": {
+              "fa": "جنس",
+              "en": "جنس",
+              "zh": "جنس"
+            },
+            "binding": {
+              "kind": "dataField",
+              "dataFieldId": "material"
+            },
+            "sourceFieldIds": [
+              "material"
+            ],
+            "order": 3
+          },
+          {
+            "id": "column.ad8b5e40-4de7-4a0e-b95f-198835c163bb",
+            "label": {
+              "fa": "درخشندگی",
+              "en": "درخشندگی",
+              "zh": "درخشندگی"
+            },
+            "binding": {
+              "kind": "formField",
+              "fieldId": "luster"
+            },
+            "sourceFieldIds": [
+              "luster"
+            ],
+            "valueComposition": "space",
+            "valueType": "text",
+            "width": 160,
+            "visible": true,
+            "sourceLinkIntent": "single",
+            "requiresSourceDecision": false,
+            "labelSnapshot": {
+              "fa": "درخشندگی",
+              "en": "درخشندگی",
+              "zh": "درخشندگی"
+            },
+            "order": 4
+          },
+          {
+            "id": "countValue",
+            "label": {
+              "fa": "نمره نخ",
+              "en": "نمره نخ",
+              "zh": "نمره نخ"
+            },
+            "binding": {
+              "kind": "dataField",
+              "dataFieldId": "countValue"
+            },
+            "sourceFieldIds": [
+              "countValue"
+            ],
+            "order": 5
+          },
+          {
+            "id": "countType",
+            "label": {
+              "fa": "نوع نمره",
+              "en": "نوع نمره",
+              "zh": "نوع نمره"
+            },
+            "binding": {
+              "kind": "dataField",
+              "dataFieldId": "countType"
+            },
+            "sourceFieldIds": [
+              "countType"
+            ],
+            "order": 6
+          },
+          {
+            "id": "isActive",
+            "label": {
+              "fa": "فعال",
+              "en": "فعال",
+              "zh": "فعال"
+            },
+            "binding": {
+              "kind": "dataField",
+              "dataFieldId": "isActive"
+            },
+            "sourceFieldIds": [
+              "isActive"
+            ],
+            "order": 7
+          },
+          {
+            "id": "column.b8333027-77de-440f-9769-088ab7237040",
+            "label": {
+              "fa": "گروه نخ",
+              "en": "گروه نخ",
+              "zh": "گروه نخ"
+            },
+            "binding": {
+              "kind": "formField",
+              "fieldId": "yarnGroup"
+            },
+            "sourceFieldIds": [
+              "yarnGroup"
+            ],
+            "valueComposition": "space",
+            "valueType": "text",
+            "width": 160,
+            "visible": true,
+            "sourceLinkIntent": "single",
+            "requiresSourceDecision": false,
+            "labelSnapshot": {
+              "fa": "گروه نخ",
+              "en": "گروه نخ",
+              "zh": "گروه نخ"
+            },
+            "order": 8
+          },
+          {
+            "id": "column.ba7b2b93-f002-4589-819b-b01163be086f",
+            "label": {
+              "fa": "تعداد فیلامنت",
+              "en": "تعداد فیلامنت",
+              "zh": "تعداد فیلامنت"
+            },
+            "binding": {
+              "kind": "formField",
+              "fieldId": "filamentNumber"
+            },
+            "sourceFieldIds": [
+              "filamentNumber"
+            ],
+            "valueComposition": "space",
+            "valueType": "number",
+            "width": 160,
+            "visible": true,
+            "sourceLinkIntent": "single",
+            "requiresSourceDecision": false,
+            "labelSnapshot": {
+              "fa": "تعداد فیلامنت",
+              "en": "تعداد فیلامنت",
+              "zh": "تعداد فیلامنت"
+            },
+            "order": 9
+          },
+          {
+            "id": "column.19234477-4bdc-4408-b983-05b95397dd74",
+            "label": {
+              "fa": "پیوستگی",
+              "en": "پیوستگی",
+              "zh": "پیوستگی"
+            },
+            "binding": {
+              "kind": "formField",
+              "fieldId": "continuityType"
+            },
+            "sourceFieldIds": [
+              "continuityType"
+            ],
+            "valueComposition": "space",
+            "valueType": "text",
+            "width": 160,
+            "visible": true,
+            "sourceLinkIntent": "single",
+            "requiresSourceDecision": false,
+            "labelSnapshot": {
+              "fa": "پیوستگی",
+              "en": "پیوستگی",
+              "zh": "پیوستگی"
+            },
+            "order": 10
+          }
+        ],
+        "searchable": true,
+        "columnSelection": true,
+        "rowSelection": "single",
+        "contextMenu": true,
+        "lazyLoading": true,
+        "virtualScrolling": true,
+        "settings": {
+          "toolbar": {
+            "header": {
+              "x": 0,
+              "y": 0.020849900000030175,
+              "width": 1163.322998046875,
+              "height": 81.96875
+            },
+            "title": {
+              "x": 120,
+              "y": 0,
+              "fontSize": 11,
+              "bold": true,
+              "italic": false,
+              "strikeThrough": false,
+              "textColor": "#263a38",
+              "fontFamily": "inherit"
+            },
+            "counter": {
+              "x": 120,
+              "y": 0,
+              "fontSize": 12,
+              "bold": false,
+              "italic": false,
+              "strikeThrough": false,
+              "textColor": "#263a38",
+              "fontFamily": "inherit"
+            },
+            "searchOption:contains": {
+              "x": 6.66669,
+              "y": 2.12967
+            }
+          }
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "operational.new",
+        "code": "Space",
+        "keys": [
+          " "
+        ],
+        "label": {
+          "fa": "شخص جدید",
+          "en": "New person",
+          "zh": "新建人员"
+        },
+        "primary": true,
+        "required": false,
+        "sectionId": "catalog.footer",
+        "operationId": "yarns.new"
+      },
+      {
+        "id": "operational.copyLast",
+        "code": "F2",
+        "keys": [
+          "F2"
+        ],
+        "label": {
+          "fa": "کپی آخرین",
+          "en": "Copy last",
+          "zh": "复制上一条"
+        },
+        "required": false,
+        "sectionId": "catalog.footer",
+        "operationId": "yarns.copyLast"
+      },
+      {
+        "id": "operational.copySelected",
+        "code": "F4",
+        "keys": [
+          "F4"
+        ],
+        "label": {
+          "fa": "کپی انتخابی",
+          "en": "Copy selected",
+          "zh": "复制所选"
+        },
+        "required": false,
+        "sectionId": "catalog.footer",
+        "operationId": "yarns.copySelected"
+      },
+      {
+        "id": "operational.edit",
+        "code": "Insert",
+        "keys": [
+          "Insert"
+        ],
+        "label": {
+          "fa": "ویرایش",
+          "en": "Edit",
+          "zh": "编辑"
+        },
+        "required": false,
+        "sectionId": "catalog.footer",
+        "operationId": "yarns.edit"
+      },
+      {
+        "id": "operational.delete",
+        "code": "Delete",
+        "keys": [
+          "Delete"
+        ],
+        "label": {
+          "fa": "حذف",
+          "en": "Delete",
+          "zh": "删除"
+        },
+        "required": false,
+        "sectionId": "catalog.footer",
+        "operationId": "yarns.delete"
+      },
+      {
+        "id": "operational.save",
+        "code": "F3",
+        "keys": [
+          "F3"
+        ],
+        "label": {
+          "fa": "ذخیره",
+          "en": "Save",
+          "zh": "保存"
+        },
+        "primary": true,
+        "required": false,
+        "sectionId": "catalog.footer",
+        "operationId": "yarns.save"
+      },
+      {
+        "id": "operational.close",
+        "code": "Esc",
+        "keys": [
+          "Escape"
+        ],
+        "label": {
+          "fa": "خروج",
+          "en": "Exit",
+          "zh": "退出"
+        },
+        "required": false,
+        "sectionId": "catalog.footer",
+        "operationId": "yarns.close"
+      }
+    ],
+    "behaviorInstruction": "بازطراحی تعریف نخ؛ اتصال‌های موجود و اعتبارسنجی‌ها حفظ شوند. موارد نیازمند بررسی: نام فراگیر محاسباتی، واحد و ارجاع از اقلام سفارش",
+    "resources": {
+      "dataSourceIds": [
+        "/api/yarns"
+      ],
+      "operationIds": [
+        "yarns.read",
+        "yarns.save"
+      ]
+    },
+    "templateFormId": "form-laboratory.persons-synthetic",
+    "uniqueConstraints": [
+      {
+        "id": "unique.0482928a-eae6-43e7-9204-bc3c6dda9593",
+        "fieldIds": [
+          "name",
+          "code",
+          "yarnGroup",
+          "luster",
+          "unitOfMeasure",
+          "material",
+          "filamentNumber",
+          "countValue",
+          "countType",
+          "twistAmount",
+          "twistType",
+          "continuityType",
+          "plyCount"
+        ],
+        "normalizeText": true
+      }
+    ],
+    "settings": {
+      "shared": {
+        "standardId": "form-laboratory.persons-synthetic",
+        "version": 1,
+        "designer": {
+          "format": "yarn-trade.form-designer-draft",
+          "schemaVersion": 1,
+          "formId": "form-laboratory.persons-synthetic",
+          "overrides": {}
+        }
+      },
+      "specific": {
+        "designer": {
+          "properties": {},
+          "appearance": {},
+          "components": {}
+        },
+        "values": {
+          "operationalSource": {
+            "route": "yarns",
+            "sourceFiles": [
+              "frontend/src/YarnsPage.tsx"
+            ],
+            "api": [
+              "/api/yarns"
+            ],
+            "availability": "operational",
+            "baseline": {
+              "id": "operational.yarns",
+              "schemaVersion": 1,
+              "version": 1,
+              "status": "draft",
+              "mode": "operational",
+              "title": {
+                "fa": "تعریف نخ",
+                "en": "تعریف نخ",
+                "zh": "تعریف نخ"
+              },
+              "layout": {
+                "direction": "vertical",
+                "gap": 0
+              },
+              "sections": [
+                {
+                  "id": "catalog.editor",
+                  "kind": "editor",
+                  "layout": {
+                    "columns": 20,
+                    "direction": "horizontal",
+                    "gap": 12,
+                    "minimumWidth": 1440
+                  }
+                },
+                {
+                  "id": "catalog.grid.yarns",
+                  "kind": "grid"
+                },
+                {
+                  "id": "catalog.footer",
+                  "kind": "footer"
+                }
+              ],
+              "fields": [
+                {
+                  "id": "code",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "کد نخ",
+                    "en": "کد نخ",
+                    "zh": "کد نخ"
+                  },
+                  "kind": "number",
+                  "required": true,
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "code"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 1,
+                        "columnSpan": 5,
+                        "rowStart": 1
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "code"
+                    }
+                  ],
+                  "valueType": "number",
+                  "validation": [
+                    {
+                      "type": "unique"
+                    }
+                  ],
+                  "ruleSettings": {
+                    "normalizeText": false,
+                    "scopeFieldIds": [
+                      "name",
+                      "yarnGroup",
+                      "luster",
+                      "unitOfMeasure",
+                      "material",
+                      "filamentNumber",
+                      "countValue",
+                      "countType",
+                      "twistAmount",
+                      "twistType"
+                    ]
+                  }
+                },
+                {
+                  "id": "name",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "نام نخ",
+                    "en": "نام نخ",
+                    "zh": "نام نخ"
+                  },
+                  "kind": "text",
+                  "required": true,
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "name"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 6,
+                        "columnSpan": 5,
+                        "rowStart": 1
+                      }
+                    }
+                  },
+                  "columnLinks": [],
+                  "validation": [
+                    {
+                      "type": "unique"
+                    }
+                  ]
+                },
+                {
+                  "id": "yarnGroup",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "گروه نخ",
+                    "en": "گروه نخ",
+                    "zh": "گروه نخ"
+                  },
+                  "kind": "select",
+                  "required": true,
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "yarnGroup"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 11,
+                        "columnSpan": 5,
+                        "rowStart": 1
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "yarnGroup"
+                    },
+                    {
+                      "tableId": "yarns",
+                      "columnId": "column.b8333027-77de-440f-9769-088ab7237040"
+                    }
+                  ],
+                  "validation": [
+                    {
+                      "type": "unique"
+                    }
+                  ]
+                },
+                {
+                  "id": "luster",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "درخشندگی",
+                    "en": "درخشندگی",
+                    "zh": "درخشندگی"
+                  },
+                  "kind": "select",
+                  "required": true,
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "luster"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 16,
+                        "columnSpan": 5,
+                        "rowStart": 1
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "column.ad8b5e40-4de7-4a0e-b95f-198835c163bb"
+                    }
+                  ],
+                  "validation": [
+                    {
+                      "type": "unique"
+                    }
+                  ]
+                },
+                {
+                  "id": "unitOfMeasure",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "واحد",
+                    "en": "واحد",
+                    "zh": "واحد"
+                  },
+                  "kind": "select",
+                  "required": true,
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "unitOfMeasure"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 1,
+                        "columnSpan": 5,
+                        "rowStart": 2
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "unitOfMeasure"
+                    }
+                  ]
+                },
+                {
+                  "id": "fixStatus",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "وضعیت تثبیت",
+                    "en": "وضعیت تثبیت",
+                    "zh": "وضعیت تثبیت"
+                  },
+                  "kind": "select",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "fixStatus"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 6,
+                        "columnSpan": 5,
+                        "rowStart": 2
+                      }
+                    }
+                  }
+                },
+                {
+                  "id": "material",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "persons.title-control",
+                  "label": {
+                    "fa": "جنس",
+                    "en": "جنس",
+                    "zh": "جنس"
+                  },
+                  "kind": "select",
+                  "required": true,
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "material"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 11,
+                        "columnSpan": 5,
+                        "rowStart": 2
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "material"
+                    }
+                  ],
+                  "validation": [
+                    {
+                      "type": "unique"
+                    }
+                  ],
+                  "ruleSettings": {
+                    "dependencies": []
+                  },
+                  "valueType": "text"
+                },
+                {
+                  "id": "spinType",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "نوع ریسندگی",
+                    "en": "نوع ریسندگی",
+                    "zh": "نوع ریسندگی"
+                  },
+                  "kind": "select",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "spinType"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 16,
+                        "columnSpan": 5,
+                        "rowStart": 2
+                      }
+                    }
+                  }
+                },
+                {
+                  "id": "filamentNumber",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "تعداد فیلامنت",
+                    "en": "تعداد فیلامنت",
+                    "zh": "تعداد فیلامنت"
+                  },
+                  "kind": "number",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "filamentNumber"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 1,
+                        "columnSpan": 5,
+                        "rowStart": 3
+                      }
+                    }
+                  },
+                  "columnLinks": []
+                },
+                {
+                  "id": "spinningMethod",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "روش ریسندگی",
+                    "en": "روش ریسندگی",
+                    "zh": "روش ریسندگی"
+                  },
+                  "kind": "select",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "spinningMethod"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 6,
+                        "columnSpan": 5,
+                        "rowStart": 3
+                      }
+                    }
+                  }
+                },
+                {
+                  "id": "continuityType",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "پیوستگی",
+                    "en": "پیوستگی",
+                    "zh": "پیوستگی"
+                  },
+                  "kind": "select",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "continuityType"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 11,
+                        "columnSpan": 5,
+                        "rowStart": 3
+                      }
+                    }
+                  }
+                },
+                {
+                  "id": "countValue",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "نمره نخ",
+                    "en": "نمره نخ",
+                    "zh": "نمره نخ"
+                  },
+                  "kind": "number",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "countValue"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 16,
+                        "columnSpan": 5,
+                        "rowStart": 3
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "countValue"
+                    }
+                  ]
+                },
+                {
+                  "id": "countType",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "نوع نمره",
+                    "en": "نوع نمره",
+                    "zh": "نوع نمره"
+                  },
+                  "kind": "select",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "countType"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 1,
+                        "columnSpan": 5,
+                        "rowStart": 4
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "countType"
+                    }
+                  ]
+                },
+                {
+                  "id": "twistAmount",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "مقدار تاب",
+                    "en": "مقدار تاب",
+                    "zh": "مقدار تاب"
+                  },
+                  "kind": "number",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "twistAmount"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 6,
+                        "columnSpan": 5,
+                        "rowStart": 4
+                      }
+                    }
+                  },
+                  "columnLinks": []
+                },
+                {
+                  "id": "twistType",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "نوع ریس",
+                    "en": "نوع تاب",
+                    "zh": "نوع تاب"
+                  },
+                  "kind": "select",
+                  "required": true,
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "twistType"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 11,
+                        "columnSpan": 5,
+                        "rowStart": 4
+                      }
+                    }
+                  },
+                  "columnLinks": [],
+                  "validation": [
+                    {
+                      "type": "unique"
+                    }
+                  ],
+                  "ruleSettings": {
+                    "dependencies": [
+                      {
+                        "fieldId": "code",
+                        "mode": "requiredWhenFilled"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "plyCount",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "تعداد لا",
+                    "en": "تعداد لا",
+                    "zh": "تعداد لا"
+                  },
+                  "kind": "number",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "plyCount"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 16,
+                        "columnSpan": 5,
+                        "rowStart": 4
+                      }
+                    }
+                  }
+                },
+                {
+                  "id": "notes",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "توضیحات",
+                    "en": "توضیحات",
+                    "zh": "توضیحات"
+                  },
+                  "kind": "textarea",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "notes"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 1,
+                        "columnSpan": 5,
+                        "rowStart": 5
+                      }
+                    }
+                  },
+                  "columnLinks": []
+                },
+                {
+                  "id": "isActive",
+                  "sectionId": "catalog.editor",
+                  "minTracks": 5,
+                  "span": 5,
+                  "componentId": "definition.field",
+                  "label": {
+                    "fa": "فعال",
+                    "en": "فعال",
+                    "zh": "فعال"
+                  },
+                  "kind": "checkbox",
+                  "dataBinding": {
+                    "kind": "dataField",
+                    "dataFieldId": "isActive"
+                  },
+                  "settings": {
+                    "layout": {
+                      "grid": {
+                        "columns": 20,
+                        "columnStart": 6,
+                        "columnSpan": 5,
+                        "rowStart": 5
+                      }
+                    }
+                  },
+                  "columnLinks": [
+                    {
+                      "tableId": "yarns",
+                      "columnId": "isActive"
+                    }
+                  ]
+                }
+              ],
+              "tables": [
+                {
+                  "id": "yarns",
+                  "sectionId": "catalog.grid.yarns",
+                  "title": {
+                    "fa": "نخ‌ها",
+                    "en": "نخ‌ها",
+                    "zh": "نخ‌ها"
+                  },
+                  "dataSourceId": "operational.yarns.yarns",
+                  "columns": [
+                    {
+                      "id": "code",
+                      "label": {
+                        "fa": "کد نخ",
+                        "en": "کد نخ",
+                        "zh": "کد نخ"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "code"
+                      },
+                      "sourceFieldIds": [
+                        "code"
+                      ]
+                    },
+                    {
+                      "id": "comprehensiveName",
+                      "label": {
+                        "fa": "نام کامل",
+                        "en": "comprehensiveName",
+                        "zh": "comprehensiveName"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "comprehensiveName"
+                      },
+                      "sourceFieldIds": [
+                        "field.0ecf2c2d-6d0e-453e-9fbe-ffee1d164312"
+                      ],
+                      "sourceLinkIntent": "single",
+                      "requiresSourceDecision": false,
+                      "labelSnapshot": {
+                        "fa": "نام کامل",
+                        "en": "comprehensiveName",
+                        "zh": "comprehensiveName"
+                      },
+                      "sourceFieldLabelSnapshot": {
+                        "field.0ecf2c2d-6d0e-453e-9fbe-ffee1d164312": {
+                          "fa": "نام کامل",
+                          "en": "نام کامل",
+                          "zh": "نام کامل"
+                        }
+                      }
+                    },
+                    {
+                      "id": "yarnGroup",
+                      "label": {
+                        "fa": "گروه نخ",
+                        "en": "گروه نخ",
+                        "zh": "گروه نخ"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "yarnGroup"
+                      },
+                      "sourceFieldIds": [
+                        "yarnGroup"
+                      ]
+                    },
+                    {
+                      "id": "material",
+                      "label": {
+                        "fa": "جنس",
+                        "en": "جنس",
+                        "zh": "جنس"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "material"
+                      },
+                      "sourceFieldIds": [
+                        "material"
+                      ]
+                    },
+                    {
+                      "id": "countValue",
+                      "label": {
+                        "fa": "نمره نخ",
+                        "en": "نمره نخ",
+                        "zh": "نمره نخ"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "countValue"
+                      },
+                      "sourceFieldIds": [
+                        "countValue"
+                      ]
+                    },
+                    {
+                      "id": "countType",
+                      "label": {
+                        "fa": "نوع نمره",
+                        "en": "نوع نمره",
+                        "zh": "نوع نمره"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "countType"
+                      },
+                      "sourceFieldIds": [
+                        "countType"
+                      ]
+                    },
+                    {
+                      "id": "unitOfMeasure",
+                      "label": {
+                        "fa": "واحد",
+                        "en": "واحد",
+                        "zh": "واحد"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "unitOfMeasure"
+                      },
+                      "sourceFieldIds": [
+                        "unitOfMeasure"
+                      ],
+                      "sourceLinkIntent": "single",
+                      "requiresSourceDecision": false
+                    },
+                    {
+                      "id": "isActive",
+                      "label": {
+                        "fa": "فعال",
+                        "en": "فعال",
+                        "zh": "فعال"
+                      },
+                      "binding": {
+                        "kind": "dataField",
+                        "dataFieldId": "isActive"
+                      },
+                      "sourceFieldIds": [
+                        "isActive"
+                      ]
+                    },
+                    {
+                      "id": "column.b8333027-77de-440f-9769-088ab7237040",
+                      "label": {
+                        "fa": "گروه نخ",
+                        "en": "گروه نخ",
+                        "zh": "گروه نخ"
+                      },
+                      "binding": {
+                        "kind": "formField",
+                        "fieldId": "yarnGroup"
+                      },
+                      "sourceFieldIds": [
+                        "yarnGroup"
+                      ],
+                      "valueComposition": "space",
+                      "valueType": "text",
+                      "width": 160,
+                      "visible": true,
+                      "sourceLinkIntent": "single",
+                      "requiresSourceDecision": false,
+                      "labelSnapshot": {
+                        "fa": "گروه نخ",
+                        "en": "گروه نخ",
+                        "zh": "گروه نخ"
+                      }
+                    },
+                    {
+                      "id": "column.ad8b5e40-4de7-4a0e-b95f-198835c163bb",
+                      "label": {
+                        "fa": "درخشندگی",
+                        "en": "درخشندگی",
+                        "zh": "درخشندگی"
+                      },
+                      "binding": {
+                        "kind": "formField",
+                        "fieldId": "luster"
+                      },
+                      "sourceFieldIds": [
+                        "luster"
+                      ],
+                      "valueComposition": "space",
+                      "valueType": "text",
+                      "width": 160,
+                      "visible": true,
+                      "sourceLinkIntent": "single",
+                      "requiresSourceDecision": false,
+                      "labelSnapshot": {
+                        "fa": "درخشندگی",
+                        "en": "درخشندگی",
+                        "zh": "درخشندگی"
+                      }
+                    }
+                  ],
+                  "searchable": true,
+                  "columnSelection": true,
+                  "rowSelection": "single",
+                  "contextMenu": true,
+                  "lazyLoading": true,
+                  "virtualScrolling": true,
+                  "settings": {
+                    "toolbar": {
+                      "header": {
+                        "x": 0,
+                        "y": 0.020849900000030175,
+                        "width": 1163.322998046875,
+                        "height": 81.96875
+                      },
+                      "title": {
+                        "x": 120,
+                        "y": 0,
+                        "fontSize": 11,
+                        "bold": true,
+                        "italic": false,
+                        "strikeThrough": false,
+                        "textColor": "#263a38",
+                        "fontFamily": "inherit"
+                      },
+                      "counter": {
+                        "x": 120,
+                        "y": 0,
+                        "fontSize": 12,
+                        "bold": false,
+                        "italic": false,
+                        "strikeThrough": false,
+                        "textColor": "#263a38",
+                        "fontFamily": "inherit"
+                      }
+                    }
+                  }
+                }
+              ],
+              "actions": [
+                {
+                  "id": "operational.new",
+                  "code": "Space",
+                  "keys": [
+                    " "
+                  ],
+                  "label": {
+                    "fa": "شخص جدید",
+                    "en": "New person",
+                    "zh": "新建人员"
+                  },
+                  "primary": true,
+                  "required": false,
+                  "sectionId": "catalog.footer",
+                  "operationId": "yarns.new"
+                },
+                {
+                  "id": "operational.copyLast",
+                  "code": "F2",
+                  "keys": [
+                    "F2"
+                  ],
+                  "label": {
+                    "fa": "کپی آخرین",
+                    "en": "Copy last",
+                    "zh": "复制上一条"
+                  },
+                  "required": false,
+                  "sectionId": "catalog.footer",
+                  "operationId": "yarns.copyLast"
+                },
+                {
+                  "id": "operational.copySelected",
+                  "code": "F4",
+                  "keys": [
+                    "F4"
+                  ],
+                  "label": {
+                    "fa": "کپی انتخابی",
+                    "en": "Copy selected",
+                    "zh": "复制所选"
+                  },
+                  "required": false,
+                  "sectionId": "catalog.footer",
+                  "operationId": "yarns.copySelected"
+                },
+                {
+                  "id": "operational.edit",
+                  "code": "Insert",
+                  "keys": [
+                    "Insert"
+                  ],
+                  "label": {
+                    "fa": "ویرایش",
+                    "en": "Edit",
+                    "zh": "编辑"
+                  },
+                  "required": false,
+                  "sectionId": "catalog.footer",
+                  "operationId": "yarns.edit"
+                },
+                {
+                  "id": "operational.delete",
+                  "code": "Delete",
+                  "keys": [
+                    "Delete"
+                  ],
+                  "label": {
+                    "fa": "حذف",
+                    "en": "Delete",
+                    "zh": "删除"
+                  },
+                  "required": false,
+                  "sectionId": "catalog.footer",
+                  "operationId": "yarns.delete"
+                },
+                {
+                  "id": "operational.save",
+                  "code": "F3",
+                  "keys": [
+                    "F3"
+                  ],
+                  "label": {
+                    "fa": "ذخیره",
+                    "en": "Save",
+                    "zh": "保存"
+                  },
+                  "primary": true,
+                  "required": false,
+                  "sectionId": "catalog.footer",
+                  "operationId": "yarns.save"
+                },
+                {
+                  "id": "operational.close",
+                  "code": "Esc",
+                  "keys": [
+                    "Escape"
+                  ],
+                  "label": {
+                    "fa": "خروج",
+                    "en": "Exit",
+                    "zh": "退出"
+                  },
+                  "required": false,
+                  "sectionId": "catalog.footer",
+                  "operationId": "yarns.close"
+                }
+              ],
+              "behaviorInstruction": "بازطراحی تعریف نخ؛ اتصال‌های موجود و اعتبارسنجی‌ها حفظ شوند. موارد نیازمند بررسی: نام فراگیر محاسباتی، واحد و ارجاع از اقلام سفارش",
+              "resources": {
+                "dataSourceIds": [
+                  "/api/yarns"
+                ],
+                "operationIds": [
+                  "yarns.read",
+                  "yarns.save"
+                ]
+              },
+              "templateFormId": "form.redesign.5af8eb96-84c1-4dea-b0b9-d300fb23d85a",
+              "uniqueConstraints": [
+                {
+                  "id": "unique.0482928a-eae6-43e7-9204-bc3c6dda9593",
+                  "fieldIds": [
+                    "name",
+                    "code",
+                    "yarnGroup",
+                    "luster",
+                    "unitOfMeasure",
+                    "material",
+                    "filamentNumber",
+                    "countValue",
+                    "countType",
+                    "twistAmount",
+                    "twistType"
+                  ],
+                  "normalizeText": true
+                },
+                {
+                  "id": "unique.e78890a0-f1fe-4993-adfd-08ad2171670e",
+                  "fieldIds": [
+                    "material"
+                  ],
+                  "normalizeText": true
+                }
+              ],
+              "settings": {
+                "shared": {
+                  "standardId": "form-laboratory.persons-synthetic",
+                  "version": 1
+                },
+                "specific": {
+                  "designer": {
+                    "properties": {},
+                    "appearance": {},
+                    "components": {}
+                  },
+                  "values": {
+                    "operationalSource": {
+                      "route": "yarns",
+                      "sourceFiles": [
+                        "frontend/src/YarnsPage.tsx"
+                      ],
+                      "api": [
+                        "/api/yarns"
+                      ],
+                      "availability": "operational",
+                      "baseline": {
+                        "id": "operational.yarns",
+                        "schemaVersion": 1,
+                        "version": 1,
+                        "status": "draft",
+                        "mode": "operational",
+                        "title": {
+                          "fa": "تعریف نخ",
+                          "en": "تعریف نخ",
+                          "zh": "تعریف نخ"
+                        },
+                        "layout": {
+                          "direction": "vertical",
+                          "gap": 0
+                        },
+                        "sections": [
+                          {
+                            "id": "catalog.editor",
+                            "kind": "editor",
+                            "layout": {
+                              "columns": 20,
+                              "direction": "horizontal",
+                              "gap": 12,
+                              "minimumWidth": 1440
+                            }
+                          },
+                          {
+                            "id": "catalog.grid.yarns",
+                            "kind": "grid"
+                          },
+                          {
+                            "id": "catalog.footer",
+                            "kind": "footer"
+                          }
+                        ],
+                        "fields": [
+                          {
+                            "id": "code",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "کد نخ",
+                              "en": "کد نخ",
+                              "zh": "کد نخ"
+                            },
+                            "kind": "text",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "code"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 1,
+                                  "columnSpan": 5,
+                                  "rowStart": 1
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "name",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "نام نخ",
+                              "en": "نام نخ",
+                              "zh": "نام نخ"
+                            },
+                            "kind": "text",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "name"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 6,
+                                  "columnSpan": 5,
+                                  "rowStart": 1
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "yarnGroup",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "گروه نخ",
+                              "en": "گروه نخ",
+                              "zh": "گروه نخ"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "yarnGroup"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 11,
+                                  "columnSpan": 5,
+                                  "rowStart": 1
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "luster",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "درخشندگی",
+                              "en": "درخشندگی",
+                              "zh": "درخشندگی"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "luster"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 16,
+                                  "columnSpan": 5,
+                                  "rowStart": 1
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "unitOfMeasure",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "واحد",
+                              "en": "واحد",
+                              "zh": "واحد"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "unitOfMeasure"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 1,
+                                  "columnSpan": 5,
+                                  "rowStart": 2
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "fixStatus",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "وضعیت تثبیت",
+                              "en": "وضعیت تثبیت",
+                              "zh": "وضعیت تثبیت"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "fixStatus"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 6,
+                                  "columnSpan": 5,
+                                  "rowStart": 2
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "material",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "جنس",
+                              "en": "جنس",
+                              "zh": "جنس"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "material"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 11,
+                                  "columnSpan": 5,
+                                  "rowStart": 2
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "spinType",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "نوع ریسندگی",
+                              "en": "نوع ریسندگی",
+                              "zh": "نوع ریسندگی"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "spinType"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 16,
+                                  "columnSpan": 5,
+                                  "rowStart": 2
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "filamentNumber",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "تعداد فیلامنت",
+                              "en": "تعداد فیلامنت",
+                              "zh": "تعداد فیلامنت"
+                            },
+                            "kind": "number",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "filamentNumber"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 1,
+                                  "columnSpan": 5,
+                                  "rowStart": 3
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "spinningMethod",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "روش ریسندگی",
+                              "en": "روش ریسندگی",
+                              "zh": "روش ریسندگی"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "spinningMethod"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 6,
+                                  "columnSpan": 5,
+                                  "rowStart": 3
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "continuityType",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "پیوستگی",
+                              "en": "پیوستگی",
+                              "zh": "پیوستگی"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "continuityType"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 11,
+                                  "columnSpan": 5,
+                                  "rowStart": 3
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "countValue",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "نمره نخ",
+                              "en": "نمره نخ",
+                              "zh": "نمره نخ"
+                            },
+                            "kind": "number",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "countValue"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 16,
+                                  "columnSpan": 5,
+                                  "rowStart": 3
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "countType",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "نوع نمره",
+                              "en": "نوع نمره",
+                              "zh": "نوع نمره"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "countType"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 1,
+                                  "columnSpan": 5,
+                                  "rowStart": 4
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "twistAmount",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "مقدار تاب",
+                              "en": "مقدار تاب",
+                              "zh": "مقدار تاب"
+                            },
+                            "kind": "number",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "twistAmount"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 6,
+                                  "columnSpan": 5,
+                                  "rowStart": 4
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "twistType",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "نوع تاب",
+                              "en": "نوع تاب",
+                              "zh": "نوع تاب"
+                            },
+                            "kind": "select",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "twistType"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 11,
+                                  "columnSpan": 5,
+                                  "rowStart": 4
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "plyCount",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "تعداد لا",
+                              "en": "تعداد لا",
+                              "zh": "تعداد لا"
+                            },
+                            "kind": "number",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "plyCount"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 16,
+                                  "columnSpan": 5,
+                                  "rowStart": 4
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "notes",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "توضیحات",
+                              "en": "توضیحات",
+                              "zh": "توضیحات"
+                            },
+                            "kind": "textarea",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "notes"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 1,
+                                  "columnSpan": 5,
+                                  "rowStart": 5
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "id": "isActive",
+                            "sectionId": "catalog.editor",
+                            "minTracks": 5,
+                            "span": 5,
+                            "componentId": "definition.field",
+                            "label": {
+                              "fa": "فعال",
+                              "en": "فعال",
+                              "zh": "فعال"
+                            },
+                            "kind": "checkbox",
+                            "dataBinding": {
+                              "kind": "dataField",
+                              "dataFieldId": "isActive"
+                            },
+                            "settings": {
+                              "layout": {
+                                "grid": {
+                                  "columns": 20,
+                                  "columnStart": 6,
+                                  "columnSpan": 5,
+                                  "rowStart": 5
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "tables": [
+                          {
+                            "id": "yarns",
+                            "sectionId": "catalog.grid.yarns",
+                            "title": {
+                              "fa": "نخ‌ها",
+                              "en": "نخ‌ها",
+                              "zh": "نخ‌ها"
+                            },
+                            "dataSourceId": "operational.yarns.yarns",
+                            "columns": [
+                              {
+                                "id": "code",
+                                "label": {
+                                  "fa": "کد نخ",
+                                  "en": "کد نخ",
+                                  "zh": "کد نخ"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "code"
+                                },
+                                "sourceFieldIds": [
+                                  "code"
+                                ]
+                              },
+                              {
+                                "id": "comprehensiveName",
+                                "label": {
+                                  "fa": "comprehensiveName",
+                                  "en": "comprehensiveName",
+                                  "zh": "comprehensiveName"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "comprehensiveName"
+                                },
+                                "sourceFieldIds": []
+                              },
+                              {
+                                "id": "yarnGroup",
+                                "label": {
+                                  "fa": "گروه نخ",
+                                  "en": "گروه نخ",
+                                  "zh": "گروه نخ"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "yarnGroup"
+                                },
+                                "sourceFieldIds": [
+                                  "yarnGroup"
+                                ]
+                              },
+                              {
+                                "id": "material",
+                                "label": {
+                                  "fa": "جنس",
+                                  "en": "جنس",
+                                  "zh": "جنس"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "material"
+                                },
+                                "sourceFieldIds": [
+                                  "material"
+                                ]
+                              },
+                              {
+                                "id": "countValue",
+                                "label": {
+                                  "fa": "نمره نخ",
+                                  "en": "نمره نخ",
+                                  "zh": "نمره نخ"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "countValue"
+                                },
+                                "sourceFieldIds": [
+                                  "countValue"
+                                ]
+                              },
+                              {
+                                "id": "countType",
+                                "label": {
+                                  "fa": "نوع نمره",
+                                  "en": "نوع نمره",
+                                  "zh": "نوع نمره"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "countType"
+                                },
+                                "sourceFieldIds": [
+                                  "countType"
+                                ]
+                              },
+                              {
+                                "id": "unitOfMeasure",
+                                "label": {
+                                  "fa": "واحد",
+                                  "en": "واحد",
+                                  "zh": "واحد"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "unitOfMeasure"
+                                },
+                                "sourceFieldIds": [
+                                  "unitOfMeasure"
+                                ]
+                              },
+                              {
+                                "id": "isActive",
+                                "label": {
+                                  "fa": "فعال",
+                                  "en": "فعال",
+                                  "zh": "فعال"
+                                },
+                                "binding": {
+                                  "kind": "dataField",
+                                  "dataFieldId": "isActive"
+                                },
+                                "sourceFieldIds": [
+                                  "isActive"
+                                ]
+                              }
+                            ],
+                            "searchable": true,
+                            "columnSelection": true,
+                            "rowSelection": "single",
+                            "contextMenu": true,
+                            "lazyLoading": true,
+                            "virtualScrolling": true
+                          }
+                        ],
+                        "actions": [
+                          {
+                            "id": "operational.new",
+                            "code": "Space",
+                            "keys": [
+                              " "
+                            ],
+                            "label": {
+                              "fa": "شخص جدید",
+                              "en": "New person",
+                              "zh": "新建人员"
+                            },
+                            "primary": true,
+                            "required": true,
+                            "sectionId": "catalog.footer",
+                            "operationId": "yarns.new"
+                          },
+                          {
+                            "id": "operational.copyLast",
+                            "code": "F2",
+                            "keys": [
+                              "F2"
+                            ],
+                            "label": {
+                              "fa": "کپی آخرین",
+                              "en": "Copy last",
+                              "zh": "复制上一条"
+                            },
+                            "required": true,
+                            "sectionId": "catalog.footer",
+                            "operationId": "yarns.copyLast"
+                          },
+                          {
+                            "id": "operational.copySelected",
+                            "code": "F4",
+                            "keys": [
+                              "F4"
+                            ],
+                            "label": {
+                              "fa": "کپی انتخابی",
+                              "en": "Copy selected",
+                              "zh": "复制所选"
+                            },
+                            "required": true,
+                            "sectionId": "catalog.footer",
+                            "operationId": "yarns.copySelected"
+                          },
+                          {
+                            "id": "operational.edit",
+                            "code": "Insert",
+                            "keys": [
+                              "Insert"
+                            ],
+                            "label": {
+                              "fa": "ویرایش",
+                              "en": "Edit",
+                              "zh": "编辑"
+                            },
+                            "required": true,
+                            "sectionId": "catalog.footer",
+                            "operationId": "yarns.edit"
+                          },
+                          {
+                            "id": "operational.delete",
+                            "code": "Delete",
+                            "keys": [
+                              "Delete"
+                            ],
+                            "label": {
+                              "fa": "حذف",
+                              "en": "Delete",
+                              "zh": "删除"
+                            },
+                            "required": true,
+                            "sectionId": "catalog.footer",
+                            "operationId": "yarns.delete"
+                          },
+                          {
+                            "id": "first-record",
+                            "code": "Home",
+                            "keys": [
+                              "Home"
+                            ],
+                            "label": {
+                              "fa": "اول",
+                              "en": "First",
+                              "zh": "首条"
+                            },
+                            "sectionId": "catalog.footer"
+                          },
+                          {
+                            "id": "previous-page",
+                            "code": "PgUp",
+                            "keys": [
+                              "PageUp"
+                            ],
+                            "label": {
+                              "fa": "صفحه قبل",
+                              "en": "Previous page",
+                              "zh": "上一页"
+                            },
+                            "sectionId": "catalog.footer"
+                          },
+                          {
+                            "id": "browse-records",
+                            "code": "↑ ↓",
+                            "keys": [
+                              "ArrowUp",
+                              "ArrowDown"
+                            ],
+                            "label": {
+                              "fa": "مرور",
+                              "en": "Browse",
+                              "zh": "浏览"
+                            },
+                            "sectionId": "catalog.footer"
+                          },
+                          {
+                            "id": "next-page",
+                            "code": "PgDn",
+                            "keys": [
+                              "PageDown"
+                            ],
+                            "label": {
+                              "fa": "صفحه بعد",
+                              "en": "Next page",
+                              "zh": "下一页"
+                            },
+                            "sectionId": "catalog.footer"
+                          },
+                          {
+                            "id": "last-record",
+                            "code": "End",
+                            "keys": [
+                              "End"
+                            ],
+                            "label": {
+                              "fa": "آخر",
+                              "en": "Last",
+                              "zh": "末条"
+                            },
+                            "sectionId": "catalog.footer"
+                          },
+                          {
+                            "id": "action-settings",
+                            "code": "⚙",
+                            "label": {
+                              "fa": "تنظیمات",
+                              "en": "Settings",
+                              "zh": "设置"
+                            },
+                            "iconOnly": true,
+                            "sectionId": "catalog.footer"
+                          },
+                          {
+                            "id": "operational.save",
+                            "code": "F3",
+                            "keys": [
+                              "F3"
+                            ],
+                            "label": {
+                              "fa": "ذخیره",
+                              "en": "Save",
+                              "zh": "保存"
+                            },
+                            "primary": true,
+                            "required": true,
+                            "sectionId": "catalog.footer",
+                            "operationId": "yarns.save"
+                          },
+                          {
+                            "id": "operational.close",
+                            "code": "Esc",
+                            "keys": [
+                              "Escape"
+                            ],
+                            "label": {
+                              "fa": "خروج",
+                              "en": "Exit",
+                              "zh": "退出"
+                            },
+                            "required": true,
+                            "sectionId": "catalog.footer",
+                            "operationId": "yarns.close"
+                          }
+                        ],
+                        "behaviorInstruction": "بازطراحی تعریف نخ؛ اتصال‌های موجود و اعتبارسنجی‌ها حفظ شوند. موارد نیازمند بررسی: نام فراگیر محاسباتی، واحد و ارجاع از اقلام سفارش",
+                        "resources": {
+                          "dataSourceIds": [
+                            "/api/yarns"
+                          ],
+                          "operationIds": [
+                            "yarns.read",
+                            "yarns.save"
+                          ]
+                        },
+                        "templateFormId": "form-laboratory.persons-synthetic",
+                        "settings": {
+                          "shared": {
+                            "standardId": "form-laboratory.persons-synthetic",
+                            "version": 1
+                          }
+                        }
+                      }
+                    },
+                    "redesignIntent": "appearance"
+                  }
+                }
+              }
+            }
+          },
+          "redesignIntent": "appearance",
+          "sharedAttributeUniquenessRepair20261113": true
+        }
+      }
+    }
+  }
+}

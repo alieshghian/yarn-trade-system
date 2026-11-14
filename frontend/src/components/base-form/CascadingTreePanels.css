@@ -1,0 +1,272 @@
+.cascading-tree-panels{width:100%;min-width:0;box-sizing:border-box;color:var(--text,#202b32);background:var(--surface,#fff);border:1px solid var(--border,#e2e7e9);border-radius:14px;padding:14px;display:grid;gap:11px}
+.cascading-tree-panels *{box-sizing:border-box}
+.cascading-tree-panels button,.cascading-tree-panels input{font:inherit;color:inherit}
+.cascading-tree-panels button{cursor:pointer}
+.cascading-tree-panels button:disabled{opacity:.48;cursor:not-allowed}
+.cascading-tree-header{display:flex;justify-content:space-between;align-items:center;gap:12px;border-radius:var(--lab-tree-header-radius,0px);background-clip:padding-box}
+.cascading-tree-header h2{font-size:1.15rem;margin:0 0 4px}
+.cascading-tree-header p{font-size:.75rem;color:var(--muted,#667782);margin:0}
+.cascading-tree-limit{display:inline-block;padding:5px 10px;background:var(--lab-bg,#f2f5f6);border:1px solid var(--lab-border,var(--border,#e2e7e9));border-radius:var(--lab-radius,20px);white-space:nowrap;font-size:var(--lab-font-size,.75rem);font-family:var(--lab-font,inherit);font-weight:var(--lab-font-weight,inherit);font-style:var(--lab-font-style,inherit);color:var(--lab-text,inherit)}
+.cascading-tree-toolbar,.cascading-tree-add-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cascading-tree-toolbar button,.cascading-tree-add-actions button{border:1px solid #d2dce0;padding:7px 12px;background:#fff;color:#354954;border-radius:8px}
+.cascading-tree-toolbar button:hover:not(:disabled),.cascading-tree-column-foot button:hover:not(:disabled){background:#edf4f8}
+.cascading-tree-scroll{overflow-x:auto;padding-bottom:4px}
+.cascading-tree-columns{display:grid;grid-template-columns:repeat(5,minmax(165px,1fr));gap:7px;min-width:860px;align-items:stretch}
+.cascading-tree-column{display:flex;flex-direction:column;height:312px;min-width:0;border:1px solid #dce3e7;border-radius:var(--tree-column-radius,11px);overflow:hidden;background:#fff}
+.cascading-tree-column-head{display:flex;flex-direction:column;gap:5px;min-height:66px;background:#f4f6f7;padding:10px 11px;border-bottom:1px solid #e2e7ea}
+.cascading-tree-column-head strong{font-size:.82rem}
+.cascading-tree-column-head span{font-size:.7rem;color:#6a7c85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cascading-tree-items{flex:1;overflow-y:auto;min-height:0;padding:7px 6px}
+.cascading-tree-node-row{display:flex;align-items:center;gap:4px;min-width:0}
+.cascading-tree-items[data-report-list] .cascading-tree-node-row{height:var(--tree-report-row-height,38px);min-height:var(--tree-report-row-height,38px);flex-shrink:0}
+.cascading-tree-ancestor,.cascading-tree-node{width:100%;min-height:38px;border:0;border-radius:var(--lab-radius,8px);text-align:right;background:transparent;padding:8px 9px;display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:.82rem;color:#24343d}
+.cascading-tree-node:hover{background:#f0f6fa}
+.cascading-tree-node:focus{background:#dceaf5;font-weight:700}
+.cascading-tree-node span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cascading-tree-ancestor{font-weight:700}
+.cascading-tree-change{flex:none;border:0;background:transparent;color:#567080;padding:4px 6px;border-radius:5px;font-size:.72rem}
+.cascading-tree-change:hover{background:#e1ebf1}
+.cascading-tree-empty{color:#91a0a8;font-size:.7rem;margin:5px 0;padding:8px 6px}
+.cascading-tree-column-foot{border-top:1px solid #e7ebef;padding:6px}
+.cascading-tree-browse-actions{display:flex;align-items:stretch;gap:4px;min-width:0}
+.cascading-tree-browse-actions>*{flex:1 1 0;min-width:0}
+:is(#root,.form-document-dialog) .cascading-tree-browse-actions button{box-sizing:border-box;height:36px!important;min-height:36px!important;max-height:36px!important;padding:4px!important;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:3px}
+.cascading-tree-column-foot button{width:100%;padding:7px;color:#50636e;background:#fff;border:1px solid #d2dce0;border-radius:18px;font-size:.75rem}
+.cascading-tree-add{display:flex;flex-direction:column;gap:8px;margin:0;padding:11px;border:1px solid #d9e2e7;background:#fafcfd;border-radius:10px}
+.cascading-tree-add strong{font-size:.82rem}
+.cascading-tree-add label{font-size:.75rem}
+.cascading-tree-add input{background:#fff;border:1px solid #cbd6db;padding:8px 10px;border-radius:7px}
+.cascading-tree-add-actions button:first-child{background:#176b59;color:#fff;border-color:#176b59}
+.cascading-tree-error{color:#b02738;font-size:.75rem;margin:0}
+.cascading-tree-breadcrumb{display:flex;flex-direction:column;gap:7px;margin-top:3px;padding:11px;border-radius:9px;background:#f3f6f8}
+.cascading-tree-breadcrumb strong{font-size:.8rem}
+.cascading-tree-breadcrumb nav{display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:24px;font-size:.82rem}
+.cascading-tree-crumb{display:inline-flex;gap:5px;align-items:center}
+.cascading-tree-crumb button{border:0;background:transparent;color:#344f61;border-radius:5px;padding:3px 5px}
+.cascading-tree-crumb button:hover{background:#e1ebf1}
+.cascading-tree-breadcrumb small{color:#74858e;font-size:.7rem}
+.cascading-tree-status{color:var(--muted,#718582);font-size:.75rem}
+.cascading-tree-panels button:focus-visible,.cascading-tree-panels input:focus-visible{outline:2px solid #338bbb;outline-offset:2px}
+
+/* Keep the tree's reference layout intact while exposing each part to the shared Laboratory designer. */
+.cascading-tree-panels .lab-tree-part{position:relative;min-width:0;display:block;grid-column:auto;overflow:visible;--lab-width:initial;--lab-height:initial;--lab-offset:initial}
+.cascading-tree-panels .lab-tree-part>div{display:block;position:relative;min-width:0}
+.cascading-tree-panels .lab-tree-part>div>span:first-child{display:none}
+.cascading-tree-panels .lab-tree-part .laboratory-field-select{display:none}
+.cascading-tree-panels .lab-tree-part>div>.designer-input-part{display:block;position:relative;width:var(--lab-width,100%);height:var(--lab-height,auto);transform:var(--lab-offset,none);overflow:visible}
+.cascading-tree-column>.lab-tree-part:has(.cascading-tree-items){flex:1;min-height:0;overflow:auto}
+.cascading-tree-panels .lab-tree-part>div>.designer-input-part>button:hover:not(:disabled){background-color:var(--lab-hover,var(--lab-bg,#edf4f8));color:var(--lab-hover-text,var(--lab-text,inherit));border-color:var(--lab-hover-border,var(--lab-border,#d2dce0))}
+.cascading-tree-panels .lab-tree-part>div>.designer-input-part>button:disabled,.cascading-tree-panels .lab-tree-part>div>.designer-input-part>input:disabled{background-color:var(--lab-disabled,var(--lab-bg,#f4f6f7));color:var(--lab-disabled-text,var(--lab-text,#91a0a8));border-color:var(--lab-disabled-border,var(--lab-border,#dce3e7))}
+.cascading-tree-panels .lab-tree-part>div>.designer-input-part>.is-selected{background-color:var(--lab-selected,var(--lab-bg,#dceaf5))}
+.cascading-tree-panels .lab-tree-part>div>.designer-input-part>input:focus{background-color:var(--lab-focus-bg,var(--lab-bg,#fff));color:var(--lab-focus-text,var(--lab-text,inherit));border-color:var(--lab-focus-border,var(--lab-border,#338bbb))}
+.cascading-tree-panels .lab-tree-part .designer-input-part .cascading-tree-column-head strong,.cascading-tree-panels .lab-tree-part .designer-input-part .cascading-tree-node{font-family:var(--lab-font,inherit);font-size:var(--lab-font-size,.82rem);color:var(--lab-text,inherit)}
+.cascading-tree-panels .lab-tree-part.is-selected>div>.designer-input-part{outline:2px solid var(--accent,#208579);outline-offset:2px;border-radius:6px}
+
+.lab-custom-field>div{display:flex;flex-direction:column;gap:6px;min-width:0}
+.lab-custom-field>div>.designer-input-part{display:block;width:100%}
+
+/* Explicit column selectors remain available when its body contains nested targets. */
+.cascading-tree-column-host{position:relative;min-width:0}
+.cascading-tree-panels .cascading-tree-column-host>.lab-tree-part>.laboratory-field-select{display:block;position:absolute;z-index:8;top:4px;left:4px;right:auto;width:22px;height:22px}
+
+/* Fixed designer bounds must never shrink the grid rows and cut off column footers. */
+.cascading-tree-panels{align-content:start;grid-auto-rows:max-content;overflow:auto}
+.cascading-tree-column>.lab-tree-part{flex-shrink:0}
+.cascading-tree-column>.lab-tree-part:has(.cascading-tree-items){flex:1 1 0;min-height:0;overflow:hidden}
+.cascading-tree-column>.lab-tree-part:has(.cascading-tree-items)>div,.cascading-tree-column>.lab-tree-part:has(.cascading-tree-items)>div>.designer-input-part{height:100%;min-height:0}
+.cascading-tree-column .cascading-tree-items{height:100%;overflow:auto;min-height:0}
+.cascading-tree-column-foot{flex-shrink:0}
+.cascading-tree-node-row>.lab-tree-part:first-child{flex:1;min-width:0}
+
+/* A column fill covers its complete surface; child-specific inline styles remain editable. */
+:is(#root,.form-document-dialog) .cascading-tree-column{background-color:var(--tree-column-fill,#fff)}
+:is(#root,.form-document-dialog) .cascading-tree-column-head{background-color:var(--tree-column-fill,#f4f6f7);border-radius:var(--tree-column-radius,11px) var(--tree-column-radius,11px) 0 0;background-clip:padding-box}
+:is(#root,.form-document-dialog) .cascading-tree-column-foot,:is(#root,.form-document-dialog) .cascading-tree-column .cascading-tree-items{background-color:var(--tree-column-fill,transparent)}
+:is(#root,.form-document-dialog) .cascading-tree-column-foot{border-radius:0 0 var(--tree-column-radius,11px) var(--tree-column-radius,11px);background-clip:padding-box}
+:is(#root,.form-document-dialog) .cascading-tree-column .lab-tree-part>div>.designer-input-part{background-color:var(--tree-column-fill,transparent)}
+
+/* Dedicated designer chrome lives outside the column's nested fields. */
+:is(#root,.form-document-dialog) .cascading-tree-panels .cascading-tree-panel-selector{display:block;position:absolute;top:-20px;left:4px;z-index:110;pointer-events:auto;width:19px;height:18px;min-height:0;margin:0;padding:0;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--muted);font:inherit;font-size:11px;line-height:1;cursor:pointer;text-align:center;box-shadow:none}
+:is(#root,.form-document-dialog) .cascading-tree-panels .cascading-tree-panel-selector[aria-pressed="true"]{background:var(--lab-selected,var(--teal));color:#fff;border-color:var(--lab-selected,var(--teal))}
+:is(#root,.form-document-dialog) .cascading-tree-panels .cascading-tree-panel-selector:focus-visible{outline:2px solid #208579;outline-offset:2px}
+:is(#root,.form-document-dialog) .cascading-tree-panels .cascading-tree-column-host>.lab-tree-part>.laboratory-field-select{display:none}
+
+.cascading-tree-toolbar>.lab-tree-part:has(.cascading-tree-inline-path){flex:1;min-width:180px}
+.cascading-tree-inline-path{display:flex;flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px;margin:0;padding:4px 8px;background:transparent}
+.cascading-tree-inline-path nav{min-height:0}
+.cascading-tree-status:empty{display:none}
+.cascading-tree-header{min-height:0}
+
+/* The selected path is compact toolbar text, without designer geometry or a separate panel. */
+:is(#root,.form-document-dialog) .cascading-tree-toolbar>.cascading-tree-path-text{display:flex;flex:1 1 180px;align-items:center;flex-wrap:wrap;gap:5px 10px;min-width:0;width:auto;height:auto;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;font-size:.75rem;color:var(--muted,#667782)}
+:is(#root,.form-document-dialog) .cascading-tree-path-text nav{display:flex;align-items:center;flex-wrap:wrap;gap:4px;min-height:0;font-size:inherit}
+:is(#root,.form-document-dialog) .cascading-tree-path-text small{font-size:.7rem;white-space:nowrap}
+
+/* Geometry uses physical left/top coordinates; text keeps RTL inside the rectangle. */
+.cascading-tree-panels .lab-tree-part>div{direction:ltr}
+.cascading-tree-panels .lab-tree-part>div>.designer-input-part{direction:rtl}
+/* Each nested Designer part owns its radius. This stops a selected composite
+   radius from flowing through the tree into search inputs and item controls. */
+.cascading-tree-panels .lab-tree-part>div>.designer-input-part{--lab-radius:8px}
+
+/* The outer tree is a resizable layout, not a second scroll viewport. */
+.cascading-tree-panels{overflow:visible;display:flex;flex-direction:column}
+.cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header),.cascading-tree-panels>.cascading-tree-toolbar{flex:none}
+.cascading-tree-panels>.cascading-tree-scroll{flex:0 0 auto;min-height:0;overflow-x:auto;overflow-y:hidden}
+.cascading-tree-panels>.cascading-tree-scroll>.cascading-tree-columns{height:auto;align-items:start}
+.cascading-tree-column-host{display:flex;flex-direction:column;min-height:0}
+.cascading-tree-column-host>.lab-tree-part{flex:none;min-height:0}
+.cascading-tree-column-host>.lab-tree-part>div{height:auto}
+.cascading-tree-column-host>.lab-tree-part>div>.designer-input-part{height:var(--lab-height,312px)}
+.cascading-tree-column-host>.lab-tree-part>div>.designer-input-part>.cascading-tree-column{height:100%;min-height:160px}
+
+/* The composite shell owns its dimensions just like its editable parts. */
+.lab-custom-field:has(>.laboratory-field-select) >div:has(>.designer-input-part>.cascading-tree-panels){direction:ltr}
+.lab-custom-field>div>.designer-input-part:has(>.cascading-tree-panels){width:var(--lab-width,100%);height:var(--lab-height,auto);transform:var(--lab-offset,none);max-width:none;direction:rtl}
+
+/* Legacy fixed editor viewports must not clip the composite resize surface. */
+.laboratory-editor:has(.cascading-tree-panels){overflow:visible!important;direction:ltr}
+.laboratory-form-grid:has(.cascading-tree-panels){direction:rtl}
+
+/* The tree is a frameless group of independently editable panels. Saved shell
+   fills must not recreate the removed frame around those panels. */
+:is(#root,.form-document-dialog) .designer-input-part:has(>.cascading-tree-panels){background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;padding:0!important}
+
+/* Selection chrome travels with the column, outside its content scroll area.
+   Only design surfaces overflow; the lists retain their own scrolling. */
+.cascading-tree-panels.is-designing>.cascading-tree-scroll{overflow:visible!important}
+.cascading-tree-panels.is-designing .cascading-tree-column-host{padding-top:0}
+.cascading-tree-panels.is-designing .cascading-tree-column{position:relative;overflow:visible}
+:is(#root,.form-document-dialog) .cascading-tree-panels.is-designing .cascading-tree-column>.cascading-tree-panel-selector{position:absolute;top:-20px;left:4px;right:auto;width:19px;height:18px;min-height:0;margin:0;z-index:110;cursor:pointer;touch-action:manipulation;user-select:none}
+:is(#root,.form-document-dialog) .cascading-tree-panels.is-designing .cascading-tree-column{pointer-events:auto!important;user-select:none}
+:is(#root,.form-document-dialog) .cascading-tree-panels.is-designing .lab-tree-part.is-selected > div > .designer-input-part > .designer-edge-handle{z-index:120;pointer-events:auto}
+:is(#root,.form-document-dialog) .cascading-tree-panels.is-designing .lab-tree-part.is-selected > div > .designer-input-part > :is(.designer-edge-left,.designer-edge-right){width:20px}
+:is(#root,.form-document-dialog) .cascading-tree-panels.is-designing .lab-tree-part.is-selected > div > .designer-input-part > :is(.designer-edge-top,.designer-edge-bottom){height:20px}
+.cascading-tree-panels.is-designing .cascading-tree-column-host:has(.is-selected),
+.cascading-tree-panels.is-designing .cascading-tree-column-host:has(.cascading-tree-panel-selector[aria-pressed="true"]){z-index:100}
+.cascading-tree-panels.is-designing .lab-tree-part.is-selected{z-index:101}
+.cascading-tree-panels.is-designing .lab-tree-part.is-selected>div>.designer-input-part{z-index:102}
+.base-form-editor:has(.cascading-tree-panels.is-designing){overflow:visible}
+.form-document-section:has(.cascading-tree-panels.is-designing),
+.form-document-section-children:has(.cascading-tree-panels.is-designing){overflow:visible!important}
+.form-document-editor:has(.cascading-tree-panels.is-designing){position:relative;z-index:20}
+
+/* Keep the editor and the report in separate paint/scroll panes. Selected
+   columns may overflow their local lists, but never cover the report header. */
+:is(#root,.form-document-dialog) .base-form-shell>.base-form-editor:has(.cascading-tree-panels){overflow:auto;isolation:isolate;position:relative;z-index:0}
+:is(#root,.form-document-dialog) .base-form-shell:has(.cascading-tree-panels)>.base-form-grid{position:relative;isolation:isolate;z-index:1;overflow:clip}
+:is(#root,.form-document-dialog) .base-form-shell:has(.cascading-tree-panels)>.base-form-grid>.laboratory-grid{overflow:clip;display:flex;flex-direction:column}
+:is(#root,.form-document-dialog) .base-form-shell:has(.cascading-tree-panels)>.base-form-grid .grid-toolbar-panels{flex-shrink:0}
+.cascading-tree-body{display:flex;flex-direction:column;gap:11px;min-width:0;min-height:0}
+.cascading-tree-body>.cascading-tree-scroll{flex:0 0 auto;min-height:0;overflow-x:auto;overflow-y:hidden;direction:ltr;padding-top:22px}
+.cascading-tree-body>.cascading-tree-scroll>.cascading-tree-columns{direction:rtl;align-items:start;height:auto}
+.cascading-tree-panels.is-designing .cascading-tree-body>.cascading-tree-scroll{overflow:visible}
+:is(#root,.form-document-dialog) .lab-custom-field:has(.cascading-tree-panels)>div>span:has(>.designer-label-part){display:none;pointer-events:none}
+:is(#root,.form-document-dialog) .laboratory-editor:has(.cascading-tree-panels){padding:0}
+:is(#root,.form-document-dialog) .base-form-shell>.base-form-editor:has(.cascading-tree-panels){direction:ltr}
+:is(#root,.form-document-dialog) .laboratory-form-grid:has(.cascading-tree-panels){width:100%;min-width:0!important;--form-schema-grid-min-width:0px}
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header){flex:0 0 auto;min-height:32px}
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header)>div>.designer-input-part{min-height:32px;display:block}
+:is(#root,.form-document-dialog) .lab-custom-field:has(.cascading-tree-panels)>div{gap:0}
+:is(#root,.form-document-dialog) .lab-custom-field>div>.designer-input-part:has(>.cascading-tree-panels){position:relative!important;left:0!important;top:0!important;width:100%!important;height:auto!important;transform:none!important}
+:is(#root,.form-document-dialog) .lab-custom-field:has(.cascading-tree-panels)>.laboratory-field-select,
+:is(#root,.form-document-dialog) .designer-input-part:has(>.cascading-tree-panels)>.designer-edge-handle,
+:is(#root,.form-document-dialog) .designer-input-part:has(>.cascading-tree-panels)>.designer-move-handle{display:none}
+:is(#root,.form-document-dialog) .designer-input-part:has(>.cascading-tree-panels){outline:none!important}
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header),
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-body){width:100%!important;min-width:0;position:relative}
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header)>div>.designer-input-part,
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-body)>div>.designer-input-part{width:100%!important;max-width:none;transform:none!important;box-sizing:border-box}
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header)>.laboratory-field-select,
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-body)>.laboratory-field-select{display:block;position:absolute;left:0;right:auto;top:0;z-index:125}
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header)>div>.designer-input-part>.designer-move-handle,
+:is(#root,.form-document-dialog) .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-body)>div>.designer-input-part>.designer-move-handle{display:none}
+.cascading-tree-header{width:100%;height:100%;min-height:32px}
+
+/* The selector is attached to its own input geometry by the shared renderer;
+   it must not remain at a toolbar slot's origin after the input is moved. */
+:is(#root,.form-document-dialog) .cascading-tree-toolbar>.lab-tree-part .laboratory-field-select{display:block;right:auto;z-index:125}
+:is(#root,.form-document-dialog) .cascading-tree-panels .lab-tree-part>div>.designer-input-part{border-radius:var(--lab-radius,8px)}
+:is(#root,.form-document-dialog) .cascading-tree-toolbar>.lab-tree-part:has(.cascading-tree-path-text){flex:1 1 180px;min-width:180px}
+:is(#root,.form-document-dialog) .cascading-tree-toolbar>.lab-tree-part:has(.cascading-tree-path-text)>div>.designer-input-part{display:flex;align-items:center;flex-wrap:wrap;gap:5px 10px;width:100%;min-width:0}
+:is(#root,.form-document-dialog) .cascading-tree-toolbar .cascading-tree-path-text{display:flex;flex:1 1 180px;align-items:center;flex-wrap:wrap;gap:5px 10px;min-width:0;width:100%;margin:0;padding:0;border:0;border-radius:var(--lab-radius,8px);background:transparent;box-shadow:none;overflow:visible;color:var(--lab-text,var(--muted,#667782));font-family:var(--lab-font,inherit);font-size:var(--lab-font-size,.75rem)}
+:is(#root,.form-document-dialog) .cascading-tree-toolbar .cascading-tree-path-text nav{display:flex;align-items:center;justify-content:var(--lab-inline-content-align,flex-start);flex-wrap:wrap;gap:4px;min-height:0;font-size:inherit}
+:is(#root,.form-document-dialog) .cascading-tree-toolbar>.lab-tree-part:has(.cascading-tree-status-text){flex:0 0 auto;min-width:0}
+:is(#root,.form-document-dialog) .cascading-tree-toolbar>.lab-tree-part:has(.cascading-tree-status-text)>div>.designer-input-part{width:max-content;min-width:0}
+:is(#root,.form-document-dialog) .cascading-tree-toolbar .cascading-tree-status-text{display:block;margin:0;padding:0;color:var(--lab-text,var(--muted,#667782));font-family:var(--lab-font,inherit);font-size:var(--lab-font-size,.75rem);white-space:nowrap}
+
+/* Moving the action strip changes the real shell height. The workspace scrolls
+   the expanded form, while the report's 1fr track grows with the shell. */
+:is(#root,.form-document-dialog) .laboratory-workspace:has(>.base-form-shell .laboratory-footer-stack){overflow:auto}
+:is(#root,.form-document-dialog) .laboratory-workspace:has(>.base-form-shell .laboratory-footer-stack)>.base-form-shell{height:calc(100% + var(--lab-action-bar-offset-y,0px));min-height:max(320px,calc(100% + var(--lab-action-bar-offset-y,0px)));flex:none}
+
+/* A tree editor has one title row and one input surface. The input surface
+   fills the remaining editor pane, including the space below its columns. */
+:is(#root,.form-document-dialog) .base-form-shell:has(.laboratory-editor[data-tree-editor]){padding:0;box-sizing:border-box;max-height:calc(100dvh - 220px)}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor]{display:flex;flex-direction:column;width:100%;height:100%;min-height:0;border:0;border-radius:0;box-shadow:none;background:var(--surface,#fff);padding:0}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor]>.laboratory-form-grid{display:grid;grid-template-rows:minmax(min-content,1fr);align-items:stretch;flex:1 0 auto;gap:0;padding:0;margin:0;width:100%;min-width:0}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor]>.laboratory-form-grid>.lab-custom-field{display:flex;flex-direction:column;flex:1;align-self:stretch;justify-self:stretch;width:100%;min-width:0;padding:0;border:0;border-radius:0;margin:0}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor]>.laboratory-form-grid>.lab-custom-field>div{display:flex;flex-direction:column;flex:1;min-width:0;gap:0}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .lab-custom-field>div>.designer-input-part:has(>.cascading-tree-panels){display:flex;flex:1;height:auto!important;min-width:0}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .cascading-tree-panels{flex:1;min-width:0;gap:0;height:auto!important;border:0;padding:0;background:transparent;border-radius:0}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-header){flex:0 0 auto;background:transparent}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-body){display:flex;flex-direction:column;flex:1;min-height:0;background:transparent}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-body)>div{display:flex;flex-direction:column;flex:1;min-height:0}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .cascading-tree-panels>.lab-tree-part:has(.cascading-tree-body)>div>.designer-input-part{display:flex;flex:1;height:auto;min-height:var(--lab-height,0px);background:var(--lab-tree-body-fill,#fff);border-radius:var(--lab-tree-body-radius,0px);background-clip:padding-box}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .cascading-tree-body{flex:1;min-width:0;background:transparent;padding:8px 0 0;border-radius:0;background-clip:padding-box}
+:is(#root,.form-document-dialog) .laboratory-editor[data-tree-editor] .cascading-tree-body>.cascading-tree-scroll{flex:0 0 auto}
+
+/* Inline entry consumes the existing list viewport, never a new outer row. */
+.cascading-tree-column>.cascading-tree-items{height:0;flex:1 1 0;min-height:0;overflow:auto}
+.cascading-tree-column>.cascading-tree-column-head,.cascading-tree-column>.cascading-tree-search{flex-shrink:0}
+/* A panel's saved geometry must never become its descendant input geometry. */
+:is(#root,.form-document-dialog) .cascading-tree-column>.cascading-tree-search{height:34px!important;min-height:34px!important;max-height:34px;--lab-height:initial;--lab-offset:initial}
+.cascading-tree-inline-add{--lab-height:initial;--lab-width:initial;--lab-offset:initial}
+:is(#root,.form-document-dialog) .cascading-tree-inline-add input{height:30px!important;min-height:30px!important}
+.cascading-tree-inline-add{padding:6px;gap:4px;font-size:12px;min-width:0}
+.cascading-tree-inline-add label,.cascading-tree-inline-add output{font-size:12px}
+.cascading-tree-inline-add input{padding:4px 6px;min-width:0}
+.cascading-tree-inline-matches{display:flex;flex-direction:column;max-height:150px;overflow:auto;gap:2px}
+.cascading-tree-inline-matches button{border:0;text-align:start;background:transparent;padding:3px 4px;font-size:12px;flex-shrink:0}
+.cascading-tree-inline-matches button:hover{background:#dceaf5}
+.cascading-tree-inline-add .cascading-tree-add-actions{gap:4px}
+.cascading-tree-inline-add .cascading-tree-add-actions button{font-size:12px;padding:4px 6px}
+.cascading-tree-column-foot small{display:block;font-size:11px;color:var(--muted,#667782)}
+
+.cascading-tree-inline-matches button[aria-selected="true"]{background:#dceaf5;outline:1px solid #247f78}
+.cascading-tree-inline-matches{max-height:none;overflow:visible}
+.cascading-tree-column-foot>.cascading-tree-add-actions{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.cascading-tree-column-foot>.cascading-tree-add-actions button{flex:1;width:auto;font-size:12px;padding:5px 6px}
+.cascading-tree-items>.cascading-tree-copy{display:flex;flex-direction:column;gap:3px;margin:0;padding:6px;font-size:12px;max-height:none;overflow:visible;min-width:0}
+.cascading-tree-copy select{display:block!important;position:static!important;width:100%!important;height:32px!important;min-height:32px!important;max-height:32px!important;min-width:0;background:#fff;color:#263a38;font:inherit}
+.cascading-tree-copy label{display:flex;align-items:center;gap:5px;min-width:0;white-space:normal}
+:is(#root,.form-document-dialog) .cascading-tree-copy>label{display:flex!important;flex-direction:row;align-items:center;justify-content:flex-start;gap:6px;line-height:1.2;height:auto;min-height:20px;margin:0!important;padding:1px 0;flex-shrink:0}
+:is(#root,.form-document-dialog) .cascading-tree-copy input[type=checkbox]{position:static!important;appearance:auto!important;width:16px!important;height:16px!important;min-width:16px!important;min-height:16px!important;flex:none;margin:0}
+.cascading-tree-copy fieldset{min-width:0;padding:5px;border:1px solid #d2dce0;border-radius:6px;margin:0}
+.cascading-tree-copy legend{max-width:100%;font-weight:bold}
+.cascading-tree-copy-actions{display:flex;gap:4px}
+.cascading-tree-copy-actions button{flex:1;min-width:0;width:auto}
+.cascading-tree-copy-actions button[type="submit"]{background:#176b59;color:#fff;border-color:#176b59}
+/* Primary save actions retain their color across pointer and keyboard states. */
+.cascading-tree-panels .cascading-tree-column-foot :is(.cascading-tree-add-actions,.cascading-tree-copy-actions) button[type="submit"],
+.cascading-tree-panels .cascading-tree-column-foot :is(.cascading-tree-add-actions,.cascading-tree-copy-actions) button[type="submit"]:is(:hover,:focus-visible,:active){background:#176b59;color:#fff;border-color:#176b59}
+.cascading-tree-copy:focus{outline:1px solid #217c73;outline-offset:-1px;border-radius:6px}
+:is(#root,.form-document-dialog) dialog.cascading-tree-copy-dialog{position:fixed;inset:0;margin:auto;width:min(420px,calc(100vw - 32px));height:min(calc(100dvh - 32px),max(min(420px,calc(100vw - 32px)),var(--tree-copy-content-height,420px)))!important;min-height:0!important;max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px)!important;padding:0;border:1px solid #b9ccca;border-radius:12px;background:var(--surface,#fff);box-shadow:0 10px 40px #0005;overflow:hidden;display:block;direction:rtl}
+.cascading-tree-copy-dialog::backdrop{background:rgb(0 0 0 / 38%)}
+:is(#root,.form-document-dialog) .cascading-tree-copy-dialog>.cascading-tree-column{position:static!important;transform:none!important;width:100%!important;height:100%!important;max-height:none!important;min-height:0!important;display:flex!important;flex-direction:column;border:0;border-radius:inherit}
+:is(#root,.form-document-dialog) .cascading-tree-copy-dialog .cascading-tree-column-head,:is(#root,.form-document-dialog) .cascading-tree-copy-dialog .cascading-tree-search,:is(#root,.form-document-dialog) .cascading-tree-copy-dialog .cascading-tree-items>:not(.cascading-tree-copy){display:none!important}
+:is(#root,.form-document-dialog) .cascading-tree-copy-dialog .cascading-tree-items{flex:1 1 0;min-height:0!important;overflow-y:auto!important;padding:10px}
+:is(#root,.form-document-dialog) .cascading-tree-copy-dialog .cascading-tree-column-foot{flex:0 0 auto;background:var(--surface,#fff);padding:10px;border-top:1px solid #d2dce0}
+:is(#root,.form-document-dialog) .cascading-tree-copy-dialog .cascading-tree-copy-actions button{min-height:44px}
+
+.cascading-tree-batch-input{display:flex;gap:4px;align-items:center;min-width:0}
+.cascading-tree-batch-input input{flex:1;min-width:0;width:0}
+.cascading-tree-batch-input button{flex:none;padding:4px 9px;border:1px solid var(--border,#d2dce0);border-radius:6px;background:#fff}
+.cascading-tree-batch-names{list-style:none;margin:4px 0;padding:0;max-height:110px;overflow:auto}
+.cascading-tree-batch-names li{display:flex;align-items:center;justify-content:space-between;gap:4px}
+
+/* Green identifies the path; the blue inset outline identifies actual mouse
+   or keyboard focus without changing row size or the path marker. */
+:is(#root,.form-document-dialog) .cascading-tree-panels .cascading-tree-node:focus{outline:2px solid #338bbb;outline-offset:-2px}
+
+.cascading-tree-copy-count{display:block;padding:0 4px 7px;color:var(--text,#263a38);text-align:right}

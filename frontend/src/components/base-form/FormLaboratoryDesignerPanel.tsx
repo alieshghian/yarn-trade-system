@@ -1,7 +1,7 @@
 import {AppearanceNumberInput} from './AppearanceNumberInput'
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { Language } from '../../i18n'
-import { designerActionCode, designerActionDimensionLimits, designerActionLabel, designerActionVisible, designerProperties, designerColorScope, designerEffectiveValues, designerElementAppearanceProperties, designerElementAppearanceValues, type DesignerActionTextPart, type DesignerActionTextStyle, type DesignerAlignment, type DesignerAppearanceProperty, type DesignerDraft, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './designer'
+import { designerActionCode, designerActionDimensionLimits, designerActionLabel, designerActionVisible, designerProperties, designerColorScope, designerEffectiveValues, designerElementAppearanceProperties, designerElementAppearanceValues, isDesignerShortcutKey, type DesignerActionTextPart, type DesignerActionTextStyle, type DesignerAlignment, type DesignerAppearanceProperty, type DesignerDraft, type DesignerLayoutOperation, type DesignerLayoutOrientation, type DesignerProperty, type DesignerValue, type GridSearchPosition } from './designer'
 import type { BaseFormAction } from './types'
 import { ExcelColorPicker } from './ExcelColorPicker'
 import { getFormComponentById, getFormComponentPresets, getFormComponents, type FormComponentCategory } from './componentRegistry'
@@ -10,7 +10,7 @@ import { supportsSandboxPreset } from './formBuilderSandboxState'
 
 export type DesignerPropertyRequest = {
   sequence: number
-  section: 'color' | 'size' | 'font' | 'align' | 'textAlign' | 'spacing' | 'more' | 'appearance' | 'tableTypography' | 'tableHeaderTypography' | 'borders' | 'shadow' | 'gradient' | 'appearanceMore'
+  section: 'color' | 'size' | 'font' | 'actionText' | 'align' | 'textAlign' | 'spacing' | 'more' | 'appearance' | 'tableTypography' | 'tableHeaderTypography' | 'borders' | 'shadow' | 'gradient' | 'appearanceMore'
   property?: DesignerProperty | DesignerAppearanceProperty | 'columnColor' | 'columnBackgroundColor' | 'columnFontFamily' | 'columnFontSize' | 'headerHeight' | 'headerColor' | 'headerBackgroundColor' | 'headerBorderColor' | 'fontFamily' | 'fontSize'
 }
 
@@ -30,7 +30,7 @@ type Props = {
   draft: DesignerDraft
   onTableFontChange: (property: 'family' | 'size', value: string | number) => void
   selectedTableColumn?: { id: string; label: string; style?: { bold?: boolean; textColor?: string; backgroundColor?: string; fontFamily?: string; fontSize?: number } }
-  selectedTableHeader?: { id: string; label: string; style?: { textAlign?:'start'|'center'|'end'; bold?: boolean; textColor?: string; backgroundColor?: string; borderColor?: string; fontFamily?: string; fontSize?: number } }
+  selectedTableHeader?: { id: string; label: string; style?: { textAlign?:'start'|'center'|'end'|'left'|'right'; bold?: boolean; textColor?: string; backgroundColor?: string; borderColor?: string; fontFamily?: string; fontSize?: number } }
   tableHeaderScope: 'selected' | 'all'
   onTableHeaderScopeChange: (scope: 'selected' | 'all') => void
   tableHeaderHeight: number
@@ -54,14 +54,20 @@ type Props = {
   selectedFieldIds: string[]
   selectedActionIds: string[]
   actions: BaseFormAction[]
+  actionBarHeight?: number
+  onActionBarHeightChange: (height: number | undefined) => void
   onActionVisibilityChange: (id: string, visible: boolean) => void
-  onSelectAction: (id: string) => void
+  onSelectAction: (id: string, extend?: boolean) => void
+  onRemoveSelectedActions: () => void
   onActionTextChange: (id: string, part: DesignerActionTextPart, value: string) => void
+  actionTranslationStatus?: Record<string, string>
+  onActionAutoTranslate?: (id: string, locale: 'fa' | 'en' | 'zh') => void
   onActionTextPropertyChange: (ids: string[], part: DesignerActionTextPart, property: DesignerProperty, value: DesignerValue | undefined) => void
   onActionColorCommit: (property: DesignerProperty, value: DesignerValue | undefined) => void
   onActionColorPreview: (property: DesignerProperty, value: DesignerValue | undefined | null) => void
   onClearSelection: () => void
   fieldIds: readonly string[]
+  listComponentFieldIds?: readonly string[]
   fieldLabels: Record<string, string>
   applyToAll: boolean
   canSave: boolean
@@ -84,6 +90,7 @@ type Props = {
   onSave: () => void
   onCancel: () => void
   onSelectAll: () => void
+  onSmartLayout: () => void
   onLayout: (operation: DesignerLayoutOperation, orientation: DesignerLayoutOrientation, gap: number, options?: { width?: number; height?: number; verticalGap?: number }) => void
   onAlign: (direction: DesignerAlignment) => void
   referenceFieldId: string
@@ -94,9 +101,11 @@ type Props = {
     enabled: boolean
     onEnabledChange: (enabled: boolean) => void
     selectedFieldId: string | null
+    selectedFieldCount: number
     selectedFieldLabel?: string
     onRename: (label: string) => void
     onRemove: () => void
+    onRemoveSelectedFields: () => void
     canUndo: boolean
     canRedo: boolean
     onUndo: () => void
@@ -105,7 +114,8 @@ type Props = {
 }
 
 const propertyLabels: Record<DesignerProperty, [string, string, string]> = {
-  componentPopupBackground: ['زمینهٔ پنجره', 'Popup background', '弹窗背景'], componentPopupFontSize: ['قلم پنجره', 'Popup font size', '弹窗字号'],
+  verticalTextAlign: ['تراز عمودی متن', 'Vertical text alignment', '垂直文字对齐'],
+  componentPopupBackground: ['زمینهٔ پنجره', 'Popup background', '弹窗背景'], componentPopupFontSize: ['قلم پنجره', 'Popup font size', '弹窗字号'], componentPopupWidth: ['عرض کشویی', 'Dropdown width', '下拉宽度'], componentPopupButtonWidth: ['عرض دکمه‌های پنجره', 'Popup button width', '弹窗按钮宽度'], componentPopupButtonHeight: ['ارتفاع دکمه‌های پنجره', 'Popup button height', '弹窗按钮高度'],
   componentAddBackground: ['زمینهٔ کلید +', 'Add button background', '添加按钮背景'], componentAddTextColor: ['رنگ علامت +', 'Add button text', '添加按钮文字'], componentAddWidth: ['عرض کلید +', 'Add button width', '添加按钮宽度'], componentAddHeight: ['ارتفاع کلید +', 'Add button height', '添加按钮高度'],
   appearancePreset: ['سبک ظاهری', 'Appearance preset', '外观样式'], borderWidth: ['ضخامت کادر', 'Border width', '边框宽度'], borderStyle: ['نوع کادر', 'Border style', '边框样式'],
   shadowOpacity: ['شدت سایه (%)', 'Shadow intensity (%)', '阴影强度 (%)'], shadowOffsetX: ['جهت افقی سایه', 'Shadow horizontal offset', '阴影横向偏移'], shadowOffsetY: ['جهت عمودی سایه', 'Shadow vertical offset', '阴影纵向偏移'], shadowBlur: ['محو شدن سایه', 'Shadow blur', '阴影模糊'], shadowSpread: ['گسترش سایه', 'Shadow spread', '阴影扩散'], shadowInset: ['سایهٔ داخلی', 'Inset shadow', '内阴影'],
@@ -157,6 +167,7 @@ export function FormLaboratoryDesignerPanel(props: Props) {
   const unitScale = layoutUnit === 'mm' ? 96 / 25.4 : 1
   const runLayout = (operation: DesignerLayoutOperation) => props.onLayout(operation, orientation, (orientation === 'horizontal' ? gapX : gapY) * unitScale, { verticalGap: gapY * unitScale, ...(sizeMode === 'custom' && Number(targetWidth) > 0 ? { width: Number(targetWidth) * unitScale } : {}), ...(sizeMode === 'custom' && Number(targetHeight) > 0 ? { height: Number(targetHeight) * unitScale } : {}) })
   const [actionTextPart, setActionTextPart] = useState<'button' | DesignerActionTextPart>('button')
+  const [pendingActionTextEditor, setPendingActionTextEditor] = useState<string | null>(null)
   const [componentLibraryQuery, setComponentLibraryQuery] = useState('')
   const [selectedLibraryItem, setSelectedLibraryItem] = useState<{ kind: 'component' | 'preset'; id: string } | null>(null)
   const [sandboxRequest, setSandboxRequest] = useState<{ presetId?: string } | null>(null)
@@ -174,6 +185,18 @@ export function FormLaboratoryDesignerPanel(props: Props) {
         : category === 'action'
           ? word('عملیات', 'Actions', '操作')
           : word('پشتیبان', 'Support', '辅助')
+  const handlePanelKeyDownCapture = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!props.geometryEditable || event.altKey) return
+    const target = event.target instanceof HTMLElement ? event.target : undefined
+    const geometryControl = Boolean(target?.matches('input[type="number"]') && target.closest('#form-laboratory-designer'))
+    if (!geometryControl) return
+    if ((event.ctrlKey || event.metaKey) && isDesignerShortcutKey(event, 'a')) {
+      // Keep the canvas shortcut from bubbling, but let a number control select its own text.
+      event.stopPropagation()
+    } else if (event.ctrlKey && !event.metaKey && isDesignerShortcutKey(event, 'l')) {
+      event.preventDefault(); event.stopPropagation(); props.onSmartLayout()
+    }
+  }
   const labelPolicyTitle = (policy: 'editable' | 'fixed' | 'none') => policy === 'editable'
     ? word('قابل ویرایش', 'Editable', '可编辑')
     : policy === 'fixed'
@@ -195,8 +218,11 @@ export function FormLaboratoryDesignerPanel(props: Props) {
     ? getFormComponentById(selectedLibraryItem.id)
     : selectedPreset ? getFormComponentById(selectedPreset.componentId) : undefined
   const fieldIds = props.applyToAll ? props.fieldIds : props.selectedFieldIds
-  const componentFieldIds = fieldIds.filter(id => ['titleId', 'phone', 'mobile', 'address'].includes(id.split('::')[0]))
+  const componentFieldIds = fieldIds.filter(id => props.listComponentFieldIds
+    ? props.listComponentFieldIds.includes(id.split('::')[0])
+    : ['titleId', 'phone', 'mobile', 'address'].includes(id.split('::')[0]))
   const editingAction = props.selectedActionIds.length > 0
+  const selectedOptionalActionCount = props.actions.filter(action => props.selectedActionIds.includes(action.id) && !action.required).length
   const panelRef = useRef<HTMLElement>(null)
   const openDetailsAncestors = (element: HTMLElement | null, panel: HTMLElement) => {
     for (let parent = element; parent && parent !== panel; parent = parent.parentElement) {
@@ -212,6 +238,13 @@ export function FormLaboratoryDesignerPanel(props: Props) {
   useEffect(() => {
     const request = props.propertyRequest, panel = panelRef.current
     if (!request || !panel) return
+    if (request.section === 'actionText') {
+      if (props.selectedActionIds.length === 1) {
+        setActionTextPart('button')
+        setPendingActionTextEditor(props.selectedActionIds[0])
+      }
+      return
+    }
     const reveal=(control:HTMLElement|null|undefined)=>{if(!control)return;const r=control.getBoundingClientRect(),p=panel.getBoundingClientRect();if(r.top<p.top+50||r.bottom>p.bottom)panel.scrollTop+=r.top-p.top-60}
     if (request.section === 'color') {
       const control = panel.querySelector<HTMLElement>(`${editingAction ? '.designer-action-colors ' : ''}[data-designer-color-property="${request.property}"]`)
@@ -254,6 +287,18 @@ export function FormLaboratoryDesignerPanel(props: Props) {
     if (request.section === 'gradient') (control as HTMLButtonElement | null)?.click()
     else control?.focus({preventScroll:true})
   }, [props.propertyRequest])
+  useEffect(() => {
+    const id = pendingActionTextEditor, panel = panelRef.current
+    if (!id || !panel || props.selectedActionIds.length !== 1 || props.selectedActionIds[0] !== id) return
+    const editor = panel.querySelector<HTMLElement>('#designer-action-text-editor')
+    const input = editor?.querySelector<HTMLInputElement>('[data-action-label="fa"]')
+    if (!editor || !input) return
+    openDetailsAncestors(editor, panel)
+    const editorRect = editor.getBoundingClientRect(), panelRect = panel.getBoundingClientRect()
+    if (editorRect.top < panelRect.top + 50 || editorRect.bottom > panelRect.bottom) panel.scrollTop += editorRect.top - panelRect.top - 60
+    input.focus({ preventScroll: true })
+    setPendingActionTextEditor(null)
+  }, [pendingActionTextEditor, props.selectedActionIds])
   const editingEnabled = fieldIds.length > 0 || editingAction
   const firstField = props.selectedFieldIds[0] ?? props.fieldIds[0]
   const storageKey = (id: string, property: DesignerProperty) => {
@@ -264,7 +309,10 @@ export function FormLaboratoryDesignerPanel(props: Props) {
     if (designerElementAppearanceProperties.includes(property as typeof designerElementAppearanceProperties[number])) return `${baseId}::input`
     return property === 'width' || property === 'height' ? `${baseId}::${part === 'field' ? 'input' : part}` : part === 'field' ? baseId : `${baseId}::${part}`
   }
-  const readValue = (id: string, key: DesignerProperty) => {
+  const readValue = (id: string | undefined, key: DesignerProperty) => {
+    // A document can temporarily have no field (or only a selected section).
+    // Reading appearance defaults must not dereference a missing selection.
+    if (!id) return undefined
     if (editingAction) {
       if (actionTextPart !== 'button' && isActionTextStyleProperty(key)) return props.draft.actions?.[id]?.textStyles?.[actionTextPart]?.[key]
       return props.draft.actions?.[id]?.[key]
@@ -350,10 +398,11 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       handle.addEventListener('pointercancel', end)
       handle.addEventListener('lostpointercapture', end)
     }} />
-  <aside ref={panelRef} id="form-laboratory-designer" className="laboratory-designer-panel" aria-label={word('طراحی ظاهری فرم', 'Visual form designer', '表单外观设计器')} dir={fa ? 'rtl' : 'ltr'}>
+  <aside ref={panelRef} id="form-laboratory-designer" className="laboratory-designer-panel" aria-label={word('طراحی ظاهری فرم', 'Visual form designer', '表单外观设计器')} dir={fa ? 'rtl' : 'ltr'} onKeyDownCapture={handlePanelKeyDownCapture}>
 
     <div className="designer-panel-heading"><div><strong>{word('طراحی ظاهری', 'Visual design', '外观设计')}</strong><small aria-live="polite">{fieldNames}</small></div><button type="button" className="designer-close" aria-label={word('بستن پنل', 'Close panel', '关闭面板')} onClick={props.onCancel}>×</button></div>
     {props.selectionLabel&&<strong className="designer-active-selection" role="status">{props.selectionLabel}</strong>}{props.toolbarControls}
+    {props.onNeighborResizeChange&&<fieldset className="designer-neighbor-resize"><legend>{word('حفظ فاصله و اندازهٔ مجموع فیلدهای مجاور','Preserve neighbour spacing and total size','保持相邻间距和总尺寸')}</legend>{(['horizontal','vertical'] as const).map(axis=><div className="form-document-settings-buttons" key={axis}><label className="form-document-check"><input type="checkbox" aria-label={axis==='horizontal'?'حفظ فاصله و عرض مجموع':'حفظ فاصله و ارتفاع مجموع'} checked={props.neighborResize?.[axis]??false} disabled={!props.geometryEditable} onChange={event=>props.onNeighborResizeChange?.(axis,event.target.checked)}/>{axis==='horizontal'?'افقی: حفظ فاصله و عرض مجموع':'عمودی: حفظ فاصله و ارتفاع مجموع'}</label><button type="button" disabled={props.draft.neighborResize?.[axis]===undefined} onClick={()=>props.onNeighborResizeChange?.(axis,undefined)}>پیش‌فرض: خاموش</button></div>)}<small>پیش‌فرض خاموش است. فقط با انتخاب این گزینه، همسایه جبران می‌کند. بدون همسایهٔ مناسب، تغییر اندازه مستقل و تا حاشیهٔ پنل آزاد است.</small></fieldset>}
     <div className="designer-selection-actions"><button type="button" aria-pressed={!props.applyToAll} onClick={() => props.onApplyToAllChange(false)}>{word('فیلدهای انتخابی', 'Selected fields', '所选字段')}</button><button type="button" aria-pressed={props.applyToAll} onClick={() => { props.onClearSelection(); props.onApplyToAllChange(true) }}>{word('همهٔ فیلدها', 'All fields', '全部字段')}</button><button type="button" onClick={props.onSelectAll}>{word('انتخاب همه', 'Select all', '全选')}</button><button type="button" onClick={props.onClearSelection}>{word('پاک‌کردن انتخاب', 'Clear selection', '清除选择')}</button></div>
     <small className="designer-selection-help">{props.applyToAll ? word('هر ویژگی روی تمام فیلدهای نمونه اعمال می‌شود.', 'Each property applies to every sample field.', '每个属性都应用于所有示例字段。') : word('با Ctrl/Meta+کلیک چند فیلد را انتخاب کنید؛ ویژگی‌ها روی همهٔ انتخاب‌ها اعمال می‌شوند.', 'Ctrl/Meta-click to select multiple fields; changes apply to every selected field.', '按 Ctrl/Meta 并单击可多选；更改将应用于所有选中字段。')}</small>
     <details className="designer-component-library" open>
@@ -394,11 +443,23 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       </div>
     </details>
     <label className="designer-button-press-setting"><input type="checkbox" checked={props.buttonPressEffectEnabled} onChange={event => props.onButtonPressEffectChange(event.target.checked)} /><span>{word('جلوهٔ فرورفتن دکمه هنگام فشار', 'Pressed button effect', '按下按钮时显示凹陷效果')}</span></label>
-    <details className="designer-action-section" open><summary>{word('دکمه‌های پایین', 'Bottom actions', '底部按钮')}</summary><div className="designer-action-list">{props.actions.map(action => <div className="designer-action-row" key={action.id}><input type="checkbox" aria-label={`${word('نمایش دکمه', 'Show action', '显示按钮')} ${designerActionLabel(props.draft, action, props.language)}`} checked={designerActionVisible(props.draft, action)} disabled={action.required} onChange={event => props.onActionVisibilityChange(action.id, event.target.checked)} /><button type="button" aria-pressed={props.selectedActionIds.includes(action.id)} onClick={() => props.onSelectAction(action.id)}>{designerActionLabel(props.draft, action, props.language)}</button><kbd>{designerActionCode(props.draft, action)}</kbd>{action.required && <small>{word('ضروری', 'Required', '必需')}</small>}</div>)}</div>
-      {props.selectedActionIds.length === 1 && (() => { const action = props.actions.find(item => item.id === props.selectedActionIds[0]); if (!action) return null; return <div className="designer-action-text-fields">
+    <details className="designer-action-section" open><summary>{word('نوار و دکمه‌های پایین', 'Bottom bar and actions', '底部栏和按钮')}</summary>
+      <div className="designer-action-bar-layout">
+        <label>{word('ارتفاع نوار کلیدها', 'Action bar height', '操作栏高度')}<AppearanceNumberInput min="48" max="220" step="1" value={props.actionBarHeight ?? 58} onValueChange={props.onActionBarHeightChange} /></label>
+        <small>{word('دستگیرهٔ وسط لبهٔ بالای نوار را به بالا یا پایین بکشید؛ لبهٔ پایین ثابت می‌ماند و فضای جدول متناسب تغییر می‌کند.', 'Drag the handle at the top center up or down. The bottom edge stays fixed and the report area adjusts.', '上下拖动栏顶部中央的手柄；底边保持固定，表格空间随之调整。')}</small>
+      </div>
+      <div className="designer-action-list">{props.actions.map(action => <div className="designer-action-row" key={action.id}><input type="checkbox" aria-label={`${word('نمایش دکمه', 'Show action', '显示按钮')} ${designerActionLabel(props.draft, action, props.language)}`} checked={designerActionVisible(props.draft, action)} disabled={action.required} onChange={event => props.onActionVisibilityChange(action.id, event.target.checked)} /><button type="button" aria-pressed={props.selectedActionIds.includes(action.id)} onClick={event => props.onSelectAction(action.id, event.ctrlKey || event.metaKey)}>{designerActionLabel(props.draft, action, props.language)}</button><button type="button" className="designer-action-edit-text" aria-label={`${word('ویرایش متن', 'Edit text', '编辑文字')} ${designerActionLabel(props.draft, action, props.language)}`} onClick={() => { setActionTextPart('button'); setPendingActionTextEditor(action.id); props.onSelectAction(action.id, false) }}>{word('ویرایش متن', 'Edit text', '编辑文字')}</button><kbd>{designerActionCode(props.draft, action)}</kbd>{action.required && <small>{word('ضروری', 'Required', '必需')}</small>}</div>)}</div>
+      <small className="designer-action-selection-hint">{word('Ctrl/Meta+کلیک: انتخاب گروهی؛ اندازه، رنگ و قلم گروهی تغییر می‌کند. متن و میان‌بر فقط برای یک کلید ویرایش می‌شوند.', 'Ctrl/Meta-click to multi-select: size, color and typography apply to the group. Text and shortcuts are edited one action at a time.', 'Ctrl/Meta 点击可多选：尺寸、颜色和字体应用于整组；文字和快捷键每次只编辑一个操作。')}</small>
+      {props.selectedActionIds.length > 0 && <div className="designer-action-selection-tools">
+        <button type="button" disabled={!selectedOptionalActionCount} onClick={props.onRemoveSelectedActions}>{word('حذف کلیدهای انتخاب‌شده', 'Delete selected actions', '删除所选操作')} ({selectedOptionalActionCount})</button>
+      </div>}
+      {props.selectedActionIds.length === 1 && (() => { const action = props.actions.find(item => item.id === props.selectedActionIds[0]); if (!action) return null; return <div className="designer-action-text-fields" id="designer-action-text-editor" aria-label={word('ویرایش متن کلید انتخاب‌شده', 'Edit selected button text', '编辑所选按钮文字')}>
+        <strong>{word('ویرایش متن کلید انتخاب‌شده', 'Edit selected button text', '编辑所选按钮文字')}</strong>
         <label>{word('میان‌بر', 'Shortcut', '快捷键')}<input dir="ltr" maxLength={32} value={designerActionCode(props.draft, action)} onChange={event => props.onActionTextChange(action.id, 'code', event.target.value)} /></label>
-        {(['fa', 'en', 'zh'] as const).map(locale => <label key={locale}>{locale === 'fa' ? word('عنوان فارسی', 'Persian label', '波斯语标签') : locale === 'en' ? word('عنوان انگلیسی', 'English label', '英语标签') : word('عنوان چینی', 'Chinese label', '中文标签')}<input maxLength={160} value={designerActionLabel(props.draft, action, locale)} onChange={event => props.onActionTextChange(action.id, locale, event.target.value)} /></label>)}
-        <small>{word('میان‌بر و عنوان هر زبان جداگانه ذخیره می‌شوند.', 'The shortcut and each language label are saved independently.', '快捷键和各语言标签分别保存。')}</small>
+        {(['fa', 'en', 'zh'] as const).map(locale => <div className="designer-action-locale-row" key={locale}><label>{locale === 'fa' ? word('عنوان فارسی', 'Persian label', '波斯语标签') : locale === 'en' ? word('عنوان انگلیسی', 'English label', '英语标签') : word('عنوان چینی', 'Chinese label', '中文标签')}<input data-action-label={locale} maxLength={160} value={designerActionLabel(props.draft, action, locale)} onChange={event => props.onActionTextChange(action.id, locale, event.target.value)} /></label><button type="button" onClick={() => props.onOpenFontFormatDialog(locale)} aria-label={`${word('قلم و رنگ', 'Font and color', '字体与颜色')} ${locale === 'fa' ? word('عنوان فارسی', 'Persian label', '波斯语标签') : locale === 'en' ? word('عنوان انگلیسی', 'English label', '英语标签') : word('عنوان چینی', 'Chinese label', '中文标签')}`}>{word('قلم و رنگ…', 'Font and color…', '字体与颜色…')}</button></div>)}
+        <small>{word('عنوان‌های رایج فوری ترجمه می‌شوند؛ متن جدید پس از مکث کوتاه برای سرویس ترجمهٔ تنظیم‌شده ارسال می‌شود. اصلاح دستی محفوظ می‌ماند. قلم، اندازه و رنگ هر زبان مستقل است.', 'Known labels translate immediately; new labels use the configured online service after a short pause. Manual edits are preserved. Typography is independent.', '常用标签立即翻译；新文本稍后发送至已配置的翻译服务。保留手动修改，各语言字体独立。')}</small>
+        {props.actionTranslationStatus?.[action.id] && <p role="status" data-label-translation-status>{props.actionTranslationStatus[action.id]}</p>}
+        {props.onActionAutoTranslate && (['fa', 'en', 'zh'] as const).filter(locale => locale !== props.language).map(locale => <div key={locale}><small>{locale}: {props.draft.actions?.[action.id]?.manualLabels?.[locale] ? word('دستی؛ محفوظ', 'Manual; protected', '手动；已保护') : word('خودکار', 'Automatic', '自动')}</small> <button type="button" onClick={() => props.onActionAutoTranslate?.(action.id, locale)}>{word('ترجمهٔ خودکار دوباره', 'Translate again', '重新自动翻译')} ({locale})</button></div>)}
       </div> })()}
     </details>
     <section className="designer-layout-tools" hidden={editingAction || !props.geometryEditable} aria-label={word('چیدمان گروهی', 'Group layout', '组合布局')}>
@@ -421,7 +482,6 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       <small>{word('اندازهٔ برابر از فیلد مرجع یا عدد مشخص می‌آید؛ برچسب‌ها مستقل‌اند.', 'Input sizes are matched; label sizes remain independent.', '输入尺寸将统一；标签尺寸保持独立。')}</small>
     </section>
     {!props.geometryEditable && <small>{word('برای تغییر اندازه و چیدمان به نمای دسکتاپ برگردید.', 'Return to Desktop to edit sizes and layout.', '返回桌面视图以编辑尺寸和布局。')}</small>}
-    {props.onNeighborResizeChange&&<fieldset className="designer-neighbor-resize"><legend>{word('حفظ فاصله و اندازهٔ مجموع فیلدهای مجاور','Preserve neighbour spacing and total size','保持相邻间距和总尺寸')}</legend>{(['horizontal','vertical'] as const).map(axis=><div className="form-document-settings-buttons" key={axis}><label className="form-document-check"><input type="checkbox" aria-label={axis==='horizontal'?'حفظ فاصله و عرض مجموع':'حفظ فاصله و ارتفاع مجموع'} checked={props.neighborResize?.[axis]??false} disabled={!props.geometryEditable} onChange={event=>props.onNeighborResizeChange?.(axis,event.target.checked)}/>{axis==='horizontal'?'افقی: حفظ فاصله و عرض مجموع':'عمودی: حفظ فاصله و ارتفاع مجموع'}</label><button type="button" disabled={props.draft.neighborResize?.[axis]===undefined} onClick={()=>props.onNeighborResizeChange?.(axis,undefined)}>وراثت</button></div>)}<small>با تغییر اندازهٔ یک فیلد، فیلد مجاور به همان اندازه جبران می‌کند؛ در حداقل اندازه یا برخورد، حرکت متوقف می‌شود.</small></fieldset>}
     <fieldset className="designer-properties" disabled={!editingEnabled}>
       <legend>{editingAction ? word('ویژگی‌های دکمه', 'Button properties', '按钮属性') : word('ویژگی‌های فیلد', 'Field properties', '字段属性')}</legend>
       {editingAction && <label className="designer-action-text-part">{word('قلم و حالت برای', 'Typography for', '文字样式应用于')}<select value={actionTextPart} onChange={event => setActionTextPart(event.target.value as typeof actionTextPart)}><option value="button">{word('کل دکمه', 'Whole button', '整个按钮')}</option><option value="code">{word('میان‌بر', 'Shortcut', '快捷键')}</option><option value="fa">{word('عنوان فارسی', 'Persian label', '波斯语标签')}</option><option value="en">{word('عنوان انگلیسی', 'English label', '英语标签')}</option><option value="zh">{word('عنوان چینی', 'Chinese label', '中文标签')}</option></select></label>}
@@ -456,7 +516,10 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       </details>
       <details className="designer-color-section" open><summary>{word('پنجرهٔ زیر کامپوننت', 'Component popup', '组件弹窗')}</summary>
         <div className="designer-control-row"><span>{label('componentPopupBackground')}</span><ExcelColorPicker language={props.language} label={label('componentPopupBackground')} mixed={mixed('componentPopupBackground')} value={String(value('componentPopupBackground', '#ffffff'))} onCommit={next => edit('componentPopupBackground', next ?? undefined)} />{clear('componentPopupBackground')}</div>
+        <div className="designer-control-row"><label htmlFor="designer-component-popup-width">{label('componentPopupWidth')}</label><AppearanceNumberInput id="designer-component-popup-width" min="80" max="1200" value={mixed('componentPopupWidth') || valuesFor('componentPopupWidth').every(item => item === undefined) ? '' : Number(value('componentPopupWidth', 160))} placeholder={mixed('componentPopupWidth') || valuesFor('componentPopupWidth').every(item => item === undefined) ? word('خودکار', 'Auto', '自动') : ''} onValueChange={next => edit('componentPopupWidth', next)} onBlur={props.onFinishPropertyChange} />{clear('componentPopupWidth')}</div>
+        <label className="designer-control-row designer-popup-width-range" htmlFor="designer-component-popup-width-range"><span>{label('componentPopupWidth')}</span><input id="designer-component-popup-width-range" type="range" min="80" max="1200" step="1" value={mixed('componentPopupWidth') ? 160 : Number(value('componentPopupWidth', 160))} onChange={event => edit('componentPopupWidth', Number(event.target.value))} onPointerUp={props.onFinishPropertyChange} onKeyUp={props.onFinishPropertyChange} onBlur={props.onFinishPropertyChange} /><output>{mixed('componentPopupWidth') ? word('متفاوت', 'Mixed', '不同') : `${Number(value('componentPopupWidth', 160))}px`}</output></label>
         <div className="designer-control-row"><label>{label('componentPopupFontSize')}</label><AppearanceNumberInput  min="8" max="40" value={mixed('componentPopupFontSize') ? '' : Number(value('componentPopupFontSize', 15))} onValueChange={next => edit('componentPopupFontSize', next)} />{clear('componentPopupFontSize')}</div>
+        {(['componentPopupButtonWidth', 'componentPopupButtonHeight'] as const).map((key, index) => { const fallback = index === 0 ? 96 : 34, minimum = index === 0 ? 24 : 20, maximum = index === 0 ? 240 : 80; return <div className="designer-control-row" key={key}><label>{label(key)}</label><AppearanceNumberInput min={minimum} max={maximum} value={mixed(key) ? '' : Number(value(key, fallback))} placeholder={mixed(key) ? word('متفاوت', 'Mixed', '不同') : ''} onValueChange={next => edit(key, next)} onBlur={props.onFinishPropertyChange} />{clear(key)}</div> })}
       </details>
     </>}
     <details className="designer-color-section"><summary>{word('رنگ و ظاهر', 'Color and appearance', '颜色与外观')}</summary><div className="designer-color-groups">
@@ -468,7 +531,7 @@ export function FormLaboratoryDesignerPanel(props: Props) {
       {appearanceGroups.map(([id, faLabel, keys]) => <details className="designer-color-group" key={id}><summary>{fa ? faLabel : appearanceLabels[keys[0]][1]}</summary>{(editingAction && id === 'actions' ? keys.filter(key => key === 'actionBarBackground') : keys).map(appearanceControl)}</details>)}
       <small className="designer-color-note">{word('رنگ عمومی پیش‌فرض مشترک است؛ رنگ اختصاصی هر عنصر حفظ می‌شود. برای برگشت، «بازگشت به رنگ عمومی» را بزنید.', 'Global colors are shared defaults; individual overrides stay intact. Use Reset to global to inherit again.', '全局颜色是共享默认值；独立设置会保留。使用恢复全局再次继承。')}</small>
     </div></details>
-    {props.managedStructure && <details className="designer-color-group" id="designer-managed-structure" open><summary>{word('ساختار فرم مستقل', 'Independent form structure', '独立表单结构')}</summary><label className="designer-effect-check"><input type="checkbox" checked={props.managedStructure.enabled} onChange={event => props.managedStructure?.onEnabledChange(event.target.checked)} />{word('فعال‌کردن تغییر برچسب و حذف فیلد', 'Enable label editing and field removal', '启用标签编辑和字段删除')}</label>{props.managedStructure.enabled && <><small>{word('برای انتخاب فیلد، روی + کنار آن یا برچسب/ورودی کلیک کنید. رنگ و قلم از همین پنل Designer تنظیم می‌شود.', 'Select a field with its + button or click its label/input. Colors and typography use this same Designer panel.', '点击字段旁的 + 或标签/输入框选择字段。颜色和字体在此设计面板调整。')}</small>{props.managedStructure.selectedFieldId ? <><label className="designer-control-row"><span>{word('برچسب فیلد انتخاب‌شده', 'Selected field label', '所选字段标签')}</span><input aria-label={word('برچسب فیلد انتخاب‌شده', 'Selected field label', '所选字段标签')} value={props.managedStructure.selectedFieldLabel ?? ''} onChange={event => props.managedStructure?.onRename(event.target.value)} /></label><div className="designer-history-actions"><button type="button" disabled={!props.managedStructure.canUndo} onClick={props.managedStructure.onUndo}>{word('واگرد ساختار', 'Undo structure', '撤销结构')}</button><button type="button" disabled={!props.managedStructure.canRedo} onClick={props.managedStructure.onRedo}>{word('ازنو ساختار', 'Redo structure', '重做结构')}</button><button type="button" onClick={props.managedStructure.onRemove}>{word('حذف فیلد انتخاب‌شده', 'Remove selected field', '删除所选字段')}</button></div></> : <small>{word('هنوز فیلدی انتخاب نشده است.', 'No field selected yet.', '尚未选择字段。')}</small>}</>}</details>}
+    {props.managedStructure && <details className="designer-color-group" id="designer-managed-structure" open><summary>{word('ساختار فرم مستقل', 'Independent form structure', '独立表单结构')}</summary><label className="designer-effect-check"><input type="checkbox" checked={props.managedStructure.enabled} onChange={event => props.managedStructure?.onEnabledChange(event.target.checked)} />{word('فعال‌کردن تغییر برچسب و حذف فیلد', 'Enable label editing and field removal', '启用标签编辑和字段删除')}</label>{props.managedStructure.enabled && <><small>{word('برای انتخاب فیلد، روی + کنار آن یا برچسب/ورودی کلیک کنید. رنگ و قلم از همین پنل Designer تنظیم می‌شود.', 'Select a field with its + button or click its label/input. Colors and typography use this same Designer panel.', '点击字段旁的 + 或标签/输入框选择字段。颜色和字体在此设计面板调整。')}</small>{props.managedStructure.selectedFieldId ? <><label className="designer-control-row"><span>{word('برچسب فیلد انتخاب‌شده', 'Selected field label', '所选字段标签')}</span><input aria-label={word('برچسب فیلد انتخاب‌شده', 'Selected field label', '所选字段标签')} value={props.managedStructure.selectedFieldLabel ?? ''} onChange={event => props.managedStructure?.onRename(event.target.value)} /></label><div className="designer-history-actions"><button type="button" disabled={!props.managedStructure.canUndo} onClick={props.managedStructure.onUndo}>{word('واگرد ساختار', 'Undo structure', '撤销结构')}</button><button type="button" disabled={!props.managedStructure.canRedo} onClick={props.managedStructure.onRedo}>{word('ازنو ساختار', 'Redo structure', '重做结构')}</button><button type="button" onClick={props.managedStructure.selectedFieldCount > 1 ? props.managedStructure.onRemoveSelectedFields : props.managedStructure.onRemove}>{props.managedStructure.selectedFieldCount > 1 ? word(`حذف ${props.managedStructure.selectedFieldCount} فیلد انتخاب‌شده`, `Remove ${props.managedStructure.selectedFieldCount} selected fields`, `删除已选 ${props.managedStructure.selectedFieldCount} 个字段`) : word('حذف فیلد انتخاب‌شده', 'Remove selected field', '删除所选字段')}</button></div></> : <small>{word('هنوز فیلدی انتخاب نشده است.', 'No field selected yet.', '尚未选择字段。')}</small>}</>}</details>}
     <div className="designer-history-actions"><button type="button" disabled={!props.canUndo} onClick={props.onUndo}>{word('واگرد', 'Undo', '撤销')}</button><button type="button" disabled={!props.canRedo} onClick={props.onRedo}>{word('ازنو', 'Redo', '重做')}</button><button type="button" disabled={!props.selectedFieldIds.length && !editingAction} onClick={props.onResetSelected}>{word('بازنشانی انتخابی', 'Reset selected', '重置所选')}</button><button type="button" onClick={props.onResetAll}>{word('بازنشانی همه', 'Reset all', '全部重置')}</button></div>
     <div className="designer-save-actions"><button type="button" disabled={!props.canSave} onClick={props.onSave}>{word('ذخیرهٔ پیش‌نویس', 'Save draft', '保存草稿')}</button><button type="button" onClick={props.onCancel}>{word('لغو تغییرات', 'Cancel', '取消')}</button></div>
     <div className="designer-save-status" role="status">{props.saveStatus || (props.canSave ? word('پیش‌نویس فقط برای کاربر جاری ذخیره می‌شود.', 'Draft is saved for the current user only.', '草稿仅保存给当前用户。') : word('ذخیرهٔ محلی به نشست کاربر نیاز دارد.', 'Sign in to save a local draft.', '登录后才能保存本地草稿。'))}</div><input type="color" hidden aria-hidden="true" tabIndex={-1} value="#000000" readOnly />

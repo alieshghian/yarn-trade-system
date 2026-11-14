@@ -1,6 +1,7 @@
 import { type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiRequest, currentUserKey } from './api'
 import type { Language } from './i18n'
+import {useFieldValidation} from './components/base-form/useFieldValidation'
 
 type UserRow = { id: string, personId?: string, email: string, displayName: string, preferredLanguage: string, isActive: boolean, pendingInvitation: boolean, roles: string[] }
 type Person = { id: string, personCode: string, displayName: string }
@@ -36,6 +37,7 @@ export default function UsersPage({ language, administrator }: { language: Langu
   const [error, setError] = useState(''), [message, setMessage] = useState(''), [loading, setLoading] = useState(true)
   const firstInput = useRef<HTMLSelectElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)
+  const {validateFields}=useFieldValidation(pageRef,{enabled:mode!=='view',entity:'users',context:{currentId:mode==='edit'?selectedId:null},rules:{personId:{required:true,remote:true},email:{required:true,remote:true,validate:value=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)?'':'ایمیل معتبر وارد کنید.'}}})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -98,6 +100,7 @@ export default function UsersPage({ language, administrator }: { language: Langu
     })
   }
   async function save() {
+    if(!await validateFields())return
     if (!form.personId || !form.email.trim() || form.roles.length === 0) {
       setError(fa ? 'شخص، ایمیل و حداقل یک نقش الزامی است.' : 'Person, email and a role are required.'); return
     }
@@ -146,8 +149,8 @@ export default function UsersPage({ language, administrator }: { language: Langu
       {administrator && form.id && mode === 'view' && <div className="shortcut-bar">{users.find(x => x.id === form.id)?.pendingInvitation && <button type="button" onClick={() => void securityAction('invitation')}>{fa ? 'ارسال مجدد دعوت' : 'Reissue invitation'}</button>}<button type="button" onClick={() => void securityAction('security-reset')}>{fa ? 'لغو همه نشست‌ها و اعتماد مرورگر' : 'Revoke sessions & browser trust'}</button></div>}
       <form>
         <div className={`person-form-grid user-form-grid ${editing ? 'editing' : ''}`}>
-          <label><span>{fa ? 'شخص مرتبط *' : 'Person *'}</span><select ref={firstInput} disabled={!editing} value={form.personId} onChange={e => { const person = catalog.persons.find(x => x.id === e.target.value); setForm(x => ({ ...x, personId: e.target.value, email: x.email, displayName: person?.displayName ?? '' })) }}><option value="">—</option>{catalog.persons.map(x => <option disabled={usedPersons.has(x.id)} key={x.id} value={x.id}>{x.personCode} — {x.displayName}</option>)}</select></label>
-          <label><span>{fa ? 'ایمیل / نام کاربری *' : 'Email / username *'}</span><input dir="ltr" disabled={!editing || !administrator} type="email" value={form.email} onChange={e => setForm(x => ({ ...x, email: e.target.value }))} /></label>
+          <label><span>{fa ? 'شخص مرتبط *' : 'Person *'}</span><select data-field="personId" ref={firstInput} disabled={!editing} value={form.personId} onChange={e => { const person = catalog.persons.find(x => x.id === e.target.value); setForm(x => ({ ...x, personId: e.target.value, email: x.email, displayName: person?.displayName ?? '' })) }}><option value="">—</option>{catalog.persons.map(x => <option disabled={usedPersons.has(x.id)} key={x.id} value={x.id}>{x.personCode} — {x.displayName}</option>)}</select></label>
+          <label><span>{fa ? 'ایمیل / نام کاربری *' : 'Email / username *'}</span><input data-field="email" dir="ltr" disabled={!editing || !administrator} type="email" value={form.email} onChange={e => setForm(x => ({ ...x, email: e.target.value }))} /></label>
           <label><span>{fa ? 'زبان' : 'Language'}</span><select disabled={!editing} value={form.preferredLanguage} onChange={e => setForm(x => ({ ...x, preferredLanguage: e.target.value }))}><option value="fa">فارسی</option><option value="en">English</option></select></label>
           <label className="active-check"><input disabled={!editing} type="checkbox" checked={form.isActive} onChange={e => setForm(x => ({ ...x, isActive: e.target.checked }))} />{fa ? 'کاربر فعال است' : 'User is active'}</label>
         </div>

@@ -34,6 +34,12 @@ const contentBox = (node: HTMLElement): Box => {
 /** Height is bounded by real content, never by the previous saved min-height.
  * Recover old offsets in the view only; opening a form never rewrites its document. */
 export function fitToolbarPanel(panel: HTMLElement, settings: GridToolbarSettings, restoreOffsets = true) {
+  // Saved panel width is authored in the Designer's viewport, which can be wider
+  // than an operational frame after its border/insets or personal resizing.
+  if (panel.parentElement) {
+    panel.style.maxWidth = '100%'
+    panel.style.minWidth = '0px'
+  }
   const nodes = Array.from(panel.querySelectorAll<HTMLElement>('[data-toolbar-part]'))
     .filter(node => node.closest('.grid-toolbar') === panel)
   const panelHeight = panel.style.height

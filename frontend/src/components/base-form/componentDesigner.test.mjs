@@ -7,7 +7,7 @@ const ids = ['titleId', 'phone', 'mobile', 'address', 'firstName']
 
 test('popup and attached button settings survive serialization and stay independent of main field styling', () => {
   let draft = emptyDesignerDraft(formId)
-  for (const [key, value] of Object.entries({ componentPopupBackground: '#abc123', componentPopupFontSize: 22, componentAddWidth: 38, componentAddHeight: 30, componentAddBackground: '#abcdef', componentAddTextColor: '#123456', fontSize: 16, backgroundColor: '#eeeeee' })) {
+  for (const [key, value] of Object.entries({ componentPopupBackground: '#abc123', componentPopupFontSize: 22, componentPopupWidth: 620, componentPopupButtonWidth: 112, componentPopupButtonHeight: 42, componentAddWidth: 38, componentAddHeight: 30, componentAddBackground: '#abcdef', componentAddTextColor: '#123456', fontSize: 16, backgroundColor: '#eeeeee' })) {
     draft = setDesignerProperty(draft, ['phone::input'], key, value, ids)
   }
   const restored = validateDesignerDraft(JSON.parse(JSON.stringify(draft)), formId, ids)
@@ -15,6 +15,9 @@ test('popup and attached button settings survive serialization and stay independ
   const style = designerStyleForPart(restored, 'phone', 'input')
   assert.equal(style['--component-popup-bg'], '#abc123')
   assert.equal(style['--component-popup-font-size'], '22px')
+  assert.equal(style['--component-popup-width'], '620px')
+  assert.equal(style['--component-popup-button-width'], '112px')
+  assert.equal(style['--component-popup-button-height'], '42px')
   assert.equal(style['--component-add-width'], '38px')
   assert.equal(style['--component-add-height'], '30px')
   assert.equal(style['--component-add-bg'], '#abcdef')
@@ -38,6 +41,6 @@ test('multi-selection settings can be undone and redone together', () => {
 
 test('invalid popup colors and out-of-range dimensions are discarded during restore', () => {
   const draft = emptyDesignerDraft(formId)
-  draft.overrides['phone::input'] = { componentPopupBackground: 'transparent', componentPopupFontSize: 100, componentAddWidth: -1, componentAddHeight: 500 }
+  draft.overrides['phone::input'] = { componentPopupBackground: 'transparent', componentPopupFontSize: 100, componentPopupWidth: 2000, componentAddWidth: -1, componentAddHeight: 500 }
   assert.deepEqual(validateDesignerDraft(draft, formId, ids).overrides, {})
 })

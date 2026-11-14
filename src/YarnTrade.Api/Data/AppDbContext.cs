@@ -11,6 +11,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 {
     public DbSet<Person> Persons => Set<Person>();
     public DbSet<Brand> Brands => Set<Brand>();
+    public DbSet<ProductGroup> ProductGroups => Set<ProductGroup>();
+    public DbSet<ProductGroupCounter> ProductGroupCounters => Set<ProductGroupCounter>();
+    public DbSet<ProductGroupPolicy> ProductGroupPolicies => Set<ProductGroupPolicy>();
     public DbSet<PersonBrand> PersonBrands => Set<PersonBrand>();
     public DbSet<UserPermission> UserPermissions => Set<UserPermission>();
     public DbSet<UserTaskState> UserTaskStates => Set<UserTaskState>();
@@ -59,6 +62,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        ProductGroupModel.Configure(builder);
+        WarehouseModel.Configure(builder);
+        YarnDefinitionModel.Configure(builder);
 
         foreach (var property in builder.Model.GetEntityTypes().SelectMany(x => x.GetProperties()))
         {
@@ -85,6 +91,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<Brand>().Property(x => x.Address).HasMaxLength(2000);
         builder.Entity<Brand>().Property(x => x.Description).HasMaxLength(4000);
         builder.Entity<PersonBrand>().HasIndex(x => new { x.PersonId, x.BrandId }).IsUnique();
+        builder.Entity<PersonBrand>().HasIndex(x => x.BrandId).IsUnique();
         builder.Entity<PersonBrand>().HasOne<Person>().WithMany(x => x.BrandLinks).HasForeignKey(x => x.PersonId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<PersonBrand>().HasOne<Brand>().WithMany().HasForeignKey(x => x.BrandId).OnDelete(DeleteBehavior.Restrict);
         builder.Entity<Person>().HasOne<Brand>().WithMany().HasForeignKey(x => x.DefaultBrandId).OnDelete(DeleteBehavior.Restrict);
@@ -134,16 +141,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         builder.Entity<YarnItem>().Property(x => x.NameFa).HasMaxLength(200);
         builder.Entity<YarnItem>().Property(x => x.NameEn).HasMaxLength(200);
         builder.Entity<YarnItem>().Property(x => x.ComprehensiveName).HasMaxLength(600);
-        builder.Entity<YarnItem>().Property(x => x.UnitOfMeasure).HasMaxLength(20);
-        builder.Entity<YarnItem>().Property(x => x.YarnGroup).HasMaxLength(30);
-        builder.Entity<YarnItem>().Property(x => x.Luster).HasMaxLength(30);
-        builder.Entity<YarnItem>().Property(x => x.FixStatus).HasMaxLength(30);
-        builder.Entity<YarnItem>().Property(x => x.Material).HasMaxLength(30);
-        builder.Entity<YarnItem>().Property(x => x.SpinType).HasMaxLength(30);
-        builder.Entity<YarnItem>().Property(x => x.SpinningMethod).HasMaxLength(30);
-        builder.Entity<YarnItem>().Property(x => x.ContinuityType).HasMaxLength(30);
-        builder.Entity<YarnItem>().Property(x => x.CountType).HasMaxLength(20);
-        builder.Entity<YarnItem>().Property(x => x.TwistType).HasMaxLength(10);
+        builder.Entity<YarnItem>().Property(x => x.UnitOfMeasure).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.Luster).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.FixStatus).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.Material).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.SpinType).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.SpinningMethod).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.ContinuityType).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.CountType).HasMaxLength(120);
+        builder.Entity<YarnItem>().Property(x => x.TwistType).HasMaxLength(120);
         builder.Entity<Warehouse>().HasIndex(x => x.Code).IsUnique();
         builder.Entity<ExchangeRate>().HasIndex(x => new { x.RateDate, x.FromCurrency, x.ToCurrency }).IsUnique();
         builder.Entity<PurchaseOrder>().HasIndex(x => x.OrderNumber).IsUnique();
@@ -276,6 +282,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     // Preserve applied seed timestamps/business values; anonymous seeds omit the SQL-generated column.
     private static DateTime SeedCreatedAt(long ticks) => ticks < 0 ? new DateTime(2026, 7, 27, 0, 0, 0, DateTimeKind.Utc)
         : new DateTime(2026, 7, 22, 6, 47, 29, 271, DateTimeKind.Utc).AddTicks(ticks);
+
+    // SQL Server normalizes lookup characters in one operation; the body also supports in-memory tests.
+    [DbFunction("TRANSLATE", IsBuiltIn = true)]
+    public static string TranslateLookupCharacters(string value, string from, string to) =>
+        new(value.Select(character => { var index = from.IndexOf(character); return index < 0 ? character : to[index]; }).ToArray());
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

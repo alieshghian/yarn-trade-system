@@ -172,7 +172,8 @@ public sealed class FormLaboratoryGridController : ControllerBase
 
 public sealed record SyntheticGridRequest(int DatasetSize = 100, int Page = 1, int PageSize = 100, string Search = "", string? SearchMode = "startsWith", bool ReverseSearch = false,
     Dictionary<string, GridColumnFilterRequest>? Filters = null, List<GridSortRequest>? Sort = null, string? OptionsColumn = null, string? OptionsSearch = null);
-public sealed record GridColumnFilterRequest(string[]? SelectedValues = null, string? SelectionMode = null, GridCustomFilterRequest? Custom = null, string[]? Colors = null);
+public sealed record GridColumnFilterRequest(string[]? SelectedValues = null, string? SelectionMode = null, GridCustomFilterRequest? Custom = null, string[]? Colors = null, GridValueRuleRequest? ValueRule = null);
+public sealed record GridValueRuleRequest(string Kind,int Count=10);
 public sealed record GridCustomFilterRequest(string Logic, GridConditionRequest First, GridConditionRequest? Second = null);
 public sealed record GridConditionRequest(string Operator, string Value, string? SecondValue = null);
 public sealed record GridSortRequest(string Id, string Direction, bool ByColor = false);

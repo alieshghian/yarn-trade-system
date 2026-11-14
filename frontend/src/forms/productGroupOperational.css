@@ -1,0 +1,10 @@
+/* The standard operational frame owns title/settings; retain approved title styling. */
+.product-group-operational>.operational-form-frame>.form-laboratory-banner{background:var(--product-group-title-bg);border-radius:var(--product-group-title-radius)}
+
+#root .product-group-operational .base-form-shell:has(.laboratory-editor[data-tree-editor]){max-height:none}
+
+.product-group-depth-settings{display:flex;align-items:center;gap:12px;margin:4px 0;padding:6px}.product-group-depth-settings input{width:80px}
+
+#root .product-group-operational>.operational-form-frame>.form-laboratory-banner{height:var(--product-group-title-height);min-height:var(--product-group-title-height);color:#202b32}
+#root .product-group-operational .laboratory-banner-title strong{font-size:1.15rem;color:inherit;line-height:normal}
+#root .form-laboratory-page.product-group-operational{overflow:auto}

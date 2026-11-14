@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 
 /** Runs inside the existing disposable Designer browser, never operational storage. */
-export async function runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base}) {
+export async function runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base,onlyLegacy=false}) {
  await pause(250) // Capture the preceding UI operation after the recovery debounce.
  const original=await evaluate(`Object.fromEntries(Object.keys(localStorage).map(key=>[key,localStorage.getItem(key)]))`)
  const restore=async()=>{await navigatePage({url:base+'/tests/form-storage.fixture.html'});await evaluate(`(()=>{const original=${JSON.stringify(original)};for(const key of Object.keys(localStorage))if(!(key in original))localStorage.removeItem(key);for(const [key,value] of Object.entries(original))localStorage.setItem(key,value)})()`);await navigatePage({url:base+'/tests/form-designer.html'});await until(`!!document.querySelector('[data-field-id="personCode"]')`)}
@@ -11,7 +11,12 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
    const {readFormRecovery,writeFormRecovery}=await import('/src/components/base-form/formDocumentRecovery.ts');const {designerHistoryReducer}=await import('/src/components/base-form/designer.ts');const {addDocumentColumn,updateDocumentColumn}=await import('/src/components/base-form/formTableStructure.ts');const {addTableHeaderRow,addDocumentField}=await import('/src/components/base-form/formDocumentControls.ts');
    const journal=readFormRecovery(localStorage,'isolated-browser-regression'),snapshot=journal.documents[journal.activeFormId].current;let schema=snapshot.form.schema,draft=snapshot.designerHistory.present;
    if(${JSON.stringify(kind)}==='label'){
-    schema=addDocumentColumn(schema,schema.tables[0].id,'notes.owned','توضیحات','text','notes');schema=updateDocumentColumn(schema,schema.tables[0].id,'personCode',{sourceFieldIds:['personCode','notes'],sourceLinkIntent:undefined,labelSyncDecision:'primary-field',labelSyncFieldId:'personCode'});
+    // The complete browser suite may already have a Notes-owned column. This
+    // isolated legacy fixture needs exactly one owner, regardless of earlier cases.
+    schema={...schema,tables:schema.tables.map((table,index)=>index===0?{...table,columns:table.columns.filter(column=>!(column.binding.kind==='formField'&&column.binding.fieldId==='notes')&&column.id!=='notes.owned').map(column=>column.sourceFieldIds?.includes('notes')?{...column,sourceFieldIds:column.sourceFieldIds.filter(id=>id!=='notes')}:column)}:table)};
+    schema=addDocumentColumn(schema,schema.tables[0].id,'notes.owned','توضیحات','text','notes');
+    // Deliberately seed a legacy invalid relationship. Current editing APIs correctly reject it.
+    schema={...schema,tables:schema.tables.map((table,index)=>index===0?{...table,columns:table.columns.map(column=>column.id==='personCode'?{...column,sourceFieldIds:['personCode','notes'],sourceLinkIntent:undefined,valueComposition:undefined,valueSeparator:undefined,labelSyncDecision:'primary-field',labelSyncFieldId:'personCode'}:column)}:table)};
    }else{
     schema={...schema,fields:schema.fields.filter(field=>['personCode','firstName','notes','titleId'].includes(field.id))};
     schema=addTableHeaderRow(schema,schema.tables[0].id,'paired.header');
@@ -20,6 +25,11 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
     const make=(ids)=>{const canvas={width:900,height:420,fields:{[ids[0]]:field(100,70,220,80),[ids[1]]:field(350,70,220,80),[ids[2]]:field(100,230,220,100),[ids[3]]:field(350,230,220,100)}};canvas.fields[ids[0]].select.left=-75;return canvas};
     const overrides={...draft.overrides};for(const [id,field] of Object.entries({...make(['personCode','firstName','notes','titleId']).fields,...make(['header.a','header.b','header.c','header.d']).fields}))overrides[id+'::input']={...overrides[id+'::input'],width:field.input.width,height:field.input.height};
     draft={...draft,overrides,neighborResize:{horizontal:false,vertical:false},layoutMode:'canvas',canvas:make(['personCode','firstName','notes','titleId']),sectionCanvases:{...draft.sectionCanvases,[schema.fields.find(field=>field.id==='personCode').sectionId]:make(['personCode','firstName','notes','titleId']),'paired.header':make(['header.a','header.b','header.c','header.d'])}};
+    if(${JSON.stringify(kind)}==='legacy'){
+     const legacy=c=>({...c,width:2200,fields:Object.fromEntries(Object.entries(c.fields).map(([id,field])=>[id,Object.fromEntries(Object.entries(field).map(([part,r])=>[part,{...r,left:r.left+1380}]))]))});
+     const main=schema.fields.find(field=>field.id==='personCode').sectionId;
+     draft={...draft,canvas:legacy(draft.canvas),sectionCanvases:{...draft.sectionCanvases,[main]:legacy(draft.sectionCanvases[main])}};
+    }
     if(${JSON.stringify(kind)}==='rename'){
      schema=updateDocumentColumn(schema,schema.tables[0].id,'displayName',{sourceFieldIds:['firstName'],sourceLinkIntent:'single',labelSyncDecision:'primary-field',labelSyncFieldId:'firstName'});
      const narrow=canvas=>({...canvas,fields:{...canvas.fields,firstName:{...canvas.fields.firstName,label:{...canvas.fields.firstName.label,left:555,width:15}}}});
@@ -31,6 +41,17 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
   await navigatePage({url:base+'/tests/form-designer.html'});await until(`!!document.querySelector('[data-field-id="notes"] .designer-label-part')`)
  }
  try {
+  if(onlyLegacy){
+   await seed('legacy')
+   const target=`document.querySelector('[data-field-id="firstName"] .designer-input-part')`,peer=`document.querySelector('[data-field-id="personCode"] .designer-input-part')`
+   await clickExpression(target)
+   const boxes=()=>evaluate(`(()=>{const box=e=>{const r=e.getBoundingClientRect();return {left:r.left,top:r.top,width:r.width,height:r.height}};return {target:box(${target}),peer:box(${peer})}})()`)
+   const before=await boxes();await drag(target,20,12,false);const after=await boxes()
+   assert.ok(Math.abs(after.target.left-before.target.left-20)<.1&&Math.abs(after.target.top-before.target.top-12)<.1,'cropped legacy Canvas preserves the actual 20px/12px manual move '+JSON.stringify({before,after}))
+   assert.deepEqual(after.peer,before.peer,'cropped legacy Canvas keeps every unselected peer fixed')
+   console.log('PASS cropped legacy Canvas uses its complete rendered origin for manual movement without changing peers')
+   return
+  }
   await seed('label')
   await clickExpression(`document.querySelector('[data-field-id="notes"] .designer-label-part')`,'right');await click('ویرایش متن برچسب…','[role="menu"] button')
   await inputValue(`document.querySelector('input[aria-label="متن برچسب یا سرستون"]')`,'توضیحات برند');await click('ثبت متن','.form-document-dialog button')
@@ -65,24 +86,27 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
   await check('blank panel space outside the short Canvas clears all field selections',`!document.querySelector('.designer-part-selected,.designer-edge-handle')`)
   await clickExpression(selectInput('firstName'),'left',2);await clickExpression(selectInput('notes'),'left',2)
   const dragBefore=await evaluate(`['firstName','notes','titleId'].map(id=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();return {x:r.x,y:r.y}})`)
-  await drag(selectInput('firstName'),10,6,false)
-  await check('dragging an already selected body still moves the group without clearing it',`(()=>{const before=${JSON.stringify(dragBefore)},ids=['firstName','notes','titleId'];return document.querySelectorAll('.designer-input-part.designer-part-selected').length===2&&ids.every((id,i)=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();return Math.abs(r.x-before[i].x-(i<2?10:0))<1&&Math.abs(r.y-before[i].y-(i<2?6:0))<1})})()`)
+  let dragDuring
+  await drag(selectInput('firstName'),10,6,false,async()=>{await pause(50);dragDuring=await evaluate(`['firstName','notes','titleId'].map(id=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();return {x:r.x,y:r.y}})`)})
+  const dragAfter=await evaluate(`['firstName','notes','titleId'].map(id=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();return {x:r.x,y:r.y}})`)
+  await check('dragging a selected body commits the group placement without snapping back '+JSON.stringify({dragBefore,dragDuring,dragAfter}),`(()=>{const before=${JSON.stringify(dragBefore)},during=${JSON.stringify(dragDuring)},after=${JSON.stringify(dragAfter)},ids=['firstName','notes','titleId'];return document.querySelectorAll('.designer-input-part.designer-part-selected').length===2&&ids.every((id,i)=>{const live=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();const expectedSnap={x:before[i].x+(i<2?10:0),y:before[i].y+(i<2?6:0)};return Math.abs(during[i].x-before[i].x-(i<2?10:0))<1&&Math.abs(during[i].y-before[i].y-(i<2?6:0))<1&&Math.abs(after[i].x-expectedSnap.x)<1&&Math.abs(after[i].y-expectedSnap.y)<1&&Math.abs(live.x-after[i].x)<1&&Math.abs(live.y-after[i].y)<1})})()`)
   await click('واگرد','.form-laboratory-banner button')
+  await check('one Undo restores the complete manually moved group and its stationary peer', `['firstName','notes','titleId'].every((id,i)=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect(),before=${JSON.stringify(dragBefore)};return Math.abs(r.x-before[i].x)<1&&Math.abs(r.y-before[i].y)<1})`)
   await clickExpression(`(${selectInput('personCode')}).closest('.laboratory-editor')`)
   await clickExpression(`document.querySelector('[data-field-id="firstName"] .designer-input-part')`,'right')
-  await check('field context is organized into five short groups',`document.querySelectorAll('.designer-context-menu:not(.designer-context-submenu)>button').length===5`)
+  await check('field context exposes its text, appearance, layout and additional option groups',`(()=>{const groups=new Set([...document.querySelectorAll('.designer-context-menu:not(.designer-context-submenu)>button[data-grid-submenu]')].map(button=>button.dataset.gridSubmenu));return ['text','appearance','layout','more'].every(id=>groups.has(id))})()`)
   await click('اندازه و چیدمان','[role="menu"] button')
   await check('Persian flyout and chevron point left and stay within the viewport',`(()=>{const p=document.querySelector('.designer-context-menu:not(.designer-context-submenu)').getBoundingClientRect(),s=document.querySelector('.designer-context-submenu').getBoundingClientRect(),a=document.querySelector('[data-grid-submenu="layout"] .designer-submenu-arrow');return getComputedStyle(a).transform.startsWith('matrix(-')&&s.left>=0&&s.right<=innerWidth&&s.bottom<=innerHeight&&(p.left<s.width+16||s.right<=p.left)})()`)
   await click('تغییر عرض با حفظ فاصله و عرض مجموع','[role="menu"] button');await click('تغییر ارتفاع با حفظ فاصله و ارتفاع مجموع','[role="menu"] button')
   await check('context spacing toggles share the sidebar state on both axes',`document.querySelector('[aria-label="حفظ فاصله و عرض مجموع"]').checked&&document.querySelector('[aria-label="حفظ فاصله و ارتفاع مجموع"]').checked&&document.querySelectorAll('.designer-context-submenu [aria-checked="true"]').length===2`)
   const rect=id=>`document.querySelector('[data-field-id="${id}"] .designer-input-part')`
   const box=async id=>evaluate(`(()=>{const r=(${rect(id)}).getBoundingClientRect();const o=(${rect(id)}).closest('.laboratory-form-grid').getBoundingClientRect();return {x:r.x-o.x,y:r.y-o.y,w:r.width,h:r.height}})()`)
-  const choose=async id=>{if(!await evaluate(`(${rect(id)}).classList.contains('designer-part-selected')`))await clickExpression(rect(id));await until(`document.querySelector('#designer-width')&&!document.querySelector('#designer-width').disabled`)}
+  const choose=async id=>{const selected=await evaluate(`({count:document.querySelectorAll('.designer-input-part.designer-part-selected').length,target:(${rect(id)}).classList.contains('designer-part-selected')})`);if(!selected.target||selected.count!==1){await click('پاک‌کردن انتخاب','.designer-selection-actions button');await clickExpression(rect(id))}await until(`document.querySelector('#designer-width')&&!document.querySelector('#designer-width').disabled`)}
   const undo=()=>click('واگرد','.form-laboratory-banner button')
   const dimensions=async(id,property,value)=>{await choose(id);await inputValue(`document.querySelector('#designer-${property}')`,value);await evaluate(`document.querySelector('#designer-${property}').blur()`);await pause(300)}
   for(const [a,b,c,d,host] of [['personCode','firstName','notes','titleId','main'],['header.a','header.b','header.c','header.d','header']]){
    await choose(a)
-   await check(host+' old displaced selection button renders at its input corner without changing saved geometry',`(()=>{const input=(${rect(a)}).getBoundingClientRect(),button=document.querySelector('[data-field-id="${a}"] .laboratory-field-select').getBoundingClientRect(),editor=(${rect(a)}).closest('.laboratory-editor');return Math.abs(button.left-input.left-4)<1&&editor.scrollWidth<=editor.clientWidth+1})()`)
+   await check(host+' old displaced selection button follows the visible field label without changing saved geometry',`(()=>{const input=(${rect(a)}).getBoundingClientRect(),button=document.querySelector('[data-field-id="${a}"] .laboratory-field-select').getBoundingClientRect(),editor=(${rect(a)}).closest('.laboratory-editor');const label=document.querySelector('[data-field-id="${a}"] .designer-label-part').getBoundingClientRect();return Math.abs(button.left-Math.min(input.left,label.left))<1&&Math.abs(button.top-label.top)<1&&editor.scrollWidth<=editor.clientWidth+1})()`)
    const before=await box(a),neighbor=await box(b),unrelated=await box(d)
    await dimensions(a,'width',before.w+30)
    const after=await box(a),other=await box(b)
@@ -105,7 +129,7 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
    await choose(b);await drag(`document.querySelector('[data-field-id="${b}"] .designer-edge-left')`,20,0,false)
    assert.ok(Math.abs((await box(a)).w-before.w-20)<1&&Math.abs((await box(b)).w-neighbor.w+20)<1,host+' physical left edge compensation');await undo()
    await choose(b);await drag(`document.querySelector('[data-field-id="${b}"] .designer-edge-left')`,-150,0,false)
-   await check(host+' shrinking neighbour keeps its selection button at the fixed left corner without horizontal overflow',`(()=>{const input=(${rect(a)}).getBoundingClientRect(),button=document.querySelector('[data-field-id="${a}"] .laboratory-field-select').getBoundingClientRect(),editor=(${rect(a)}).closest('.laboratory-editor');return Math.abs(button.left-input.left-4)<1&&editor.scrollWidth<=editor.clientWidth+1})()`)
+   await check(host+' shrinking neighbour keeps its selection button on the label row without horizontal overflow',`(()=>{const input=(${rect(a)}).getBoundingClientRect(),button=document.querySelector('[data-field-id="${a}"] .laboratory-field-select').getBoundingClientRect(),editor=(${rect(a)}).closest('.laboratory-editor');const label=document.querySelector('[data-field-id="${a}"] .designer-label-part').getBoundingClientRect();return Math.abs(button.left-Math.min(input.left,label.left))<1&&Math.abs(button.top-label.top)<1&&editor.scrollWidth<=editor.clientWidth+1})()`)
    await undo()
    await choose(c);await drag(`document.querySelector('[data-field-id="${c}"] .designer-edge-top')`,0,10,false)
    assert.ok(Math.abs((await box(a)).h-before.h-10)<1&&Math.abs((await box(c)).h-low.h+10)<1,host+' physical top edge compensation');await undo()
@@ -132,6 +156,7 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
   await reloadPage();await until(`!!document.querySelector('[data-field-id="header.a"]')`)
   await check('centering is retained after reload',centered())
   await send('Emulation.setDeviceMetricsOverride',{width:1600,height:1300,deviceScaleFactor:1,mobile:false});await pause(200)
+  await until(centered(),'centered rows settle after editor viewport resize')
   await check('centered rows remain centered when available editor width changes',centered())
   await send('Emulation.clearDeviceMetricsOverride');await pause(200)
   await navigatePage({url:base+'/tests/form-designer.html?language=en'});await until(`!!document.querySelector('[data-field-id="firstName"]')`)

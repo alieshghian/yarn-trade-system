@@ -1,20 +1,33 @@
+import {ComponentListProvider} from './components/base-form/ComponentListContext'
 import { applyDesignTheme, type ThemeDocument } from './components/base-form/themeDesignSystem'
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, apiRequest, isConcurrencyConflict, withRowVersion, authenticationRequest, type EmailChallenge, isAuthenticated, login, logout, setAccessPermissions, tryDevelopmentSession, verifyEmail } from './api'
 import { Language, languageNames, loginText, text } from './i18n'
-import PersonsPage from './PersonsPage'
-import BrandsPage from './BrandsPage'
-import FormLaboratoryPage from './FormLaboratoryPage'
-import YarnsPage from './YarnsPage'
-import PurchaseOrdersPage from './PurchaseOrdersPage'
-import CommercePage from './CommercePage'
-import UsersPage from './UsersPage'
-import UserSettingsPage, { type UserPreferences } from './UserSettingsPage'
-import DataBackupPage from './DataBackupPage'
-import BusinessContractPage from './BusinessContractPage'
+import type { UserPreferences } from './UserSettingsPage'
 import { formatPersianDate } from './persianDate'
 import NavigationSidebar from './NavigationSidebar'
+import { retryablePage, WorkspacePageBoundary } from './WorkspacePageBoundary'
 import { icons, type MenuKey } from './navigation'
+
+const PersonsPage = retryablePage(() => import('./PersonsPage'))
+const ProductGroupOperationalPage = retryablePage(() => import('./forms/ProductGroupOperationalPage').then(module => ({default:module.ProductGroupOperationalPage})))
+const WarehousesPage = retryablePage(() => import('./WarehousesPage'))
+const BrandsPage = retryablePage(() => import('./BrandsPage'))
+const FormLaboratoryPage = retryablePage(() => import('./FormLaboratoryPage'))
+const YarnsPage = retryablePage(() => import('./forms/YarnsOperationalRoute'))
+const PurchaseOrdersPage = retryablePage(() => import('./PurchaseOrdersPage'))
+const CommercePage = retryablePage(() => import('./CommercePage'))
+const UsersPage = retryablePage(() => import('./UsersPage'))
+const UserSettingsPage = retryablePage(() => import('./UserSettingsPage'))
+const DataBackupPage = retryablePage(() => import('./DataBackupPage'))
+const BusinessContractPage = retryablePage(() => import('./BusinessContractPage'))
+
+const retryPages: Partial<Record<MenuKey, () => void>> = {
+  persons: PersonsPage.retry, productGroups: ProductGroupOperationalPage.retry,
+  warehouses: WarehousesPage.retry, brands: BrandsPage.retry, formLaboratory: FormLaboratoryPage.retry, yarns: YarnsPage.retry,
+  purchaseOrders: PurchaseOrdersPage.retry, commerce: CommercePage.retry, users: UsersPage.retry,
+  settings: UserSettingsPage.retry, dataBackup: DataBackupPage.retry, businessContract: BusinessContractPage.retry
+}
 
 type Purchase = { id: string, internalNumber: string, externalInvoiceNumber?: string, invoiceDate: string, supplierId: string, totalNetWeight: number, grandTotal: number, status: string }
 type PurchasePage = { items: Purchase[], total: number }
@@ -23,7 +36,7 @@ type MaintenanceNotice = { id: string, requesterName: string, requesterRoles: st
 type Access = { id: string, email: string, displayName: string, preferredLanguage: string, sessionTimeoutMinutes: number, theme: UserPreferences['theme'], compactMode: boolean, fontFamily: UserPreferences['fontFamily'], fontSize: UserPreferences['fontSize'], roles: string[], permissions: string[] }
 
 const workspaceStateKey = 'global-trade-workspace-v1'
-const workspaceMenuKeys: MenuKey[] = ['dashboard', 'persons', 'brands', 'formLaboratory', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings']
+const workspaceMenuKeys: MenuKey[] = ['dashboard', 'persons', 'brands', 'warehouses', 'productGroups', 'formLaboratory', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings']
 
 function readWorkspaceState(): { active: MenuKey, openTabs: MenuKey[] } {
   try {
@@ -46,6 +59,9 @@ export default function App() {
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'fa')
   const [themeDocument, setThemeDocument] = useState<ThemeDocument | null>(null)
   const [requestedDesign, setRequestedDesign] = useState<{id:string;sequence:number}>()
+  const handledDesignLink = useRef<string | undefined>(undefined)
+  const laboratoryCloseGuard = useRef<(()=>Promise<boolean>)|null>(null)
+  const registerLaboratoryCloseGuard = useCallback((guard:(()=>Promise<boolean>)|null)=>{laboratoryCloseGuard.current=guard},[])
   const [theme, setTheme] = useState<UserPreferences['theme']>(() => (localStorage.getItem('theme') as UserPreferences['theme']) || 'system')
   const [compactMode, setCompactMode] = useState(() => localStorage.getItem('compact-mode') === '1')
   const [sessionTimeoutMinutes, setSessionTimeoutMinutes] = useState(() => Number(localStorage.getItem('session-timeout')) || 30)
@@ -56,7 +72,11 @@ export default function App() {
   const [openTabs, setOpenTabs] = useState<MenuKey[]>(savedWorkspace.openTabs)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('sidebar-collapsed') === '1')
   const [authenticated, setAuthenticated] = useState(!activationToken && !recoveryToken && (isAuthenticated() || demoMode))
+  const [visitedTabs, setVisitedTabs] = useState<MenuKey[]>([])
   const [authNotice, setAuthNotice] = useState('')
+  const [reauthRequired,setReauthRequired]=useState(false)
+  const [bootstrapError,setBootstrapError]=useState('')
+  const [bootstrapAttempt,setBootstrapAttempt]=useState(0)
   const [languageNotice, setLanguageNotice] = useState('')
   const [explicitLoginLanguage, setExplicitLoginLanguage] = useState<Language>()
   const [access, setAccess] = useState<Access>()
@@ -73,13 +93,21 @@ export default function App() {
   const languageChangeSequence = useRef(0)
   const t = text[language]
   const dir = language === 'fa' ? 'rtl' : 'ltr'
-  const allMenus = useMemo(() => ['dashboard', 'persons', 'brands', 'formLaboratory', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings'] as const, [])
+  const allMenus = useMemo(() => ['dashboard', 'persons', 'brands', 'warehouses', 'productGroups', 'formLaboratory', 'yarns', 'purchaseOrders', 'commerce', 'purchases', 'inventory', 'sales', 'finance', 'checks', 'partners', 'reports', 'users', 'dataBackup', 'businessContract', 'settings'] as const, [])
   const menu = useMemo(() => allMenus.filter(key => (key !== 'formLaboratory' || demoMode || access?.roles.includes('Administrator')) && (demoMode || key === 'settings' || (!access ? key === 'dashboard' : access.permissions.includes(key === 'businessContract' ? 'settings.view' : `${key}.view`)))), [allMenus, access, demoMode])
   // هر فرم فقط کارتابل فعالیت مرتبط با خودش را نمایش می‌دهد؛ نقش مقصد در API کنترل می‌شود.
   const currentWorkItems = useMemo(() => workItems.filter(item => item.target === active), [workItems, active])
   const pendingWorkItems = currentWorkItems.filter(item => !item.actionStartedAtUtc)
   const pendingWorkItemCount = pendingWorkItems.length
   const commerceOrderCount = workItems.filter(item => item.category === 'CommerceOrder' && !item.actionStartedAtUtc).length
+
+  useEffect(() => {
+    setVisitedTabs(current => {
+      const next = authenticated ? current.filter(key => openTabs.includes(key)) : []
+      if (authenticated && openTabs.includes(active) && !next.includes(active)) next.push(active)
+      return next.length === current.length && next.every((key, index) => key === current[index]) ? current : next
+    })
+  }, [active, openTabs, authenticated])
 
   function openForm(key: MenuKey) {
     if (!menu.includes(key)) return
@@ -101,7 +129,28 @@ export default function App() {
     window.addEventListener('open-operational-form', open)
     return () => window.removeEventListener('open-operational-form', open)
   }, [menu])
-  function closeForm(key: MenuKey) {
+  useEffect(() => {
+    const openDesignLink = () => {
+      const id = new URL(location.href).searchParams.get('formDesign')
+      if (!id) { handledDesignLink.current = undefined; return }
+      const requestKey = `${access?.id ?? 'demo'}:${id}`
+      if (!authenticated || !menu.includes('formLaboratory') || !(demoMode || access?.roles.includes('Administrator')) || handledDesignLink.current === requestKey) return
+      handledDesignLink.current = requestKey
+      openForm('formLaboratory')
+      setRequestedDesign({id, sequence: Date.now()})
+    }
+    openDesignLink()
+    window.addEventListener('popstate', openDesignLink)
+    return () => window.removeEventListener('popstate', openDesignLink)
+  }, [authenticated, menu, access?.id, demoMode])
+  async function requestSignOut(){
+    if(!window.confirm(language==='fa'?'از برنامه خارج می‌شوید؟ اطلاعات ذخیره‌نشده ممکن است از دست برود.': 'Sign out? Unsaved work may be lost.'))return false
+    if(laboratoryCloseGuard.current&&!await laboratoryCloseGuard.current())return false
+    logout();setAccess(undefined);setAuthenticated(false);setReauthRequired(false);return true
+  }
+  async function closeForm(key: MenuKey) {
+    if(reauthRequired||!window.confirm(language==='fa'?'این فرم بسته شود؟ پیش از خروج اطلاعات را ذخیره کنید.':'Close this form? Save your work first.'))return
+    if(key==='formLaboratory' && laboratoryCloseGuard.current && !await laboratoryCloseGuard.current())return
     setOpenTabs(current => {
       if (current.length === 1) return current
       const index = current.indexOf(key)
@@ -111,18 +160,21 @@ export default function App() {
     })
   }
 
-  const closeActiveByEscape = useCallback(() => {
+  const closeActiveByEscape = useCallback(async () => {
+    if(reauthRequired)return
     if (active === 'dashboard') {
-      if (window.confirm(language === 'fa' ? 'از سیستم خارج می‌شوید؟' : 'Sign out of the system?')) { logout(); setAuthenticated(false) }
+      await requestSignOut()
       return
     }
+    if(!window.confirm(language==='fa'?'این فرم بسته شود؟ پیش از خروج اطلاعات را ذخیره کنید.':'Close this form? Save your work first.'))return
+    if(active==='formLaboratory' && laboratoryCloseGuard.current && !await laboratoryCloseGuard.current())return
     setOpenTabs(current => {
       const next = current.filter(x => x !== active)
       const finalTabs: MenuKey[] = next.length ? next : [menu[0] ?? 'settings']
       setActive(finalTabs[finalTabs.length - 1])
       return finalTabs
     })
-  }, [active, language, menu])
+  }, [active, language, menu,reauthRequired])
 
   function toggleSidebar() {
     setSidebarCollapsed(value => {
@@ -191,8 +243,7 @@ export default function App() {
   useEffect(() => {
     const expired = (event: Event) => {
       setAuthNotice(loginText[language].sessionExpired)
-      setAccess(undefined)
-      setAuthenticated(false)
+      setReauthRequired(true)
     }
     window.addEventListener('auth-expired', expired)
     return () => window.removeEventListener('auth-expired', expired)
@@ -217,31 +268,28 @@ export default function App() {
         catch { if (!cancelled) setLanguageNotice(effectiveLanguage === 'fa' ? 'زبان انتخابی اعمال شد، اما ذخیرهٔ آن برای ورود بعدی ناموفق بود.' : effectiveLanguage === 'zh' ? '所选语言已应用，但无法保存供下次登录使用。' : 'Your selected language is active, but it could not be saved for your next sign-in.') }
       }
       if (cancelled) return
-      setAccess({ ...value, ...preferences })
+      setBootstrapError('');setAccess({ ...value, ...preferences })
       setAccessPermissions(value.permissions)
       setExplicitLoginLanguage(undefined)
-    }).catch(() => {
+    }).catch(error => {
       if (cancelled) return
-      logout(); setAuthenticated(false); setAccess(undefined)
+      setBootstrapError(error instanceof Error?error.message:String(error))
+      if(error&&typeof error==='object'&&'status' in error&&error.status===401)setReauthRequired(true)
     })
     return () => { cancelled = true }
   // Authentication starts one deterministic bootstrap. Language changes after bootstrap use changeLanguage.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authenticated, demoMode, access, applyPreferences])
+  }, [authenticated, demoMode, access, applyPreferences,bootstrapAttempt])
 
-  useEffect(() => {
-    if (!authenticated || demoMode) return
-    let timer = 0
-    const expire = () => {
-      logout(); setAccess(undefined); setAuthenticated(false)
-      setAuthNotice(loginText[language].inactivityExpired)
-    }
-    const reset = () => { window.clearTimeout(timer); timer = window.setTimeout(expire, Math.max(1, sessionTimeoutMinutes) * 60_000) }
-    const events: (keyof WindowEventMap)[] = ['pointerdown', 'keydown', 'touchstart', 'scroll']
-    events.forEach(name => window.addEventListener(name, reset, { passive: true }))
-    reset()
-    return () => { window.clearTimeout(timer); events.forEach(name => window.removeEventListener(name, reset)) }
-  }, [authenticated, demoMode, sessionTimeoutMinutes, language])
+  // No client-side idle logout: authentication expiry is handled by refresh/re-auth,
+  // keeping the mounted workspace and unsaved fields intact.
+  useEffect(()=>{
+    if(!authenticated)return
+    const guard=(event:BeforeUnloadEvent)=>{if(openTabs.some(tab=>tab!=='dashboard')){event.preventDefault();event.returnValue=''}}
+    window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard)
+  },[authenticated,openTabs])
+
+
 
   useEffect(() => {
     if (!authenticated || demoMode) return
@@ -270,7 +318,7 @@ export default function App() {
   }, [closeActiveByEscape])
 
   useEffect(() => {
-    const implemented = ['persons', 'brands', 'yarns', 'purchaseOrders', 'commerce', 'dataBackup', 'businessContract', 'settings'] as MenuKey[]
+    const implemented = ['persons', 'brands', 'warehouses', 'productGroups', 'yarns', 'purchaseOrders', 'commerce', 'dataBackup', 'businessContract', 'settings'] as MenuKey[]
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || implemented.includes(active)) return
       event.preventDefault()
@@ -341,16 +389,24 @@ export default function App() {
     else if (item.target === 'inventory') openForm('inventory')
   }
 
-  if (!authenticated) return <Login language={language} setLanguage={value => { setLanguage(value); setExplicitLoginLanguage(value) }} notice={authNotice} onSuccess={() => { setAuthNotice(''); setAccess(undefined); setAuthenticated(true) }} />
+  const resumeSession=async()=>{
+    const restored=await api<Access>('/api/user-access')
+    if(access&&restored.id!==access.id){logout();throw Error('برای ادامه باید با همان حساب وارد شوید.')}
+    setAccess(restored);setAccessPermissions(restored.permissions);setReauthRequired(false);setAuthNotice('');setBootstrapError('')
+  }
+  const recoveryLogin=<Login language={language} setLanguage={setLanguage} lockedEmail={access?.email} notice={authNotice} onSuccess={resumeSession}/>
+  if (!authenticated) return <Login language={language} setLanguage={value => { setLanguage(value); setExplicitLoginLanguage(value) }} notice={authNotice} onSuccess={() => { setReauthRequired(false);setAuthNotice(''); setAccess(undefined); setAuthenticated(true) }} />
+  if (!demoMode&&!access&&reauthRequired)return <div data-session-recovery role="dialog" aria-modal="true">{recoveryLogin}</div>
+  if (!demoMode&&!access&&bootstrapError)return <main className="app-language-loading" dir={dir}><p role="alert">{bootstrapError}</p><button onClick={()=>{setBootstrapError('');setBootstrapAttempt(n=>n+1)}}>{language==='fa'?'تلاش دوباره، بدون خروج':'Retry without signing out'}</button><button onClick={()=>setReauthRequired(true)}>{language==='fa'?'ورود مجدد':'Sign in again'}</button></main>
   if (!demoMode && !access) return <main className="app-language-loading" dir={dir}><div className="brand-mark large">G</div><strong>Global Trade</strong><span>{language === 'fa' ? 'در حال آماده‌سازی محیط کار…' : language === 'zh' ? '正在准备工作区…' : 'Preparing your workspace…'}</span></main>
 
-  return <div className={`app-shell theme-${theme} ${compactMode ? 'compact-ui' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} dir={dir}>
+  return <><ComponentListProvider role={demoMode||access?.roles.some(role=>role==='Administrator'||role==='Manager')?'admin':'user'}><div inert={reauthRequired||undefined} className={`app-shell theme-${theme} ${compactMode ? 'compact-ui' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} dir={dir}>
     {languageNotice && <div className="language-notice" role="status"><span>{languageNotice}</span><button aria-label={language === 'fa' ? 'بستن' : language === 'zh' ? '关闭' : 'Close'} onClick={() => setLanguageNotice('')}>×</button></div>}
-    {maintenanceNotice && <div className="maintenance-overlay" role="alertdialog" aria-modal="true"><section><div className="maintenance-icon">!</div><h2>{language === 'fa' ? 'درخواست خروج از سیستم' : 'Sign-out requested'}</h2><p>{language === 'fa' ? `برای انجام ${maintenanceNotice.operation === 'Backup' ? 'تهیه نسخه پشتیبان' : 'بازخوانی اطلاعات'} از شما خواسته شده از سیستم خارج شوید.` : `Please sign out so ${maintenanceNotice.operation.toLowerCase()} can begin.`}</p><dl><div><dt>{language === 'fa' ? 'درخواست‌کننده' : 'Requested by'}</dt><dd>{maintenanceNotice.requesterName}</dd></div><div><dt>{language === 'fa' ? 'نقش' : 'Role'}</dt><dd>{formatMaintenanceRoles(maintenanceNotice.requesterRoles, language)}</dd></div><div><dt>{language === 'fa' ? 'دلیل' : 'Reason'}</dt><dd>{maintenanceNotice.reason}</dd></div><div><dt>{language === 'fa' ? 'مدت تقریبی' : 'Estimated duration'}</dt><dd>{maintenanceNotice.estimatedMinutes} {language === 'fa' ? 'دقیقه' : 'minutes'}</dd></div></dl><button className="primary" onClick={() => { logout(); setAccess(undefined); setAuthenticated(false); setMaintenanceNotice(null); setAuthNotice(language === 'fa' ? `به درخواست ${maintenanceNotice.requesterName} برای عملیات نگهداری خارج شدید. پس از حدود ${maintenanceNotice.estimatedMinutes} دقیقه دوباره وارد شوید.` : `Signed out for maintenance requested by ${maintenanceNotice.requesterName}. Try again in about ${maintenanceNotice.estimatedMinutes} minutes.`) }}>{language === 'fa' ? 'خروج از سیستم' : 'Sign out now'}</button></section></div>}
+    {maintenanceNotice && <div className="maintenance-overlay" role="alertdialog" aria-modal="true"><section><div className="maintenance-icon">!</div><h2>{language === 'fa' ? 'درخواست خروج از سیستم' : 'Sign-out requested'}</h2><p>{language === 'fa' ? `برای انجام ${maintenanceNotice.operation === 'Backup' ? 'تهیه نسخه پشتیبان' : 'بازخوانی اطلاعات'} از شما خواسته شده از سیستم خارج شوید.` : `Please sign out so ${maintenanceNotice.operation.toLowerCase()} can begin.`}</p><dl><div><dt>{language === 'fa' ? 'درخواست‌کننده' : 'Requested by'}</dt><dd>{maintenanceNotice.requesterName}</dd></div><div><dt>{language === 'fa' ? 'نقش' : 'Role'}</dt><dd>{formatMaintenanceRoles(maintenanceNotice.requesterRoles, language)}</dd></div><div><dt>{language === 'fa' ? 'دلیل' : 'Reason'}</dt><dd>{maintenanceNotice.reason}</dd></div><div><dt>{language === 'fa' ? 'مدت تقریبی' : 'Estimated duration'}</dt><dd>{maintenanceNotice.estimatedMinutes} {language === 'fa' ? 'دقیقه' : 'minutes'}</dd></div></dl><button className="primary" onClick={async() => { if(!await requestSignOut())return;setMaintenanceNotice(null); setAuthNotice(language === 'fa' ? `به درخواست ${maintenanceNotice.requesterName} برای عملیات نگهداری خارج شدید. پس از حدود ${maintenanceNotice.estimatedMinutes} دقیقه دوباره وارد شوید.` : `Signed out for maintenance requested by ${maintenanceNotice.requesterName}. Try again in about ${maintenanceNotice.estimatedMinutes} minutes.`) }}>{language === 'fa' ? 'خروج از سیستم' : 'Sign out now'}</button></section></div>}
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">G</div><div className="brand-copy"><strong>Global Trade</strong><small>YARN PARTNERSHIP</small></div><button className="collapse-sidebar" title={t.collapseMenu} onClick={toggleSidebar}>{sidebarCollapsed ? '»' : '«'}</button></div>
       <NavigationSidebar key={access?.id ?? 'demo'} language={language} userId={access?.id} administrator={Boolean(access?.roles.includes('Administrator') && access.permissions.includes('settings.edit'))} demoMode={demoMode} allowedRoutes={menu} active={active} onOpen={openForm} commerceCount={commerceOrderCount} onOpenDesign={import.meta.env.DEV && access?.roles.includes('Administrator') && menu.includes('formLaboratory') ? id => { openForm('formLaboratory'); setRequestedDesign({ id, sequence: Date.now() }) } : undefined} />
-      <div className="user"><div className="avatar">{access?.displayName?.[0] ?? 'A'}</div><div><b>{access?.displayName ?? 'Administrator'}</b><small>{access?.roles?.join('، ') || `${t.systemStatus}: ${t.healthy}`}</small></div><button title={t.signOut} onClick={() => { logout(); setAccess(undefined); setAuthenticated(false) }}>↪</button></div>
+      <div className="user"><div className="avatar">{access?.displayName?.[0] ?? 'A'}</div><div><b>{access?.displayName ?? 'Administrator'}</b><small>{access?.roles?.join('، ') || `${t.systemStatus}: ${t.healthy}`}</small></div><button title={t.signOut} onClick={()=>void requestSignOut()}>↪</button></div>
     </aside>
     <main>
       <header className="workspace-header">
@@ -363,9 +419,10 @@ export default function App() {
         <div className="work-items">{currentWorkItems.length ? currentWorkItems.map(item => <WorkItemRow key={item.id} item={item} language={language} now={clockNow} expanded={expandedWorkItem === item.id} actioning={actioningWorkItem === item.id} onView={() => void viewWorkItem(item)} onAction={() => void actionWorkItem(item)} />) : <p>{t.noActiveTask}</p>}</div>
         <button className="work-refresh" onClick={refreshWorkItems}>{t.refreshInbox}</button>
       </aside>
-      <section className={`content tabbed-content ${active === 'persons' || active === 'brands' || active === 'formLaboratory' || active === 'yarns' || active === 'purchaseOrders' || active === 'commerce' || active === 'users' || active === 'dataBackup' || active === 'businessContract' || active === 'settings' ? 'persons-content' : ''}`}>
+      <section className={`content tabbed-content ${active === 'persons' || active === 'brands' || active === 'warehouses' || active === 'productGroups' || active === 'formLaboratory' || active === 'yarns' || active === 'purchaseOrders' || active === 'commerce' || active === 'users' || active === 'dataBackup' || active === 'businessContract' || active === 'settings' ? 'persons-content' : ''}`}>
         {openTabs.filter(key => menu.includes(key)).map(tab => <div key={tab} className={`form-tab-pane ${active === tab ? 'active' : ''}`} aria-hidden={active !== tab}>
-          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} authenticatedUserId={access?.id} /> : tab === 'brands' ? <BrandsPage language={language} demoMode={demoMode} /> : tab === 'formLaboratory' ? <FormLaboratoryPage language={language} authenticatedUserId={access?.id} requestedDesign={requestedDesign} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} administrator={access?.roles.includes('Administrator') ?? false} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'businessContract' ? <BusinessContractPage language={language} canEdit={demoMode || (access?.permissions.includes('settings.edit') ?? false)} /> : tab === 'settings' ? <UserSettingsPage language={language} onLanguageChanged={changeLanguage} onPreferencesChanged={savePreferences} onPasswordChanged={() => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : language === 'zh' ? '密码已更改，请使用新密码登录。' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
+          {(tab === active || visitedTabs.includes(tab)) && <WorkspacePageBoundary language={language} onRetry={() => retryPages[tab]?.()} onClose={() => { if (openTabs.length === 1) openForm('dashboard'); void closeForm(tab) }} onHome={() => openForm('dashboard')}><Suspense fallback={<div className="panel" role="status" aria-live="polite">{t.loading}</div>}>
+          {tab === 'persons' ? <PersonsPage language={language} demoMode={demoMode} authenticatedUserId={access?.id} /> : tab === 'productGroups' ? <ProductGroupOperationalPage language={language} can={operation => access?.permissions.includes('productGroups.'+operation) ?? false} isAdministrator={access?.roles.includes('Administrator') ?? false} onClose={()=>void closeForm('productGroups')} /> : tab === 'warehouses' ? <WarehousesPage language={language} onClose={()=>void closeForm('warehouses')} /> : tab === 'brands' ? <BrandsPage language={language} demoMode={demoMode} /> : tab === 'formLaboratory' ? <FormLaboratoryPage language={language} authenticatedUserId={access?.id} requestedDesign={requestedDesign} registerCloseGuard={registerLaboratoryCloseGuard} /> : tab === 'yarns' ? <YarnsPage language={language} demoMode={demoMode} onClose={()=>void closeForm('yarns')} /> : tab === 'purchaseOrders' ? <PurchaseOrdersPage language={language} demoMode={demoMode} /> : tab === 'commerce' ? <CommercePage language={language} initialOrderId={commerceTarget?.id} actionRequest={commerceTarget?.request} onChanged={refreshWorkItems} /> : tab === 'users' ? <UsersPage language={language} administrator={access?.roles.includes('Administrator') ?? false} /> : tab === 'dataBackup' ? <DataBackupPage language={language} onRestored={notice => { logout(); setAccess(undefined); setAuthenticated(false); setAuthNotice(notice) }} /> : tab === 'businessContract' ? <BusinessContractPage language={language} canEdit={demoMode || (access?.permissions.includes('settings.edit') ?? false)} /> : tab === 'settings' ? <UserSettingsPage language={language} onLanguageChanged={changeLanguage} onPreferencesChanged={savePreferences} onPasswordChanged={() => { setReauthRequired(true); setAuthNotice(language === 'fa' ? 'رمز عبور تغییر کرد. لطفاً با رمز جدید وارد شوید.' : language === 'zh' ? '密码已更改，请使用新密码登录。' : 'Password changed. Please sign in with your new password.') }} /> : tab === 'dashboard' ? <>
           <div className="metrics">
           <Metric label={t.openReceivables} value={language === 'fa' ? '۲٬۱۸۰٬۰۰۰٬۰۰۰' : '2,180,000,000'} unit={t.irr} trend={language === 'fa' ? '+۸٫۲٪' : '+8.2%'} tone="gold" />
           <Metric label={t.inventoryValue} value={language === 'fa' ? '۴۳٬۶۴۳٫۷' : '43,643.7'} unit={t.kg} trend={t.twoWarehouses} tone="teal" />
@@ -387,10 +444,16 @@ export default function App() {
           </aside>
           </div>
           </> : <section className="panel coming-soon"><span>{icons[tab]}</span><h2>{t[tab]}</h2><p>{t.comingSoon}</p></section>}
+          </Suspense></WorkspacePageBoundary>}
         </div>)}
       </section>
     </main>
-  </div>
+  </div></ComponentListProvider>
+    {reauthRequired&&<div data-session-recovery role="dialog" aria-modal="true" aria-label={language==='fa'?'ورود مجدد با حفظ فرم‌های باز':'Sign in again without losing work'} style={{position:'fixed',inset:0,zIndex:2147483647,overflow:'auto',background:'#edf3f2'}}>
+      <p role="status" style={{textAlign:'center'}}>{language==='fa'?'فرم‌ها و اطلاعات واردشده حفظ شده‌اند. برای ادامه با همان حساب دوباره وارد شوید.':'Your open forms are preserved. Sign in with the same account to continue.'}</p>
+      {recoveryLogin}
+    </div>}
+  </>
 }
 
 function WorkItemRow({ item, language, now, expanded, actioning, onView, onAction }: { item: WorkItem, language: Language, now: number, expanded: boolean, actioning: boolean, onView: () => void, onAction: () => void }) {
@@ -431,10 +494,10 @@ function DemoRows({ t }: { t: (typeof text)[Language] }) {
   return <>{rows.map(row => <tr key={row[0]}><td className="mono">{row[0]}</td><td className="mono">{row[1]}</td><td className="mono">{formatPersianDate(row[2])}</td><td>{row[3]} kg</td><td>${row[4]}</td><td><span className={`status ${row[5].toLowerCase()}`}>{row[5] === 'Draft' ? t.draft : t.posted}</span></td></tr>)}</>
 }
 
-function Login({ language, setLanguage, notice, onSuccess }: { language: Language, setLanguage: (x: Language) => void, notice?: string, onSuccess: () => void }) {
+function Login({ language, setLanguage, notice, onSuccess,lockedEmail }: { language: Language, setLanguage: (x: Language) => void, notice?: string, onSuccess: () => void|Promise<void>,lockedEmail?:string }) {
   const t = text[language], authText = loginText[language], fa = language === 'fa'
   const [mode, setMode] = useState<'login' | 'otp' | 'activate' | 'reset' | 'forgot'>(activationToken ? 'activate' : recoveryToken ? 'reset' : 'login')
-  const [email, setEmail] = useState(import.meta.env.DEV ? 'admin@yarntrade.local' : '')
+  const [email, setEmail] = useState(lockedEmail??(import.meta.env.DEV ? 'admin@yarntrade.local' : ''))
   const [password, setPassword] = useState(''), [confirmation, setConfirmation] = useState('')
   const [code, setCode] = useState(''), [challenge, setChallenge] = useState<EmailChallenge>()
   const [showPassword, setShowPassword] = useState(false), [busy, setBusy] = useState(false), [developmentBusy, setDevelopmentBusy] = useState(false)
@@ -442,6 +505,7 @@ function Login({ language, setLanguage, notice, onSuccess }: { language: Languag
   useEffect(() => { if (wait <= 0) return; const timer = setTimeout(() => setWait(wait - 1), 1000); return () => clearTimeout(timer) }, [wait])
   function authError(e: unknown) {
     const status = e && typeof e === 'object' && 'status' in e ? e.status : 0
+    if(status===408){setError(fa?'پاسخ ورود دریافت نشد؛ بدون بستن برنامه دوباره تلاش کنید.':'Sign-in timed out. Retry without closing the application.');return}
     setError(status === 429 ? authText.rateLimited : status === 503 ? authText.emailUnavailable : status === 401 ? authText.incorrectCredentials : (mode === 'activate' || mode === 'reset') && status === 400 ? authText.passwordPolicyFailed : authText.operationFailed)
   }
   async function submit(e: FormEvent) {
@@ -449,8 +513,8 @@ function Login({ language, setLanguage, notice, onSuccess }: { language: Languag
     try {
       if (mode === 'login') {
         const result = await login(email, password); setPassword('')
-        if ('requiresVerification' in result) { setChallenge(result); setWait(result.resendAfterSeconds); setMode('otp') } else onSuccess()
-      } else if (mode === 'otp' && challenge) { await verifyEmail(challenge.challenge, code, email); onSuccess() }
+        if ('requiresVerification' in result) { setChallenge(result); setWait(result.resendAfterSeconds); setMode('otp') } else await onSuccess()
+      } else if (mode === 'otp' && challenge) { await verifyEmail(challenge.challenge, code, email); await onSuccess() }
       else if (mode === 'forgot') {
         await authenticationRequest('forgotPassword', { email })
         setMessage(authText.forgotSent)
@@ -467,9 +531,10 @@ function Login({ language, setLanguage, notice, onSuccess }: { language: Languag
     try { const result = await authenticationRequest<EmailChallenge>('resend-code', { challenge: challenge.challenge }); setChallenge(result); setCode(''); setWait(result.resendAfterSeconds) }
     catch (e) { authError(e) } finally { setBusy(false) }
   }
+  const [developmentProfile,setDevelopmentProfile]=useState<'developer'|'manager'|'user'>('developer')
   async function developmentLogin() {
     setDevelopmentBusy(true); setError(''); setMessage('')
-    try { if (await tryDevelopmentSession()) onSuccess(); else setError(authText.developmentUnavailable) }
+    try { if (await tryDevelopmentSession(developmentProfile)) await onSuccess(); else setError(authText.developmentUnavailable) }
     catch { setError(authText.developmentUnavailable) }
     finally { setDevelopmentBusy(false) }
   }
@@ -478,9 +543,9 @@ function Login({ language, setLanguage, notice, onSuccess }: { language: Languag
     <form className="login-card" onSubmit={submit}>
       <div className="login-language" role="group" aria-label={authText.language} dir="ltr">{(['fa', 'en', 'zh'] as Language[]).map(option => <button type="button" key={option} className={language === option ? 'active' : ''} aria-pressed={language === option} onClick={() => setLanguage(option)}>{languageNames[option]}</button>)}</div>
       <header className="login-brand"><div className="brand-mark large">G</div><h1>Global Trade</h1><p>{mode === 'otp' ? authText.otpSent : choosingPassword ? authText.choosePassword : authText.subtitle}</p></header>
-      {import.meta.env.DEV && mode === 'login' && <aside className="development-login"><span>{authText.developmentHint}</span><button type="button" disabled={developmentBusy} onClick={() => void developmentLogin()}>{developmentBusy ? authText.working : authText.developmentAccess}</button></aside>}
+      {!lockedEmail && import.meta.env.DEV && mode === 'login' && <aside className="development-login"><span>{authText.developmentHint}</span><select aria-label={fa ? "حساب ورود توسعه" : "Development account"} value={developmentProfile} disabled={developmentBusy} onChange={event=>setDevelopmentProfile(event.target.value as typeof developmentProfile)}><option value="developer">{fa?"توسعه‌دهنده":"Developer"}</option><option value="manager">{fa?"مدیر":"Manager"}</option><option value="user">{fa?"کاربر عادی":"Ordinary user"}</option></select><button type="button" disabled={developmentBusy} onClick={() => void developmentLogin()}>{developmentBusy ? authText.working : authText.developmentAccess}</button></aside>}
       <div className="login-fields">
-        {(mode === 'login' || mode === 'forgot') && <input dir={fa ? 'rtl' : 'ltr'} aria-label={t.email} autoComplete="username" placeholder={authText.emailPlaceholder} value={email} onChange={e => setEmail(e.target.value)} type="email" required />}
+        {(mode === 'login' || mode === 'forgot') && <input dir={fa ? 'rtl' : 'ltr'} aria-label={t.email} autoComplete="username" placeholder={authText.emailPlaceholder} value={email} readOnly={Boolean(lockedEmail)} onChange={e => setEmail(e.target.value)} type="email" required />}
         {(mode === 'login' || choosingPassword) && <div className="login-password"><input dir={fa ? 'rtl' : 'ltr'} aria-label={t.password} autoComplete={choosingPassword ? 'new-password' : 'current-password'} placeholder={authText.passwordPlaceholder} minLength={choosingPassword ? 12 : undefined} value={password} onChange={e => setPassword(e.target.value)} type={showPassword ? 'text' : 'password'} required /><button className={showPassword ? 'password-visible' : ''} type="button" aria-label={showPassword ? authText.hidePassword : authText.showPassword} onClick={() => setShowPassword(x => !x)}>👁</button></div>}
         {choosingPassword && <input dir={fa ? 'rtl' : 'ltr'} aria-label={authText.confirmPassword} autoComplete="new-password" placeholder={authText.confirmPassword} type="password" value={confirmation} onChange={e => setConfirmation(e.target.value)} required minLength={12} />}
         {mode === 'otp' && <input className="login-code" dir="ltr" aria-label={authText.verificationCode} autoComplete="one-time-code" placeholder={authText.codePlaceholder} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={e => setCode(e.target.value)} required />}

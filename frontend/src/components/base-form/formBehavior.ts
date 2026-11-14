@@ -1,9 +1,22 @@
+import {readPackagingTypes,packagingVolumeContract,packagingVolumeError,packagingVolumeSettings,type PackagingVolumeItem} from './packagingVolume.ts'
+import {batchValuePatternContract} from './batchValuePattern.ts'
+import {numericFieldError,numericSuggestionContract} from './numericField.ts'
+import type {BatchValueDetails} from './batchValueRecords'
+import {laboratoryDesignLifecycleContract} from './formDesignLifecycle.ts'
+import {laboratoryColorPickerContract} from './colorPickerContract.ts'
+import {contactListContract} from './componentListSettings.ts'
 import type {FormStorage} from './laboratoryFormDraftState.ts'
 import type {FormSchemaDraft} from './formSchema.ts'
 import { effectiveFieldRules, laboratoryFieldRuleContract, validateRecordRules } from './fieldRules.ts'
 import { laboratoryResizeContract } from './designer.ts'
 import { laboratoryLabelChangeContract } from './labelChanges.ts'
 import { laboratoryToolbarContract } from './toolbarLayoutContract.ts'
+import { laboratoryGeometryContract } from './designerGeometry.ts'
+import { laboratoryLayoutPreviewContract } from './laboratoryLayoutPreview.ts'
+import { cascadingTreeContract } from './cascadingTreeContract.ts'
+import { labelTranslationContract } from './labelTranslationQueue.ts'
+import { laboratoryIntegrationContract } from './laboratoryIntegrationContract.ts'
+import {systemLookupContract} from './systemLookupContract.ts'
 
 /** The Laboratory owns the policy. Forms store references and explicit differences only. */
 export const laboratoryBehaviorId='laboratory.form-behavior'
@@ -56,45 +69,65 @@ export function currentFormPolicy(id=laboratoryBehaviorId):FormBehaviorPolicy{
 export function behaviorManifest(schema:FormSchemaDraft,library:FormBehaviorLibrary){
  const ids=new Set([behaviorIdFor(schema),...schema.fields.map(field=>String(field.settings?.behaviorId??behaviorIdFor(schema)))])
  for(const id of ids){let definition=library.definitions.find(item=>item.id===id);while(definition?.parentId){ids.add(definition.parentId);definition=library.definitions.find(item=>item.id===definition!.parentId)}}
- return {root:laboratoryBehaviorId,toolbarContract:structuredClone(laboratoryToolbarContract),fieldRuleContract:structuredClone(laboratoryFieldRuleContract),resizeContract:structuredClone(laboratoryResizeContract),labelChangeContract:structuredClone(laboratoryLabelChangeContract),definitions:library.definitions.filter(item=>ids.has(item.id)).map(item=>structuredClone(item)),policies:Object.fromEntries([...ids].map(id=>[id,resolveFormBehavior(library,id)])),columnLinkPolicies:Object.fromEntries([...ids].map(id=>[id,resolveColumnLinkBehavior(library,id)]))}
+ return {...(schema.fields.some(field=>field.componentId===packagingVolumeContract.componentId)?{packagingVolumeContract:structuredClone(packagingVolumeContract),packagingTypes:readPackagingTypes(typeof localStorage==='undefined'?undefined:localStorage)}:{}),batchValuePatternContract:structuredClone(batchValuePatternContract),numericSuggestionContract:structuredClone(numericSuggestionContract),colorPickerContract:structuredClone(laboratoryColorPickerContract),designLifecycleContract:structuredClone(laboratoryDesignLifecycleContract),contactListContract:structuredClone(contactListContract),systemLookupContract:structuredClone(systemLookupContract),referenceLookups:schema.fields.filter(field=>field.componentId===systemLookupContract.componentId).map(field=>({fieldId:field.id,sourceId:String((field.settings?.lookupSettings as {sourceId?:string}|undefined)?.sourceId??'')})),integrationContract:structuredClone(laboratoryIntegrationContract),labelTranslationContract:structuredClone(labelTranslationContract),root:laboratoryBehaviorId,componentContracts:schema.fields.some(field=>field.componentId===cascadingTreeContract.componentId)?[structuredClone(cascadingTreeContract)]:[],settingsContract:structuredClone(laboratorySettingsContract),layoutPreviewContract:structuredClone(laboratoryLayoutPreviewContract),geometryContract:structuredClone(laboratoryGeometryContract),toolbarContract:structuredClone(laboratoryToolbarContract),fieldRuleContract:structuredClone(laboratoryFieldRuleContract),resizeContract:structuredClone(laboratoryResizeContract),labelChangeContract:structuredClone(laboratoryLabelChangeContract),definitions:library.definitions.filter(item=>ids.has(item.id)).map(item=>structuredClone(item)),policies:Object.fromEntries([...ids].map(id=>[id,resolveFormBehavior(library,id)])),columnLinkPolicies:Object.fromEntries([...ids].map(id=>[id,resolveColumnLinkBehavior(library,id)]))}
 }
 
-export type FormTestRecord={id:string;values:Record<string,string>}
+export type FormTestRecord={id:string;values:Record<string,string>;details?:BatchValueDetails}
 export type FormTestState={mode:'view'|'create'|'edit';records:FormTestRecord[];selectedId:string|null;draft:Record<string,string>;log:string[]}
 export const initialFormTest=():FormTestState=>({mode:'view',records:[],selectedId:null,draft:{},log:[]})
-export type FormTestEvent={type:'reset'}|{type:'create';defaults:Record<string,string>}|{type:'change';field:string;value:string}|{type:'save';id:string;values?:Record<string,string>}|{type:'close'}|{type:'select';id:string}|{type:'edit'}|{type:'delete'}
+export type FormTestEvent={type:'reset'}|{type:'create';defaults:Record<string,string>}|{type:'copy';source:'last'|'selected';defaults:Record<string,string>}|{type:'change';field:string;value:string}|{type:'save';id:string;values?:Record<string,string>;details?:BatchValueDetails}|{type:'close'}|{type:'select';id:string;values?:Record<string,string>}|{type:'edit'}|{type:'delete'}
 export function formTestReducer(state:FormTestState,event:FormTestEvent):FormTestState{
  switch(event.type){
   case 'reset':return initialFormTest()
   case 'create':return {...state,mode:'create',selectedId:null,draft:{...event.defaults},log:[...state.log,'ایجاد رکورد آزمایشی']}
+  case 'copy':return state.mode!=='view'?state:{...state,mode:'create',selectedId:null,draft:{...event.defaults},log:[...state.log,event.source==='last'?'کپی آخرین رکورد به ورود جدید آزمایشی':'کپی رکورد انتخاب‌شده به ورود جدید آزمایشی']}
   case 'change':return state.mode==='view'?state:{...state,draft:{...state.draft,[event.field]:event.value}}
-  case 'save':{if(state.mode==='view')return state;const id=state.mode==='edit'?state.selectedId!:event.id;const row={id,values:{...(event.values??state.draft)}};return {...state,mode:'view',records:state.mode==='edit'?state.records.map(existing=>existing.id===id?row:existing):[...state.records,row],selectedId:id,log:[...state.log,'ثبت رکورد آزمایشی']}}
+  case 'save':{if(state.mode==='view')return state;const id=state.mode==='edit'?state.selectedId!:event.id;const details=event.details??state.records.find(row=>row.id===id)?.details;const row={id,values:{...(event.values??state.draft)},...(details&&Object.keys(details).length?{details:structuredClone(details)}:{})};return {...state,mode:'view',records:state.mode==='edit'?state.records.map(existing=>existing.id===id?row:existing):[...state.records,row],selectedId:id,log:[...state.log,'ثبت رکورد آزمایشی']}}
   case 'close':return {...state,mode:'view',draft:state.records.find(row=>row.id===state.selectedId)?.values??{},log:[...state.log,'بستن ورود آزمایشی']}
-  case 'select':return state.mode!=='view'?state:{...state,selectedId:event.id,draft:{...state.records.find(row=>row.id===event.id)?.values??{}}}
+  case 'select':return state.mode!=='view'?state:{...state,selectedId:event.id,draft:{...(event.values??state.records.find(row=>row.id===event.id)?.values??{})}}
   case 'edit':return !state.selectedId||state.mode!=='view'?state:{...state,mode:'edit',log:[...state.log,'ویرایش رکورد آزمایشی']}
   case 'delete':return state.mode!=='view'?state:{...state,records:state.records.filter(row=>row.id!==state.selectedId),selectedId:null,draft:{},log:[...state.log,'حذف رکورد آزمایشی']}
  }
 }
-export type FormTestAction='create'|'save'|'close'|'edit'|'delete'|'first'|'last'|'previous'|'next'
+export type FormTestAction='create'|'copyLast'|'copySelected'|'save'|'close'|'edit'|'delete'|'first'|'last'|'previous'|'next'
 /** Bind runtime behavior to stable operation/shortcut IDs, never translated labels. */
 export function formTestActionFor(action:{id:string;operationId?:string;code:string;keys?:readonly string[]}):FormTestAction|undefined{
- const operations:Record<string,FormTestAction>={'new-person':'create','edit-person':'edit','delete-person':'delete','first-record':'first','last-record':'last','previous-page':'previous','next-page':'next','browse-records':'next','demo-save':'save','reset-sample':'close'}
+ const operations:Record<string,FormTestAction>={'new-person':'create','copy-last':'copyLast','copy-selected':'copySelected','operational.copyLast':'copyLast','operational.copySelected':'copySelected','edit-person':'edit','delete-person':'delete','first-record':'first','last-record':'last','previous-page':'previous','next-page':'next','browse-records':'next','demo-save':'save','reset-sample':'close'}
  const explicit=action.operationId
- if(explicit&&['create','save','close','edit','delete','first','last','previous','next'].includes(explicit))return explicit as FormTestAction
+ const explicitAction=explicit?.split('.').at(-1)
+ if(explicitAction&&['create','copyLast','copySelected','save','close','edit','delete','first','last','previous','next'].includes(explicitAction))return explicitAction as FormTestAction
  if(operations[action.id])return operations[action.id]
- const shortcut=action.keys?.[0]??action.code
- return ({' ':'create',Space:'create',F3:'save',Escape:'close',Esc:'close',Insert:'edit',Delete:'delete',Home:'first',End:'last',PageUp:'previous',PgUp:'previous',PageDown:'next',PgDn:'next'} as Record<string,FormTestAction>)[shortcut]
+ const shortcuts=action.keys?.length?action.keys:[action.code]
+ const actionsByShortcut:Record<string,FormTestAction>={' ':'create',Space:'create',F2:'copyLast',F3:'save',F4:'copySelected',Escape:'close',Esc:'close',Insert:'edit',Delete:'delete',Home:'first',End:'last',PageUp:'previous',PgUp:'previous',PageDown:'next',PgDn:'next'}
+ return shortcuts.map(shortcut=>actionsByShortcut[shortcut]).find((candidate):candidate is FormTestAction=>Boolean(candidate))
 }
 export function testActionVisible(mode:FormTestState['mode'],action:FormTestAction|'browse'){return mode==='view'?action!=='save':action==='save'||action==='close'}
-export function validateTestRecord(schema:FormSchemaDraft,values:Record<string,string>,records:readonly FormTestRecord[]=[],currentId?:string|null):Record<string,string>{
+/** Shared visibility gate for designer preview, test entry and operational actions. */
+export function formActionVisible(mode:FormTestState['mode']|'design',action:Parameters<typeof formTestActionFor>[0]):boolean {
+ if(mode==='design')return true
+ const operation=formTestActionFor(action)
+ return operation?testActionVisible(mode,operation):mode==='view'
+}
+export function validateTestRecord(schema:FormSchemaDraft,values:Record<string,string>,records:readonly FormTestRecord[]=[],currentId?:string|null,details:BatchValueDetails={}):Record<string,string>{
  const errors:Record<string,string>={}
  for(const field of schema.fields){if(field.readOnly||field.kind==='hidden')continue;const value=values[field.id]??''
   if(effectiveFieldRules(field).required&&!value.trim())errors[field.id]='این فیلد الزامی است.'
+  const packaging=field.componentId==='base-form.packaging-volume'?(details[field.id]??[]) as PackagingVolumeItem[]:undefined
+  if(packaging){
+   const error=packagingVolumeError(packaging,packagingVolumeSettings(field.settings?.packagingVolumeSettings).decimalPlaces)
+   if(error)errors[field.id]=error
+   if(value&&!packaging.length)errors[field.id]='اطلاعات بسته‌بندی را تکمیل و ثبت کنید.'
+   for(const item of packaging){const message=numericFieldError({...field,componentId:'definition.field',kind:'number',valueType:'number'},String(item.cbmPerTon));if(message)errors[field.id]=message}
+  }
   for(const rule of field.validation??[]){let valid=true
    if(!value)continue
+   const ruleValues=packaging&&['minimum','maximum','integer','positive'].includes(rule.type)?packaging.map(item=>String(item.cbmPerTon)):[value]
+   for(const value of ruleValues){
    switch(rule.type){case 'minLength':valid=value.length>=rule.value;break;case 'maxLength':valid=value.length<=rule.value;break;case 'minimum':valid=Number(value)>=rule.value;break;case 'maximum':valid=Number(value)<=rule.value;break;case 'integer':valid=Number.isInteger(Number(value));break;case 'positive':valid=Number(value)>0;break;case 'email':valid=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);break;case 'url':try{new URL(value)}catch{valid=false}break;case 'pattern':try{valid=new RegExp(rule.value).test(value)}catch{valid=false}break;case 'unique':break;case 'custom':errors[field.id]='اعتبارسنجی اختصاصی '+rule.validatorId+' به اتصال و تست عملیاتی نیاز دارد.';break}
    if(!valid)errors[field.id]=rule.message?.fa??'مقدار با قواعد فیلد سازگار نیست.'
+   }
   }
  }
  return {...errors,...validateRecordRules(schema,values,records,currentId)}
 }
+import {laboratorySettingsContract} from './formSettingsContract.ts'

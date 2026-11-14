@@ -59,12 +59,14 @@ export function useDesignerSession(options: Options) {
     const session = sessionsRef.current.get(key)
     if (!session) return
     const next = designerHistoryReducer(historyRef.current, action)
+    if(next===historyRef.current)return
     historyRef.current = next
     session.history = next
     forceRender()
   }, [])
   const setPreviewDraft = useCallback((update: PreviewUpdate) => {
     const next = typeof update === 'function' ? update(previewDraftRef.current) : update
+    if(next===previewDraftRef.current)return
     previewDraftRef.current = next
     const session = sessionsRef.current.get(activeKeyRef.current)
     if (session) session.previewDraft = next
