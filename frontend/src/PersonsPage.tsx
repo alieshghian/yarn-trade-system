@@ -147,7 +147,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const draggedColumn = useRef<ColumnKey | null>(null)
   const [columnDrop, setColumnDrop] = useState<{ key: ColumnKey, before: boolean } | null>(null)
   const [filters, setFilters] = useState<GridFilterState>({})
-  const [sort, setSort] = useState<GridSortState>([{ id: 'personCode', direction: 'asc' }])
+  const [sort, setSort] = useState<GridSortState>([])
   const [gridPage, setGridPage] = useState(1)
   const [personTotal, setPersonTotal] = useState(0)
   const [gridLoading, setGridLoading] = useState(false)
@@ -161,7 +161,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const modeRef = useRef(mode)
   modeRef.current = mode
   const skipGridRefresh = useRef(true)
-  const gridQueryRef = useRef<GridQuery>({ page: 1, pageSize: 100, search: '', filters: {}, sort: [{ id: 'personCode', direction: 'asc' }], language: fa ? 'fa' : 'en' })
+  const gridQueryRef = useRef<GridQuery>({ page: 1, pageSize: 100, search: '', filters: {}, sort: [], language: fa ? 'fa' : 'en' })
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
   gridQueryRef.current = { page: gridPage, pageSize: 100, search: '', filters, sort, language: fa ? 'fa' : 'en' }
@@ -229,6 +229,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       ])
       setGridPage(1); setParameters(refs)
       const latest=preferId||contractCreation?undefined:await api<Person>('/api/master-data/persons/latest').catch(()=>undefined)
+      if(modeRef.current!=='view')return
       const next = people.items.find(x => x.id === preferId) ?? (preferId ? await api<Person>(`/api/master-data/persons/${preferId}`).catch(() => undefined) : undefined) ?? latest ?? people.items[0]
       setSelectedId(next?.id ?? '')
       if (next) { const value = copyDraft(next); setDraft(value); original.current = JSON.stringify(value) }

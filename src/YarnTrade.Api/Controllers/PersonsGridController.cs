@@ -48,7 +48,7 @@ public sealed class PersonsGridController(AppDbContext db) : ControllerBase
             sorted = ApplySort(sorted, criterion, language, first);
             first = false;
         }
-        if (first) sorted = sorted.OrderBy(person => person.PersonCode).ThenBy(person => person.Id);
+        if (first) sorted = sorted.OrderByDescending(person => person.UpdatedAtUtc??person.CreatedAtUtc).ThenByDescending(person => person.Id);
         sorted = ((IOrderedQueryable<Person>)sorted).ThenBy(person => person.PersonCode).ThenBy(person => person.Id);
         var entities = await sorted.Skip((page - 1) * pageSize).Take(pageSize).Include(person => person.Job).Include(person => person.Title)
             .Include(person => person.Nationality).Include(person => person.Roles).Include(person => person.BrandLinks).ToListAsync(ct);

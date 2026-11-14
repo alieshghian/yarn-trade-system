@@ -1,6 +1,6 @@
 {
   "contractId": "yarn-trade.form-laboratory.operational-behavior",
-  "version": 98,
+  "version": 99,
   "source": "Form Laboratory",
   "futureFormPolicy": {
     "scope": "all-forms-created-or-redesigned-through-the-form-laboratory",
@@ -1169,5 +1169,16 @@
     "activation": "server endpoints require compiling and restarting API; source changes alone do not activate running binary",
     "toolbar": "floating count plus retained Delete selected button; anchor calc(40% - 3cm) clamped to toolbar bounds; font 12.8px (20% smaller than 16px); transparent borderless shadowless container; title/counter/search geometry unchanged",
     "singleRow": "Delete remains active for the current single row, including keyboard navigation; use the same authorized adapter and confirmation as multi-selection even while the group toolbar is hidden"
+  },
+  "initialRecordPresentation": {
+    "source": "database latest coalesce(updatedAtUtc,createdAtUtc); deterministic ID tie break; never browser storage as authority",
+    "startup": "restore latest persisted record to editor and highlight its table row; ignore stale response after user interaction; 404 is genuine empty state",
+    "fallback": "shared operational definition grid selects first available row when no current selection; not reporting/design/entry; incremental pages remain bounded",
+    "labels": {
+      "empty": "full-contrast bold",
+      "populatedView": "muted labels, full-contrast values",
+      "entry": "full-contrast bold"
+    },
+    "preservation": "cache reload must retain external selected row ID; save keeps saved record selected; do not rewrite schema geometry"
   }
 }

@@ -216,6 +216,12 @@ export function BaseFormGridBoundary<Row>({ autoSelectFirstRow=false, fillViewpo
     if (remoteQuery) setViewport(current => current.top === wrap.scrollTop ? current : { ...current, top: wrap.scrollTop })
   }, [remoteQuery, rowHeight])
   useEffect(() => { activeCache?.setViewport(range.first, range.start, range.end) }, [activeCache, range.first, range.start, range.end, cacheRevision])
+  useEffect(()=>{
+    if(!selectedRowId||pendingNavigation.current)return
+    const index=remoteQuery?Array.from({length:range.end-range.start},(_,offset)=>range.start+offset).find(index=>String((activeCache?.row(index) as {id?:unknown}|undefined)?.id??'')===selectedRowId):filtered.findIndex(row=>String((row as {id?:unknown}).id??'')===selectedRowId)
+    if(index===undefined||index<0)return
+    selectedIndex.current=index;revealNavigationRow(index)
+  },[selectedRowId,activeCache,cacheRevision,remoteQuery,filtered,revealNavigationRow])
   useEffect(() => {
     if (!navigationRequest || navigationRequest.sequence === lastNavigationSequence.current || !total) return
     lastNavigationSequence.current = navigationRequest.sequence
