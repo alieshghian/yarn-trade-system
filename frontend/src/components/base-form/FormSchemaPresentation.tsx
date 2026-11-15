@@ -1,4 +1,5 @@
 import {numericFieldInputProps,numericFieldError} from './numericField'
+import { InvoiceDetailsTabs, InvoiceContainerDetails } from './InvoiceDetailsTabs'
 import { LaboratoryEntryGrid, type DemoGridSettings } from './LaboratoryEntryGrid'
 import {toolbarPanels} from './gridToolbarLayout'
 import type { GridToolbarSettings, GridToolbarPart, GridToolbarPartStyle } from './gridToolbarLayout'
@@ -160,6 +161,17 @@ export function FormSchemaPresentation<Row>({ schema, designerDraft, language, e
     </section>
   }
   const roots = formSectionChildren(schema)
+  const detailTabs=roots.filter(section=>section.settings?.detailsGroup==='invoice-lower')
+  const renderRoot=(section:FormSchemaSection)=>{
+    if(!detailTabs.includes(section))return renderSection(section)
+    if(section.id!==detailTabs[0].id)return null
+    return <InvoiceDetailsTabs key="invoice-lower-details" tabs={detailTabs.map(tab=>({id:tab.id,title:tab.title?.[language]??tab.id}))} renderContent={id=>{
+      const selected=detailTabs.find(tab=>tab.id===id)!
+      const table=schema.tables?.find(item=>item.settings?.demoEntries)
+      const demo=table?.settings?.demoEntries as DemoGridSettings|undefined
+      return <>{id==='demo.containers'&&demo&&table&&<InvoiceContainerDetails demo={demo} language={language} readOnly={table.settings?.demoReadOnly===true} onChange={value=>onTableDemoChange?.(table.id,value)}/>} {renderSection({...selected,title:undefined,settings:{...selected.settings,collapsible:false}})}</>
+    }}/>
+  }
   const treeEditor = roots.find(section => section.kind === 'editor')
   const treeFooter = roots.find(section => section.kind === 'footer')
   const treeSplit = schema.fields?.some(field => field.componentId === 'base-form.cascading-tree-panels') && roots.length === 3 && Boolean(treeEditor && treeFooter && roots.some(section => section.kind === 'grid')) && schema.tables?.length === 1
@@ -168,6 +180,6 @@ export function FormSchemaPresentation<Row>({ schema, designerDraft, language, e
     editor={treeSplit && treeEditor ? renderEditor?.(treeEditor) ?? editor : editor}
     grid={tableGrid(schema.tables?.[0]?.id)}
     footer={treeSplit && treeFooter ? renderFooter?.(treeFooter) ?? footer : footer}
-    sections={composition ? <div className="form-document-composition" style={{ flexDirection: schema.layout?.direction === 'horizontal' ? 'row' : 'column', gap: schema.layout?.gap ?? 12 }}>{formSectionChildren(schema).map(section => renderSection(section))}</div> : undefined}
+    sections={composition ? <div className="form-document-composition" style={{ flexDirection: schema.layout?.direction === 'horizontal' ? 'row' : 'column', gap: schema.layout?.gap ?? 12 }}>{roots.map(renderRoot)}</div> : undefined}
   />
 }

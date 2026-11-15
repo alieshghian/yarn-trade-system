@@ -1,0 +1,13 @@
+.form-document-composition:has(.invoice-details-tabs){position:relative}
+.invoice-details-tabs{flex:0 0 auto;min-width:0}
+.invoice-details-tabbar{display:flex;flex-wrap:nowrap;gap:6px;padding:5px;background:var(--surface,#fbfefd);border:1px solid #c9dddb;border-radius:10px}
+.invoice-details-tabbar [role=tab]{flex:1;min-width:0;white-space:nowrap;padding:7px 10px;border:1px solid transparent;border-radius:7px;background:transparent;color:#102d2b;font:inherit;cursor:pointer}
+.invoice-details-tabbar [aria-selected=true]{background:#e4f3ed;border-color:#b9ced5;color:#006b47;font-weight:700}
+.invoice-details-overlay{position:absolute;inset:8px 8px calc(var(--lab-action-bar-height,58px) + 80px);z-index:40;display:flex;flex-direction:column;min-height:0;max-height:calc(100% - 68px);border:1px solid #b9ced5;border-radius:12px;background:#fff;box-shadow:0 8px 28px #102d2b2b;overflow:hidden}
+.invoice-details-overlay>header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-shrink:0;padding:9px 12px;border-bottom:1px solid #c9dddb;background:#eff9f4;color:#102d2b}
+.invoice-details-overlay>header button{padding:5px 12px;border:1px solid #b9ced5;border-radius:6px;background:#fff;color:#005a3a;cursor:pointer;font:inherit}
+.invoice-details-content{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:12px}
+.invoice-details-content>.form-document-section{height:auto!important;min-height:0!important;max-width:100%;overflow:auto}
+.invoice-container-details{display:grid;gap:10px;color:#102d2b}
+.invoice-container-details fieldset{margin:0;padding:6px;min-width:0}
+.invoice-container-details select,.invoice-container-details input{max-width:100%;border:1px solid #b9ced5;border-radius:6px;padding:5px;background:#fff}
