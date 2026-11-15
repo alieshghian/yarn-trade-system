@@ -1,0 +1,40 @@
+/* Opt-in saved invoice presentation; other Laboratory documents keep their styling. */
+.laboratory-form-frame[data-invoice-visual] {
+  --invoice-ink:#122c25; --invoice-edge:#c3d7ce;
+  color:var(--invoice-ink); background:linear-gradient(120deg,#f7faf9,#eef7f3);
+  border:1px solid var(--invoice-edge); border-radius:16px;
+}
+.laboratory-form-frame[data-invoice-visual] .form-laboratory-banner {background:#f5faf7;color:var(--invoice-ink);min-height:44px;padding:6px 12px;border-radius:12px;border-bottom:1px solid var(--invoice-edge)}
+.laboratory-form-frame[data-invoice-visual] .laboratory-form-access {font-size:12px;padding:4px!important;gap:4px!important}
+.laboratory-form-frame[data-invoice-visual] .laboratory-form-access button {font-size:12px;padding:3px 7px}
+.laboratory-form-frame[data-invoice-visual] .form-document-composition {gap:8px!important}
+.laboratory-form-frame[data-invoice-visual] .form-document-section {border:1px solid var(--invoice-edge);border-radius:12px;background:#fff;padding:8px;min-height:0}
+.laboratory-form-frame[data-invoice-visual] .form-document-section:has(>details:not([open])) {height:auto!important;min-height:0!important;padding:10px 14px}
+.laboratory-form-frame[data-invoice-visual] .form-document-section summary {font-size:16px;font-weight:700;color:#12382b;cursor:pointer}
+.laboratory-form-frame[data-invoice-visual] .person-editor {padding:6px;min-height:0;border:0;box-shadow:none}
+.laboratory-form-frame[data-invoice-visual] .laboratory-form-grid:not(.has-fixed-geometry) {min-width:0!important;gap:8px 16px}
+.laboratory-form-frame[data-invoice-visual] input,.laboratory-form-frame[data-invoice-visual] select {border:1px solid #bdcfc7;border-radius:6px;background:#fff;color:#142d24;min-height:30px}
+.laboratory-form-frame[data-invoice-visual] [data-field-id="internalNumber"] input {background:#fff3d2;font-weight:700;color:#151e18}
+.laboratory-form-frame[data-invoice-visual] [data-field-id="payer"] select {background:#fff1c4}
+.laboratory-form-frame[data-invoice-visual] .laboratory-entry-invoice {display:flex;flex-direction:column;gap:6px;min-height:0}
+.laboratory-form-frame[data-invoice-visual] .laboratory-entry-rows {max-height:none!important;min-height:150px;overflow:visible!important}
+.laboratory-form-frame[data-invoice-visual] .grid-toolbar {min-height:52px!important;height:52px!important}
+.laboratory-form-frame[data-invoice-visual] .grid-toolbar {display:flex!important;align-items:center;gap:10px;justify-content:space-between}
+.laboratory-form-frame[data-invoice-visual] .grid-title-row {position:static!important;width:auto!important;flex:1;min-width:120px}
+.laboratory-form-frame[data-invoice-visual] .grid-title-area {display:flex!important;gap:8px;align-items:center;justify-content:center}
+.laboratory-form-frame[data-invoice-visual] .grid-title-area h2 {font-size:16px;margin:0}
+.laboratory-form-frame[data-invoice-visual] .grid-title-area span {font-size:11px;white-space:nowrap}
+.laboratory-form-frame[data-invoice-visual] .grid-title-area > [data-toolbar-part] {position:static!important;transform:none!important;height:auto!important;min-height:0!important}
+.laboratory-form-frame[data-invoice-visual] .grid-search-panel > [data-toolbar-part] {position:static!important;height:auto!important;min-height:0!important;transform:none!important}
+.laboratory-form-frame[data-invoice-visual] .grid-search-panel {position:static!important;display:flex!important;align-items:center;width:auto!important;gap:6px}
+.laboratory-form-frame[data-invoice-visual] .grid-search-control {width:150px!important;flex:0 0 150px}
+.laboratory-form-frame[data-invoice-visual] .grid-search-options {position:static!important;display:flex!important;gap:5px;font-size:11px;white-space:nowrap}
+.laboratory-form-frame[data-invoice-visual] .grid-expand-slot,.laboratory-form-frame[data-invoice-visual] .grid-columns-slot,.laboratory-form-frame[data-invoice-visual] .grid-export-slot {position:static!important;flex:0 0 30px}
+.laboratory-form-frame[data-invoice-visual] .base-grid-table-wrap {max-height:240px;overflow:auto}
+.laboratory-form-frame[data-invoice-visual] .base-grid-table th {background:#e1f0e7;color:#143728;height:34px}
+.laboratory-form-frame[data-invoice-visual] .base-grid-table td {height:32px;padding:3px 5px;border-color:#c2d2cc}
+.laboratory-form-frame[data-invoice-visual] .base-grid-table input,.laboratory-form-frame[data-invoice-visual] .base-grid-table select {min-height:26px;height:26px;font-size:13px;border-color:transparent;background:transparent}
+.laboratory-form-frame[data-invoice-visual] .base-grid-table input:focus,.laboratory-form-frame[data-invoice-visual] .base-grid-table select:focus {border-color:#428b65;background:#fff}
+.laboratory-form-frame[data-invoice-visual] .laboratory-invoice-summary {gap:8px!important;background:#fff!important;padding:6px!important;align-items:stretch}
+.laboratory-form-frame[data-invoice-visual] .laboratory-invoice-summary > output,.laboratory-form-frame[data-invoice-visual] .laboratory-invoice-summary > label {flex:1 1 130px;text-align:center;padding:10px 8px;background:#ecf8f0;border-radius:10px;font-size:15px;font-weight:600}
+.laboratory-form-frame[data-invoice-visual] .laboratory-invoice-summary > output:first-of-type {background:#fff0ae}

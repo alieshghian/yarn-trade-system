@@ -1,4 +1,5 @@
 import {numericFieldInputProps,numericFieldError} from './numericField'
+import { LaboratoryEntryGrid, type DemoGridSettings } from './LaboratoryEntryGrid'
 import {toolbarPanels} from './gridToolbarLayout'
 import type { GridToolbarSettings, GridToolbarPart, GridToolbarPartStyle } from './gridToolbarLayout'
 import { editorViewport } from './formEditorViewport'
@@ -59,6 +60,8 @@ export type FormSchemaPresentationProps<Row> = {
   onToolbarChange?: (tableId: string, part: GridToolbarPart, patch: GridToolbarPartStyle, related?:GridToolbarSettings) => void
   onTableStructure?: (tableId: string) => void
   onGridActivate?: (tableId: string) => void
+  onSectionExpandedChange?: (sectionId: string, expanded: boolean) => void
+  onTableDemoChange?: (tableId: string, demo: DemoGridSettings) => void
   initialHeaderRef?: RefObject<HTMLElement | null>
   initialEditorHeight?: number
   readOnly?: boolean
@@ -68,7 +71,7 @@ export type FormSchemaPresentationProps<Row> = {
  * Shared frame only: schema owns structure, DesignerDraft owns visuals, and
  * callers supply behavior adapters for editor fields and footer actions.
  */
-export function FormSchemaPresentation<Row>({ schema, designerDraft, language, editor, footer, grid, grids, layoutPreview = false, renderEditor, renderFooter, onGridActivate, columnReview, onTableStructure, onToolbarChange, toolbarSelection, onToolbarSelect, onToolbarContextMenu, initialHeaderRef, initialEditorHeight, readOnly = false, presentationMode = 'operational', validationMode }: FormSchemaPresentationProps<Row>) {
+export function FormSchemaPresentation<Row>({ schema, designerDraft, language, editor, footer, grid, grids, layoutPreview = false, renderEditor, renderFooter, onGridActivate, onSectionExpandedChange, onTableDemoChange, columnReview, onTableStructure, onToolbarChange, toolbarSelection, onToolbarSelect, onToolbarContextMenu, initialHeaderRef, initialEditorHeight, readOnly = false, presentationMode = 'operational', validationMode }: FormSchemaPresentationProps<Row>) {
   const gridReadOnly = readOnly && presentationMode === 'design'
   const validationRoot = useRef<HTMLElement | null>(null)
   useEffect(() => {
@@ -121,6 +124,11 @@ export function FormSchemaPresentation<Row>({ schema, designerDraft, language, e
     const tableDraft = designerDraftForTable(designerDraft, tableId)
     const tableAppearanceStyle = designerAppearanceStyle(tableDraft) as CSSProperties
     const table = schema.tables?.find(item => item.id === tableId)
+    const demo = table?.settings?.demoEntries as DemoGridSettings | undefined
+    if (table && demo) {
+      const adapter = (tableId && grids?.[tableId]) || grid
+      return <LaboratoryEntryGrid key={table.id} {...adapter as unknown as BaseFormGridBoundaryProps<Record<string,string|number>>} table={table} demo={demo} language={language} columns={table.columns.map(column=>({id:column.id,label:column.label[language],width:column.width??120,type:column.valueType==='number'?'number':'text',value:row=>row[column.id]}))} onChange={value=>onTableDemoChange?.(table.id,value)}/>
+    }
     const panelIds=toolbarPanels((table?.settings?.toolbar??{}) as GridToolbarSettings)
     const headerRows=schema.sections.filter(section=>Boolean(tableId) && section.tableHeaderFor === tableId&&section.enabled!==false)
     const renderHeaderRow=(section:FormSchemaSection)=><div key={section.id} className="form-table-report-row" data-report-row-id={section.id}>{renderEditor?.(section)}</div>
@@ -144,9 +152,11 @@ export function FormSchemaPresentation<Row>({ schema, designerDraft, language, e
       : section.kind === 'editor' ? renderEditor?.(section) ?? editor
       : section.kind === 'footer' ? renderFooter?.(section) ?? footer
       : (schema.tables?.filter(table => table.sectionId === section.id || section.tableIds?.includes(table.id)) ?? []).map(table => tableGrid(table.id, section.id))
-    return <section key={section.id} className={`form-document-section form-document-${section.kind}`} data-document-section-id={section.id} aria-label={section.title?.[language] ?? section.id} style={{ flex: parentDirection === 'horizontal' ? section.initialSize?.width ? `0 0 ${section.initialSize.width}px` : '1 1 0' : '0 0 auto', width: section.initialSize?.width ?? (parentDirection === 'horizontal' ? undefined : '100%'), minHeight: section.initialSize?.height ?? undefined, height: section.initialSize?.height ?? undefined, gap: section.layout?.gap ?? 12 } as CSSProperties}>
-      {section.title && section.kind !== 'grid' && <h3>{section.title[language]}</h3>}
-      {section.kind === 'group' ? <div className="form-document-section-children" style={{ flexDirection: section.layout?.direction === 'horizontal' ? 'row' : 'column', gap: section.layout?.gap ?? 12 }}>{content}</div> : content}
+    const body = section.kind === 'group' ? <div className="form-document-section-children" style={{ flexDirection: section.layout?.direction === 'horizontal' ? 'row' : 'column', gap: section.layout?.gap ?? 12 }}>{content}</div> : content
+    const collapsible = section.settings?.collapsible === true
+    const expanded = section.settings?.expanded === true
+    return <section key={section.id} className={`form-document-section form-document-${section.kind}`} data-document-section-id={section.id} aria-label={section.title?.[language] ?? section.id} style={{ flex: parentDirection === 'horizontal' ? section.initialSize?.width ? `0 0 ${section.initialSize.width}px` : '1 1 0' : '0 0 auto', width: section.initialSize?.width ?? (parentDirection === 'horizontal' ? undefined : '100%'), minHeight: collapsible ? undefined : section.initialSize?.height ?? undefined, height: collapsible ? undefined : section.initialSize?.height ?? undefined, gap: section.layout?.gap ?? 12 } as CSSProperties}>
+      {collapsible ? <details open={expanded} onToggle={event => { if (presentationMode === 'design' && event.currentTarget.open !== expanded) onSectionExpandedChange?.(section.id, event.currentTarget.open) }}><summary>{section.title?.[language] ?? section.id}</summary>{body}</details> : <>{section.title && section.kind !== 'grid' && <h3>{section.title[language]}</h3>}{body}</>}
     </section>
   }
   const roots = formSectionChildren(schema)
