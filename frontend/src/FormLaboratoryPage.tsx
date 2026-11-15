@@ -14,6 +14,7 @@ import { FormSettingsButton } from './components/base-form/FormSettingsButton'
 import { captureLaboratoryPreview } from './components/base-form/laboratoryLayoutPreview'
 import { layoutDesignerCanvasSelection, levelDesignerInputRow } from './components/base-form/designer'
 import { NewLaboratoryFormDialog } from './components/base-form/NewLaboratoryFormDialog'
+import { purchaseInvoiceLaboratoryId, purchaseInvoiceLaboratorySchema } from './components/base-form/purchaseInvoiceLaboratory'
 import {SystemLookup} from './components/base-form/SystemLookup'
 import {ComponentListProvider} from './components/base-form/ComponentListContext'
 import {createSampleLookupSource} from './components/base-form/sampleLookupSource'
@@ -3372,6 +3373,11 @@ export default function FormLaboratoryPage({ language, authenticatedUserId, requ
         <header className="form-laboratory-banner laboratory-management-sticky"><div className="laboratory-banner-title"><strong>{fa ? 'مدیریت فرم‌ها و انتخاب فرم فعال' : 'Manage forms and active document'}</strong></div><button type="button" onClick={() => setManagedFormsListOpen(false)}>{fa ? 'بستن' : 'Close'}</button></header>
         {recoveryStatus && <p role="alert" className="laboratory-document-notice">{recoveryStatus}</p>}
         <button type="button" onClick={() => setNewFormOpen(true)}>{fa ? 'ایجاد فرم جدید…' : 'Create new form…'}</button>
+        <button type="button" onClick={() => {
+          const existing = loadManagedLaboratoryForms(browserFormStorage(), authenticatedUserId)?.forms.find(form => form.id === purchaseInvoiceLaboratoryId)
+          if (existing) void openManagedForm(existing.id)
+          else void createConfiguredLaboratoryForm(purchaseInvoiceLaboratorySchema(), activePreviewFrame, false, true)
+        }}>{fa ? 'فاکتور خرید نخ — طرح مستقل' : 'Purchase invoice — independent design'}</button>
         <button type="button" className="laboratory-select-master" aria-pressed={!activeManagedForm} onClick={switchToLaboratory}>{fa ? 'کار روی قالب اصلی آزمایشگاه' : 'Edit original Laboratory template'}</button>
         <FormCatalogList onRedesign={beginOperationalRedesign} onOpenOriginal={async contract => { const leaving = latestRecoverySnapshot(); if (leaving && !persistRecoverySnapshot(leaving, 'بازکردن مسیر عملیاتی')) return; if(leaving&&!await backupToServer(leaving,'بازکردن مسیر عملیاتی'))return; if(!leaving&&!await backupLaboratoryBeforeSwitch('بازکردن مسیر عملیاتی'))return; if(leaving&&JSON.stringify(recoverySnapshotRef.current)!==JSON.stringify(leaving)){setRecoveryStatus(fa?'فرم هنگام پشتیبان‌گیری تغییر کرد؛ دوباره اقدام کنید.':'The form changed during backup; try again.');return} setManagedFormsListOpen(false); window.dispatchEvent(new CustomEvent('open-operational-form', { detail: contract.route })) }} />
         <p>{fa ? 'فرم‌های مستقل — انتخاب هر فرم فقط سند فعال را تغییر می‌دهد.' : 'Independent forms — choose the active document.'}</p>
