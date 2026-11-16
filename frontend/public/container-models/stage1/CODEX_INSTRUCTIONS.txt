@@ -1,0 +1,20 @@
+MODEL: GPT-6, Medium thinking. Work only on current review branch in C:\project\yarn-trade-system.
+TASK: Stage 1 only: register and preview three EMPTY glass-container types as reusable immutable visual assets in the existing Yarn Purchase Form Laboratory. No cargo placement in this phase.
+
+Use supplied files:
+- 40HC_APPROVED_MASTER.png: EXACT user-approved blue reference. Never regenerate, recolor, crop destructively or alter its shell, doors, wall transparency, perspective, lighting, or hardware.
+- 40GP_GREEN_CANDIDATE.png: green visual candidate for the standard 40-foot container.
+- 20GP_RED_CANDIDATE.png: red visual candidate for the standard 20-foot container.
+- container_types.json: numerical dimensions are the canonical source for actual proportional layouts; never infer dimensions from PNG pixels.
+
+REQUIREMENTS:
+1. Snapshot any current form definition and preserve its ID, user edits and persistence. Do not change unrelated forms, CommercePage, APIs or DB.
+2. Register precisely three reusable model IDs: 40HC (blue), 40GP (green), 20GP (red). Provide a selection/preview in the existing form's container-detail UI without creating a standalone form or changing invoice layout.
+3. For an empty-container preview, display the corresponding supplied asset as-is with aspect ratio preserved, without cropping or filters. Other view containers remain empty. Do not silently regenerate assets or substitute stock images.
+4. Keep dimensions in meters, external/internal/door opening distinct. In future visualization, use a shared meters-to-world-units scale; 40GP same length/width as 40HC, shorter in height; 20GP approximately half the length of 40GP and same width/height. Existing PNG perspective is not a metrically calibrated 3D mesh: do NOT claim the bitmap itself is a to-scale 3D asset. If a truly scalable 3D geometry is needed later, defer to stage 2 after user approval.
+5. Existing agreed 40HC practical visual capacity of 50 CBM for pallets and 68 CBM for cartons/sacks is FUTURE CONFIGURATION ONLY; do not start implementing allocation, occupancy, cargo meshes, container loading, or calculations now. Do not invent practical capacities for 40GP or 20GP.
+6. Green and red are VISUAL CANDIDATES only, not user-approved locked designs. Mark pending approval in metadata. Blue is approved and locked. Make the asset configuration immutable in normal use; future replacement requires deliberate admin/designer action, not automatic restyling.
+7. Check three empty views, filenames, dimensions, switch selection, preserving current invoice design and save/reopen. Keep verification focused; no broad audits or full test suites.
+8. Commit/push relevant files only after successful verification; update the project's existing master progress document if required. Report exact SHA, push status and remaining limitations. If blocked, explain without claiming success.
+
+OUTPUT: concise checklist of implemented items; screenshot of all 3 EMPTY previews (ideally one screenshot); note that pixel images are not metrically accurate 3D geometry; no cargo/loading engine in this change.

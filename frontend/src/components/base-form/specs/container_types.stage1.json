@@ -1,0 +1,76 @@
+{
+  "referenceAsset": "container_40HC_blue_reference.png",
+  "renderingRule": "Approved blue reference geometry/style is immutable. Other colors are derived variants; loading geometry uses metric dimensions, not pixel measurements.",
+  "units": "meters",
+  "containerTypes": [
+    {
+      "id": "40HC",
+      "label": "40 ft High Cube",
+      "color": "blue",
+      "asset": "container_40HC_blue_reference.png",
+      "external": {
+        "length": 12.192,
+        "width": 2.438,
+        "height": 2.896
+      },
+      "internal": {
+        "length": 12.032,
+        "width": 2.352,
+        "height": 2.698
+      },
+      "doorOpening": {
+        "width": 2.34,
+        "height": 2.585
+      },
+      "nominalInternalCBM": 76.4,
+      "displayLoadCBM": {
+        "pallet": 50,
+        "carton": 68,
+        "sack": 68
+      }
+    },
+    {
+      "id": "40GP",
+      "label": "40 ft Standard",
+      "color": "green",
+      "asset": "container_40GP_green.png",
+      "external": {
+        "length": 12.192,
+        "width": 2.438,
+        "height": 2.591
+      },
+      "internal": {
+        "length": 12.032,
+        "width": 2.352,
+        "height": 2.393
+      },
+      "doorOpening": {
+        "width": 2.34,
+        "height": 2.28
+      },
+      "nominalInternalCBM": 67.7
+    },
+    {
+      "id": "20GP",
+      "label": "20 ft Standard",
+      "color": "red",
+      "asset": "container_20GP_red.png",
+      "external": {
+        "length": 6.058,
+        "width": 2.438,
+        "height": 2.591
+      },
+      "internal": {
+        "length": 5.898,
+        "width": 2.352,
+        "height": 2.393
+      },
+      "doorOpening": {
+        "width": 2.34,
+        "height": 2.28
+      },
+      "nominalInternalCBM": 33.2
+    }
+  ],
+  "note": "Nominal dimensions are typical ISO-type nominal examples; exact sizes and practical packing capacity vary by equipment and cargo. 50/68 CBM display-load values apply only to the prior agreed visual model for 40HC; do not copy them to 40GP and 20GP."
+}
