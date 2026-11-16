@@ -1,0 +1,117 @@
+{
+  "container": {
+    "id": "20GP",
+    "version": "synthetic-example-v1",
+    "permittedPayloadKg": 1000,
+    "internal": {
+      "length": 5898,
+      "width": 2352,
+      "height": 2393
+    },
+    "door": {
+      "width": 2340,
+      "height": 2280
+    }
+  },
+  "cargo": [
+    {
+      "id": "fits",
+      "invoiceRowId": "invoice-row-fits",
+      "product": "Synthetic yarn",
+      "supplier": "Demo supplier",
+      "quantity": 1,
+      "packaging": {
+        "type": "CARTON",
+        "dimensions": {
+          "length": 500,
+          "width": 500,
+          "height": 500
+        },
+        "weightKg": 10,
+        "orientations": [
+          "LWH"
+        ],
+        "stacking": {
+          "maxLayers": 1,
+          "maxLoadAboveKg": 0
+        }
+      }
+    },
+    {
+      "id": "oversized",
+      "invoiceRowId": "invoice-row-oversized",
+      "product": "Synthetic yarn",
+      "supplier": "Demo supplier",
+      "quantity": 1,
+      "packaging": {
+        "type": "CARTON",
+        "dimensions": {
+          "length": 7000,
+          "width": 500,
+          "height": 500
+        },
+        "weightKg": 10,
+        "orientations": [
+          "LWH"
+        ],
+        "stacking": {
+          "maxLayers": 1,
+          "maxLoadAboveKg": 0
+        }
+      }
+    }
+  ],
+  "result": {
+    "status": "calculated",
+    "specVersion": "synthetic-example-v1",
+    "placements": [
+      {
+        "packageId": "[\"fits\",1]",
+        "itemId": "fits",
+        "invoiceRowId": "invoice-row-fits",
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "orientation": "LWH",
+        "dimensions": {
+          "length": 500,
+          "width": 500,
+          "height": 500
+        },
+        "weightKg": 10,
+        "supportedBy": null
+      }
+    ],
+    "unplaced": [
+      {
+        "packageId": "[\"oversized\",1]",
+        "itemId": "oversized",
+        "reason": "OVERSIZED"
+      }
+    ],
+    "errors": [],
+    "limitations": [
+      "First-fit is heuristic: unplaced does not prove that no alternative packing exists.",
+      "Elevated packages require full footprint support by one package; bridging, tilt-through-door and dynamic insertion paths are not modeled.",
+      "Ordered groups use conservative disjoint X bands; no unloading maneuver simulation."
+    ],
+    "geometricVolume": {
+      "containerCBM": 33.195925728,
+      "requestedCBM": 1.875,
+      "placedCBM": 0.125
+    },
+    "operationalUtilization": {
+      "status": "unconfigured",
+      "requestedRatio": null,
+      "placedRatio": null,
+      "missingTypes": [
+        "CARTON"
+      ]
+    },
+    "remainingCapacity": {
+      "geometricCBM": 33.070925728,
+      "payloadKg": 990,
+      "operationalRatio": null
+    }
+  }
+}

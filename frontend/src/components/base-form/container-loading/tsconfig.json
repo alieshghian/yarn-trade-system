@@ -1,0 +1,5 @@
+{
+  "extends": "../../../../tsconfig.app.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["./*.ts", "../specs/container_types.stage1.json"]
+}
