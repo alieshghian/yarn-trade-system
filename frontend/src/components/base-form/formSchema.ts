@@ -148,6 +148,8 @@ export type FormSchemaPermissions = {
 
 export type FormSchemaPropertySetting = { inherited: boolean; value?: DesignerValue }
 export type FormSchemaSettings = {
+  demoPrototype?: boolean
+  invoiceVisual?: boolean
   fieldValidation?: {
     entity: 'warehouses' | 'zones' | 'brands' | 'persons' | 'yarns' | 'users' | 'investors'
     uniqueFields: readonly string[]

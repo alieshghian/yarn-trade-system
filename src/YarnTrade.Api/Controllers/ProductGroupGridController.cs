@@ -93,6 +93,8 @@ public sealed class ProductGroupGridController(AppDbContext db) : ControllerBase
             return Ok(new ServerGridPage<ProductGroupReportView>([], 0, page, size, (await values.OrderBy(x=>x).Take(500).ToArrayAsync(ct)).Cast<object?>().ToArray()));
         }
         var total = await query.CountAsync(ct);
+        var offset = (page - 1) * size;
+        if (offset >= total) return Ok(new ServerGridPage<ProductGroupReportView>([], total, page, size));
         IOrderedQueryable<ProductGroupReportView>? sorted = null;
         foreach (var sort in request.Sort ?? []) {
             var column = Column(sort.Id); if (column is null) continue;
@@ -101,7 +103,20 @@ public sealed class ProductGroupGridController(AppDbContext db) : ControllerBase
                 : sort.Direction == "desc" ? sorted.ThenByDescending(selector) : sorted.ThenBy(selector);
         }
         sorted = (sorted ?? query.OrderBy(x=>x.Code)).ThenBy(x=>x.Id);
-        return Ok(new ServerGridPage<ProductGroupReportView>(await sorted.Skip((page-1)*size).Take(size).ToArrayAsync(ct), total, page, size));
+        if (page == 1 && total <= size)
+        {
+            // With a sparse match, SQL Server's OFFSET/FETCH row goal can scan
+            // millions of joined rows trying to fill a page that cannot be filled.
+            // Bound the reader as well: records may be inserted after CountAsync.
+            var items = new List<ProductGroupReportView>(total);
+            await foreach (var row in sorted.AsAsyncEnumerable().WithCancellation(ct))
+            {
+                items.Add(row);
+                if (items.Count == size) break;
+            }
+            return Ok(new ServerGridPage<ProductGroupReportView>(items.ToArray(), total, page, size));
+        }
+        return Ok(new ServerGridPage<ProductGroupReportView>(await sorted.Skip(offset).Take(size).ToArrayAsync(ct), total, page, size));
     }
     private static readonly string[] Columns = ["Code", "Level0", "Level1", "Level2", "Level3", "Level4"];
     private static bool ValidOperator(string op) => op is "equals" or "on" or "notEquals" or "contains" or "notContains" or "beginsWith" or "endsWith";

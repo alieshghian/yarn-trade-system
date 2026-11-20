@@ -19,7 +19,7 @@ public sealed class PersonsFormTests
     {
         var options = Options(); Guid id;
         await using (var db = new AppDbContext(options)) {
-            var input = Input("MOBILE-001", "Mobile list test");
+            var input = Input("MOBILE-001", "Mobile list test"); input.TitleId = await AddIndividualTitle(db);
             input.PhoneNumbers = ["02111111111", "02122222222"]; input.Phone = "02122222222";
             input.MobileNumbers = ["09121111111", "09122222222"]; input.Mobile = "09122222222";
             var saved = Assert.IsType<PersonView>(Assert.IsType<CreatedAtActionResult>((await Controller(db).CreatePerson(input, default)).Result).Value);
@@ -43,7 +43,7 @@ public sealed class PersonsFormTests
     {
         var options = Options(); Guid id;
         await using (var db = new AppDbContext(options)) {
-            var input = Input("PHONE-001", "Phone list test"); input.PhoneNumbers = ["02111111111", "02122222222"]; input.Phone = "02122222222";
+            var input = Input("PHONE-001", "Phone list test"); input.TitleId = await AddIndividualTitle(db); input.PhoneNumbers = ["02111111111", "02122222222"]; input.Phone = "02122222222";
             var saved = Assert.IsType<PersonView>(Assert.IsType<CreatedAtActionResult>((await Controller(db).CreatePerson(input, default)).Result).Value);
             id = saved.Id;
             Assert.Equal(input.PhoneNumbers, saved.PhoneNumbers); Assert.Equal(input.Phone, saved.Phone);
@@ -92,8 +92,9 @@ public sealed class PersonsFormTests
         var jobs = new[] { "CUSTOMER", "SELLER", "SUPPLIER", "PARTNER", "MANAGEMENT", "ORDERS", "COMMERCE", "WAREHOUSE", "FINANCE", "OTHER" }
             .Select(code => new ParameterValue { ParameterType = ParameterType.Job, Code = code, NameFa = code, NameEn = code }).ToArray();
         db.AddRange(jobs); await db.SaveChangesAsync();
+        var titleId = await AddIndividualTitle(db);
         foreach (var job in jobs) {
-            var input = Input(job.Code, job.Code); input.JobId = job.Id;
+            var input = Input(job.Code, job.Code); input.TitleId = titleId; input.JobId = job.Id;
             var result = (await Controller(db).CreatePerson(input, default)).Result;
             if (job.Code == "PARTNER") Assert.IsType<BadRequestObjectResult>(result);
             else Assert.IsType<CreatedAtActionResult>(result);
@@ -130,7 +131,7 @@ public sealed class PersonsFormTests
         db.Persons.AddRange(new Person { PersonCode = "OLD1", FirstName = "علی", LastName = "کریمی", DisplayName = "علی کریمی" },
             new Person { PersonCode = "OLD2", FirstName = "علي", LastName = "كريمي", DisplayName = "علي كريمي" });
         await db.SaveChangesAsync();
-        var input = Input("NEW", "کریمی"); input.FirstName = "رضا";
+        var input = Input("NEW", "کریمی"); input.TitleId = await AddIndividualTitle(db); input.FirstName = "رضا";
         Assert.IsType<CreatedAtActionResult>((await Controller(db).CreatePerson(input, default)).Result);
         Assert.Equal(3, await db.Persons.CountAsync());
     }
@@ -180,6 +181,14 @@ public sealed class PersonsFormTests
 
     private static DbContextOptions<AppDbContext> Options() => new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
     private static MasterDataController Controller(AppDbContext db) => new(db, new PersonAccountService(db));
+    private static async Task<Guid> AddIndividualTitle(AppDbContext db)
+    {
+        var title = new ParameterValue { ParameterType = ParameterType.Title, Code = "MR", NameFa = "آقای", NameEn = "Mr" };
+        db.ParameterValues.Add(title);
+        await db.SaveChangesAsync();
+        return title.Id;
+    }
+
     private static PersonInput Input(string code, string name) => new() { PersonCode = code, LastName = name, PreferredLanguage = "en" };
 }
 
@@ -247,6 +256,8 @@ public sealed partial class SecurityBaselineTests
         await CreateUser(host.App, "persons-guard@example.test"); await SignIn(host, "persons-guard@example.test");
         await SetPermissions(host, "persons-guard@example.test", "persons.view", "persons.create", "persons.edit", "persons.delete");
         var input = new PersonInput { PersonCode = "GUARD-001", FirstName = "Guard", LastName = "Originally customer" };
+        await using (var seed = sql.Context())
+            input.TitleId = await seed.ParameterValues.Where(x => x.ParameterType == ParameterType.Title && x.Code == "MR").Select(x => x.Id).SingleAsync();
         var created = await host.Client.PostAsJsonAsync("/api/master-data/persons", input);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var person = (await created.Content.ReadFromJsonAsync<PersonView>())!;

@@ -87,6 +87,7 @@ try {
   }
   const inputValue=async(expression,value)=>{
     await clickExpression(expression)
+    await until(`document.activeElement === (${expression})`, 'focus before typing '+expression)
     await send('Input.dispatchKeyEvent',{type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65,nativeVirtualKeyCode:65,commands:['selectAll']})
     await send('Input.dispatchKeyEvent',{type:'keyUp',key:'a',code:'KeyA',modifiers:2})
     await send('Input.insertText',{text:String(value)});await pause(120)
@@ -133,12 +134,12 @@ try {
   await check('entry focus marker remains after the active input loses browser focus',"document.querySelector('[data-field=brandCode]')?.closest('.designer-input-part')?.dataset.entryFocusIndicator==='true'");
   await clickExpression("document.querySelector('[data-field=brandName]')");await clickPoint(editorBackground);
   await check('entry focus marker moves to another field and then remains visible',"document.querySelector('[data-field=brandName]')?.closest('.designer-input-part')?.dataset.entryFocusIndicator==='true'&&!document.querySelector('[data-field=brandCode]')?.closest('.designer-input-part')?.dataset.entryFocusIndicator");
-  await inputValue("document.querySelector('[data-field=brandCode]')",'MiXeD-۱۲۳');
   await inputValue("document.querySelector('[data-field=brandName]')",'برند جدید آزمایشی');
+  await inputValue("document.querySelector('[data-field=brandCode]')",'MiXeD-۱۲۳');
   await action('save');
-  await until("window.brandRequests.some(r=>r.method==='POST')");
+  await until("window.brandRequests.some(r=>r.path==='/api/master-data/brands'&&r.method==='POST')");
   await check('save clears the entry focus indicator',"!document.querySelector('[data-entry-focus-indicator=true]')");
-  await check('shared code preserves mixed case, normalizes digits and fires brands-changed',"window.brandRequests.find(r=>r.method==='POST').body.brandCode==='MiXeD-123'&&window.brandEvents===2");
+  assert.deepEqual(await evaluate("({code:window.brandRequests.find(r=>r.path==='/api/master-data/brands'&&r.method==='POST').body.brandCode,events:window.brandEvents})"),{code:'MiXeD-123',events:2}, 'brand creation preserves mixed case, normalizes digits and publishes one event per save');
   await check('saved record is selected in both table and editor',"document.querySelector('tr[aria-selected=true]')?.textContent.includes('MiXeD-123')&&document.querySelector('[data-field=brandCode]').value==='MiXeD-123'");
   await assertFixed('adding a record must not change the form height');
   await evaluate('window.rejectBrandDelete=true');expectedDialog=true;await action('delete');
@@ -152,6 +153,9 @@ try {
   await navigatePage({url:base+'/tests/brands-operational.html?creation'});
   await until("document.querySelector('[data-field=brandCode]').value==='aB-201'");
   await inputValue("document.querySelector('[data-field=brandName]')",'از فرم اشخاص');await action('save');
+  await until("document.querySelector('.laboratory-footer')?.textContent.includes('انتخاب') && document.querySelector('[data-field=brandName]').disabled");
+  assert.equal(await evaluate('Boolean(window.createdBrand)'), false, 'creation awaits explicit selection');
+  await clickExpression("[...document.querySelectorAll('.laboratory-footer button')].find(b=>b.textContent.includes('Enter'))");
   await until("window.createdBrand?.brandName==='از فرم اشخاص'");results.push('Persons creation callback receives the API-created brand');
   await navigatePage({url:base+'/tests/brands-operational.html?denied'});
   await until("!!document.querySelector('[data-action-id=\"operational.new\"] button')");
@@ -234,7 +238,8 @@ try {
   await check('revoked customization ignores stored dimensions',"Math.abs(document.querySelector('.operational-form-frame').getBoundingClientRect().height-760)<1");await click('تنظیمات فرم');
   await check('revoked permissions hide font color and resize tools',"!document.querySelector('[aria-label^=\"Resize form\"]')&&![...document.querySelectorAll('.operational-settings-tools button')].some(e=>['قلم…','رنگ…'].includes(e.textContent))");
   await navigatePage({url:base+'/tests/brands-operational.html?english'});await until("!!document.querySelector('.base-grid-table-wrap')");
-  await check('English table opens at logical left',"(()=>{const v=document.querySelector('.base-grid-table-wrap'),c=document.querySelector('th[data-column=brandCode]');return v.dir==='ltr'&&v.scrollLeft===0&&Math.abs(c.getBoundingClientRect().left-v.getBoundingClientRect().left)<2})()");
+  const start = await evaluate("(()=>{const v=document.querySelector('.base-grid-table-wrap'),c=document.querySelector('th[data-column=brandCode]');return {dir:getComputedStyle(v).direction,content:getComputedStyle(c.closest('table')).direction,scroll:v.scrollLeft,overflow:v.scrollWidth-v.clientWidth,first:c.getBoundingClientRect().left,viewport:v.getBoundingClientRect().left+v.clientLeft}})()");
+  assert.ok(start.dir==='rtl'&&start.content==='ltr'&&Math.abs(start.scroll+start.overflow)<2&&Math.abs(start.first-start.viewport)<2,'English table opens at logical left '+JSON.stringify(start));
   const enSizes=await evaluate(sizes);const enHandle=await evaluate("(()=>{const r=document.querySelector('th[data-column=brandCode] .base-grid-resizer').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()");
   await send('Input.dispatchMouseEvent',{type:'mousePressed',...enHandle,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:enHandle.x+24,y:enHandle.y,button:'left',buttons:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:enHandle.x+24,y:enHandle.y,button:'left',clickCount:1});await pause(200);const enResized=await evaluate(sizes);
   assert.ok(Math.abs(enResized[0]-enSizes[0]-24)<1.1&&Math.abs(enResized[1]-enSizes[1])<1.1&&Math.abs(enResized[2]-enSizes[2])<1.1);results.push('LTR mouse resize expands toward the right and changes only the selected column');

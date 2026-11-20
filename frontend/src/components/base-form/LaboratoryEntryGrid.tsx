@@ -15,7 +15,7 @@ export type DemoGridSettings = {
 export function LaboratoryEntryGrid({ table, demo, onChange, ...props }: BaseFormGridBoundaryProps<Row> & {
   table: FormSchemaTable; demo: DemoGridSettings; onChange: (value: DemoGridSettings) => void
 }) {
-  const rows = demo.rows.map((row, index) => ({ ...row, lineNumber: index + 1,
+  const rows: (Row & { lineNumber: number; lineAmount: number; cbm: number })[] = demo.rows.map((row, index) => ({ ...row, lineNumber: index + 1,
     lineAmount: Math.round(Number(row.netWeight || 0) * Number(row.unitPriceCNY || 0) * 100) / 100,
     cbm: Math.round(Number(row.packageCount || 0) * (row.packaging === 'کارتن' ? .12 : .10) * 100) / 100
   }))

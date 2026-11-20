@@ -92,10 +92,15 @@ function comparable(value: GridValue, type: GridValueType): string | number {
   return String(value).toLocaleLowerCase()
 }
 
+let lastCollation: { locale: string, collator: Intl.Collator } | undefined
+
 export function compareGridValues(a: GridValue, b: GridValue, type: GridValueType, locale: string): number {
   const left = comparable(a, type), right = comparable(b, type)
   if (typeof left === 'number' && typeof right === 'number') return (Number.isNaN(left) ? 0 : left) - (Number.isNaN(right) ? 0 : right)
-  return String(left).localeCompare(String(right), locale, { numeric: false, sensitivity: 'base' })
+  if (lastCollation?.locale !== locale) {
+    lastCollation = { locale, collator: new Intl.Collator(locale, { numeric: false, sensitivity: 'base' }) }
+  }
+  return lastCollation.collator.compare(String(left), String(right))
 }
 
 function conditionMatches(value: GridValue, type: GridValueType, condition: GridCondition, locale: string): boolean {

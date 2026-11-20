@@ -216,7 +216,7 @@ public sealed partial class SecurityBaselineTests
             GoodsTotal = 22, InternationalFreight = 5, TotalNetWeight = 5, Currency = Currency.USD,
             Items = [new() { OriginalDescription = "First", YarnItemId = f.Sale.Items[0].YarnItemId, NetWeight = 2, UnitPriceUSD = 2 },
                 new() { OriginalDescription = "Second", YarnItemId = f.Sale.Items[0].YarnItemId, NetWeight = 3, UnitPriceUSD = 6 }],
-            Costs = [new() { CostType = "Import", CostDate = A5Date, AmountUSD = 5, ResponsiblePartner = PartnerKind.Iranian }] };
+            Costs = [new() { CostType = "Customs", CostDate = A5Date, AmountUSD = 5, ResponsiblePartner = PartnerKind.Iranian }] };
         PurchaseOrder? order = null;
         await using (var db = f.Sql.Context())
         {

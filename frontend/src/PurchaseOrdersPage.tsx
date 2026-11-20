@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
 import { incrementSerial, suggestSerial } from './sequences'
+import { PurchaseOrderLookup, lookupPageSize, type LookupPage } from './PurchaseOrderLookup'
 import SystemDateInput from './SystemDateInput'
 import { formatPersianDate } from './persianDate'
 
@@ -20,7 +21,8 @@ type Order = {
   totalQuantity?: number, estimatedTotal?: number, items?: OrderItem[], createdAtUtc: string
 }
 type Draft = { orderNumber: string, orderDate: string, requiredByDate: string, priority: Priority, currency: Currency, preferredSupplierId: string, notes: string, items: OrderItem[] }
-type PageResult<T> = { items: T[], total: number }
+const yarnEndpoint = '/api/yarns?includeInactive=false'
+const supplierEndpoint = '/api/master-data/persons?includeInactive=false&purchaseSuppliersOnly=true'
 type ColumnKey = 'orderNumber' | 'orderDate' | 'requiredByDate' | 'status' | 'priority' | 'itemCount' | 'totalQuantity' | 'estimatedTotal' | 'currency'
 type Column = { key: ColumnKey, width: number, visible: boolean }
 type Filters = Record<ColumnKey, string[] | null>
@@ -64,7 +66,7 @@ function loadColumns(key: string) {
 
 export default function PurchaseOrdersPage({ language, demoMode = false }: { language: Language, demoMode?: boolean }) {
   const fa = language === 'fa', user = currentUserKey(), splitKey = `purchase-orders-split:${user}`, columnKey = `purchase-orders-columns:${user}`
-  const [orders, setOrders] = useState<Order[]>([]), [yarns, setYarns] = useState<Yarn[]>([]), [people, setPeople] = useState<Person[]>([])
+  const [orders, setOrders] = useState<Order[]>([]), [yarns, setYarns] = useState<LookupPage<Yarn>>({ items: [], total: 0 }), [people, setPeople] = useState<LookupPage<Person>>({ items: [], total: 0 })
   const [selectedId, setSelectedId] = useState(''), [selected, setSelected] = useState<Order | undefined>()
   const [mode, setMode] = useState<Mode>('view'), [draft, setDraft] = useState<Draft>(emptyDraft)
   const [loading, setLoading] = useState(true), [error, setError] = useState(''), [message, setMessage] = useState('')
@@ -111,11 +113,11 @@ export default function PurchaseOrdersPage({ language, demoMode = false }: { lan
       const [orderRows, yarnRows, personRows] = demoMode
         ? [{ items: demoOrders, total: demoOrders.length }, { items: demoYarns, total: demoYarns.length }, { items: demoPeople, total: demoPeople.length }]
         : await Promise.all([
-          api<PageResult<Order>>('/api/purchase-orders?page=1&pageSize=500'),
-          api<PageResult<Yarn>>('/api/yarns?page=1&pageSize=500&includeInactive=false'),
-          api<PageResult<Person>>('/api/master-data/persons?page=1&pageSize=500&includeInactive=false')
+          api<LookupPage<Order>>('/api/purchase-orders?page=1&pageSize=500'),
+          api<LookupPage<Yarn>>(yarnEndpoint + '&page=1&pageSize=' + lookupPageSize),
+          api<LookupPage<Person>>(supplierEndpoint + '&page=1&pageSize=' + lookupPageSize)
         ])
-      setOrders(orderRows.items); setYarns(yarnRows.items); setPeople(personRows.items)
+      setOrders(orderRows.items); setYarns(yarnRows); setPeople(personRows)
       const next = orderRows.items.find(x => x.id === preferId) ?? orderRows.items[0]
       if (next) await loadDetail(next.id); else applySelection()
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
@@ -128,9 +130,8 @@ export default function PurchaseOrdersPage({ language, demoMode = false }: { lan
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => { setDraft(x => ({ ...x, [key]: value })); setFieldErrors(x => ({ ...x, [key]: '' })) }
   const setItem = (index: number, patch: Partial<OrderItem>) => { setDraft(x => ({ ...x, items: x.items.map((item, i) => i === index ? { ...item, ...patch } : item) })); setFieldErrors(x => ({ ...x, [`item-${index}`]: '' })) }
-  function changeYarn(index: number, yarnItemId: string) {
-    const yarn = yarns.find(x => x.id === yarnItemId)
-    setItem(index, { yarnItemId, descriptionSnapshot: yarn?.comprehensiveName ?? '', unit: yarn?.unitOfMeasure ?? 'KG' })
+  function changeYarn(index: number, yarn?: Yarn) {
+    setItem(index, { yarnItemId: yarn?.id ?? '', yarnCode: yarn?.code, descriptionSnapshot: yarn?.comprehensiveName ?? '', unit: yarn?.unitOfMeasure ?? 'KG' })
   }
   const validate = useCallback(() => {
     const errors: Record<string, string> = {}
@@ -257,7 +258,7 @@ export default function PurchaseOrdersPage({ language, demoMode = false }: { lan
     const all = [...new Set(orders.map(x => columnValue(x, key)))]; setFilters(x => ({ ...x, [key]: pendingFilter.length === all.length ? null : pendingFilter })); setFilterMenu(null)
   }
   const labels: Record<ColumnKey, string> = { orderNumber: fa ? 'شماره سفارش' : 'Order no.', orderDate: fa ? 'تاریخ سفارش' : 'Order date', requiredByDate: fa ? 'تاریخ نیاز' : 'Required by', status: fa ? 'وضعیت' : 'Status', priority: fa ? 'اولویت' : 'Priority', itemCount: fa ? 'ردیف' : 'Items', totalQuantity: fa ? 'جمع مقدار' : 'Quantity', estimatedTotal: fa ? 'جمع احتمالی' : 'Estimate', currency: fa ? 'ارز' : 'Currency' }
-  const disabled = mode === 'view', suppliers = people.filter(x => x.isActive && (!x.job || ['SUPPLIER', 'PARTNER'].includes(x.job.code)))
+  const disabled = mode === 'view'
   const estimate = draft.items.reduce((sum, x) => sum + x.quantity * (x.estimatedUnitPrice ?? 0), 0)
 
   return <div className="persons-page purchase-orders-page" ref={frameRef} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px,1fr)` }}>
@@ -270,12 +271,12 @@ export default function PurchaseOrdersPage({ language, demoMode = false }: { lan
         <Field label={fa ? 'تاریخ مورد نیاز (شمسی)' : 'Required by (Persian)'} error={fieldErrors.requiredByDate}><SystemDateInput calendar="persian" language={language} disabled={disabled} value={draft.requiredByDate} onChange={value => set('requiredByDate', value)} onError={value => setFieldErrors(current => ({ ...current, requiredByDate: value }))} /></Field>
         <Field label={fa ? 'اولویت' : 'Priority'}><select data-field="priority" disabled={disabled} value={draft.priority} onChange={e => set('priority', e.target.value as Priority)}><option value="Normal">{priorityLabel('Normal')}</option><option value="Urgent">{priorityLabel('Urgent')}</option></select></Field>
         <Field label={fa ? 'ارز قیمت احتمالی' : 'Estimate currency'}><select data-field="currency" disabled={disabled} value={draft.currency} onChange={e => set('currency', e.target.value as Currency)}>{(['USD', 'CNY', 'EUR', 'IRR'] as Currency[]).map(x => <option key={x}>{x}</option>)}</select></Field>
-        <Field label={fa ? 'تأمین‌کننده پیشنهادی' : 'Preferred supplier'}><select data-field="preferredSupplierId" disabled={disabled} value={draft.preferredSupplierId} onChange={e => set('preferredSupplierId', e.target.value)}><option value="">—</option>{suppliers.map(x => <option key={x.id} value={x.id}>{x.displayName}</option>)}</select></Field>
+        <Field label={fa ? 'تأمین‌کننده پیشنهادی' : 'Preferred supplier'}><PurchaseOrderLookup first={people} endpoint={supplierEndpoint} field="preferredSupplierId" disabled={disabled} fa={fa} value={draft.preferredSupplierId} label={x => x.displayName} detailUrl={demoMode ? undefined : '/api/master-data/persons/' + draft.preferredSupplierId} onChange={person => set('preferredSupplierId', person?.id ?? '')} /></Field>
         <Field label={fa ? 'توضیحات سفارش' : 'Order notes'} wide><input data-field="notes" disabled={disabled} maxLength={1000} value={draft.notes} onChange={e => set('notes', e.target.value)} /></Field>
       </div>
       <div className="order-lines-head"><div><b>{fa ? 'اقلام درخواستی' : 'Requested yarns'}</b><span>{fa ? `${draft.items.length} ردیف — جمع احتمالی: ${fmt(estimate)} ${draft.currency}` : `${draft.items.length} items — Estimate: ${fmt(estimate)} ${draft.currency}`}</span></div>{!disabled && <button type="button" className="line-control primary" onClick={() => set('items', [...draft.items, newItem()])}>＋ {fa ? 'ردیف جدید' : 'Add item'}</button>}</div>
       {fieldErrors.items && <div className="line-error">{fieldErrors.items}</div>}
-      <div className="order-lines-wrap"><table className="order-lines-table"><thead><tr><th>#</th><th>{fa ? 'نخ *' : 'Yarn *'}</th><th>{fa ? 'نام فراگیر/شرح' : 'Description'}</th><th>{fa ? 'مقدار *' : 'Quantity *'}</th><th>{fa ? 'واحد' : 'Unit'}</th><th>{fa ? 'قیمت احتمالی' : 'Est. price'}</th><th>{fa ? 'جمع' : 'Amount'}</th><th>{fa ? 'مشخصات مورد نیاز' : 'Specifications'}</th>{!disabled && <th />}</tr></thead><tbody>{draft.items.map((item, index) => <tr key={item.id ?? index} data-line-index={index} className={fieldErrors[`item-${index}`] ? 'invalid-line' : ''}><td>{index + 1}</td><td><select disabled={disabled} value={item.yarnItemId} onChange={e => changeYarn(index, e.target.value)}><option value="">—</option>{yarns.filter(x => x.isActive).map(x => <option key={x.id} value={x.id}>{x.code} — {x.comprehensiveName}</option>)}</select></td><td title={item.descriptionSnapshot}>{item.descriptionSnapshot || '—'}</td><td><input className="ltr-input" disabled={disabled} type="number" min={0} step="any" value={item.quantity || ''} onChange={e => setItem(index, { quantity: Number(e.target.value) })} /></td><td><select disabled={disabled} value={item.unit} onChange={e => setItem(index, { unit: e.target.value })}>{['KG', 'COUNT', 'CONE', 'HANK'].map(x => <option key={x}>{x}</option>)}</select></td><td><input className="ltr-input" disabled={disabled} type="number" min={0} step="any" value={item.estimatedUnitPrice ?? ''} onChange={e => setItem(index, { estimatedUnitPrice: e.target.value === '' ? undefined : Number(e.target.value) })} /></td><td className="mono">{fmt(item.quantity * (item.estimatedUnitPrice ?? 0))}</td><td><input disabled={disabled} maxLength={1000} value={item.requiredSpecifications ?? ''} onChange={e => setItem(index, { requiredSpecifications: e.target.value })} /></td>{!disabled && <td><button type="button" className="line-control remove-line" disabled={draft.items.length === 1} onClick={() => set('items', draft.items.filter((_, i) => i !== index))}>×</button></td>}</tr>)}</tbody></table></div>
+      <div className="order-lines-wrap"><table className="order-lines-table"><thead><tr><th>#</th><th>{fa ? 'نخ *' : 'Yarn *'}</th><th>{fa ? 'نام فراگیر/شرح' : 'Description'}</th><th>{fa ? 'مقدار *' : 'Quantity *'}</th><th>{fa ? 'واحد' : 'Unit'}</th><th>{fa ? 'قیمت احتمالی' : 'Est. price'}</th><th>{fa ? 'جمع' : 'Amount'}</th><th>{fa ? 'مشخصات مورد نیاز' : 'Specifications'}</th>{!disabled && <th />}</tr></thead><tbody>{draft.items.map((item, index) => <tr key={item.id ?? index} data-line-index={index} className={fieldErrors[`item-${index}`] ? 'invalid-line' : ''}><td>{index + 1}</td><td><PurchaseOrderLookup first={yarns} endpoint={yarnEndpoint} disabled={disabled} fa={fa} value={item.yarnItemId} label={x => x.code + ' — ' + x.comprehensiveName} selectedLabel={[item.yarnCode, item.descriptionSnapshot].filter(Boolean).join(' — ')} onChange={yarn => changeYarn(index, yarn)} /></td><td title={item.descriptionSnapshot}>{item.descriptionSnapshot || '—'}</td><td><input className="ltr-input" disabled={disabled} type="number" min={0} step="any" value={item.quantity || ''} onChange={e => setItem(index, { quantity: Number(e.target.value) })} /></td><td><select disabled={disabled} value={item.unit} onChange={e => setItem(index, { unit: e.target.value })}>{['KG', 'COUNT', 'CONE', 'HANK'].map(x => <option key={x}>{x}</option>)}</select></td><td><input className="ltr-input" disabled={disabled} type="number" min={0} step="any" value={item.estimatedUnitPrice ?? ''} onChange={e => setItem(index, { estimatedUnitPrice: e.target.value === '' ? undefined : Number(e.target.value) })} /></td><td className="mono">{fmt(item.quantity * (item.estimatedUnitPrice ?? 0))}</td><td><input disabled={disabled} maxLength={1000} value={item.requiredSpecifications ?? ''} onChange={e => setItem(index, { requiredSpecifications: e.target.value })} /></td>{!disabled && <td><button type="button" className="line-control remove-line" disabled={draft.items.length === 1} onClick={() => set('items', draft.items.filter((_, i) => i !== index))}>×</button></td>}</tr>)}</tbody></table></div>
     </section>
     <div className="split-handle" onPointerDown={resizeStart}><span /></div>
     <section className="person-grid-panel panel">

@@ -1,12 +1,33 @@
-import { test } from 'node:test'
+import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
-import { installFormInteraction } from './formInteraction.ts'
-import { readFileSync } from 'node:fs'
-import { stripTypeScriptTypes } from 'node:module'
+import { registerHooks } from 'node:module'
 
-const moduleUrl = source => 'data:text/javascript;base64,' + Buffer.from(stripTypeScriptTypes(source)).toString('base64')
-const persian = moduleUrl(readFileSync(new URL('./persianDate.ts', import.meta.url), 'utf8'))
-const calendar = await import(moduleUrl(readFileSync(new URL('./dateCalendar.ts', import.meta.url), 'utf8').replace("'./persianDate'", JSON.stringify(persian))))
+// Resolve Vite-style relative TypeScript imports for this standalone Node suite.
+const hooks = registerHooks({
+  resolve(specifier, context, nextResolve) {
+    try { return nextResolve(specifier, context) }
+    catch (error) {
+      if (error.code !== 'ERR_MODULE_NOT_FOUND' || !/^\.\.?\/[^.]+$/.test(specifier)) throw error
+      return nextResolve(specifier + '.ts', context)
+    }
+  }
+})
+const { installFormInteraction } = await import('./formInteraction.ts')
+const calendar = await import('./dateCalendar.ts')
+hooks.deregister()
+
+const originalObserver = globalThis.MutationObserver
+const originalElement = globalThis.Element
+before(() => {
+  globalThis.MutationObserver = class { observe() {} disconnect() {} }
+  globalThis.Element = class {}
+})
+after(() => {
+  if (originalObserver === undefined) delete globalThis.MutationObserver
+  else globalThis.MutationObserver = originalObserver
+  if (originalElement === undefined) delete globalThis.Element
+  else globalThis.Element = originalElement
+})
 
 test('Jalali short years and leading zeros preserve the requested dates; invalid dates fail', () => {
   assert.equal(calendar.expandShortYear('05', 'persian'), 1405)
@@ -44,7 +65,7 @@ test('F3 saves the focused nested editor and otherwise only the main form', () =
   const nested = {querySelectorAll:()=>[nestedButton]}
   const nestedButton = {disabled:false,dataset:{saveAction:'true'},getClientRects:()=>[1],closest:s=>s==='[data-form-scope]' ? nested : null,click:()=>nestedClicks++}
   const mainButton = {disabled:false,dataset:{saveAction:'true'},getClientRects:()=>[1],closest:()=>null,click:()=>mainClicks++}
-  class Element { closest(){return nested} }
+  class Element extends globalThis.Element { closest(selector){ return selector.includes('[data-form-scope]') ? nested : null } }
   globalThis.HTMLElement=Element
   try {
     const pane={querySelectorAll:()=>[nestedButton,mainButton],contains:()=>true}

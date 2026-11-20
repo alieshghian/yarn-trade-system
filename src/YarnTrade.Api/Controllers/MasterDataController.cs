@@ -14,10 +14,11 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
 {
     [RequirePermission("persons.view")]
     [HttpGet("persons")]
-    public async Task<object> Persons([FromQuery] string? q, [FromQuery] bool includeInactive = true, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default)
+    public async Task<object> Persons([FromQuery] string? q, [FromQuery] bool includeInactive = true, [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken ct = default, [FromQuery] bool purchaseSuppliersOnly = false)
     {
         var query = db.Persons.AsNoTracking().Include(x => x.Job).Include(x => x.Title).Include(x => x.Nationality).Include(x => x.Roles).Include(x => x.BrandLinks).AsQueryable();
         if (!includeInactive) query = query.Where(x => x.IsActive);
+        if (purchaseSuppliersOnly) query = query.Where(x => x.Job == null || x.Job.Code == "SUPPLIER" || x.Job.Code == "PARTNER");
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
@@ -28,7 +29,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
         }
         var total = await query.CountAsync(ct);
         var take = Math.Clamp(pageSize, 1, 500);
-        var entities = await query.OrderBy(x => x.PersonCode).Skip((Math.Max(page, 1) - 1) * take).Take(take).ToListAsync(ct);
+        var entities = await query.OrderBy(x => x.PersonCode).ThenBy(x => x.Id).Skip((Math.Max(page, 1) - 1) * take).Take(take).ToListAsync(ct);
         var ids = entities.Select(x => x.Id).ToArray();
         var linked = await db.BusinessContractVersions.Where(x => x.PartnerPersonId.HasValue && ids.Contains(x.PartnerPersonId.Value)).Select(x => x.PartnerPersonId!.Value).Distinct().ToListAsync(ct);
         var items = entities.Select(x => PersonView.From(x, linked.Contains(x.Id))).ToList();
@@ -258,9 +259,7 @@ public sealed class MasterDataController(AppDbContext db, PersonAccountService p
     {
         var query = db.YarnItems.AsNoTracking().Include(x => x.YarnType).Where(x => x.IsActive);
         if (!string.IsNullOrWhiteSpace(q)) query = query.Where(x => x.Code.Contains(q) || x.NameFa.Contains(q) || x.NameEn.Contains(q) || x.SearchText.Contains(q));
-        var total = await query.CountAsync(ct);
-        var items = await query.OrderBy(x => x.Code).Skip((page - 1) * pageSize).Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(ct);
-        return new { items, total, page, pageSize };
+        return await ListPage.ReadAsync(query.OrderBy(x => x.Code).ThenBy(x => x.Id), page, pageSize, ct);
     }
 
     [RequirePermission("yarns.create")]

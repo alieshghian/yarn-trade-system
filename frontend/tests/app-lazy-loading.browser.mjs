@@ -78,7 +78,7 @@ try {
   assert.equal(await evaluate("document.querySelectorAll('.form-tabs > button').length"), 11, 'restored tabs remain visible')
   const resources = () => evaluate("performance.getEntriesByType('resource').map(entry => entry.name)")
   let loaded = await resources()
-  assert.ok(!loaded.some(url => /\/assets\/(?:FormLaboratoryPage|UserSettingsPage|PersonsPage|BrandsPage|YarnsPage|PurchaseOrdersPage|CommercePage|UsersPage|DataBackupPage|BusinessContractPage)-/.test(url)), 'inactive restored tabs do not fetch their pages at startup')
+  assert.ok(!loaded.some(url => /\/assets\/(?:FormLaboratoryPage|UserSettingsPage|PersonsPage|BrandsPage|YarnsOperationalRoute|ApprovedYarnsPage|YarnsPage|PurchaseOrdersPage|CommercePage|UsersPage|DataBackupPage|BusinessContractPage)-/.test(url)), 'inactive restored tabs do not fetch their pages at startup')
   console.log('PASS restored inactive tabs do not load their page code')
 
   await clickTab('تنظیمات کاربر')
@@ -86,7 +86,7 @@ try {
   loaded = await resources()
   assert.ok(loaded.some(url => /\/assets\/UserSettingsPage-/.test(url)), 'settings code loads on selection')
   const input = "document.querySelector('.form-tab-pane.active .settings-page [data-preference=theme]')"
-  await evaluate(`(()=>{const e=${input};e.value='ocean';e.dispatchEvent(new Event('input',{bubbles:true}))})()`)
+  await evaluate(`(()=>{const e=${input};e.value='ocean';e.dispatchEvent(new Event('change',{bubbles:true}))})()`)
   await until(`${input}.value === 'ocean'`, 'unsaved settings value')
   await clickTab('داشبورد')
   await clickTab('تنظیمات کاربر')
@@ -111,7 +111,7 @@ try {
   loaded = await resources()
   assert.ok(loaded.some(url => /\/assets\/FormLaboratoryPage-/.test(url)), 'laboratory code loads when directly opened')
   for (const [label, moduleName] of [
-    ['تعریف اشخاص', 'PersonsPage'], ['تعریف برند', 'BrandsPage'], ['تعریف نخ', 'YarnsPage'],
+    ['تعریف اشخاص', 'PersonsPage'], ['تعریف برند', 'BrandsPage'], ['تعریف نخ', 'YarnsOperationalRoute'],
     ['سفارش خرید نخ', 'PurchaseOrdersPage'], ['خرید نخ', 'CommercePage'], ['تعریف کاربران', 'UsersPage'],
     ['تهیه و بازخوانی اطلاعات', 'DataBackupPage'], ['قرارداد و قواعد کسب‌وکار', 'BusinessContractPage'],
   ]) {
@@ -124,8 +124,8 @@ try {
   assert.deepEqual(errors, [], 'browser must not report uncaught exceptions')
   console.log('PASS direct form address opens the requested laboratory form')
 } finally {
-  if (socket) socket.close()
-  browser.kill()
+  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({id: ++sequence, method:'Browser.close'}))
+  else browser.kill()
   await new Promise(resolveExit => { if (browser.exitCode !== null) resolveExit(); else { browser.once('exit', resolveExit); setTimeout(resolveExit, 5000) } })
   await rm(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 })
 }

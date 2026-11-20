@@ -8,8 +8,9 @@ test('Persian and English physical keys, shift, caps, digits and ZWNJ', () => {
   assert.equal(typingCharacter('KeyA','en'),'a')
   assert.equal(typingCharacter('KeyA','en',true),'A')
   assert.equal(typingCharacter('KeyA','en',true,true),'a')
-  assert.equal(typingCharacter('Digit2','fa'),'۲')
-  assert.equal(typingCharacter('Digit2','en'),'2')
+  for (const mode of ['fa', 'en']) {
+    for (const digit of '0123456789') assert.equal(typingCharacter('Digit' + digit, mode), digit)
+  }
   assert.equal(typingCharacter('Space','fa',true),'\u200c')
   for (const key of ['Enter','F3','ArrowLeft','Backspace','Delete','Tab']) assert.equal(typingCharacter(key,'fa'),undefined)
 })

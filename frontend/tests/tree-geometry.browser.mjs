@@ -70,6 +70,7 @@ try {
     await revealMenuExpression(expression,{evaluate,send,pause})
     await until(`!!(${expression})`, expression)
     const point = await evaluate(`(async()=>{const e=${expression};e.scrollIntoView({block:'nearest',inline:'nearest'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const current=${expression};const r=current.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
+    if (expression.includes('panel-selector')) assert.ok(await evaluate(`(${expression}).contains(document.elementFromPoint(${point.x},${point.y}))`), 'panel selector must receive pointer input')
     await send('Input.dispatchMouseEvent', { type:'mouseMoved', ...point })
     await send('Input.dispatchMouseEvent', { type:'mousePressed', ...point, button, modifiers, clickCount:1 })
     await send('Input.dispatchMouseEvent', { type:'mouseReleased', ...point, button, modifiers, clickCount:1 })

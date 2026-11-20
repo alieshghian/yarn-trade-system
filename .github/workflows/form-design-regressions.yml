@@ -2,14 +2,17 @@ name: Form design regression gate
 
 on:
   push:
-    branches: ['review/**']
-    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/package*.json', 'frontend/tsconfig*.json', 'frontend/vite.config.ts', 'src/YarnTrade.Api/Controllers/ThemeDesignController.cs', 'src/YarnTrade.Api/Controllers/UserSettingsController.cs', 'tests/YarnTrade.Tests/ThemeDesignTests.cs', 'src/YarnTrade.Api/Controllers/MasterDataController.cs', 'tests/YarnTrade.Tests/TitleListBehaviorTests.cs', '.github/workflows/form-design-regressions.yml']
+    branches: ['review/**', 'master']
   pull_request:
-    paths: ['frontend/src/**', 'frontend/tests/**', 'frontend/package*.json', 'frontend/tsconfig*.json', 'frontend/vite.config.ts', 'src/YarnTrade.Api/Controllers/ThemeDesignController.cs', 'src/YarnTrade.Api/Controllers/UserSettingsController.cs', 'tests/YarnTrade.Tests/ThemeDesignTests.cs', 'src/YarnTrade.Api/Controllers/MasterDataController.cs', 'tests/YarnTrade.Tests/TitleListBehaviorTests.cs', '.github/workflows/form-design-regressions.yml']
+    branches: ['master']
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# net8.0 test hosts must run on an 8.0 patch even on multi-SDK runners.
+env:
+  DOTNET_ROLL_FORWARD: LatestPatch
 
 concurrency:
   group: form-design-${{ github.ref }}
@@ -18,7 +21,7 @@ concurrency:
 jobs:
   presentation:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     defaults:
       run:
         working-directory: frontend
@@ -32,7 +35,8 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Start isolated development fixture server
         run: |
-          npm run dev -- --host 127.1.0.1 > /tmp/yarn-form-vite.log 2>&1 &
+          mkdir -p ../review-artifacts
+          npm run dev -- --host 127.1.0.1 --strictPort > /tmp/yarn-form-vite.log 2>&1 &
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.1.0.1:5173/tests/form-designer.html > /dev/null; then exit 0; fi
             sleep 1
@@ -54,3 +58,80 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Theme permissions, immutable revisions and shared Title list protections
         run: dotnet test tests/YarnTrade.Tests/YarnTrade.Tests.csproj --filter 'FullyQualifiedName~Theme_design|FullyQualifiedName~UserSettingsRules|FullyQualifiedName~Shared_title_list' --logger 'console;verbosity=minimal'
+  operational:
+    name: Approved form workflows (${{ matrix.scenario }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [brands-operational, approved-yarns, product-group-operational, person-brand-lookup, warehouses]
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Exercise operational form in a disposable browser
+        run: |
+          mkdir -p ../artifacts/{warehouse-check,warehouse-floors,yarn-operational-integration} ../review-artifacts
+          npm run dev -- --host 127.1.0.1 --strictPort > /tmp/approved-form-vite.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.1.0.1:5173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          export FORM_TEST_BROWSER="$(command -v google-chrome)"
+          node tests/${{ matrix.scenario }}.browser.mjs
+  production-navigation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test tests/approved-grid-stress.test.mjs src/components/base-form/excelGrid.test.mjs
+      - run: npm run build
+      - name: Verify production navigation and recovery
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then break; fi
+            sleep 1
+          done
+          export FORM_TEST_BROWSER="$(command -v google-chrome)"
+          npm run test:app-lazy-loading:browser
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Start disposable SQL Server on loopback
+        run: |
+          password="Gt!$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          docker run -d --name approved-form-sql -p 127.0.0.1::1433 -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD="$password" mcr.microsoft.com/mssql/server:2022-latest
+          port=$(docker port approved-form-sql 1433/tcp | cut -d: -f2)
+          export SQLCMDPASSWORD="$password"
+          for attempt in $(seq 1 60); do
+            if docker exec -e SQLCMDPASSWORD approved-form-sql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -Q 'SELECT 1' >/dev/null 2>&1; then
+              echo "YARN_TRADE_SQL_TEST_CONNECTION=Server=127.0.0.1,$port;Database=master;User Id=sa;Password=$password;TrustServerCertificate=True" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+      - name: Run integration suite against disposable databases
+        run: dotnet test tests/YarnTrade.Tests/YarnTrade.Tests.csproj --filter 'FullyQualifiedName!~LocalDevelopment' --logger 'console;verbosity=minimal'

@@ -23,9 +23,7 @@ public sealed class SalesController(AppDbContext db, PostingService posting) : C
         if (warehouseId.HasValue) q = q.Where(x => x.WarehouseId == warehouseId);
         if (from.HasValue) q = q.Where(x => x.SaleDate >= from);
         if (to.HasValue) q = q.Where(x => x.SaleDate <= to);
-        var total = await q.CountAsync(ct);
-        var items = await q.OrderByDescending(x => x.SaleDate).Skip((page - 1) * pageSize).Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(ct);
-        return new { items, total, page, pageSize };
+        return await ListPage.ReadAsync(q.OrderByDescending(x => x.SaleDate).ThenBy(x => x.Id), page, pageSize, ct);
     }
 
     [RequirePermission("sales.view")]

@@ -34,7 +34,12 @@ public sealed partial class SecurityBaselineTests
     {
         using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlServer().Options);
         var audited = db.Model.GetEntityTypes().Where(x => typeof(AuditedEntity).IsAssignableFrom(x.ClrType)).ToArray();
-        Assert.Equal(18, audited.Length);
+        Type[] expected = [typeof(Person), typeof(Brand), typeof(ParameterValue), typeof(YarnType), typeof(YarnItem),
+            typeof(Warehouse), typeof(ExchangeRate), typeof(PurchaseInvoice), typeof(PurchaseOrder), typeof(PurchaseCost),
+            typeof(PriceList), typeof(CreditRateRule), typeof(Sale), typeof(MoneyDocument), typeof(Check), typeof(PartnerShareRule),
+            typeof(PartnerSettlement), typeof(Investor), typeof(BusinessContractVersion), typeof(ProductGroup),
+            typeof(ProductGroupPolicy), typeof(WarehouseZone), typeof(YarnDefinitionReference)];
+        Assert.Equal(expected.OrderBy(x => x.Name), audited.Select(x => x.ClrType).OrderBy(x => x.Name));
         foreach (var type in audited) {
             var token = type.FindProperty(nameof(AuditedEntity.RowVersion))!;
             Assert.True(token.IsConcurrencyToken);
@@ -56,6 +61,13 @@ public sealed partial class SecurityBaselineTests
         await using (var db = sql.Context()) {
             await db.GetService<IMigrator>().MigrateAsync(A4SqlDatabase.BeforeA4);
             await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO Persons (Id, PersonCode, PersonType, LastName, DisplayName, PreferredLanguage, CreditLimitIRR, IsActive, PartnerKind, CreatedAtUtc, RowVersion) VALUES ({id}, {"A4-MIGRATION"}, 0, {"Before A4"}, {"Before A4"}, {"fa"}, {12345.67m}, 1, 0, {new DateTime(2026, 1, 1)}, 0x)");
+            var migrator = db.GetService<IMigrator>();
+            await migrator.MigrateAsync("20261006141731_FixSqlRowVersionConcurrency");
+            var seededIds = await db.Persons.OrderBy(x => x.Id).Select(x => x.Id).ToArrayAsync();
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE Persons SET Notes = 'Edited before rollback' WHERE Id = {id}");
+            await migrator.MigrateAsync(A4SqlDatabase.BeforeA4);
+            Assert.Equal(seededIds, await db.Persons.OrderBy(x => x.Id).Select(x => x.Id).ToArrayAsync());
+            Assert.Equal(0L, await db.Database.SqlQuery<long>($"SELECT DATALENGTH(RowVersion) AS [Value] FROM Persons WHERE Id = {id}").SingleAsync());
             await db.Database.MigrateAsync();
             var tables = db.Model.GetEntityTypes().Where(x => typeof(AuditedEntity).IsAssignableFrom(x.ClrType)).Select(x => x.GetTableName()!).Order().ToArray();
             await using var connection = new SqlConnection(sql.Connection);
@@ -67,6 +79,7 @@ public sealed partial class SecurityBaselineTests
             while (await reader.ReadAsync()) { found.Add(reader.GetString(0)); Assert.Equal((byte)189, reader.GetByte(1)); Assert.Equal((short)8, reader.GetInt16(2)); }
             Assert.Equal(tables, found.Order());
             var preserved = await db.Persons.SingleAsync(x => x.Id == id);
+            Assert.Equal("Edited before rollback", preserved.Notes);
             Assert.Equal("Before A4", preserved.DisplayName); Assert.Equal(12345.67m, preserved.CreditLimitIRR);
             Assert.Equal(new DateTime(2026, 1, 1), preserved.CreatedAtUtc); Assert.Null(preserved.UpdatedAtUtc); Assert.Equal(8, preserved.RowVersion.Length);
             Assert.All(await db.ParameterValues.ToListAsync(), x => Assert.Equal(8, x.RowVersion.Length));
@@ -84,9 +97,6 @@ public sealed partial class SecurityBaselineTests
         await using (var db = sql.Context()) {
             Assert.Equal("First writer", (await db.Persons.SingleAsync(x => x.Id == id)).DisplayName);
             db.ChangeTracker.Clear();
-            await db.GetService<IMigrator>().MigrateAsync(A4SqlDatabase.BeforeA4);
-            Assert.Equal(4, await db.Persons.CountAsync());
-            await db.Database.MigrateAsync();
             var preserved = await db.Persons.SingleAsync(x => x.Id == id);
             Assert.Equal("First writer", preserved.DisplayName); Assert.Equal(12345.67m, preserved.CreditLimitIRR); Assert.Equal(8, preserved.RowVersion.Length);
             preserved.Notes = "After rollback/reapply"; first = preserved.RowVersion.ToArray(); await db.SaveChangesAsync();
@@ -100,7 +110,9 @@ public sealed partial class SecurityBaselineTests
         await using var sql = await A4SqlDatabase.CreateLatest();
         await using var host = await CreateApp(sqlConnection: sql.Connection);
         await CreateUser(host.App, "a4@example.test", "Administrator"); await SignIn(host, "a4@example.test");
-        var input = new PersonInput { PersonCode = "A4-API", LastName = "Original", CreditLimitIRR = 100 };
+        var input = new PersonInput { PersonCode = "A4-API", FirstName = "Test", LastName = "Original", CreditLimitIRR = 100 };
+        await using (var seed = sql.Context())
+            input.TitleId = await seed.ParameterValues.Where(x => x.ParameterType == ParameterType.Title && x.Code == "MR").Select(x => x.Id).SingleAsync();
         var createdResponse = await host.Client.PostAsJsonAsync("/api/master-data/persons", input);
         Assert.Equal(HttpStatusCode.Created, createdResponse.StatusCode);
         var created = (await createdResponse.Content.ReadFromJsonAsync<PersonView>())!; Assert.Equal(8, created.RowVersion.Length);

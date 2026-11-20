@@ -26,7 +26,7 @@ test('handoff retains custom design and referenced inherited behavior without mu
   assert.equal(output.behaviorManifest.componentContracts[0].hierarchy.maxDepth, 5)
   assert.equal(output.scope.operationalActivation, false)
   assert.equal(output.behaviorManifest.systemLookupContract.create.shortcut,'Insert')
-  assert.equal(output.behaviorManifest.systemLookupContract.create.trigger,'keydown-without-modifiers-no-repeat')
+  assert.equal(output.behaviorManifest.systemLookupContract.create.trigger,'keydown-or-unhandled-keyup-without-modifiers-no-repeat; never-run-twice-for-one-press')
   assert.equal(output.behaviorManifest.systemLookupContract.search.visibleCreateAction,'Insert')
   assert.equal(output.behaviorManifest.systemLookupContract.create.selectShortcut,'Enter')
   assert.equal(output.behaviorManifest.contactListContract.singleDefault,true)

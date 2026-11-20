@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 /** Runs inside the existing disposable Designer browser, never operational storage. */
-export async function runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base,onlyLegacy=false}) {
+export async function runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base,onlyGroupDrag=false,onlyLegacy=false}) {
  await pause(250) // Capture the preceding UI operation after the recovery debounce.
  const original=await evaluate(`Object.fromEntries(Object.keys(localStorage).map(key=>[key,localStorage.getItem(key)]))`)
  const restore=async()=>{await navigatePage({url:base+'/tests/form-storage.fixture.html'});await evaluate(`(()=>{const original=${JSON.stringify(original)};for(const key of Object.keys(localStorage))if(!(key in original))localStorage.removeItem(key);for(const [key,value] of Object.entries(original))localStorage.setItem(key,value)})()`);await navigatePage({url:base+'/tests/form-designer.html'});await until(`!!document.querySelector('[data-field-id="personCode"]')`)}
@@ -19,6 +21,12 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
     schema={...schema,tables:schema.tables.map((table,index)=>index===0?{...table,columns:table.columns.map(column=>column.id==='personCode'?{...column,sourceFieldIds:['personCode','notes'],sourceLinkIntent:undefined,valueComposition:undefined,valueSeparator:undefined,labelSyncDecision:'primary-field',labelSyncFieldId:'personCode'}:column)}:table)};
    }else{
     schema={...schema,fields:schema.fields.filter(field=>['personCode','firstName','notes','titleId'].includes(field.id))};
+    if (${JSON.stringify(kind)} === 'group-drag') {
+      // The four-field fixture also needs four valid report bindings to exercise Save.
+      schema = {...schema, fields: schema.fields.map(field => ({...field, columnLinks: []})),
+        tables: schema.tables.map(table => ({...table, columns: []}))}
+      for (const field of schema.fields) schema = addDocumentColumn(schema, schema.tables[0].id, field.id, field.label.fa, 'text', field.id)
+    }
     schema=addTableHeaderRow(schema,schema.tables[0].id,'paired.header');
     for(const id of ['header.a','header.b','header.c','header.d'])schema=addDocumentField(schema,'paired.header',id,id,{kind:'text',componentId:'definition.field',valueType:'text'});
     const field=(left,top,width,height)=>({input:{left,top,width,height},label:{left:left+width-65,top:top-25,width:65,height:18},select:{left:left+4,top:top-25,width:19,height:18}});
@@ -40,7 +48,81 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
   })()`)
   await navigatePage({url:base+'/tests/form-designer.html'});await until(`!!document.querySelector('[data-field-id="notes"] .designer-label-part')`)
  }
+ const verifyGroupDrag=async()=>{
+  const selectInput=id=>`document.querySelector('[data-field-id="${id}"] .designer-input-part')`
+  for(const id of ['personCode','firstName','notes'])await clickExpression(selectInput(id),'left',2)
+  await check('three field inputs can be selected together',`document.querySelectorAll('.designer-input-part.designer-part-selected').length===3`)
+  await clickExpression(selectInput('firstName'))
+  await check('clicking a selected field again clears the whole selection without moving fields',`!document.querySelector('.designer-part-selected,.designer-edge-handle')`)
+  for(const id of ['personCode','firstName','notes'])await clickExpression(selectInput(id),'left',2)
+  await clickExpression(`(${selectInput('personCode')}).closest('.laboratory-editor')`)
+  await check('blank panel space outside the short Canvas clears all field selections',`!document.querySelector('.designer-part-selected,.designer-edge-handle')`)
+  await clickExpression(selectInput('firstName'),'left',2);await clickExpression(selectInput('notes'),'left',2)
+  const ids = ['firstName', 'notes', 'personCode', 'titleId']
+  const selectedIds = ids.slice(0, 2)
+  const coordinates = () => evaluate(`(${JSON.stringify(ids)}).map(id => {
+    const field = document.querySelector('[data-field-id="' + id + '"] .designer-input-part')
+    const grid = field.closest('.laboratory-form-grid')
+    const rect = field.getBoundingClientRect(), canvas = grid.getBoundingClientRect()
+    // Reload can recenter the cropped view. Convert its CSS coordinates back to design coordinates.
+    const shift = Number(grid.dataset.canvasViewShift ?? 0), origin = Number(grid.dataset.canvasCoordinateOrigin ?? 0)
+    return { id, x: rect.left - canvas.left - shift + origin, y: rect.top - canvas.top, width: rect.width, height: rect.height }
+  })`)
+  const reveal = async () => {
+    const point = await evaluate(`(async () => {
+      const target = ${selectInput('firstName')}
+      target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' })
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+      const rect = target.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.top + rect.height / 2
+      return { x, y, hit: target.contains(document.elementFromPoint(x, y)), zoom: visualViewport.scale }
+    })()`)
+    assert.equal(point.zoom, 1, 'Use normal application zoom')
+    assert.ok(point.hit, 'Drag start must hit the selected field: ' + JSON.stringify(point))
+    await check('both intended fields remain selected after scrolling', `JSON.stringify([...document.querySelectorAll('.designer-input-part.designer-part-selected')].map(e => e.closest('[data-field-id]').dataset.fieldId).sort()) === '${JSON.stringify([...selectedIds].sort())}'`)
+  }
+  const screenshot = async name => {
+    if (!onlyGroupDrag || !process.env.FORM_TEST_GROUP_DRAG_SCREENSHOTS) return
+    const { data } = await send('Page.captureScreenshot', { format: 'png' })
+    await writeFile(join(process.env.FORM_TEST_GROUP_DRAG_SCREENSHOTS, name + '.png'), Buffer.from(data, 'base64'))
+  }
+  await reveal()
+  const before = await coordinates()
+  const moved = before.map(rect => selectedIds.includes(rect.id) ? { ...rect, x: rect.x + 10, y: rect.y + 6 } : rect)
+  await screenshot('before')
+  await drag(selectInput('firstName'), 10, 6, false, async () => {
+    await pause(50)
+    assert.deepEqual(await coordinates(), moved, 'Live mouse drag translates only the two selected inputs')
+  })
+  assert.deepEqual(await coordinates(), moved, 'Mouse release commits group placement and preserves size and spacing')
+  await screenshot('after')
+  await click('واگرد','.form-laboratory-banner button')
+  assert.deepEqual(await coordinates(), before, 'One Undo restores both inputs and leaves their peers fixed')
+
+  if (onlyGroupDrag) {
+    // Redo the real drag through history and persist it through the normal Save dialog.
+    await click('ازنو','.form-laboratory-banner button')
+    assert.deepEqual(await coordinates(), moved)
+    await click('ذخیرهٔ فرم','.form-laboratory-banner button')
+    await click('تأیید مجوزها و ذخیره','[role=dialog] button')
+    await until(`!document.querySelector('[role=dialog]') && window.testServerBackupVersions.some(item => item.reason === 'ذخیرهٔ فرم')`)
+    const saved = await evaluate(`(() => {
+      const snapshot = window.testServerBackupVersions.findLast(item => item.reason === 'ذخیرهٔ فرم').document.snapshot
+      const section = snapshot.form.schema.fields.find(field => field.id === 'firstName').sectionId
+      return snapshot.designerHistory.present.sectionCanvases[section].fields
+    })()`)
+    for (const rect of moved) {
+      const input = saved[rect.id].input
+      assert.deepEqual(input, { left: rect.x, top: rect.y, width: rect.width, height: rect.height }, rect.id + ' saved rectangle')
+    }
+    await reloadPage()
+    await until(`!!(${selectInput('notes')})`)
+    assert.deepEqual(await coordinates(), moved, 'Reload restores the saved coordinates of the group and its peers')
+    console.log('PASS real group drag, stationary peers, Undo, Redo, Save and reload')
+  }
+  await clickExpression(`(${selectInput('personCode')}).closest('.laboratory-editor')`)
+ }
  try {
+  if(onlyGroupDrag){await seed('group-drag');await verifyGroupDrag();return}
   if(onlyLegacy){
    await seed('legacy')
    const target=`document.querySelector('[data-field-id="firstName"] .designer-input-part')`,peer=`document.querySelector('[data-field-id="personCode"] .designer-input-part')`
@@ -76,23 +158,7 @@ export async function runNeighborScenarios({evaluate,reloadPage,until,click,clic
   await click('واگرد','.form-laboratory-banner button')
   await check('one Undo restores both field and header names after the long-label rename',`!(${nameLabel}).firstChild.textContent.includes('نام برندها')&&!document.querySelector('th[data-column="displayName"]').textContent.includes('نام برندها')`)
   await restore();await seed('resize')
-  const selectInput=id=>`document.querySelector('[data-field-id="${id}"] .designer-input-part')`
-  for(const id of ['personCode','firstName','notes'])await clickExpression(selectInput(id),'left',2)
-  await check('three field inputs can be selected together',`document.querySelectorAll('.designer-input-part.designer-part-selected').length===3`)
-  await clickExpression(selectInput('firstName'))
-  await check('clicking a selected field again clears the whole selection without moving fields',`!document.querySelector('.designer-part-selected,.designer-edge-handle')`)
-  for(const id of ['personCode','firstName','notes'])await clickExpression(selectInput(id),'left',2)
-  await clickExpression(`(${selectInput('personCode')}).closest('.laboratory-editor')`)
-  await check('blank panel space outside the short Canvas clears all field selections',`!document.querySelector('.designer-part-selected,.designer-edge-handle')`)
-  await clickExpression(selectInput('firstName'),'left',2);await clickExpression(selectInput('notes'),'left',2)
-  const dragBefore=await evaluate(`['firstName','notes','titleId'].map(id=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();return {x:r.x,y:r.y}})`)
-  let dragDuring
-  await drag(selectInput('firstName'),10,6,false,async()=>{await pause(50);dragDuring=await evaluate(`['firstName','notes','titleId'].map(id=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();return {x:r.x,y:r.y}})`)})
-  const dragAfter=await evaluate(`['firstName','notes','titleId'].map(id=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();return {x:r.x,y:r.y}})`)
-  await check('dragging a selected body commits the group placement without snapping back '+JSON.stringify({dragBefore,dragDuring,dragAfter}),`(()=>{const before=${JSON.stringify(dragBefore)},during=${JSON.stringify(dragDuring)},after=${JSON.stringify(dragAfter)},ids=['firstName','notes','titleId'];return document.querySelectorAll('.designer-input-part.designer-part-selected').length===2&&ids.every((id,i)=>{const live=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect();const expectedSnap={x:before[i].x+(i<2?10:0),y:before[i].y+(i<2?6:0)};return Math.abs(during[i].x-before[i].x-(i<2?10:0))<1&&Math.abs(during[i].y-before[i].y-(i<2?6:0))<1&&Math.abs(after[i].x-expectedSnap.x)<1&&Math.abs(after[i].y-expectedSnap.y)<1&&Math.abs(live.x-after[i].x)<1&&Math.abs(live.y-after[i].y)<1})})()`)
-  await click('واگرد','.form-laboratory-banner button')
-  await check('one Undo restores the complete manually moved group and its stationary peer', `['firstName','notes','titleId'].every((id,i)=>{const r=document.querySelector('[data-field-id="'+id+'"] .designer-input-part').getBoundingClientRect(),before=${JSON.stringify(dragBefore)};return Math.abs(r.x-before[i].x)<1&&Math.abs(r.y-before[i].y)<1})`)
-  await clickExpression(`(${selectInput('personCode')}).closest('.laboratory-editor')`)
+  await verifyGroupDrag()
   await clickExpression(`document.querySelector('[data-field-id="firstName"] .designer-input-part')`,'right')
   await check('field context exposes its text, appearance, layout and additional option groups',`(()=>{const groups=new Set([...document.querySelectorAll('.designer-context-menu:not(.designer-context-submenu)>button[data-grid-submenu]')].map(button=>button.dataset.gridSubmenu));return ['text','appearance','layout','more'].every(id=>groups.has(id))})()`)
   await click('اندازه و چیدمان','[role="menu"] button')

@@ -26,11 +26,23 @@ window.fetch=(async(input,init)=>{
  const url=new URL(String(input instanceof Request?input.url:input),location.origin),method=init?.method??'GET',body=init?.body?JSON.parse(String(init.body)):undefined
  test.brandRequests.push({path:url.pathname,query:url.search,method,body})
  const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}})
+ if(url.pathname==='/api/field-validation/brands'&&method==='POST'){
+  const code=String(body.value??'').trim().toUpperCase()
+  const duplicate=rows.some(row=>row.id!==body.currentId&&row.brandCode.toUpperCase()===code)
+  return json({error:duplicate?'کد برند تکراری است.':null})
+ }
  if(url.pathname==='/api/navigation')return json({nodes:defaultNavigation(),preferences:defaultPreferences(),rowVersion:''})
  if(url.pathname==='/api/form-laboratory/synthetic-grid')return json({items:[],total:0,page:1,pageSize:50})
  if(url.pathname==='/api/sequence-suggestions/brand')return json({suggestion:'aB-201',previous:'aB-200'})
  if(url.pathname==='/api/master-data/brands'&&method==='GET')return json({items:rows,total:rows.length,page:1,pageSize:500})
  if(url.pathname==='/api/master-data/brands'&&method==='POST'){const row={...body,id:'brand-created',rowVersion:'AQAAAAAAAAA='};rows.push(row);return json(row,201)}
+ if(url.pathname==='/api/master-data/brands/bulk-delete'&&method==='POST'){
+  const selected=body.rows as {id:string,rowVersion:string}[]
+  if(!selected.length||selected.some(ref=>!rows.some(row=>row.id===ref.id&&row.rowVersion===ref.rowVersion)))return json({error:'تعارض نسخه'},409)
+  if(test.rejectBrandDelete)return json({error:'برند استفاده شده است',blockedIds:selected.map(ref=>ref.id)},409)
+  for(const ref of selected)rows.splice(rows.findIndex(row=>row.id===ref.id),1)
+  return json({deletedCount:selected.length})
+ }
  const row=rows.find(row=>url.pathname==='/api/master-data/brands/'+row.id)
  if(row&&['PUT','DELETE'].includes(method)){
   if(test.conflictBrand)return json({code:'CONCURRENCY_CONFLICT',error:'تعارض نسخه'},409)

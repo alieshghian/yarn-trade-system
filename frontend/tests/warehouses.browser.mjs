@@ -57,9 +57,39 @@ try {
     throw new Error('Timed out: ' + label + '\n' + await evaluate('document.body.innerText.slice(0,1500)'))
   }
 
+  for (const size of [100, 1000, 10000, 50000]) {
+    const started = performance.now()
+    await send('Page.navigate', {url: base + '/tests/warehouses.html?large&size=' + size})
+    await until("document.querySelector('.base-grid-table tbody')?.textContent.includes('WH-0') && window.lastWarehouseQuery", 'first warehouse page')
+    const firstPageMs = performance.now() - started
+    const scrollStart = performance.now()
+    await evaluate("(()=>{const grid=document.querySelector('.base-grid-table-wrap');grid.scrollTop=grid.scrollHeight})()")
+    await until(`[...document.querySelectorAll('.base-grid-table tbody td')].some(cell=>cell.textContent.trim()==='WH-${size-1}')`, 'last warehouse record at ' + size)
+    const lastPageMs = performance.now() - scrollStart
+    const rendered = await evaluate("document.querySelectorAll('.base-grid-table tbody tr').length")
+    assert.ok(rendered > 0 && rendered <= 101, 'bounded warehouse DOM at ' + size)
+    const {usedSize} = await send('Runtime.getHeapUsage')
+    console.log('WAREHOUSE_STRESS', JSON.stringify({size, firstPageMs, lastPageMs, rendered, heapBytes:usedSize}))
+  }
   await send('Page.navigate',{url:base+'/tests/warehouses.html'})
   await until("!!document.querySelector('.operational-form-frame')",'warehouse frame')
   await until("document.body.innerText.includes('رکوردی یافت نشد')",'empty grid')
+  const inspectFooter = () => evaluate(`(() => {
+    const el = document.querySelector('.warehouse-page .laboratory-footer'), frame = el.closest('.operational-form-frame')
+    const bounds = e => {const b=e.getBoundingClientRect();return [b.x,b.y,b.width,b.height]}
+    return {frame:bounds(frame), footer:bounds(el), buttons:[...el.querySelectorAll('button')].map(b=>{
+      const r=b.getBoundingClientRect();return [b.textContent,b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))]
+    })}
+  })()`)
+  for(const size of [[1366,768],[1024,600],[768,620],[390,844]]){
+    await send('Emulation.setDeviceMetricsOverride',{width:size[0],height:size[1],deviceScaleFactor:1,mobile:false})
+    await pause(150)
+    await evaluate('window.scrollTo(0,0)')
+    const state = await inspectFooter()
+    assert.equal(state.buttons.length, 8, 'view-mode warehouse actions at '+size.join('x'))
+    assert.ok(state.buttons.every(([, reachable]) => reachable), JSON.stringify({size, ...state}))
+  }
+  await send('Emulation.clearDeviceMetricsOverride')
   const initial=await evaluate("({w:document.querySelector('.operational-form-frame').getBoundingClientRect().width,h:document.querySelector('.operational-form-frame').getBoundingClientRect().height})")
   assert.ok(Math.abs(initial.w-746.6666)<3,JSON.stringify(initial))
   assert.equal(await evaluate("[...document.querySelectorAll('.laboratory-footer button')].some(b=>b.textContent.includes('F3'))"),false)
@@ -162,16 +192,16 @@ try {
   await fill('[aria-label="نام زون"]','قفسه اول')
   await evaluate("[...document.querySelectorAll('.warehouse-zones-page .laboratory-footer button')].find(b=>b.textContent.includes('F3')).click()")
   await until("document.querySelector('[aria-label=\"نام زون\"]').disabled",'zone saved')
-  await until("document.querySelector('.warehouse-zones-page .base-grid-table')?.innerText.includes('۲ — قفسه اول')",'zone row has floor prefix')
+  await until("document.querySelector('.warehouse-zones-page .base-grid-table')?.innerText.includes('۲ قفسه اول')",'zone row has floor prefix')
   assert.equal(await evaluate("document.querySelector('.warehouse-zones-page [data-field=name]').value"),'قفسه اول','raw editable name excludes generated floor prefix')
-  assert.equal(await evaluate("document.querySelector('.zone-name>span').textContent"),'۲ —')
+  assert.equal(await evaluate("document.querySelector('.zone-name>span').textContent"),'۲')
   await evaluate("(()=>{let e=document.querySelector('[aria-label=\"طبقه زون\"]');Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(e,'1');e.dispatchEvent(new Event('change',{bubbles:true}))})()")
   await evaluate("[...document.querySelectorAll('.warehouse-zones-page .laboratory-footer button')].find(b=>b.textContent.includes('کپی زون')).click()")
   await until("document.querySelector('.zone-copy-list')?.innerText.includes('قفسه اول')",'copy candidates')
   assert.equal(await evaluate("document.querySelectorAll('.zone-copy-list input:checked').length"),1)
   await evaluate("[...document.querySelectorAll('.zone-copy-dialog button')].find(b=>b.textContent.includes('F3')).click()")
   await until("!document.querySelector('.zone-copy-dialog')",'copy closes after save')
-  await until("document.querySelector('.warehouse-zones-page .base-grid-table')?.innerText.includes('۱ — قفسه اول')",'copied target uses destination floor prefix')
+  await until("document.querySelector('.warehouse-zones-page .base-grid-table')?.innerText.includes('۱ قفسه اول')",'copied target uses destination floor prefix')
   await send('Page.captureScreenshot',{format:'png'}).then(r=>import('node:fs/promises').then(fs=>fs.writeFile(resolve('..','artifacts','warehouse-floors','zone-form.png'),Buffer.from(r.data,'base64'))))
   await evaluate("document.querySelector('.form-document-dialog-close').click()")
   await until("!document.querySelector('[role=dialog]')",'close modal')
@@ -186,6 +216,7 @@ try {
   await fill('.component-choice-search','P001')
   await until("document.querySelector('.person-number-row.is-active-row textarea')?.value.includes('P001')",'typed result selected')
   assert.equal(await evaluate("document.querySelector('.component-clear-choice').getAttribute('aria-pressed')"),'false')
+  await until("!document.querySelector('[data-component-popup][aria-busy=true]')",'lookup search completed before confirming')
   await evaluate("document.querySelector('.component-choice-search').focus()")
   await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Enter',code:'Enter',windowsVirtualKeyCode:13})
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Enter',code:'Enter',windowsVirtualKeyCode:13})

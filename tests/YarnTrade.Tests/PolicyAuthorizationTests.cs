@@ -35,10 +35,14 @@ public sealed partial class SecurityBaselineTests
         await using var host = await CreateApp();
         var endpoints = ProductionEndpoints(host);
         PermissionAuthorization.ValidateEndpointDecisions(endpoints);
-        Assert.Equal(109, endpoints.Count);
-        Assert.Equal(90, endpoints.Count(x => x.Metadata.GetOrderedMetadata<RequirePermissionAttribute>().Count > 0));
-        Assert.Equal(9, endpoints.Count(x => x.Metadata.GetMetadata<AuthenticatedOnlyAttribute>() is not null));
-        Assert.Equal(10, endpoints.Count(x => x.Metadata.GetMetadata<IAllowAnonymous>() is not null));
+        Assert.Equal(193, endpoints.Count);
+        Assert.Equal(169, endpoints.Count(x => x.Metadata.GetOrderedMetadata<RequirePermissionAttribute>().Count > 0));
+        Assert.Equal(13, endpoints.Count(x => x.Metadata.GetMetadata<AuthenticatedOnlyAttribute>() is not null));
+        string[] anonymous = ["/health", "/api/auth/csrf", "/api/auth/login", "/api/auth/verify-email", "/api/auth/resend-code",
+            "/api/auth/refresh", "/api/auth/activate", "/api/auth/forgotPassword", "/api/auth/resetPassword",
+            "/api/auth/development-session", "/api/auth/development-profile-session"];
+        Assert.Equal(anonymous.Order(), endpoints.Where(x => x.Metadata.GetMetadata<IAllowAnonymous>() is not null)
+            .Select(x => x.RoutePattern.RawText).Order());
         Assert.Null(typeof(PermissionCatalog).Assembly.GetType("YarnTrade.Api.Security.PermissionGuardMiddleware"));
         foreach (var endpoint in endpoints)
             foreach (var permission in endpoint.Metadata.GetOrderedMetadata<RequirePermissionAttribute>())
@@ -86,7 +90,7 @@ public sealed partial class SecurityBaselineTests
         yield return ["PUT", $"/api/purchases/{id}", "purchases.edit", 400];
         yield return ["POST", $"/api/purchases/{id}/post?warehouseId=invalid", "purchases.post", 400];
         yield return ["GET", "/api/master-data/warehouses", "inventory.view", 200];
-        yield return ["POST", "/api/master-data/warehouses", "inventory.edit", 400];
+        yield return ["POST", "/api/warehouses", "warehouses.create", 400];
         yield return ["GET", "/api/sales", "sales.view", 200];
         yield return ["POST", "/api/sales", "sales.create", 400];
         yield return ["POST", $"/api/sales/{id}/post", "sales.post", 404];
@@ -267,8 +271,17 @@ public sealed partial class SecurityBaselineTests
     [MemberData(nameof(A3RoleDefaults))]
     public void A3_role_defaults_preserve_approved_snapshot_plus_A5_privileged_credit_override(string role, string snapshot)
     {
-        // A5 adds only this sensitive permission to the two existing all-permission roles.
-        var expected = snapshot.Split('|').Concat(role is "Administrator" or "Manager" ? ["sales.creditOverride"] : Array.Empty<string>());
+        string[] added = role switch {
+            "Administrator" or "Manager" => ["sales.creditOverride", "formLaboratory.view",
+                "brands.view", "brands.create", "brands.edit", "brands.delete",
+                "productGroups.view", "productGroups.create", "productGroups.edit", "productGroups.delete", "productGroups.configure",
+                "warehouses.view", "warehouses.create", "warehouses.edit", "warehouses.delete", "warehouses.zones"],
+            "WarehouseOperator" => ["brands.view", "productGroups.view", "warehouses.view", "warehouses.zones"],
+            "FinanceOperator" => ["brands.view"],
+            "Orders" or "Commerce" or "PurchaseOperator" or "SalesOperator" or "Seller" => ["brands.view", "productGroups.view"],
+            _ => []
+        };
+        var expected = snapshot.Split('|').Concat(added);
         Assert.Equal(expected.Order(StringComparer.OrdinalIgnoreCase), PermissionCatalog.Defaults([role]).Order(StringComparer.OrdinalIgnoreCase));
     }
 

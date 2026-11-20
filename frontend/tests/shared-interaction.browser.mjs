@@ -110,14 +110,23 @@ try {
   }
   console.log('PASS full-length edges and corners expose the standard directional cursors');
   const start={x:before.left+before.width*.2,y:before.bottom};
-  await pointer('mousePressed',start);await pause(120);
+  await pointer('mousePressed',start);
+  const gestureFrame="document.querySelector('.laboratory-form-frame')";
+  assert.equal(await evaluate(gestureFrame+'.dataset.designerGesture'),'true','the held pointer immediately defers recovery');
+  const previewState=()=>evaluate(`JSON.stringify({recovery:document.querySelector('[data-recovery-revision]')?.dataset.recoveryRevision,selected:[...document.querySelectorAll('.laboratory-field-select[aria-pressed=true]')].map(n=>n.parentElement.dataset.fieldId)})`);
+  const heldState=await previewState();
+  await evaluate(`void(window.heldResizeTarget=${selected})`);
+  await pause(250);
   const renders=await evaluate('window.designerRenderAudit.commits');
   for(let i=1;i<=8;i++){await pointer('mouseMoved',{x:start.x,y:start.y+i*7.5});await pause(25)}
   const live=await bounds(selected);
   assert.ok(Math.abs(live.height-before.height-60)<1&&Math.abs(live.top-before.top)<1,'live bottom resize follows the mouse with a fixed opposite edge');
   assert.equal(await evaluate('window.designerRenderAudit.commits'),renders,'pointer preview performs no React/history render');
+  assert.equal(await previewState(),heldState,'the held gesture preserves selection and recovery revision');
+  assert.ok(await evaluate(`window.heldResizeTarget===${selected}`),'preview retains the mounted input');
   assert.deepEqual(await bounds(tree('1.column')),peer,'preview leaves every unselected peer fixed');
   await pointer('mouseReleased',{x:start.x,y:start.y+63});await pause(220);
+  assert.equal(await evaluate(gestureFrame+'.dataset.designerGesture'),undefined,'release resumes recovery');
   assert.ok(Math.abs((await bounds(selected)).height-before.height-63)<1,'release flushes its final coordinate');
   await key('z',2);assert.ok(Math.abs((await bounds(selected)).height-before.height)<1,'one Undo restores the complete gesture');
   console.log('PASS smooth visual-only resize commits once on release and undoes atomically');

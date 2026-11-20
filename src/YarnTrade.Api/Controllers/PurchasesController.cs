@@ -25,9 +25,7 @@ public sealed class PurchasesController(AppDbContext db, PostingService posting,
         if (supplierId.HasValue) q = q.Where(x => x.SupplierId == supplierId);
         if (purchaseOrderId.HasValue) q = q.Where(x => x.PurchaseOrderId == purchaseOrderId);
         if (status.HasValue) q = q.Where(x => x.Status == status);
-        var total = await q.CountAsync(ct);
-        var items = await q.OrderByDescending(x => x.InvoiceDate).Skip((page - 1) * pageSize).Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(ct);
-        return new { items, total, page, pageSize };
+        return await ListPage.ReadAsync(q.OrderByDescending(x => x.InvoiceDate).ThenBy(x => x.Id), page, pageSize, ct);
     }
 
     [RequirePermission("purchases.view")]

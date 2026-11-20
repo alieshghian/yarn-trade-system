@@ -139,7 +139,7 @@ export function BaseFormShell({ formId, editor, grid, footer, sections, layoutPr
     // Keyboard entry commands can be handled by a parent's capture handler.
     // Their normal editor-focus transition must restore the grid as well.
     if ((event.target as Element).closest('.base-form-editor,.form-document-editor')) restoreGridForEntry()
-  }} ref={frame} className={'base-form-shell' + (sections ? ' has-form-composition' : '')} data-form-id={formId} data-stable-editor={stableEditorHeight || undefined} style={{ '--base-form-editor-track': autoEditorHeight && !splitAdjusted ? `${Math.max(contentHeight, editorMinimum)}px` : editorPixels!==null?`${Math.max(editorPixels, editorMinimum)}px`:`${editorRatio}fr`, ...style } as CSSProperties}>
+  }} ref={frame} className={'base-form-shell' + (sections ? ' has-form-composition' : '')} data-form-id={formId} data-stable-editor={stableEditorHeight || undefined} style={{ '--base-form-editor-track': autoEditorHeight && !splitAdjusted ? `${Math.max(contentHeight, editorMinimum)}px` : editorPixels!==null?`min(${Math.max(editorPixels, editorMinimum)}px, var(--editor-track-limit, ${Math.max(editorPixels, editorMinimum)}px))`:`${editorRatio}fr`, ...style } as CSSProperties}>
     {sections ?? <>
     <BaseFormSection id={`${formId}.editor`} className="base-form-editor">{editor}</BaseFormSection>
     <button type="button" className="base-form-splitter" aria-label="Resize laboratory editor and table" onPointerDown={resizeStart}><span /></button>

@@ -58,6 +58,13 @@ window.fetch = (async(input, init) => {
    }
    return json({maxSubgroups:state.maxSubgroups,rowVersion:state.policyVersion})
  }
+ if(path==='/api/master-data/product-groups/bulk-delete'&&method==='POST'){
+   const requested=body.rows as {id:string,rowVersion:string}[]
+   if(requested.some(ref=>!state.nodes.some(n=>n.id===ref.id&&n.rowVersion===ref.rowVersion)))return json({error:'تعارض نسخه'},409)
+   if(requested.some(ref=>state.nodes.some(n=>n.parentId===ref.id&&!requested.some(other=>other.id===n.id))))return json({error:'گروه دارای زیرگروه قابل حذف نیست.'},409)
+   state.nodes=state.nodes.filter(n=>!requested.some(ref=>ref.id===n.id))
+   return json({deletedCount:requested.length})
+ }
  const existingNode=state.nodes.find(n=>path.endsWith('/'+n.id))
  if(existingNode && ['PUT','DELETE'].includes(method)) {
    state.requests.push({method,body})

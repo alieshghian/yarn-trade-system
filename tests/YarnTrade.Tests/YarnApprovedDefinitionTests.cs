@@ -117,8 +117,12 @@ public sealed partial class SecurityBaselineTests
         Assert.Equal(HttpStatusCode.NoContent,delete.StatusCode);
         Assert.False(await db.Set<YarnColor>().AnyAsync(c=>c.YarnId==updated.Id));
         await CreateUser(host.App,"yarn-manager@example.test","Manager");await SignIn(host,"yarn-manager@example.test");
-        Assert.Equal(HttpStatusCode.Forbidden,(await host.Client.PostAsJsonAsync("/api/yarns/definition-references/unitOfMeasure",new YarnReferenceInput("متر"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await host.Client.PostAsJsonAsync("/api/yarns/definition-references/unitOfMeasure",new YarnReferenceInput("متر"))).StatusCode);
         Assert.Equal(HttpStatusCode.OK,(await host.Client.PostAsJsonAsync("/api/yarns/definition-references/luster",new YarnReferenceInput("مات"))).StatusCode);
+        await CreateUser(host.App,"yarn-editor@example.test","Orders");await SignIn(host,"yarn-editor@example.test");
+        await SetPermissions(host,"yarn-editor@example.test","yarns.create");
+        Assert.Equal(HttpStatusCode.Forbidden,(await host.Client.PostAsJsonAsync("/api/yarns/definition-references/unitOfMeasure",new YarnReferenceInput("عدد"))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK,(await host.Client.PostAsJsonAsync("/api/yarns/definition-references/luster",new YarnReferenceInput("براق"))).StatusCode);
         await CreateUser(host.App,"yarn-denied@example.test","Customer"); await SignIn(host,"yarn-denied@example.test");
         Assert.Equal(HttpStatusCode.Forbidden,(await host.Client.PostAsJsonAsync("/api/yarns",Draft("005","غیرمجاز"))).StatusCode);
     }

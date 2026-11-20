@@ -96,7 +96,7 @@ try {
   const menu = text => text === 'تنظیم فونت' ? `(${node(text,'[role="menu"] button')})||Array.from(document.querySelectorAll('[role="menu"] button')).find(e=>e.getClientRects().length&&/^قلم (متن داخل فیلد|برچسب)…$/.test(e.textContent.trim()))` : text === 'حذف از این فرم'
     ? `Array.from(document.querySelectorAll('[role="menu"] button')).find(e=>e.getClientRects().length&&(e.textContent.trim()==="حذف از این فرم"||/^حذف \\d+ فیلد انتخاب‌شده$/.test(e.textContent.trim())))`
     : node(text, '[role="menu"] button')
-  if(process.env.FORM_TEST_NEIGHBOR_ONLY||process.env.FORM_TEST_LEGACY_DRAG_ONLY){
+  if(process.env.FORM_TEST_GROUP_DRAG_ONLY||process.env.FORM_TEST_NEIGHBOR_ONLY||process.env.FORM_TEST_LEGACY_DRAG_ONLY){
     await navigatePage({url:base+'/tests/form-designer.html'})
     await until(`!!document.querySelector('[data-form-design-mode]')`)
     await click('ایجاد فرم از قالب آزمایشگاه','.form-laboratory-banner button');await mode('independent')
@@ -111,7 +111,7 @@ try {
       const p=await evaluate(`(()=>{const r=(${expression}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
       await send('Input.dispatchMouseEvent',{type:'mouseMoved',...p});await send('Input.dispatchMouseEvent',{type:'mousePressed',...p,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:p.x+dx,y:p.y+dy,button:'left',buttons:1});if(onMove)await onMove();await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:p.x+dx,y:p.y+dy,button:'left',clickCount:1});await pause(150)
     }
-    await runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base,onlyLegacy:Boolean(process.env.FORM_TEST_LEGACY_DRAG_ONLY)})
+    await runNeighborScenarios({evaluate,reloadPage,until,click,clickExpression,inputValue,drag,check,send,pause,navigatePage,base,onlyGroupDrag:Boolean(process.env.FORM_TEST_GROUP_DRAG_ONLY),onlyLegacy:Boolean(process.env.FORM_TEST_LEGACY_DRAG_ONLY)})
   }else if(process.env.FORM_TEST_MANUAL_BOUNDS_ONLY){
     await runManualBoundsScenarios({base,navigatePage,evaluate,until,send,pause,check,clickExpression})
   }else if(process.env.FORM_TEST_DESIGN_HANDOFF_ONLY){

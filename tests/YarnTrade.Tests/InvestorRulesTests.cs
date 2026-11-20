@@ -46,8 +46,9 @@ public sealed partial class SecurityBaselineTests
     [Fact]
     public async Task Sql_investor_migration_rolls_back_reapplies_and_preserves_legacy_contract()
     {
-        await using var sql = await A4SqlDatabase.CreateLatest(operationalContract: false);
+        await using var sql = await A4SqlDatabase.Create();
         await using var db = sql.Context();
+        await db.GetService<IMigrator>().MigrateAsync("20261007123138_AddInvestorIdentities");
         var legacy = InvestorContract(Guid.NewGuid()); legacy.PrimaryInvestorId = null;
         db.BusinessContractVersions.Add(legacy); await db.SaveChangesAsync(); db.ChangeTracker.Clear();
         await db.GetService<IMigrator>().MigrateAsync("20261006215408_AddBusinessContractRules");

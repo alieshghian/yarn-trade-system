@@ -86,6 +86,48 @@ try {
  })()`);
  assert.equal(apiResults.first.refresh,1);assert.equal(apiResults.first.writes,1);assert.equal(apiResults.first.network,1);assert.equal(apiResults.first.expired,0);assert.ok(apiResults.first.allOk&&apiResults.first.refreshStored);assert.equal(apiResults.failed.refresh,2);assert.equal(apiResults.failed.expired,1);assert.equal(apiResults.failed.authenticated,true,'expired auth must not erase local workspace session');
  console.log('PASS concurrent 401 refresh, token rotation, one write, no unsafe network retry, one expiry notification');
+ const isolation = await evaluate(`(async () => {
+   const api = await import('/src/api.ts');
+   const json = (body, status = 200) => Response.json(body, {status});
+   const tokens = accessToken => ({accessToken, refreshToken: accessToken + '-refresh'});
+   const oldResponse = Promise.withResolvers(), oldRefresh = Promise.withResolvers(), refreshStarted = Promise.withResolvers();
+   const attempts = [], refreshes = [];
+   let identity = 'first', expired = 0;
+   window.addEventListener('auth-expired', () => expired++);
+   window.fetch = async (url, init) => {
+     const path = new URL(url, location.href).pathname;
+     if (path === '/api/auth/login') return json(tokens(identity));
+     if (path === '/api/presence/logout') return new Response(null, {status: 204});
+     if (path === '/api/auth/refresh') {
+       const {refreshToken} = JSON.parse(init.body);
+       refreshes.push(refreshToken);
+       if (refreshToken === 'first-refresh') { refreshStarted.resolve(); return oldRefresh.promise; }
+       return json(tokens('second-renewed'));
+     }
+     const credential = new Headers(init.headers).get('Authorization');
+     attempts.push([path, credential]);
+     if (path === '/late' && credential === 'Bearer first') return oldResponse.promise;
+     return json({}, credential === 'Bearer second-renewed' ? 200 : 401);
+   };
+   await api.login('first@example.test', 'fixture');
+   const status = path => api.api(path).then(() => 200, error => error.status);
+   const late = status('/late'), rotating = status('/rotating');
+   await refreshStarted.promise;
+   api.logout();
+   identity = 'second';
+   await api.login('second@example.test', 'fixture');
+   const fresh = status('/fresh');
+   oldResponse.resolve(json({}, 401));
+   oldRefresh.resolve(json(tokens('first-renewed')));
+   return {statuses: await Promise.all([late, rotating, fresh]), attempts, refreshes, expired,
+     current: sessionStorage.getItem('accessToken')};
+ })()`);
+ assert.deepEqual(isolation.statuses, [401, 401, 200]);
+ assert.deepEqual(isolation.attempts, [['/late','Bearer first'], ['/rotating','Bearer first'], ['/fresh','Bearer second'], ['/fresh','Bearer second-renewed']]);
+ assert.deepEqual(isolation.refreshes, ['first-refresh', 'second-refresh']);
+ assert.equal(isolation.expired, 0);
+ assert.equal(isolation.current, 'second-renewed');
+ console.log('PASS pending requests and refreshes stay with their original sign-in');
  await send('Page.addScriptToEvaluateOnNewDocument',{source:`
    sessionStorage.setItem('accessToken','test-session');sessionStorage.setItem('refreshToken','test-refresh');sessionStorage.setItem('currentUser','same@example.com');
    sessionStorage.setItem('global-trade-workspace-v1',JSON.stringify({active:'settings',openTabs:['dashboard','settings']}));

@@ -14,7 +14,7 @@ import { OperationalGridCustomizationContext, type OperationalGridCustomization,
 
 type PersonalStyle = Partial<Pick<DesignerFontValue, 'fontFamily' | 'fontSize' | 'bold' | 'italic' | 'underline' | 'strikeThrough' | 'script'>> & Partial<Record<'textColor' | 'backgroundColor' | 'borderColor', string>>
 type Preferences = { width?: number; height?: number; offsetX?: number; offsetY?: number; formHeaderHeight?: number; editorRatio?: number; fontSize?: number; fontFamily?: string; backgroundColor?: string; overrides?: DesignerDraft['overrides']; regions?: Record<string, PersonalStyle>; gridLayouts?: Record<string, OperationalGridLayout> }
-type BehaviorContract = typeof behaviorDefaults
+type BehaviorContract = Pick<typeof behaviorDefaults, 'personalCustomization'>
 type TargetRule = { id: string; selector: string; backgroundSelector?: string; borderSelector?: string; label: { fa: string; en: string }; positionEditable: boolean; resize?: 'headerHeight' | 'toolbarHeight' | 'editorRatio' | 'formHeaderHeight' }
 type TargetMatch = { key: string; node: HTMLElement; label: string; gridId?: string }
 type Props = { formId: string; title: string; language: 'fa' | 'en' | 'zh'; designerDraft: DesignerDraft; permissions: ManagedFormCustomization; width: number; height?: number | null; notice?: ReactNode; fieldIds?: Record<string, string>; behaviorContract?: BehaviorContract; children: (draft: DesignerDraft) => ReactNode }

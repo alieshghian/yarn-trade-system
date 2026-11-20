@@ -109,7 +109,9 @@ try {
   await until("!!document.querySelector('.person-number-row')",'Search records');
   assert.equal(await evaluate("document.querySelector('.component-clear-choice').textContent.trim()"),'');
   const key=async(key,code=key)=>{await send('Input.dispatchKeyEvent',{type:'keyDown',key,code});await send('Input.dispatchKeyEvent',{type:'keyUp',key,code})};
-  await until("!!document.querySelector('.person-number-row.is-active-row')",'First result active');
+  await until("document.querySelector('.component-clear-choice')?.getAttribute('aria-pressed')==='true' && !document.querySelector('[data-component-popup][aria-busy=true]')",'Optional lookup starts on the blank choice');
+  await key('ArrowDown');
+  await until("!!document.querySelector('.person-number-row.is-active-row')",'ArrowDown activates the first result');
   assert.ok(await evaluate("document.querySelector('.is-active-row').textContent.includes('995')||document.querySelector('.is-active-row textarea').value.includes('995')"));
   await key('ArrowDown');
   assert.ok(await evaluate("document.querySelector('.is-active-row textarea').value.includes('997')"));
@@ -117,7 +119,7 @@ try {
   await key('Enter');
   await until(lookup+".querySelector('[data-field]').value.includes('995')",'Code and name selection');
   await evaluate(lookup+".querySelector('.number-chevron').click()");
-  await until("!!document.querySelector('.lookup-create-actions button')",'Visible Shift button');
+  await until("!!document.querySelector('.lookup-create-actions button')",'Visible Insert button');
   assert.ok(await evaluate("(()=>{const b=document.querySelector('.lookup-create-actions button');const r=b.getBoundingClientRect();return r.height>0&&r.bottom<=window.innerHeight&&getComputedStyle(b).display!=='none'})()"));
   await evaluate("document.querySelector('.lookup-create-actions button').click()");
   assert.equal(await evaluate("!!document.querySelector('.system-lookup-create-dialog')"),false,'Cold source never shows an empty wide dialog');
@@ -129,9 +131,9 @@ try {
   await evaluate("(()=>{const e=document.querySelector('.component-choice-search');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'997');e.dispatchEvent(new Event('input',{bubbles:true}));e.focus()})()");
   await until("document.querySelectorAll('.person-number-row').length===1&&document.querySelector('.is-active-row textarea')?.value.includes('997')",'Async search result active');
   await evaluate("(()=>{const e=document.querySelector('.component-choice-search');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,'missing');e.dispatchEvent(new Event('input',{bubbles:true}))})()");
-  await until("document.querySelectorAll('.person-number-row').length===0&&document.querySelector('.lookup-create-actions button')?.getBoundingClientRect().height>0",'No matches retains visible Shift action');
-  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Shift',code:'ShiftLeft',windowsVirtualKeyCode:16});
-  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Shift',code:'ShiftLeft',windowsVirtualKeyCode:16});
+  await until("document.querySelectorAll('.person-number-row').length===0&&document.querySelector('.lookup-create-actions button')?.getBoundingClientRect().height>0",'No matches retains visible Insert action');
+  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Insert',code:'Insert',windowsVirtualKeyCode:45});
+  await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Insert',code:'Insert',windowsVirtualKeyCode:45});
   await until("!!document.querySelector('.system-lookup-create-dialog [data-field=brandName]:not(:disabled)')",'Actual brand form opens in Create');
   assert.equal(await evaluate("document.querySelector('.system-lookup-create-dialog').textContent.includes('ثبت و انتخاب')"),false);
   await until("document.querySelector('.system-lookup-create-dialog').textContent.includes('برند موجود')",'Existing brands visible during creation');
@@ -160,8 +162,8 @@ try {
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'A',code:'KeyA',modifiers:8});
   await send('Input.dispatchKeyEvent',{type:'keyUp',key:'Shift',code:'ShiftLeft'});
   assert.equal(await evaluate("!!document.querySelector('.system-lookup-create-dialog')"),false,'Shift combination must not create');
-  await key('Shift','ShiftLeft');
-  await until("!!document.querySelector('.system-lookup-create-dialog [data-field=brandCode]:not(:disabled)')",'Shift from display opens once');
+  await key('Insert','Insert');
+  await until("!!document.querySelector('.system-lookup-create-dialog [data-field=brandCode]:not(:disabled)')",'Insert from display opens once');
   await evaluate("(()=>{for(const [field,value] of [['brandCode','998'],['brandName','برند کلیکی']]){const e=document.querySelector('.system-lookup-create-dialog [data-field='+field+']');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,value);e.dispatchEvent(new Event('input',{bubbles:true}))}document.querySelector('.system-lookup-create-dialog [data-field=brandCode]').focus()})()");
   const saveRect=await evaluate("(()=>{const b=Array.from(document.querySelectorAll('.system-lookup-create-dialog button')).find(e=>e.closest('[data-action-id]')?.dataset.actionId==='operational.save');const r=b.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})()");
   await send('Input.dispatchMouseEvent',{type:'mouseMoved',x:saveRect.x+saveRect.width/2,y:saveRect.y+saveRect.height/2});
@@ -182,7 +184,7 @@ try {
   await evaluate("document.querySelector('.component-clear-choice').click()");
   await until(lookup+".querySelector('[data-field]').value===''",'Blank clears brand');
   assert.deepEqual(errors,[]);
-  console.log('PASS first async result highlight, ArrowUp/Down, single Enter, visible create button, Shift from search; actual Persons lookup: standard height, blank choice, code/name, Shift real Brands create, save/select, preserved draft');
+  console.log('PASS optional blank choice and first result highlight, ArrowUp/Down, single Enter, visible create button, Insert from search; actual Persons lookup: standard height, blank choice, code/name, Insert real Brands create, save/select, preserved draft');
 } catch(error){console.error(error);process.exitCode=1}
 finally{
  socket?.close();browser.kill();await new Promise(done=>browser.exitCode!==null?done():browser.once('exit',done));assert.ok(profile.startsWith(temporaryRoot+sep));await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200});

@@ -112,8 +112,11 @@ function Content(p: Props & {initial: {nodes: ProductGroupRecord[]; maxSubgroups
   }, [])
   const onNodesChange = useCallback((value: readonly import('../components/base-form/cascadingTree').CascadingTreeNode[]) => setNodes(value as ProductGroupRecord[]), [])
   const remove = async () => {
-    if(deleteSelectedDefinitionRows(scope.current))return;
-    const node=nodes.find(n=>n.id===selected)
+    const focusedTreeId = document.activeElement?.closest<HTMLElement>('[data-tree-node]')?.dataset.treeNode
+    const node = nodes.find(n => n.id === (focusedTreeId ?? selected))
+    // Parent nodes have no report row. A stale leaf selection must never replace the tree target.
+    const selectedParent = node && nodes.some(child => child.parentId === node.id)
+    if (!focusedTreeId && !selectedParent && deleteSelectedDefinitionRows(scope.current)) return
     if(!node || node.isProtected || busyRef.current || entry || !p.can('delete')) return
     if(!window.confirm(`گروه «${node.name}» حذف شود؟`)) return
     busyRef.current=true;setBusy(true);p.onError('')

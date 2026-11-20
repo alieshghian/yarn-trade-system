@@ -36,6 +36,9 @@ SELECT NEWID(),{root},CONCAT(N'نمره ',FORMAT(n,'000000')),CONCAT(N'نمره 
         Assert.All(first.Items,x=>{Assert.Equal("001",x.Code);Assert.Equal("DTY",x.Level0);Assert.Equal("",x.Level2);});
         Assert.Equal(first.Items.Select(x=>x.Id),(await Query(new())).Items.Select(x=>x.Id));
         var search=await Query(new(Search:"نمره 099999",SearchMode:"exact"));Assert.Single(search.Items);Assert.Equal("نمره 099999",search.Items[0].Level1);
+        var beyondMatch=await Query(new(Page:2, Search:"نمره 099999", SearchMode:"exact"));
+        Assert.Equal(1,beyondMatch.Total);
+        Assert.Empty(beyondMatch.Items);
         Assert.Equal(99999,(await Query(new(Search:"نمره 099999",SearchMode:"exact",ReverseSearch:true))).Total);
         var sorted=await Query(new(Sort:[new(level,"desc")]));Assert.Equal("نمره 100000",sorted.Items[0].Level1);
         var filtered=await Query(new(Filters:new(){[level]=new(SelectedValues:["string:نمره 099999"])}));Assert.Single(filtered.Items);

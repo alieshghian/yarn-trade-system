@@ -10,6 +10,7 @@ let zones=[{id:'dock',floorNumber:1,code:'1-DOCK',name:'بارانداز',descri
 Object.assign(window,{warehouseWrites:0})
 window.fetch=async(input,init)=>{
  const url=String(input),response=(body:unknown)=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}})
+ if(url.endsWith('/api/warehouses/latest'))return record?response(record):new Response(null,{status:404})
  if(url.includes('/zones/edit-session'))return response({active:true,expiresInSeconds:120});
  if(url.includes('/api/field-validation/')){
   const q=JSON.parse(String(init?.body??'{}'))
@@ -26,8 +27,18 @@ window.fetch=async(input,init)=>{
  if(url.endsWith('/zones/copy')){const q=JSON.parse(String(init?.body));const items=zones.filter(z=>q.zoneIds.includes(z.id)).map(z=>({...z,id:z.id+'-copy',floorNumber:q.targetFloor,code:q.targetFloor+'-'+z.code.split('-').slice(1).join('-')}));zones.push(...items);return response({items,skipped:0})}
  if(url.endsWith('/zones')&&init?.method==='POST'){const z={...JSON.parse(String(init.body)),id:'new-zone',isDefaultReceiving:false,rowVersion:'AAAAAAAAAAA='};zones.push(z);return response(z)}
  if(url.endsWith('/suggest-code')){await new Promise(resolve=>setTimeout(resolve,350));return response({suggestion:'WH-0001'})}
+ if(url.endsWith('/api/master-data/persons/person-fixture'))return response({id:'person-fixture',personCode:'P001',displayName:'انباردار تست'})
  if(url.includes('/api/system-lookups'))return response({items:[{id:'person-fixture',code:'P001',name:'انباردار تست'}],total:1,page:1,pageSize:50})
- if(url.endsWith('/grid')&&location.search.includes('large')){const q=JSON.parse(String(init?.body??'{}'));Object.assign(window,{lastWarehouseQuery:q});return response({items:Array.from({length:Math.min(q.pageSize??100,100)},(_,i)=>({id:'load-'+i,code:'WH-'+i,name:'انبار '+i,custodian:'',address:'',description:''})),total:100000,page:q.page??1,pageSize:q.pageSize??100})}
+ if(url.endsWith('/grid')&&location.search.includes('large')){
+  const q=JSON.parse(String(init?.body??'{}')), total=Number(new URLSearchParams(location.search).get('size')??100000)
+  const page=q.page??1, pageSize=Math.min(q.pageSize??100,100), start=(page-1)*pageSize
+  const items=Array.from({length:Math.max(0,Math.min(pageSize,total-start))},(_,offset)=>{
+   const index=start+offset
+   return {id:'load-'+index,code:'WH-'+index,name:'انبار '+index,custodian:'',address:'',description:''}
+  })
+  Object.assign(window,{lastWarehouseQuery:q})
+  return response({items,total,page,pageSize})
+ }
  if(url.endsWith('/grid'))return response({items:record?[{...record,name:record.nameFa,custodian:''}]:[],total:record?1:0,page:1,pageSize:100})
  if(url.endsWith('/zones'))return response([{id:'dock',code:'DOCK',name:'بارانداز',isDefaultReceiving:true,isActive:true,rowVersion:'AAAAAAAAAAA='}])
  if(url.endsWith('/api/warehouses')&&init?.method==='POST'){

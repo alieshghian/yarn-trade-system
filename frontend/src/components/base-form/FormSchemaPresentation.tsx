@@ -16,7 +16,7 @@ import { columnLabelMismatch } from './formTableStructure'
 import { useFieldValidation, type FieldRule } from './useFieldValidation'
 
 
-type PresentationSchema = Pick<FormSchemaDraft, 'id' | 'sections' | 'layout'> & Partial<Pick<FormSchemaDraft, 'tables' | 'fields' | 'templateFormId' | 'settings'>>
+type PresentationSchema = Pick<FormSchemaDraft, 'id' | 'sections' | 'layout'> & Partial<Pick<FormSchemaDraft, 'tables' | 'fields' | 'templateFormId' | 'settings' | 'mode'>>
 type PresentationGrid<Row> = Omit<BaseFormGridBoundaryProps<Row>, 'rows' | 'columns' | 'language' | 'appearanceStyle' | 'filterPopupFontSize' | 'gridSearchPosition' | 'designerHeaderHeight' | 'designerColumnStyles' | 'designerHeaderStyles' | 'readOnly'> & {
   rows: Row[]
   columns: GridColumn<Row>[]

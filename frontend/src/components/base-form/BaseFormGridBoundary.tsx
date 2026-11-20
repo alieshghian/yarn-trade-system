@@ -105,7 +105,13 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
   const tableRtl = operationalBehavior.table.rtlLanguages.includes(language)
   const presentationStyles = designerMode || readOnly
   const columnResizeScroll=useRef<{offset:number;negative:boolean}|null>(null)
-  useLayoutEffect(() => { const wrap=tableWrap.current;if(wrap&&operationalBehavior.table.initialScroll==='logical-start'){const negative=getComputedStyle(wrap).direction==='rtl';wrap.scrollLeft=tableRtl&&!negative?Math.max(0,wrap.scrollWidth-wrap.clientWidth):0} }, [tableRtl,Boolean(remoteQuery)])
+  useLayoutEffect(() => {
+    const wrap = tableWrap.current
+    if (!wrap || operationalBehavior.table.initialScroll !== 'logical-start') return
+    const overflow = Math.max(0, wrap.scrollWidth - wrap.clientWidth)
+    const rtlScroll = getComputedStyle(wrap).direction === 'rtl'
+    wrap.scrollLeft = tableRtl === rtlScroll ? 0 : tableRtl ? overflow : -overflow
+  }, [tableRtl, Boolean(remoteQuery), operationalBehavior.table.initialScroll])
   useEffect(() => { if (designerMode || readOnly) setCellMenu(null) }, [designerMode, readOnly])
   useEffect(() => {
     const focusGridSearch = (event: KeyboardEvent) => {
@@ -184,7 +190,7 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
       const candidates=remoteQuery?activeCache?.loadedRows()??[]:filtered
       const row=candidates.find((item,index)=>String((item as {id?:unknown}).id??index)===selectedRow)
       if(!row)return
-      await bulk.select({id:String((row as {id:unknown}).id),record:row},selectedIndex.current??0,{ctrlKey:false,metaKey:false,shiftKey:false})
+      await bulk.select({id:String((row as unknown as {id:unknown}).id),record:row},selectedIndex.current??0,{ctrlKey:false,metaKey:false,shiftKey:false})
     }
     await bulk.remove()
   }
@@ -628,6 +634,7 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
   const panels=toolbarPanels(toolbarSettings).filter(panel => designerMode || panel === 'header' || Boolean(headerContent?.[panel]) || ['expand','title','counter','search','columns'].some(part => (toolbarSettings[part as GridToolbarPart]?.panelId ?? 'header') === panel))
   return <div ref={boundary} data-grid-id={personalGridId} data-toolbar-layout="laboratory" className={`base-grid-boundary${expanded ? ' is-expanded' : ''}${readOnly ? ' is-read-only' : ''}`} style={boundaryStyle} onKeyDownCapture={event=>{if(!(event.ctrlKey||event.metaKey)||event.altKey||(event.code!=='KeyA'&&event.key.toLowerCase()!=='a'))return;const target=event.target instanceof Element?event.target:null;if(target?.closest('input,textarea,select,[contenteditable="true"]'))return;if(target?.closest('.base-grid-table td[data-column]')){event.preventDefault();event.stopPropagation();selectAllVisibleGridCells();return}event.preventDefault()}}>
     <div className="grid-toolbar-panels">{panels.map((panel,index)=><Fragment key={panel}>{toolbarSettings[panel]?.placement==='below'&&<span className="grid-toolbar-row-break" aria-hidden="true"/>}<div className={'grid-toolbar'+(panel==='header'&&showBulkStatus?' has-definition-selection':'')} data-toolbar-part={panel} data-toolbar-direction={fa?'rtl':'ltr'} data-panel-placement={toolbarSettings[panel]?.placement} {...toolProps(panel)} style={{...toolbarPartStyle(toolbarSettings[panel]),...(panel==='header'&&!designerMode?{width:'100%',minWidth:0,maxWidth:'100%',minHeight:personalLayout?.toolbarHeight??toolbarSettings[panel]?.height??120,transform:undefined}:{}),height:panel==='header'?(personalLayout?.toolbarHeight??toolbarSettings[panel]?.height??120):toolbarSettings[panel]?.height??120,direction:'ltr',gridRow:toolbarSettings[panel]?.placement==='below'?index+1:1,flex:panel==='header'&&!designerMode?'1 1 auto':toolbarSettings[panel]?.width?'0 0 auto':'1 1 420px'}}>
+      {panel==='header'&&!showBulkStatus&&bulk.error&&<span role="alert">{bulk.error}</span>}
       {panel==='header'&&(showBulkStatus&&<div className="definition-bulk-status" role="status" aria-live="polite">{bulk.selection.size>0&&<span>{bulk.selection.size} {fa?'ردیف انتخاب‌شده':'rows selected'}</span>}{bulk.selection.size>0&&<button type="button" data-definition-bulk-delete disabled={bulk.busy} onClick={()=>void bulk.remove()}>{fa?'حذف انتخاب‌ها':'Delete selected'}</button>}{bulk.busy&&<span>{fa?'در حال بررسی…':'Checking…'}</span>}{bulk.error&&<span role="alert">{bulk.error}</span>}</div>)}
       {toolHandle(panel)}{designerMode&&panel!=='header'&&!['expand','title','counter','search','columns'].some(part=>inPanel(part as GridToolbarPart,panel))&&<span className="grid-toolbar-empty">هدر افزوده — اجزا را از «پنل میزبان» به این هدر منتقل کنید.</span>}
       {headerContent?.[panel]&&<div className="grid-toolbar-field-content" data-toolbar-content-for={panel}>{headerContent[panel]}</div>}

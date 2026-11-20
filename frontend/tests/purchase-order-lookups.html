@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Purchase order lookup regression</title>
+<div id="root"></div>
+<output id="result">RUNNING</output>
+<script type="module">
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+
+const assert = (condition, message) => { if (!condition) throw Error(message) }
+const wait = async predicate => {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    if (predicate()) return
+    await new Promise(resolve => setTimeout(resolve, 20))
+  }
+  throw Error('Timeout waiting for ' + predicate)
+}
+const choose = (select, value) => {
+  select.value = value
+  assert(select.value === value, 'Missing option ' + value)
+  select.dispatchEvent(new Event('change', { bubbles: true }))
+}
+const yarns = Array.from({ length: 526 }, (_, i) => ({
+  id: 'y' + i, code: 'Y' + i, comprehensiveName: 'Yarn ' + i, unitOfMeasure: 'CONE', isActive: true
+}))
+const suppliers = yarns.map((_, i) => ({ id: 's' + i, displayName: 'Supplier ' + i, isActive: true }))
+const order = { id: 'order', status: 'Draft', orderNumber: 'PO1', priority: 'Normal', orderDate: '2026-01-01',
+  currency: 'USD', preferredSupplierId: 's525',
+  items: [{ yarnItemId: 'y525', yarnCode: 'Y525', descriptionSnapshot: 'Historical description', quantity: 1, unit: 'KG' }] }
+const requests = []
+window.fetch = async resource => {
+  const url = new URL(resource, location.href)
+  let payload
+  if (url.pathname === '/api/purchase-orders') payload = { items: [order], total: 1 }
+  else if (url.pathname === '/api/purchase-orders/order') payload = order
+  else if (url.pathname === '/api/master-data/persons/s525') payload = suppliers.at(-1)
+  else {
+    const isYarn = url.pathname === '/api/yarns'
+    assert(isYarn || url.pathname === '/api/master-data/persons', 'Unexpected request ' + url)
+    assert(url.searchParams.get('includeInactive') === 'false', 'Inactive records requested')
+    assert(isYarn || url.searchParams.get('purchaseSuppliersOnly') === 'true', 'Missing supplier filter')
+    const page = Number(url.searchParams.get('page')), size = Number(url.searchParams.get('pageSize'))
+    assert(size === 50, 'Unbounded lookup request')
+    requests.push([url.pathname, page])
+    const rows = isYarn ? yarns : suppliers
+    payload = { items: rows.slice((page - 1) * size, page * size), total: rows.length }
+  }
+  return Response.json(payload)
+}
+
+try {
+  sessionStorage.setItem('permissions', JSON.stringify(['purchaseOrders.edit']))
+  const { default: Page } = await import('/src/PurchaseOrdersPage.tsx')
+  createRoot(document.querySelector('#root')).render(React.createElement(Page, { language: 'en' }))
+  const supplier = () => document.querySelector('[data-field="preferredSupplierId"]')
+  const yarn = () => document.querySelector('.order-lines-table select')
+  await wait(() => supplier()?.selectedOptions[0]?.text === 'Supplier 525')
+  assert(yarn().value === 'y525' && yarn().selectedOptions[0].text.includes('Historical description'), 'Lost saved yarn')
+  assert(requests.length === 2, 'Eagerly loaded lookup pages')
+  const edit = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Edit'))
+  edit.click()
+  await wait(() => !supplier().disabled)
+  for (const [control, prefix] of [[yarn, 'y'], [supplier, 's']]) {
+    const select = control()
+    for (let page = 1; page <= 10; page++) {
+      choose(select, ':next')
+      await wait(() => [...select.options].some(option => option.value === prefix + (page * 50)))
+      assert(select.value === prefix + '525', 'Paging changed the draft')
+      const ids = [...select.options].map(o => o.value)
+      assert(new Set(ids).size === ids.length && ids.length <= 54, 'Duplicate or accumulated options')
+    }
+    assert(![...select.options].some(o => o.value === ':next'), 'Unexpected extra page')
+    choose(select, prefix + '512')
+    choose(select, ':previous')
+    await wait(() => [...select.options].some(o => o.value === prefix + '450'))
+    assert(select.value === prefix + '512', 'Lost new selection after paging back')
+  }
+  assert(document.querySelector('.order-lines-table td[title]').title === 'Yarn 512', 'Wrong description')
+  assert(document.querySelectorAll('.order-lines-table select')[1].value === 'CONE', 'Wrong unit')
+  choose(supplier(), '')
+  assert(!supplier().value, 'Cannot clear optional supplier')
+  document.querySelector('#result').textContent = 'PASS'
+} catch (error) {
+  document.querySelector('#result').textContent = 'FAIL ' + error.message
+}
+</script>
+</html>

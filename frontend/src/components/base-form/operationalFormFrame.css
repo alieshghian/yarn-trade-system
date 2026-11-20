@@ -11,6 +11,12 @@
 .operational-form-frame .base-grid-boundary{height:100%;min-height:0;overflow:hidden}
 .operational-form-frame .base-grid-table-wrap{flex:1 1 0;min-height:0;overflow:auto;scrollbar-gutter:auto}
 .operational-form-frame .base-form-footer{min-height:0;flex:none}
+/* The warehouse footer must fit even when the saved frame exceeds the window. */
+.warehouse-page > .operational-form-frame{max-height:100dvh;min-height:0}
+@media (max-height:759px){
+  .warehouse-page > .operational-form-frame > .base-form-shell{--editor-track-limit:60%;grid-template-rows:minmax(0,var(--base-form-editor-track)) 9px minmax(0,1fr) auto}
+  .warehouse-page > .operational-form-frame .base-form-editor{overflow:auto}
+}
 .operational-form-notice{flex:none;min-height:24px;max-height:60px;overflow:auto;padding-inline:12px}
 .operational-form-notice:empty{display:none;min-height:0;padding:0}
 .operational-form-frame .grid-toolbar.personal-selected,.operational-form-frame .base-grid-table th.personal-selected{position:relative}

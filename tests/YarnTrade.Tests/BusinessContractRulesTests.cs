@@ -84,7 +84,11 @@ public sealed class BusinessContractRulesTests
     public void Partnership_rejects_invalid_percentage_pairs(decimal party1, decimal party2)
     {
         var input = Input(BusinessStructure.Partnership, Guid.NewGuid(), party1, party2);
-        Assert.Contains("Ownership", BusinessContractRules.Validate(input).Keys);
+        var errors = BusinessContractRules.Validate(input);
+        Assert.Contains("NormalSaleProfit", errors.Keys);
+        Assert.Contains("CreditSaleProfit", errors.Keys);
+        Assert.Contains("Loss", errors.Keys);
+        Assert.All(input.CostResponsibilities, row => Assert.Contains($"CostResponsibilities.{row.CostType}", errors.Keys));
     }
 
     [Fact]
@@ -110,6 +114,8 @@ public sealed class BusinessContractRulesTests
 
         var versions = await db.BusinessContractVersions.OrderBy(x => x.VersionNumber).ToListAsync();
         Assert.Equal(2, versions.Count);
+        var historicalSale = await db.Sales.AsNoTracking().SingleAsync(sale => sale.SaleNumber == "S-1");
+        Assert.Equal(v1.Id, historicalSale.BusinessContractVersionId);
         Assert.Equal("Original", versions[0].ContractName);
         Assert.Equal(versions[0].Id, versions[1].PreviousVersionId);
         Assert.Equal(2, versions[1].VersionNumber);

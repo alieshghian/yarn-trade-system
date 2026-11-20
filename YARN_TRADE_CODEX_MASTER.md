@@ -1362,6 +1362,27 @@ A work package is DONE only when:
 
 # 15. Change Log
 
+## 2026-11-19 — حفاظت از فرم‌های تأییدشده
+
+مرجع قابلیت‌های محافظت‌شده، ارتباط با آزمون‌ها و نتایج اندازه‌گیری در [ماتریس رگرسیون فرم‌های تأییدشده](docs/audits/approved-form-regression-matrix.md) ثبت شده است. پذیرش قابلیت جدید مستلزم ثبت الزام، آزمون مثبت و منفی، آزمون تعامل در صورت لزوم و اجرای اعتبارسنجی یکپارچه است. شکست یک گیت تحویل باید در وضعیت همان قابلیت منعکس شود.
+
+این بسته دسترسی به میان‌برهای انبار در پنجرهٔ کوتاه، انتخاب چند کنترل در آزمایشگاه، نمایش خطای حذف تکی و مرتب‌سازی جدول مشترک را پوشش می‌دهد. رابطهٔ PersonBrand همچنان به تصمیم مالک نیاز دارد.
+
+سه آزمون منتخب قرارداد مالی، طبقه‌بندی دسترسی و نخ روی SQL با میزبان مجزای Microsoft.NETCore.App 8.0.34 موفق شدند. وضعیت انتشار تا دریافت نتیجهٔ CI و تأیید وضعیت‌های اجباری master در GitHub معلق است. شواهد و نام دو ابزار مهاجرت شخصیِ خارج از CI در ماتریس بالا ثبت شده‌اند.
+
+اعتبارسنجی نهایی محلی در ۲۰ نوامبر ۲۰۲۶ انجام شد. هنگام نگه‌داشتن ماوس روی کنترل ثبت‌شده، بازیابی خودکار باید تا پایان حرکت یا لغو آن صبر کند؛ ثبت هندسه روی رهاکردن و Undo یک‌مرحله‌ای حفظ می‌شود. اجرای رسمی آزمایشگاه با اثرانگشت `316c229806346bb95d0d4f36cbdfaa734dac9a419ab701c294934bfe50c4e20c` شامل ۳۳۰ آزمون و ۲۴ اجرای مرورگری گذشت. هر پنج سناریوی فرم عملیاتی، بارگذاری تنبل در بستهٔ تولیدی و ۵۸۱ آزمون بک‌اندِ گردش کار یکپارچه روی بانک‌های موقت موفق بودند. اصلاح ۲۰ شکست قبلی بک‌اند به آزمون‌ها محدود شد. تفکیک علت‌ها، شرایط اجرای محلی و محدودیت پوشش در ماتریس همین بخش ثبت شده است.
+
+
+## 2026-11-19 — Session isolation, list paging and operational form compatibility (local review)
+
+- The frontend binds authenticated retries, token rotation and expiry notification to the sign-in that started the request. A replacement sign-in owns its own pending refresh. The disposable Chrome session fixture covers a late rejection and an in-flight refresh across sign-out/sign-in, concurrent renewal within one session, and preservation of a form draft during reauthentication.
+- The purchase invoice, sales, money document, check and master-data yarn lists use their effective page size (1–100) for both offset and response metadata. Pages start at 1. A unique ID breaks ties in the existing sort. Focused EF InMemory tests cover consecutive pages of same-date invoices, supplier filtering, out-of-range requests and the five response envelopes.
+- The operational appearance frame consumes the personal customization section of pinned form contracts. App TypeScript now accepts the existing warehouse, zone and approved yarn releases. Current export and release acceptance requirements still apply independently.
+- The complete frontend build passed with `npm run build -- --outDir ../artifacts/architecture-audit-check/frontend-dist`. The session and presentation browser commands were `npm run test:session-continuity:browser` and `node tests/form-presentation-runtime.browser.mjs`.
+- To rerun the backend batch from the repository root with the local runtime, set `$env:DOTNET_ROLL_FORWARD='Major'` and run `dotnet test tests/YarnTrade.Tests/YarnTrade.Tests.csproj --no-restore -p:UseAppHost=false -p:BaseOutputPath=C:/project/yarn-trade-system/artifacts/architecture-audit-check/bin/ --filter "FullyQualifiedName~ListPaginationTests|FullyQualifiedName~BusinessCalculationsTests|FullyQualifiedName~BusinessContractRulesTests|FullyQualifiedName~PurchaseComparisonTests|FullyQualifiedName~PermissionCatalogTests|FullyQualifiedName~Navigation_rules_reject_cycles"`. The separate output path avoids contention with the running development API.
+- The focused .NET checks passed (43/43), including partnership profit/loss and cost allocation validation. Seven date/navigation checks and five browser presentation checks passed. The shared Laboratory gate stopped at 234/237 unit tests; the outstanding assertions concern batch suggestion digits, Persian physical-key digits and the lookup Insert trigger. The standalone form-interaction Node test also needs its extensionless TypeScript imports resolved before it can exercise shortcuts.
+- M1.1 describes many-to-many person/brand associations. The current EF model has a unique index on PersonBrand.BrandId. Reconcile the intended ownership rule with the owner before any schema or relationship change. For the next procurement review, exercise the purchase-order yarn and person pickers with more than 500 options; their initial requests currently fetch only page one.
+
 ## 2026-10-10 — Shared Brand Definition and Person–Brand integration
 - Implemented the approved M1.1 core workflow, independent Brand master, CRUD/concurrency/permission validation, person associations/default and Insert/create/return draft preservation. Registered route `brands` under the existing configurable Definitions & Settings group with Persian/English/Chinese labels and the existing Persons icon glyph. Reused Persons controls, theme, typography, grid and footer; narrow editors scroll within their panels.
 - Added only migration `20261009201818_AddBrandDefinition` and its EF model metadata. Existing global menu layouts are extended once; personal configurations are untouched. Optional purchase BrandId references the master identity and accepts any registered brand. Main database migration is verified, with person/purchase counts unchanged at 8/3. No barcode feature or barcode schema was added.

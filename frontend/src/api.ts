@@ -4,7 +4,8 @@ let permissions = new Set<string>(JSON.parse(sessionStorage.getItem('permissions
 
 export type EmailChallenge = { requiresVerification: true, challenge: string, resendAfterSeconds: number }
 type Session = { accessToken: string; refreshToken?:string }
-let refreshing:Promise<boolean>|undefined
+type RequestSession = { refreshing?: Promise<boolean> }
+let activeSession: RequestSession = {}
 let expiryReported=false
 function storeSession(result: Session, email: string) {
   expiryReported=false
@@ -12,6 +13,11 @@ function storeSession(result: Session, email: string) {
   if(result.refreshToken)sessionStorage.setItem('refreshToken',result.refreshToken);else sessionStorage.removeItem('refreshToken')
   sessionStorage.setItem('accessToken', token ?? '')
   sessionStorage.setItem('currentUser', email)
+}
+
+function startSession(result: Session, email: string) {
+  activeSession = {}
+  storeSession(result, email)
 }
 
 export async function authenticationRequest<T>(action: string, body?: unknown): Promise<T> {
@@ -25,38 +31,52 @@ export async function authenticationRequest<T>(action: string, body?: unknown): 
 }
 export async function login(email: string, password: string) {
   const result = await authenticationRequest<EmailChallenge | Session>('login', { email, password })
-  if ('accessToken' in result) storeSession(result, email)
+  if ('accessToken' in result) startSession(result, email)
   return result
 }
 export async function verifyEmail(challenge: string, code: string, email: string) {
-  storeSession(await authenticationRequest<Session>('verify-email', { challenge, code }), email)
+  startSession(await authenticationRequest<Session>('verify-email', { challenge, code }), email)
 }
 export function tryDevelopmentSession(profile: 'developer'|'manager'|'user' = 'developer'): Promise<boolean> {
   if (!import.meta.env.DEV) return Promise.resolve(false)
-  return (profile==='developer' ? authenticationRequest<Session>('development-session') : authenticationRequest<Session>('development-profile-session',{profile})).then(result => { storeSession(result, 'development'); return true }).catch(() => false)
+  return (profile==='developer' ? authenticationRequest<Session>('development-session') : authenticationRequest<Session>('development-profile-session',{profile})).then(result => { startSession(result, 'development'); return true }).catch(() => false)
 }
 
 // One refresh for concurrent 401s. Retry only explicit authentication rejection,
 // never a network failure (a write may already have reached the server).
-async function refreshSession(rejectedToken:string|null):Promise<boolean>{
-  if(token!==rejectedToken)return Boolean(token)
-  if(refreshing)return refreshing
-  const refreshToken=sessionStorage.getItem('refreshToken')
-  if(!refreshToken)return false
-  refreshing=(async()=>{try{
-    const result=await authenticationRequest<Session>('refresh',{refreshToken})
-    if(token!==rejectedToken)return Boolean(token)
-    storeSession(result,sessionStorage.getItem('currentUser')??'');return true
-  }catch{return false}})().finally(()=>{refreshing=undefined})
-  return refreshing
+async function refreshSession(session: RequestSession, rejectedToken: string | null): Promise<boolean> {
+  if (session !== activeSession) return false
+  if (token !== rejectedToken) return Boolean(token)
+  if (session.refreshing) return session.refreshing
+  const refreshToken = sessionStorage.getItem('refreshToken')
+  if (!refreshToken) return false
+  session.refreshing = authenticationRequest<Session>('refresh', { refreshToken })
+    .then(result => {
+      if (session !== activeSession) return false
+      storeSession(result, sessionStorage.getItem('currentUser') ?? '')
+      return true
+    })
+    .catch(() => false)
+    .finally(() => { session.refreshing = undefined })
+  return session.refreshing
 }
-async function authenticatedFetch(path:string,init:RequestInit={}){
-  const rejectedToken=token
-  let requestToken=token
-  const request=()=>{requestToken=token;const headers=new Headers(init.headers);if(token)headers.set('Authorization','Bearer '+token);else headers.delete('Authorization');return fetch(baseUrl+path,{...init,headers})}
-  let response=await request()
-  if(response.status===401&&await refreshSession(rejectedToken))response=await request()
-  if(response.status===401&&token&&token===requestToken&&!expiryReported){expiryReported=true;window.dispatchEvent(new CustomEvent('auth-expired'))}
+async function authenticatedFetch(path: string, init: RequestInit = {}) {
+  const session = activeSession
+  let requestToken = token
+  const request = () => {
+    requestToken = token
+    const headers = new Headers(init.headers)
+    if (requestToken) headers.set('Authorization', 'Bearer ' + requestToken)
+    else headers.delete('Authorization')
+    if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+    return fetch(baseUrl + path, { ...init, headers })
+  }
+  let response = await request()
+  if (response.status === 401 && await refreshSession(session, requestToken) && session === activeSession) response = await request()
+  if (response.status === 401 && session === activeSession && token && token === requestToken && !expiryReported) {
+    expiryReported = true
+    window.dispatchEvent(new CustomEvent('auth-expired'))
+  }
   return response
 }
 export async function api<T>(path: string): Promise<T> {
@@ -75,10 +95,7 @@ export function isConcurrencyConflict(error: unknown): error is ApiError {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers)
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
-  const response = await authenticatedFetch(path, { ...init, headers })
+  const response = await authenticatedFetch(path, init)
   const contentType = response.headers.get('content-type') ?? ''
   const payload = /\bapplication\/(?:[\w.-]+\+)?json\b/i.test(contentType) ? await response.json() : null
   if (!response.ok) {
@@ -101,9 +118,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
 }
 
 export async function downloadAttachment(id: string, fileName: string) {
-  const headers = new Headers()
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  const response = await authenticatedFetch(`/api/attachments/${id}`, { headers })
+  const response = await authenticatedFetch(`/api/attachments/${id}`)
   if (!response.ok) throw new ApiError(response.status, null, `${response.status} ${response.statusText}`)
   // Blob downloads must retain the server's canonical type, even when CORS hides disposition.
   const mime = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() ?? ''
@@ -125,10 +140,7 @@ export async function downloadAttachment(id: string, fileName: string) {
 }
 
 export async function apiFile(path: string, init: RequestInit = {}) {
-  const headers = new Headers(init.headers)
-  if (token) headers.set('Authorization', `Bearer ${token}`)
-  if (init.body && !(init.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
-  const response = await authenticatedFetch(path, { ...init, headers })
+  const response = await authenticatedFetch(path, init)
   if (!response.ok) {
     const payload = (response.headers.get('content-type') ?? '').includes('application/json') ? await response.json() : null
     throw new ApiError(response.status, payload, String(payload?.error ?? payload?.detail ?? `${response.status} ${response.statusText}`))
@@ -141,6 +153,7 @@ export function setAccessPermissions(values: string[]) { permissions = new Set(v
 export function hasPermission(value: string) { return permissions.has(value) }
 export function currentUserKey() { return sessionStorage.getItem('currentUser') ?? 'anonymous' }
 export function logout() {
+  activeSession = {}
   const currentToken = token
   if (currentToken) void fetch(`${baseUrl}/api/presence/logout`, { method: 'POST', headers: { Authorization: `Bearer ${currentToken}` }, keepalive: true }).catch(() => undefined)
   expiryReported=false;sessionStorage.removeItem('refreshToken');token = null; permissions.clear(); sessionStorage.removeItem('accessToken'); sessionStorage.removeItem('currentUser'); sessionStorage.removeItem('permissions')

@@ -18,6 +18,10 @@ test('Brand route starts under Definitions and moves into and out of permitted g
 
 test('Existing personal ordering remains authoritative when the Brand route is added', () => {
   const nodes = defaultNavigation()
-  assert.deepEqual(orderedChildren(nodes, 'definitions', ['settings', 'businessContract']).map(x => x.routeId), ['settings', 'businessContract', 'brands'])
+  const preferred = ['settings', 'businessContract']
+  const remaining = nodes.filter(node => node.parentId === 'definitions' && !preferred.includes(node.id))
+  assert.ok(remaining.some(node => node.id === 'brands'))
+  assert.deepEqual(orderedChildren(nodes, 'definitions', preferred).map(node => node.id),
+    [...preferred, ...remaining.map(node => node.id)])
   assert.throws(() => moveNavigation(nodes, 'brands', 'persons', 'inside'))
 })

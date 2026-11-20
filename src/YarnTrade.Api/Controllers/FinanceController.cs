@@ -20,9 +20,7 @@ public sealed class FinanceController(AppDbContext db, PersonAccountService pers
         var q = db.MoneyDocuments.AsNoTracking().AsQueryable();
         if (type.HasValue) q = q.Where(x => x.DocumentType == type);
         if (personId.HasValue) q = q.Where(x => x.PersonId == personId);
-        var total = await q.CountAsync(ct);
-        var items = await q.OrderByDescending(x => x.DocumentDate).Skip((page - 1) * pageSize).Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(ct);
-        return new { items, total, page, pageSize };
+        return await ListPage.ReadAsync(q.OrderByDescending(x => x.DocumentDate).ThenBy(x => x.Id), page, pageSize, ct);
     }
 
     [RequirePermission("finance.create")]
@@ -76,9 +74,7 @@ public sealed class FinanceController(AppDbContext db, PersonAccountService pers
         if (status.HasValue) q = q.Where(x => x.CurrentStatus == status);
         if (dueFrom.HasValue) q = q.Where(x => x.DueDate >= dueFrom);
         if (dueTo.HasValue) q = q.Where(x => x.DueDate <= dueTo);
-        var total = await q.CountAsync(ct);
-        var items = await q.OrderBy(x => x.DueDate).Skip((page - 1) * pageSize).Take(Math.Clamp(pageSize, 1, 100)).ToListAsync(ct);
-        return new { items, total, page, pageSize };
+        return await ListPage.ReadAsync(q.OrderBy(x => x.DueDate).ThenBy(x => x.Id), page, pageSize, ct);
     }
 
     [RequirePermission("checks.create")]

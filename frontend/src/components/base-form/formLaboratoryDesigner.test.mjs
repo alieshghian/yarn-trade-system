@@ -1515,7 +1515,12 @@ test('Form Laboratory preview and operational forms share the 12px left, right a
     unit: 'css-px', inline: 12, blockEnd: 12, approximateMillimetersAt96Dpi: 3.2,
     edges: ['left', 'right', 'bottom'], laboratoryAndOperationalPreviewMustMatch: true,
   })
-  assert.deepEqual(brand.operationalBehaviorContract, behavior)
+  // Saved releases embed the contract at export time. Check the policy used by this layout.
+  const saved = brand.operationalBehaviorContract
+  assert.equal(saved.contractId, behavior.contractId)
+  assert.ok(Number.isInteger(saved.version) && saved.version >= 13 && saved.version <= behavior.version)
+  assert.deepEqual(saved.futureFormPolicy.presentationInheritance.frameContentInsets,
+    behavior.futureFormPolicy.presentationInheritance.frameContentInsets)
 })
 
 test('fixed Laboratory frames keep their size, align to language direction, and stay put when a field is selected', () => {
@@ -1544,7 +1549,7 @@ test('fixed Laboratory frames keep their size, align to language direction, and 
     fieldSelectionExpandsCollapsedDesignerSidebar: false,
     toolbarSelectionExpandsCollapsedDesignerSidebar: false,
   })
-  assert.deepEqual(brand.operationalBehaviorContract, behavior)
+  assert.deepEqual(brand.operationalBehaviorContract.futureFormPolicy.workspaceLayout, behavior.futureFormPolicy.workspaceLayout)
 })
 
 test('neighbour compensation is opt-in and isolated fields remain resizable on every physical edge',()=>{
