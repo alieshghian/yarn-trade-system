@@ -61,11 +61,18 @@ try {
     throw new Error('Browser assertion timed out: ' + label)
   }
   const node = (text, selector = 'button') => `Array.from(document.querySelectorAll(${JSON.stringify(selector)})).find(e=>e.getClientRects().length && (e.getAttribute('aria-label')===${JSON.stringify(text)} || e.textContent.trim()===${JSON.stringify(text)}))`
-  const clickExpression = async (expression, button = 'left', modifiers=0) => {
+  const clickExpression = async (expression, button = 'left', modifiers=0, hitTarget) => {
     await revealMenuExpression(expression,{evaluate,send,pause})
     await until(`!!(${expression})`, expression)
     const point = await evaluate(`(async()=>{const e=${expression};e.scrollIntoView({block:'nearest',inline:'nearest'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const current=${expression};const r=current.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
     await send('Input.dispatchMouseEvent', { type:'mouseMoved', ...point })
+    if (hitTarget) {
+      const hit = await evaluate(`(()=>{const node=document.elementFromPoint(${point.x},${point.y});return {
+        matches:!!node?.closest(${JSON.stringify(hitTarget)}), actual:node?.outerHTML.slice(0,200),
+        viewport:[innerWidth,innerHeight]
+      }})()`)
+      assert.ok(hit.matches, `Pointer missed ${hitTarget} at ${JSON.stringify(point)}: ${JSON.stringify(hit)}`)
+    }
     await send('Input.dispatchMouseEvent', { type:'mousePressed', ...point, button, modifiers, clickCount:1 })
     await send('Input.dispatchMouseEvent', { type:'mouseReleased', ...point, button, modifiers, clickCount:1 })
     await pause(100)
@@ -84,6 +91,11 @@ try {
   }
   const check = async (name, expression) => { assert.ok(await evaluate(expression), name); results.push(name); console.log('PASS ' + name) }
   const field = id => `document.querySelector('.laboratory-form-frame [data-field-id="${id}"]')`
+  const rightClickFieldInput = id => {
+    const surface = `.laboratory-form-frame [data-field-id="${id}"] .designer-input-part`
+    // The Designer receives the pointer on this surface while the native input is inert.
+    return clickExpression(`document.querySelector(${JSON.stringify(surface + ' > input')})`, 'right', 0, surface)
+  }
   const count = () => evaluate(`document.querySelectorAll('.laboratory-form-frame [data-field-id]').length`)
   const mode = expected => until(`document.querySelector('[data-form-design-mode]')?.dataset.formDesignMode===${JSON.stringify(expected)}`)
   const menu = text => node(text, '[role="menu"] button')
@@ -137,7 +149,7 @@ try {
   await check('Redo restores the direct color change',`getComputedStyle(${searchInput}).backgroundColor==='rgb(0, 112, 192)'`)
   await sendKey('Escape');await until(`!document.querySelector('.excel-color-popover')`)
   const fontShape=`JSON.stringify([...document.querySelector('.designer-grid-format-dialog').querySelectorAll('input,select,button')].filter(e=>e.getAttribute('aria-label')!=='تراز متن داخل فیلد').map(e=>[e.tagName,e.type,e.getAttribute('aria-label')]))`
-  await clickExpression(field('firstName'),'right');await clickExpression(menu('قلم متن داخل فیلد…'))
+  await rightClickFieldInput('firstName');await clickExpression(menu('قلم متن داخل فیلد…'))
   await until(`!!document.querySelector('.designer-grid-format-dialog')`)
   const sharedFontShape=await evaluate(fontShape)
   if(process.env.FORM_APPEARANCE_SCREENSHOT){const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(process.env.FORM_APPEARANCE_SCREENSHOT+'-font.png',Buffer.from(shot.data,'base64'))}
@@ -152,7 +164,7 @@ try {
     results.push(part+' opens the exact shared font window')
     await click('لغو','.designer-grid-format-dialog button')
   }
-  await clickExpression(field('firstName'),'right');await clickExpression(menu('تغییر رنگ پس‌زمینه'))
+  await rightClickFieldInput('firstName');await clickExpression(menu('تغییر رنگ پس‌زمینه'))
   await until(paletteVisible);await check('main input still uses the exact same palette',paletteVisible);await sendKey('Escape')
   await clickExpression(`document.querySelector('[data-toolbar-part="title"]')`)
   await clickExpression(`document.querySelector('[data-toolbar-part="counter"]')`,'left',2)
@@ -179,7 +191,7 @@ try {
   await clickExpression(columnHeader,'right');await clickExpression('document.querySelector("[data-grid-submenu=header]")');await clickExpression(menu('قلم و اندازهٔ هدر…'));await until(`!!document.querySelector('.designer-grid-format-dialog')`)
   assert.equal(await evaluate(fontShape),sharedFontShape,'column header font window must be identical');results.push('column header uses the shared font window')
   await click('لغو','.designer-grid-format-dialog button')
-  await clickExpression(field('firstName'),'right');await clickExpression(menu('گردی گوشه‌ها'))
+  await rightClickFieldInput('firstName');await clickExpression(menu('گردی گوشه‌ها'))
   await inputValue(`document.querySelector('#designer-effect-borderRadius')`,'18')
   await check('the main input and search use the same live corner editing behavior',`getComputedStyle((${field('firstName')}).querySelector('input')).borderRadius==='18px'&&getComputedStyle(${searchInput}).borderRadius==='18px'`)
   await clickExpression(`document.querySelector('[data-toolbar-part="searchInput"]')`,'right');await clickExpression(menu('گردی گوشه‌ها'))

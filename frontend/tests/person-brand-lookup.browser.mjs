@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 
@@ -12,25 +12,49 @@ assert.ok(executable, 'Install Chrome/Edge or set FORM_TEST_BROWSER')
 const temporaryRoot = resolve(tmpdir())
 const profile = resolve(await mkdtemp(join(temporaryRoot, 'yarn-lazy-test-')))
 assert.ok(profile.startsWith(temporaryRoot + sep), 'Browser profile must remain in the temporary directory')
-const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1600,1000', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] })
+const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1600,1000', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
 let socket, session, sequence = 0
 const pending = new Map(), errors = []
 const pause = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
+let stdout = '', stderr = '', spawnError
+browser.stdout.setEncoding('utf8').on('data', chunk => { stdout = (stdout + chunk).slice(-8000) })
+browser.stderr.setEncoding('utf8').on('data', chunk => { stderr = (stderr + chunk).slice(-8000) })
+browser.on('error', error => { spawnError = error })
+const closed = new Promise(resolveClose => browser.once('close', resolveClose))
+const startupError = reason => new Error(
+  `Chrome startup failed (${reason}); executable=${executable}; platform=${process.platform}; pid=${browser.pid}; exit=${browser.exitCode}; signal=${browser.signalCode}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+  { cause: spawnError },
+)
+
+async function devToolsEndpoint() {
+  const deadline = Date.now() + 45_000
+  const activePortFile = join(profile, 'DevToolsActivePort')
+  while (Date.now() < deadline) {
+    if (spawnError) throw startupError(spawnError.message)
+    if (browser.exitCode !== null || browser.signalCode !== null) {
+      await closed
+      throw startupError('browser exited before publishing its DevTools endpoint')
+    }
+    try {
+      const [port, path] = (await readFile(activePortFile, 'utf8')).trim().split(/\r?\n/)
+      if (/^\d{1,5}$/.test(port) && Number(port) > 0 && Number(port) < 65536 && /^\/devtools\/browser\/[\da-f-]+$/i.test(path)) {
+        return `ws://127.0.0.1:${port}${path}`
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+    }
+    await pause(100)
+  }
+  throw startupError('DevToolsActivePort was not ready within 45 seconds')
+}
 
 try {
-  const endpoint = await new Promise((resolveEndpoint, reject) => {
-    let logs = ''
-    const timer = setTimeout(() => reject(new Error('Chrome did not expose DevTools: ' + logs)), 15000)
-    browser.once('exit', code => { clearTimeout(timer); reject(new Error('Chrome startup exited ' + code + ': ' + logs)) })
-    browser.once('error', reject)
-    browser.stderr.on('data', chunk => {
-      logs += String(chunk)
-      const match = logs.match(/DevTools listening on (ws:\/\/[^\s]+)/)
-      if (match) { clearTimeout(timer); resolveEndpoint(match[1]) }
-    })
+  socket = new WebSocket(await devToolsEndpoint())
+  await new Promise((resolveOpen, reject) => {
+    const timer = setTimeout(() => reject(startupError('DevTools WebSocket did not open within 10 seconds')), 10_000)
+    socket.addEventListener('open', () => { clearTimeout(timer); resolveOpen() }, { once: true })
+    socket.addEventListener('error', () => { clearTimeout(timer); reject(startupError('DevTools WebSocket connection failed')) }, { once: true })
   })
-  socket = new WebSocket(endpoint)
-  await new Promise((resolveOpen, reject) => { socket.addEventListener('open', resolveOpen, { once: true }); socket.addEventListener('error', reject, { once: true }) })
   socket.addEventListener('message', event => {
     const data = JSON.parse(event.data)
     if (data.method === 'Page.javascriptDialogOpening') void send('Page.handleJavaScriptDialog',{accept:true});
@@ -187,5 +211,9 @@ try {
   console.log('PASS optional blank choice and first result highlight, ArrowUp/Down, single Enter, visible create button, Insert from search; actual Persons lookup: standard height, blank choice, code/name, Insert real Brands create, save/select, preserved draft');
 } catch(error){console.error(error);process.exitCode=1}
 finally{
- socket?.close();browser.kill();await new Promise(done=>browser.exitCode!==null?done():browser.once('exit',done));assert.ok(profile.startsWith(temporaryRoot+sep));await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:200});
+ socket?.close()
+ browser.kill()
+ await closed
+ assert.ok(profile.startsWith(temporaryRoot + sep))
+ await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
 }

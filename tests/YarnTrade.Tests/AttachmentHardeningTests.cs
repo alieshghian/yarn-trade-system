@@ -444,13 +444,17 @@ public sealed partial class SecurityBaselineTests
     public async Task A7_delete_filesystem_failure_leaves_no_downloadable_reference()
     {
         await using var f = await A7Create(); await A7Upload(f, A7Pdf()); var row = Assert.Single(await f.Rows()); var path = Path.Combine(f.Storage, row.StoredFileName);
-        using (var locked = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
-        {
-            Assert.Equal(HttpStatusCode.NoContent, (await f.Host.Client.DeleteAsync($"/api/attachments/{row.Id}")).StatusCode);
-            Assert.Empty(await f.Rows()); Assert.Equal(HttpStatusCode.NotFound, (await f.Host.Client.GetAsync($"/api/attachments/{row.Id}")).StatusCode);
-            Assert.Contains(f.Host.Logs.Messages, x => x.Contains("physical cleanup failed"));
-        }
-        File.Delete(path);
+        // File.Delete cannot remove a directory on either Windows or Linux.
+        // Linux can unlink an open file, so FileShare cannot force this path.
+        File.Move(path, path + ".retained");
+        Directory.CreateDirectory(path);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await f.Host.Client.DeleteAsync($"/api/attachments/{row.Id}")).StatusCode);
+        Assert.Empty(await f.Rows());
+        Assert.Equal(HttpStatusCode.NotFound, (await f.Host.Client.GetAsync($"/api/attachments/{row.Id}")).StatusCode);
+        Assert.Contains(f.Host.Logs.Messages, x => x.Contains("physical cleanup failed"));
+        Assert.True(Directory.Exists(path));
+        Assert.Equal(A7Pdf(), await File.ReadAllBytesAsync(path + ".retained"));
     }
 
     [Theory]
