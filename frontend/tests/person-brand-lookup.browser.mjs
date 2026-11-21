@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
+import { connectChromeDevTools } from './chrome-devtools.mjs'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import { checkPersonsToolbar } from './persons-toolbar.scenarios.mjs'
@@ -17,46 +18,10 @@ const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-def
 let socket, session, sequence = 0
 const pending = new Map(), errors = []
 const pause = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
-let stdout = '', stderr = '', spawnError
-browser.stdout.setEncoding('utf8').on('data', chunk => { stdout = (stdout + chunk).slice(-8000) })
-browser.stderr.setEncoding('utf8').on('data', chunk => { stderr = (stderr + chunk).slice(-8000) })
-browser.on('error', error => { spawnError = error })
+
 const closed = new Promise(resolveClose => browser.once('close', resolveClose))
-const startupError = reason => new Error(
-  `Chrome startup failed (${reason}); executable=${executable}; platform=${process.platform}; pid=${browser.pid}; exit=${browser.exitCode}; signal=${browser.signalCode}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
-  { cause: spawnError },
-)
-
-async function devToolsEndpoint() {
-  const deadline = Date.now() + 45_000
-  const activePortFile = join(profile, 'DevToolsActivePort')
-  while (Date.now() < deadline) {
-    if (spawnError) throw startupError(spawnError.message)
-    if (browser.exitCode !== null || browser.signalCode !== null) {
-      await closed
-      throw startupError('browser exited before publishing its DevTools endpoint')
-    }
-    try {
-      const [port, path] = (await readFile(activePortFile, 'utf8')).trim().split(/\r?\n/)
-      if (/^\d{1,5}$/.test(port) && Number(port) > 0 && Number(port) < 65536 && /^\/devtools\/browser\/[\da-f-]+$/i.test(path)) {
-        return `ws://127.0.0.1:${port}${path}`
-      }
-    } catch (error) {
-      // Chrome can briefly hold the newly created profile file open on Windows.
-      if (error.code !== 'ENOENT' && error.code !== 'EBUSY') throw error
-    }
-    await pause(100)
-  }
-  throw startupError('DevToolsActivePort was not ready within 45 seconds')
-}
-
 try {
-  socket = new WebSocket(await devToolsEndpoint())
-  await new Promise((resolveOpen, reject) => {
-    const timer = setTimeout(() => reject(startupError('DevTools WebSocket did not open within 10 seconds')), 10_000)
-    socket.addEventListener('open', () => { clearTimeout(timer); resolveOpen() }, { once: true })
-    socket.addEventListener('error', () => { clearTimeout(timer); reject(startupError('DevTools WebSocket connection failed')) }, { once: true })
-  })
+  socket = await connectChromeDevTools(browser, profile, executable)
   socket.addEventListener('message', event => {
     const data = JSON.parse(event.data)
     if (data.method === 'Page.javascriptDialogOpening') void send('Page.handleJavaScriptDialog',{accept:true});
