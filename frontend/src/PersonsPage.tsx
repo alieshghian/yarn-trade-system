@@ -670,7 +670,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     <section className="person-editor panel">
       <div className="person-section-head">
         <div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div>
-        <span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span>
         <div className="persons-settings-controls" onClickCapture={event => {
           if (event.target instanceof Node && !shortcutsHost.current?.contains(event.target)) setShortcutsOpen(false)
         }}>
@@ -682,6 +681,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
               onClick={() => setShortcutsOpen(open => !open)}>⌨</button>
             <div id={shortcutsId} role="group" aria-label={shortcutLabel} hidden={!active || !shortcutsOpen}>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div>
           </div>}
+          <span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span>
         </div>
       </div>
       {settings?.tools}

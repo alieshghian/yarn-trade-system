@@ -58,7 +58,11 @@
 }
 
 .persons-page .person-editor .person-form-grid label > span {
-  font-size: 10px;
+  font-size: var(--field-label-size, 13px);
+}
+
+.persons-page .person-title-wrap {
+  min-height: 36px;
 }
 
 .persons-page .grid-toolbar > .persons-grid-actions {

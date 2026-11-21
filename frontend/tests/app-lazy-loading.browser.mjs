@@ -133,7 +133,11 @@ try {
           toolbarOffset: bounds('.grid-toolbar').top - origin.top,
           formHeaderOffset: bounds('.person-section-head').top - origin.top,
           formHeaderHeight: bounds('.person-section-head').height, editorHeight: bounds('.person-editor').height,
-          fieldHeight: bounds('[data-field=personCode]').height, footerVisible: footer.bottom <= innerHeight && footer.top >= 0,
+          modeBadgeInlineEndInset: bounds('.mode-badge').left - origin.left,
+          fieldHeight: bounds('[data-field=personCode]').height,
+          fieldOffset: bounds('[data-field=personCode]').top - origin.top,
+          fieldLabelFontSize: getComputedStyle(get('.person-code-field > span')).fontSize,
+          footerVisible: footer.bottom <= innerHeight && footer.top >= 0,
           footerBottomInset: origin.bottom - footer.bottom
         };
       })()`)

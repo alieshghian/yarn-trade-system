@@ -25,12 +25,18 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   const button = label => `[...document.querySelectorAll('button,[role=button],[role=menuitem]')].find(e=>e.getClientRects().length&&(e.getAttribute('aria-label')===${JSON.stringify(label)}||e.textContent.trim()===${JSON.stringify(label)}))`
   async function mouse(expression, button = 'left') {
     await until(`!!(${expression})`, 'Available control: ' + expression)
-    const point = await evaluate(`(async()=>{const e=${expression};e.scrollIntoView({block:'nearest',inline:'nearest'});await new Promise(requestAnimationFrame);const r=e.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;return {x,y,hit:e.contains(document.elementFromPoint(x,y))}})()`)
-    assert.ok(point.hit, 'Pointer does not hit intended control: ' + expression)
-    const { x, y } = point
-    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
-    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button, clickCount: 1 })
-    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button, clickCount: 1 })
+    await evaluate(`(${expression}).scrollIntoView({block:'nearest',inline:'nearest'})`)
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const point = await evaluate(`(async()=>{await new Promise(requestAnimationFrame);const e=${expression};const r=e.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
+      const { x, y } = point
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y })
+      const hits = await evaluate(`(async()=>{await new Promise(requestAnimationFrame);return !!(${expression})?.contains(document.elementFromPoint(${x},${y}))})()`)
+      if (!hits) continue
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button, clickCount: 1 })
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button, clickCount: 1 })
+      return
+    }
+    assert.fail('Pointer does not hit intended control: ' + expression)
   }
   const click = label => mouse(button(label))
   const snapshot = async suffix => {
@@ -138,6 +144,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   await click('تأیید')
   await appearanceMenu('text', 'رنگ متن…')
   await mouse(find('.excel-color-popover [aria-label="#0070c0"]'))
+  await until(`!${find('.excel-color-popover')} && getComputedStyle(${find(field)}).color==='rgb(0, 112, 192)'`, 'Text color commits before background settings')
   await appearanceMenu('appearance', 'رنگ پس‌زمینه…')
   await mouse(find('.excel-color-popover [aria-label="#ffff00"]'))
   const expected = await appearance()

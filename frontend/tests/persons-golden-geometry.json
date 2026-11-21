@@ -12,8 +12,11 @@
     "toolbarOffset": 340,
     "formHeaderOffset": 1,
     "formHeaderHeight": 55,
+    "modeBadgeInlineEndInset": 19,
     "editorHeight": 330,
     "fieldHeight": 34,
+    "fieldOffset": 95.4375,
+    "fieldLabelFontSize": "13px",
     "footerVisible": true,
     "footerBottomInset": 1
   }
