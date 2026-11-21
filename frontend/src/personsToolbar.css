@@ -18,10 +18,14 @@
   display: none;
 }
 
+.persons-page .person-section-head {
+  min-height: 55px;
+}
+
 /* Golden Persons uses its own heading and row geometry. Shared grid styles
    continue to supply sorting, filters, and per-user appearance. */
 .persons-page .person-table {
-  --form-table-row-height: 30px;
+  --form-table-row-height: 31px;
 }
 
 .persons-page .person-table tbody td {

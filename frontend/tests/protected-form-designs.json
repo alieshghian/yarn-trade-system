@@ -1,0 +1,22 @@
+{
+  "brand": {
+    "design": "brand-design.json",
+    "sha256": "2301d09a07904bfcfdba85c859ed99394032deeb581166b60e6855bec8efa9b6"
+  },
+  "productGroup": {
+    "design": "product-group-design.json",
+    "sha256": "1ad5cfb5f9e983971bfd6aa310019a8b6ad7f88c877376742a84d33ac4ad8653"
+  },
+  "yarn": {
+    "design": "yarn-approved-design.json",
+    "sha256": "9746520995b4bc2bad165bcc1bda1bb84cf140c52dfb3b198529430f5b98de6f"
+  },
+  "warehouse": {
+    "design": "warehouse-design.json",
+    "sha256": "a70d798d1192d0fb41a96320f869e936e6d4626f172f083e0d22b65ce5c7296d"
+  },
+  "warehouseZone": {
+    "design": "warehouse-zone-design.json",
+    "sha256": "e72fb199224f6f3b78588d3de55ee0fa92c4bae62b0b88b53664e7c4d1da9e51"
+  }
+}
