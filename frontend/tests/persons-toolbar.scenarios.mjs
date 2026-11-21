@@ -55,7 +55,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   }
 
   await load()
-  const missing = await evaluate(`['columns','expand','export'].filter(part=>!document.querySelector('.persons-grid-actions [data-toolbar-part="'+part+'"] svg'))`)
+  const missing = await evaluate(`['columns','expand','export','reset'].filter(part=>!document.querySelector('.persons-grid-actions [data-toolbar-part="'+part+'"] svg'))`)
   await mouse(find(panel + ' .form-settings-button'))
   const appearanceAvailable = await evaluate(`!!(${button('ذخیره تنظیمات')})`)
   assert.deepEqual({ missing, appearanceAvailable }, { missing: [], appearanceAvailable: true }, 'Approved toolbar icons and appearance entry')
@@ -97,6 +97,36 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   assert.doesNotMatch(xml, /تلفن<\/t>|02112345678/, 'Hidden column and values are excluded')
   assert.equal(await selected(), 'person-4', 'Export preserves selection')
 
+  const filterTrigger = find(panel + ' th[data-column="personCode"] .excel-filter-trigger')
+  const clear = button('پاک کردن فیلترها')
+  const key = async (key, windowsVirtualKeyCode) => {
+    for (const type of ['keyDown', 'keyUp']) {
+      const text = key === 'Enter' && type === 'keyDown' ? '\r' : undefined
+      await send('Input.dispatchKeyEvent', {type, key, code:key, windowsVirtualKeyCode, text})
+    }
+  }
+  assert.equal(await evaluate(`${clear}.disabled`), true)
+  await mouse(find(panel + ' th[data-column="personCode"] .column-title'))
+  const sort = await evaluate(`${find(panel + ' th[data-column="personCode"]')}.getAttribute('aria-sort')`)
+  for (const method of ['button', 'F8']) {
+    await mouse(filterTrigger)
+    await until(`!!${find('.excel-filter-menu')}`, 'Open Persons column filter for ' + method)
+    await until(`[...document.querySelectorAll('.filter-values label')].some(e=>e.textContent.trim()==='PERSON-4')`, 'Remote distinct codes for ' + method)
+    await evaluate(`[...document.querySelectorAll('.filter-values label')].find(e=>e.textContent.trim()==='PERSON-4').querySelector('input').click()`)
+    await mouse(find('.filter-actions .primary'))
+    await until(`!${clear}.disabled && document.querySelectorAll('${panel} tr[data-person-id]').length === 100 && document.querySelector('.grid-toolbar').textContent.includes('از 101 رکورد')`, 'Excluded a code from full server results')
+    if (method === 'button') await mouse(clear)
+    else {
+      await mouse(filterTrigger)
+      await until(`!!${find('.excel-filter-menu')}`, 'Open filter menu before F8')
+      await evaluate(`${find('.filter-value-search')}.focus()`)
+      await key('F8', 119)
+    }
+    await until(`${clear}.disabled && !${find('.excel-filter-menu')} && document.querySelector('.grid-toolbar').textContent.includes('از 102 رکورد')`, 'All records restored')
+    assert.equal(await evaluate(`!!${find(panel + ' th[data-column="phone"]')}`), false, 'Reset preserves hidden columns')
+    assert.equal(await evaluate(`${find(panel + ' th[data-column="personCode"]')}.getAttribute('aria-sort')`), sort, 'Reset preserves sorting')
+  }
+
   const initial = await appearance()
   await mouse(find(panel + ' .form-settings-button'))
   await appearanceMenu('text', 'تنظیم قلم…')
@@ -129,10 +159,23 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   assert.deepEqual(await appearance(), expected, 'Original viewer preferences remain intact')
 
   await click('میان‌برهای صفحه‌کلید')
+  const shortcut = button('میان‌برهای صفحه‌کلید')
+  await until(`${shortcut}.getAttribute('aria-expanded')==='true'`, 'Shortcuts open')
+  await evaluate(`${find('.shortcut-settings select')}.focus()`)
+  await key('Escape', 27)
+  assert.equal(await evaluate(`${shortcut}===document.activeElement && ${shortcut}.getAttribute('aria-expanded')==='false'`), true, 'Escape dismisses and returns focus')
+  await click('میان‌برهای صفحه‌کلید')
+  await mouse(find(panel + ' .person-section-head h2'))
+  assert.equal(await evaluate(`${shortcut}.getAttribute('aria-expanded')`), 'false', 'Outside pointer dismisses')
+  await evaluate(`${shortcut}.focus()`)
+  await key('Enter', 13)
+  await until(`${shortcut}.getAttribute('aria-expanded')==='true'`, 'Enter opens shortcuts')
   assert.equal(await select('.shortcut-settings select', 'F7'), 'F7')
   await click('میان‌برهای صفحه‌کلید')
+  assert.equal(await evaluate(`${shortcut}.getAttribute('aria-expanded')`), 'false', 'Trigger toggles open popup closed')
   assert.equal(await evaluate(`[...document.querySelectorAll('${panel} .shortcut-bar button')].length`), 8)
-  for (const type of ['keyDown', 'keyUp']) await send('Input.dispatchKeyEvent', { type, key:'F7', code:'F7', windowsVirtualKeyCode:118 })
+  await evaluate(`${find(panel + ' .person-table-wrap')}.focus()`)
+  await key('F7', 118)
   await until(`${find(panel)}?.dataset.recordPresentation==='entry'`, 'Configured F7 enters create mode')
   await click('Escانصراف')
   await load()

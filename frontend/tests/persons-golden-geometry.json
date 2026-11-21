@@ -1,0 +1,20 @@
+{
+  "source": "d0f15535f712df68e437b4ae154470d3836666b1",
+  "capture": { "width": 1440, "height": 900, "deviceScaleFactor": 1, "mobile": false },
+  "measurements": {
+    "headerHeight": 31,
+    "headingHeight": 30,
+    "headingFontSize": "14px",
+    "headingPadding": "5px 9px",
+    "filterWidth": 27,
+    "rowHeight": 31,
+    "toolbarHeight": 42,
+    "toolbarOffset": 340,
+    "formHeaderOffset": 1,
+    "formHeaderHeight": 55,
+    "editorHeight": 330,
+    "fieldHeight": 34,
+    "footerVisible": true,
+    "footerBottomInset": 1
+  }
+}

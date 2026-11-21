@@ -5,22 +5,71 @@
   gap: 8px;
 }
 
-.persons-settings-controls .form-settings-button {
+.persons-page .persons-settings-controls .form-settings-button {
   display: inline-grid;
   place-items: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
 }
 
-.persons-grid-actions {
+.persons-page .person-header-settings > div[hidden] {
+  display: none;
+}
+
+/* Golden Persons uses its own heading and row geometry. Shared grid styles
+   continue to supply sorting, filters, and per-user appearance. */
+.persons-page .person-table {
+  --form-table-row-height: 30px;
+}
+
+.persons-page .person-table tbody td {
+  white-space: nowrap;
+}
+
+.persons-page .person-table-wrap[dir=ltr] {
+  direction: ltr;
+}
+
+.persons-page .person-table .column-heading {
+  height: 30px;
+  grid-template-columns: minmax(0, 1fr) 27px;
+}
+
+.persons-page .person-table .column-heading .column-title {
+  white-space: nowrap;
+  padding: 5px 9px;
+  line-height: normal;
+}
+
+.persons-page .person-table .column-heading .column-label {
+  white-space: nowrap;
+  line-height: inherit;
+  text-overflow: ellipsis;
+}
+
+.persons-page .person-table .column-heading .excel-filter-trigger {
+  width: 27px;
+}
+
+.persons-page .person-editor .person-form-grid label > span {
+  font-size: 10px;
+}
+
+.persons-page .grid-toolbar > .persons-grid-actions {
   position: relative;
   flex: none;
+  align-items: center;
+  gap: 8px;
 }
 
 .persons-grid-actions :is(button, summary) {
   box-sizing: border-box;
   display: inline-grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -45,7 +94,56 @@
 }
 
 .persons-grid-actions button:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
+.persons-grid-actions [data-toolbar-part=export] button[aria-busy=true] {
   cursor: wait;
+}
+
+.persons-grid-actions .grid-export-status:not(:empty) {
+  position: absolute;
+  inset-inline-end: 0;
+  inset-block-start: 100%;
+  z-index: 4;
+  width: max-content;
+  max-width: 200px;
+  padding: 4px 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.persons-grid-actions .grid-export-status:empty {
+  position: absolute;
+}
+
+@media (max-width: 760px) {
+  /* Reset the desktop named row positions along with the column spans. */
+  .persons-page.person-layout-five .person-editor .person-form-grid > :is(label, .person-notes-active) {
+    grid-row: auto !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .persons-page .grid-toolbar {
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .persons-page .grid-toolbar > div:first-child {
+    display: grid;
+    gap: 0;
+    line-height: 1.2;
+  }
+
+  .persons-page .grid-toolbar > .persons-grid-actions {
+    gap: 3px;
+  }
+
+  .persons-page .persons-grid-pager button {
+    padding-inline: 4px;
+  }
 }
 
 .persons-page > .persons-grid-expanded {

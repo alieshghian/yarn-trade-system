@@ -12,7 +12,7 @@ import { ExcelGridColumnHeader, ExcelGridFilterScope } from './components/base-f
 import { applyGridFiltersAndSort, gridDistinctValues, type ExcelGridColumn, type GridFilterState, type GridPage, type GridQuery, type GridSortState, type GridValue } from './components/base-form/excelGrid'
 import {SystemLookup} from './components/base-form/SystemLookup'
 import {ownsFormShortcut} from './formInteraction'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
@@ -122,7 +122,7 @@ const demoPersons: Person[] = [
 ]
 
 type ContractCreation = { personId?: string, onSaved: (person: Person) => void, onCancel: () => void }
-export default function PersonsPage({ language, demoMode = false, contractCreation, lookupCreation, authenticatedUserId }: { language: Language, demoMode?: boolean, contractCreation?: ContractCreation, lookupCreation?: Omit<ContractCreation, 'personId'>, authenticatedUserId?: string }) {
+export default function PersonsPage({ language, demoMode = false, contractCreation, lookupCreation, authenticatedUserId, active = true }: { language: Language, demoMode?: boolean, contractCreation?: ContractCreation, lookupCreation?: Omit<ContractCreation, 'personId'>, authenticatedUserId?: string, active?: boolean }) {
   const fa = language === 'fa'
   const [persons, setPersons] = useState<Person[]>([])
   const [brandCreation, setBrandCreation] = useState(false)
@@ -165,6 +165,10 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     try { return { ...defaultShortcuts, ...JSON.parse(localStorage.getItem(shortcutKey) ?? '{}') } }
     catch { return defaultShortcuts }
   })
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const shortcutsId = useId()
+  const shortcutsHost = useRef<HTMLDivElement>(null)
+  const shortcutsTrigger = useRef<HTMLButtonElement>(null)
   const frameRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
   const contractStarted = useRef(false)
@@ -427,8 +431,34 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [filtered, selectedIndex])
 
   useEffect(() => {
+    if (!active || brandCreation) setShortcutsOpen(false)
+  }, [active, brandCreation])
+
+  useEffect(() => {
+    if (!active || !shortcutsOpen) return
+    const outside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !shortcutsHost.current?.contains(event.target)) setShortcutsOpen(false)
+    }
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !shortcutsTrigger.current || !ownsFormShortcut(frameRef.current, event)) return
+      event.preventDefault()
+      event.stopPropagation()
+      setShortcutsOpen(false)
+      shortcutsTrigger.current.focus()
+    }
+    document.addEventListener('pointerdown', outside, true)
+    window.addEventListener('keydown', escape, true)
+    return () => {
+      document.removeEventListener('pointerdown', outside, true)
+      window.removeEventListener('keydown', escape, true)
+    }
+  }, [active, shortcutsOpen])
+
+  useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (brandCreation || !ownsFormShortcut(frameRef.current, event)) return
+      if (event.target === shortcutsTrigger.current && (event.key === 'Enter' || event.code === 'Space')) return
+      if (shortcutsOpen && event.target instanceof Node && shortcutsHost.current?.contains(event.target)) return
       if (frameRef.current?.closest('[aria-hidden="true"]')) return
       const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement
       if (mode !== 'view') {
@@ -454,7 +484,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     }
     document.addEventListener('keydown', keydown)
     return () => document.removeEventListener('keydown', keydown)
-  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, brandCreation])
+  }, [mode, save, cancel, beginNew, beginEdit, remove, move, shortcuts, shortcutsOpen, brandCreation])
 
   function resizeStart(event: React.PointerEvent) {
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -604,6 +634,8 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const expandLabel = fa ? (gridExpanded ? 'کوچک کردن فرم' : 'بزرگ کردن فرم') : (gridExpanded ? 'Shrink form' : 'Expand form')
   const exportLabel = fa ? 'خروجی اکسل' : 'Excel export'
   const shortcutLabel = fa ? 'میان‌برهای صفحه‌کلید' : 'Keyboard shortcuts'
+  const resetFiltersLabel = fa ? 'پاک کردن فیلترها' : language === 'zh' ? '清除筛选' : 'Clear filters'
+  const resetFilters = () => { setFilters({}); setGridPage(1) }
   async function exportPersons() {
     if (exporting) return
     setExporting(true)
@@ -639,12 +671,17 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       <div className="person-section-head">
         <div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div>
         <span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span>
-        <div className="persons-settings-controls">
+        <div className="persons-settings-controls" onClickCapture={event => {
+          if (event.target instanceof Node && !shortcutsHost.current?.contains(event.target)) setShortcutsOpen(false)
+        }}>
           {settings?.actions}
-          {!settings?.editing && <details className="shortcut-settings person-header-settings">
-            <summary role="button" aria-label={shortcutLabel} title={shortcutLabel} className="form-settings-button">{standalone ? '⌨' : '⚙'}</summary>
-            <div>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div>
-          </details>}
+          {!settings?.editing && <div ref={shortcutsHost} className="shortcut-settings person-header-settings"
+            onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setShortcutsOpen(false) }}>
+            <button type="button" ref={shortcutsTrigger} aria-label={shortcutLabel} title={shortcutLabel}
+              aria-expanded={active && shortcutsOpen} aria-controls={shortcutsId} className="form-settings-button"
+              onClick={() => setShortcutsOpen(open => !open)}>⌨</button>
+            <div id={shortcutsId} role="group" aria-label={shortcutLabel} hidden={!active || !shortcutsOpen}>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div>
+          </div>}
         </div>
       </div>
       {settings?.tools}
@@ -674,14 +711,16 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
           <details className="column-picker" ref={columnPicker} open={columnMenuOpen} data-toolbar-part="columns">
             <summary role="button" aria-label={columnsLabel} title={columnsLabel} aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>{standalone ? <GridToolbarIcon kind="columns" /> : `☷ ${columnsLabel}`}</summary>
           </details>
-          {standalone && <><span data-toolbar-part="expand"><button type="button" aria-label={expandLabel} title={expandLabel} aria-pressed={gridExpanded} onClick={() => setGridNormalHeight(gridExpanded ? null : gridPanel.current?.getBoundingClientRect().height ?? null)}><GridToolbarIcon kind={gridExpanded ? 'restore' : 'expand'} /></button></span>
+          {standalone && <><span data-toolbar-part="reset"><button type="button" aria-label={resetFiltersLabel} title={resetFiltersLabel}
+            aria-keyshortcuts="F8" disabled={!Object.values(filters).some(Boolean)} onClick={resetFilters}><GridToolbarIcon kind="reset" /></button></span>
+          <span data-toolbar-part="expand"><button type="button" aria-label={expandLabel} title={expandLabel} aria-pressed={gridExpanded} onClick={() => setGridNormalHeight(gridExpanded ? null : gridPanel.current?.getBoundingClientRect().height ?? null)}><GridToolbarIcon kind={gridExpanded ? 'restore' : 'expand'} /></button></span>
           <span data-toolbar-part="export"><button type="button" aria-label={exportLabel} title={exportLabel} disabled={exporting} aria-busy={exporting} onClick={() => void exportPersons()}><GridToolbarIcon kind="excel" /></button></span>
           <span className="grid-export-status" role="status">{exportStatus}</span></>}
         </div>
       </div>
       {columnMenuOpen && createPortal(<div ref={columnMenu} className="person-column-menu" dir={fa ? 'rtl' : 'ltr'} style={columnMenuPosition}>{columns.map(column => <label key={column.key}><input type="checkbox" checked={column.visible} disabled={column.visible && visibleColumns.length === 1} onChange={() => toggleColumn(column.key)} />{columnLabel(column.key)}</label>)}<button type="button" onClick={() => setColumns(defaultColumns)}>↺ {fa ? 'حالت پیش‌فرض' : 'Reset'}</button></div>, document.body)}
       {(bulk.multiSelection&&(bulk.selection.size>0||bulk.error))&&<div className="definition-bulk-status" role="status">{bulk.selection.size>1&&<span>{bulk.selection.size} ردیف انتخاب شده — Delete: حذف</span>}{bulk.selection.size>0&&<button type="button" data-definition-bulk-delete disabled={bulk.busy} onClick={()=>void bulk.remove()}>حذف انتخاب‌ها</button>}{bulk.error&&<span role="alert">{bulk.error}</span>}</div>}
-      <div className="person-table-wrap" tabIndex={0} onKeyDownCapture={bulk.keyDown}><ExcelGridFilterScope onReset={() => { setFilters({}); setGridPage(1) }}><table className="person-table excel-grid" style={{ minWidth: visibleColumns.reduce((sum, column) => sum + column.width, 0) }}><colgroup>{visibleColumns.map(column => <col key={column.key} style={{ width: column.width }} />)}</colgroup><thead>
+      <div className="person-table-wrap" dir={fa ? 'rtl' : 'ltr'} tabIndex={0} onKeyDownCapture={bulk.keyDown}><ExcelGridFilterScope onReset={resetFilters}><table className="person-table excel-grid" style={{ minWidth: visibleColumns.reduce((sum, column) => sum + column.width, 0) }}><colgroup>{visibleColumns.map(column => <col key={column.key} style={{ width: column.width }} />)}</colgroup><thead>
         <tr>{visibleColumns.map(column => <ExcelGridColumnHeader key={column.key} column={gridColumns.find(item => item.id === column.key)!} rows={persons} locale={fa ? 'fa' : 'en'} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.key]} sort={sort} onSort={next => { setSort(next); setGridPage(1) }} onApplyFilter={filter => applyFilter(column.key, filter)} loadFilterValues={search => loadGridFilterValues(column.key, search)} thProps={{ 'data-column': column.key, className: columnDrop?.key === column.key ? `column-drop-${columnDrop.before ? 'before' : 'after'}` : undefined, onDragOver: event => columnDragOver(event, column.key), onDrop: event => dropColumn(event, column.key) }} titleProps={{ draggable: true, onDragStart: event => { draggedColumn.current = column.key; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', column.key); setColumnMenuOpen(false) }, onDragEnd: () => { draggedColumn.current = null; setColumnDrop(null) } }} resizer={<i className="column-resizer" onPointerDown={event => resizeColumn(event, column.key)} />} />)}</tr>
       </thead><tbody>
         {loading || gridLoading ? <tr><td colSpan={visibleColumns.length}>{fa ? 'در حال دریافت…' : 'Loading…'}</td></tr> : filtered.length ? filtered.map((person,index) => <tr key={person.id} data-person-id={person.id} className={(bulk.selection.size?bulk.selection.has(person.id):person.id===selectedId)?'selected'+(bulk.blocked.has(person.id)?' bulk-delete-blocked':''):bulk.blocked.has(person.id)?'bulk-delete-blocked':''} onClick={event=>{if(mode!=='view'||bulk.busy)return;(event.currentTarget.closest('.person-table-wrap') as HTMLElement)?.focus({preventScroll:true});void bulk.select(person,(gridPage-1)*100+index,event);if(event.ctrlKey||event.metaKey||event.shiftKey){event.preventDefault();return}setSelectedId(person.id)}} onDoubleClick={beginEdit}>{visibleColumns.map(column => <td key={column.key}>{cell(person, column.key)}</td>)}</tr>) : <tr><td colSpan={visibleColumns.length}>{fa ? 'رکوردی یافت نشد.' : 'No records found.'}</td></tr>}

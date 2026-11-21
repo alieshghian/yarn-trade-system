@@ -2,9 +2,10 @@ import assert from 'node:assert/strict'
 import { connectChromeDevTools } from './chrome-devtools.mjs'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+import { checkPersonsGoldenVisual } from './persons-golden-visual.mjs'
 
 // Run against `npm run preview`; the browser profile and workspace are disposable.
 const base = process.env.APP_TEST_URL || 'http://127.0.0.1:4173'
@@ -58,6 +59,8 @@ try {
       const url = typeof input === 'string' ? input : input.url;
       if (url.endsWith('/api/user-settings') && (!options?.method || options.method === 'GET'))
         return Promise.resolve(new Response(JSON.stringify({preferredLanguage:'fa',sessionTimeoutMinutes:30,theme:'system',compactMode:false,fontFamily:'vazirmatn',fontSize:'normal'}), {status:200,headers:{'Content-Type':'application/json'}}));
+      if (url.endsWith('/api/business-contract') && (!options?.method || options.method === 'GET'))
+        return Promise.resolve(Response.json({contract:null,hasOperationalTransactions:false,state:'Missing',partners:[],investors:[]}));
       if (url.includes('/api/')) return Promise.resolve(new Response('{}', {status:503,headers:{'Content-Type':'application/json'}}));
       return realFetch(input, options);
     };
@@ -110,14 +113,76 @@ try {
     assert.equal(await evaluate("document.querySelector('.form-tab-pane.active')?.textContent.includes('بارگیری این صفحه انجام نشد')"), false, moduleName + ' renders without a page load error')
     if (moduleName === 'PersonsPage') {
       const persons = '.form-tab-pane.active .persons-page'
-      await until(`document.querySelectorAll('${persons} .persons-grid-actions svg').length===3`, 'Persons production toolbar')
+      await until(`document.querySelectorAll('${persons} .persons-grid-actions svg').length===4 && !!document.querySelector('${persons} tbody tr.selected')`, 'Persons production toolbar and rows')
+      const golden = JSON.parse(await readFile(new URL('./persons-golden-geometry.json', import.meta.url)))
+      await send('Emulation.setDeviceMetricsOverride', golden.capture)
+      const measure = () => evaluate(`(async () => {
+        await document.fonts.ready;
+        await new Promise(requestAnimationFrame);
+        const p = document.querySelector('${persons}');
+        const get = selector => p.querySelector(selector);
+        const bounds = selector => get(selector).getBoundingClientRect();
+        const origin = p.getBoundingClientRect();
+        const footer = bounds('.shortcut-bar');
+        return {
+          headerHeight: bounds('thead th').height, headingHeight: bounds('.column-heading').height,
+          headingFontSize: getComputedStyle(get('.column-title')).fontSize,
+          headingPadding: getComputedStyle(get('.column-title')).padding,
+          filterWidth: bounds('.excel-filter-trigger').width,
+          rowHeight: bounds('tbody tr').height, toolbarHeight: bounds('.grid-toolbar').height,
+          toolbarOffset: bounds('.grid-toolbar').top - origin.top,
+          formHeaderOffset: bounds('.person-section-head').top - origin.top,
+          formHeaderHeight: bounds('.person-section-head').height, editorHeight: bounds('.person-editor').height,
+          fieldHeight: bounds('[data-field=personCode]').height, footerVisible: footer.bottom <= innerHeight && footer.top >= 0,
+          footerBottomInset: origin.bottom - footer.bottom
+        };
+      })()`)
+      await checkPersonsGoldenVisual({ send, evaluate })
+      assert.deepEqual(await measure(), golden.measurements, 'Golden Persons desktop geometry')
+      await evaluate(`document.querySelector('${persons}').style.setProperty('--grid-header-height', '70px')`)
+      assert.deepEqual(await measure(), golden.measurements, 'Shared grid header token cannot change Golden Persons')
+      await evaluate(`document.querySelector('${persons}').style.removeProperty('--grid-header-height')`)
+      const shortcut = `document.querySelector('${persons} .shortcut-settings button')`
+      await evaluate(`${shortcut}.click()`)
+      await until(`${shortcut}.getAttribute('aria-expanded')==='true'`, 'Production shortcut popup')
+      await clickTab('داشبورد')
+      await clickTab('تعریف اشخاص')
+      assert.equal(await evaluate(`${shortcut}.getAttribute('aria-expanded')`), 'false', 'Switching tabs closes Persons shortcut settings')
       if (process.env.PERSONS_PRODUCTION_SCREENSHOT) {
         const screenshot = await send('Page.captureScreenshot', { format: 'png' })
         await writeFile(process.env.PERSONS_PRODUCTION_SCREENSHOT, Buffer.from(screenshot.data, 'base64'))
       }
       await evaluate(`document.querySelector('${persons} button[aria-label="تنظیمات فرم"]').click()`)
-      await until(`!!document.querySelector('${persons} .operational-settings-tools')&&!document.querySelector('${persons} .shortcut-settings[open]')`, 'Persons production appearance settings')
+      await until(`!!document.querySelector('${persons} .operational-settings-tools')&&!document.querySelector('${persons} .shortcut-settings [aria-expanded="true"]')`, 'Persons production appearance settings')
       await evaluate(`[...document.querySelectorAll('${persons} .operational-settings-header-actions button')].find(button=>button.textContent==='خروج بدون ذخیره').click()`)
+      for (const width of [760, 480]) {
+        await send('Emulation.setDeviceMetricsOverride', { ...golden.capture, width, height: 800 })
+        const available = await evaluate(`(async () => {
+          await new Promise(requestAnimationFrame);
+          const p = document.querySelector('${persons}');
+          const fields = p.querySelector('.person-form-grid');
+          const code = fields.querySelector('[data-field=personCode]');
+          const toolbar = p.querySelector('.grid-toolbar');
+          const footer = p.querySelector('.shortcut-bar');
+          return {
+            columns: getComputedStyle(fields).gridTemplateColumns.split(' ').length,
+            codeUsable: code.getBoundingClientRect().width > 80,
+            actionsContained: toolbar.scrollWidth <= toolbar.clientWidth,
+            footerReachable: (() => { footer.scrollIntoView({ block: 'end' }); return footer.getBoundingClientRect().top < innerHeight; })()
+          };
+        })()`)
+        assert.deepEqual(available, { columns: width <= 520 ? 1 : 2, codeUsable:true, actionsContained:true, footerReachable:true }, `Persons responsive layout at ${width}px`)
+      }
+      await send('Emulation.setDeviceMetricsOverride', golden.capture)
+    }
+    if (moduleName === 'BusinessContractPage') {
+      const create = "document.querySelector('.form-tab-pane.active [data-create-action=true]')"
+      const save = "document.querySelector('.form-tab-pane.active [data-save-action=true]')"
+      await until(`!!${create}`, 'Missing contract offers Create')
+      await evaluate(`${create}.click()`)
+      await until(`!!${save} && !${create}`, 'New contract offers Save')
+      await evaluate(`${save}.nextElementSibling.click()`)
+      await until(`!!${create} && !${save}`, 'Cancel discards draft and retains contract tab')
     }
   }
   console.log('PASS all remaining page modules load when selected')

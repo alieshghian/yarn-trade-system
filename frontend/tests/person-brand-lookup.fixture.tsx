@@ -5,10 +5,12 @@ import PersonsPage from '../src/PersonsPage'
 import BrandsPage from '../src/BrandsPage'
 import {installFormInteraction} from '../src/formInteraction'
 import {setAccessPermissions} from '../src/api'
+import {applyGridFiltersAndSort, type ExcelGridColumn, type GridQuery} from '../src/components/base-form/excelGrid'
 import '../src/styles.css'
 import '../src/components/base-form/formTheme.css'
 if(!import.meta.env.DEV)throw Error('Development fixture only')
 const toolbarFixture = new URLSearchParams(location.search).has('toolbar')
+if (toolbarFixture) document.documentElement.style.scrollbarGutter = 'stable'
 const actor = toolbarFixture ? sessionStorage.getItem('currentUser') ?? 'toolbar-owner' : undefined
 setAccessPermissions(actor === 'toolbar-denied' ? [] : actor === 'toolbar-other-viewer' ? ['persons.view'] :
   ['persons.view','persons.create','persons.edit','brands.view','brands.create','brands.edit'])
@@ -23,6 +25,9 @@ const people = toolbarFixture ? Array.from({length: 102}, (_, index) => ({
   lastName: 'Person '+index, displayName: 'Test Person '+index, titleId: 'title',
   preferredLanguage: 'fa', creditLimitIRR: 0, isActive: true, phone: '02112345678'
 })) : []
+const peopleColumns: ExcelGridColumn<typeof people[number]>[] = [
+  {id:'personCode',label:'Code',type:'text',width:130,value:person=>person.personCode},
+]
 window.fetch=async(input,options)=>{
  const url=String(typeof input==='string'?input:input instanceof URL?input:input.url)
  ;(window as unknown as {lookupRequests:string[]}).lookupRequests.push((options?.method??'GET')+' '+url)
@@ -36,8 +41,10 @@ window.fetch=async(input,options)=>{
  if(url.includes('/api/master-data/parameters'))return json([{id:'title',parameterType:'Title',code:'MR',nameFa:'آقای',nameEn:'Mr',personType:'Individual'}])
  if(url.includes('/api/sequence-suggestions'))return json({value:'996',suggestion:'996',code:'996'})
  if(url.includes('/api/master-data/persons/grid')){
-   const {page,pageSize}=JSON.parse(String(options?.body))
-   return json({items:people.slice((page-1)*pageSize,page*pageSize),total:people.length,page,pageSize})
+   const {page,pageSize,filters,sort,optionsColumn}=JSON.parse(String(options?.body)) as GridQuery & {optionsColumn?: string}
+   const matches=applyGridFiltersAndSort(people,peopleColumns,filters,sort,'fa')
+   if(optionsColumn==='personCode')return json({filterValues:people.map(person=>person.personCode)})
+   return json({items:matches.slice((page-1)*pageSize,page*pageSize),total:matches.length,page,pageSize})
  }
  return json({})
 }

@@ -1572,3 +1572,8 @@ When security guidance changes materially, update this section and the affected 
 
 - Added the reusable `base-form.cascading-tree-panels` input component to the Form Laboratory registry and actual schema-field renderer. It presents five RTL levels, ancestor-only path columns, sibling filtering, Back/Show All, inline group creation, normalized sibling duplicate checks and a five-level limit using stable node/parent IDs with local demo data.
 - Phase 1 is a synthetic in-memory component preview. Persistence, business-source integration, product-group form construction and lower-grid/master-detail integration remain later work.
+## ۲۰۲۶-۱۱-۲۲ — قرارداد بازیابی فرم اشخاص
+
+- مرجع تاریخی مستقل فرم اشخاص، نسخهٔ Golden در `d0f15535f712df68e437b4ae154470d3836666b1` است. در تنظیمات پیش‌فرض، سرستون ۳۱، محتوای سرستون ۳۰، دکمهٔ فیلتر ۲۷، ردیف مرجع ۳۱ و نوار ابزار ۴۲ پیکسل‌اند. از `docs/audits/approved-form-regression-matrix.md` برای منشأ اعداد، محدودیت‌ها و مقایسهٔ شاخه‌ها استفاده کنید.
+- بستن پنجرهٔ میان‌بر با Escape، کلیک بیرون، دکمه یا تغییر تب بخشی از قرارداد عملیاتی اشخاص است. چرخ‌دنده ویرایشگر ظاهر همان حساب را باز می‌کند. بازنشانی فیلتر با کنترل نوار جدول و F8، فیلترها را پاک و صفحهٔ اول را بارگیری می‌کند و مرتب‌سازی و ترجیحات ستون را حفظ می‌کند.
+- آزمون مرورگری بستهٔ تولیدی، اندازه‌ها را از `frontend/tests/persons-golden-geometry.json` می‌خواند و برش تصویر تاریخی را با اجرای فعلی مقایسه می‌کند. تغییر خط مبنا مستلزم ارجاع به شاهد تأییدشده و بازبینی است. تصویر تاریخ‌دار تازهٔ اجرای تعمیر مبنای خودکار نمی‌شود.

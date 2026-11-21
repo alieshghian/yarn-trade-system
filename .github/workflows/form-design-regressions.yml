@@ -110,6 +110,13 @@ jobs:
           done
           export FORM_TEST_BROWSER="$(command -v google-chrome)"
           npm run test:app-lazy-loading:browser
+      - name: Upload Persons visual mismatch
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: persons-visual-diff
+          path: frontend/test-results/persons-visual
+          if-no-files-found: ignore
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 45
