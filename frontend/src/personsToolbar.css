@@ -72,6 +72,11 @@
   gap: 8px;
 }
 
+.app-shell .persons-page .grid-toolbar > .persons-grid-actions {
+  /* Keep the endmost tool clear of the application's fixed inbox rail. */
+  margin-inline-end: calc(var(--work-drawer-rail-width) - 10px);
+}
+
 .persons-grid-actions :is(button, summary) {
   box-sizing: border-box;
   display: inline-grid;

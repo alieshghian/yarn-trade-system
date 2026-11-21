@@ -143,6 +143,10 @@ try {
       })()`)
       await checkPersonsGoldenVisual({ send, evaluate })
       assert.deepEqual(await measure(), golden.measurements, 'Golden Persons desktop geometry')
+      assert.deepEqual(await evaluate(`[...document.querySelectorAll('${persons} .persons-grid-actions [data-toolbar-part]')].filter(tool => {
+        const r = tool.getBoundingClientRect();
+        return !tool.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+      }).map(tool => tool.dataset.toolbarPart)`), [], 'Application inbox rail leaves all Persons toolbar controls clickable')
       await evaluate(`document.querySelector('${persons}').style.setProperty('--grid-header-height', '70px')`)
       assert.deepEqual(await measure(), golden.measurements, 'Shared grid header token cannot change Golden Persons')
       await evaluate(`document.querySelector('${persons}').style.removeProperty('--grid-header-height')`)
