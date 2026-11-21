@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { connectChromeDevTools } from './chrome-devtools.mjs'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -12,25 +13,13 @@ assert.ok(executable, 'Install Chrome/Edge or set FORM_TEST_BROWSER')
 const temporaryRoot = resolve(tmpdir())
 const profile = resolve(await mkdtemp(join(temporaryRoot, 'yarn-focus-test-')))
 assert.ok(profile.startsWith(temporaryRoot + sep), 'Browser profile must remain in the temporary directory')
-const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1600,1000', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] })
+const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1600,1000', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
 let socket, session, sequence = 0
 const pending = new Map(), errors = []
 const pause = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 
 try {
-  const endpoint = await new Promise((resolveEndpoint, reject) => {
-    let logs = ''
-    const timer = setTimeout(() => reject(new Error('Chrome did not expose DevTools: ' + logs)), 15000)
-    browser.once('exit', code => { clearTimeout(timer); reject(new Error('Chrome startup exited ' + code + ': ' + logs)) })
-    browser.once('error', reject)
-    browser.stderr.on('data', chunk => {
-      logs += String(chunk)
-      const match = logs.match(/DevTools listening on (ws:\/\/[^\s]+)/)
-      if (match) { clearTimeout(timer); resolveEndpoint(match[1]) }
-    })
-  })
-  socket = new WebSocket(endpoint)
-  await new Promise((resolveOpen, reject) => { socket.addEventListener('open', resolveOpen, { once: true }); socket.addEventListener('error', reject, { once: true }) })
+  socket = await connectChromeDevTools(browser, profile, executable)
   socket.addEventListener('message', event => {
     const data = JSON.parse(event.data)
     if (data.method === 'Runtime.exceptionThrown') errors.push(data.params.exceptionDetails.exception?.description || data.params.exceptionDetails.text)

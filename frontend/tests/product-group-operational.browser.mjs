@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { connectChromeDevTools } from './chrome-devtools.mjs'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
@@ -13,20 +14,12 @@ const url = `http://127.0.0.1:${vite.httpServer.address().port}/tests/product-gr
 const executable = process.env.FORM_TEST_BROWSER || ['C:/Program Files/Google/Chrome/Application/chrome.exe','C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'].find(existsSync)
 assert.ok(executable, 'Chrome/Edge is required')
 const profile = await mkdtemp(join(tmpdir(), 'yarn-product-group-'))
-const browser = spawn(executable, ['--headless=new','--no-first-run','--no-default-browser-check','--disable-gpu','--disable-crash-reporter','--disable-breakpad','--window-size=1500,1000','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'], {windowsHide:true, stdio:['ignore','ignore','pipe']})
+const browser = spawn(executable, ['--headless=new','--no-first-run','--no-default-browser-check','--disable-gpu','--disable-crash-reporter','--disable-breakpad','--window-size=1500,1000','--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'], {windowsHide:true, stdio:['ignore','pipe','pipe']})
 let socket, session, sequence = 0
 const calls = new Map(), errors = [], passed = []
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 try {
-  const endpoint = await new Promise((resolve,reject) => {
-    let logs = ''
-    const timer = setTimeout(() => reject(Error('Chrome startup timeout: '+logs)),15000)
-    browser.once('error', reject)
-    browser.once('exit', code => {clearTimeout(timer);reject(Error('Chrome startup exited '+code+': '+logs))})
-    browser.stderr.on('data', chunk => {logs+=String(chunk);const match=logs.match(/DevTools listening on (ws:\/\/[^\s]+)/);if(match){clearTimeout(timer);resolve(match[1])}})
-  })
-  socket = new WebSocket(endpoint)
-  await new Promise((resolve,reject) => {socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true})})
+  socket = await connectChromeDevTools(browser, profile, executable)
   socket.addEventListener('message', event => {
     const data = JSON.parse(event.data)
     if(data.method==='Page.javascriptDialogOpening') void send('Page.handleJavaScriptDialog',{accept:data.params.type==='confirm'});
