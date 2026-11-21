@@ -1,0 +1,64 @@
+.persons-settings-controls,
+.persons-grid-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.persons-settings-controls .form-settings-button {
+  display: inline-grid;
+  place-items: center;
+}
+
+.persons-grid-actions {
+  position: relative;
+  flex: none;
+}
+
+.persons-grid-actions :is(button, summary) {
+  box-sizing: border-box;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper, #fff);
+  color: var(--teal);
+  cursor: pointer;
+}
+
+.persons-grid-actions :is(button, summary):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.persons-grid-actions svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.persons-grid-actions button:disabled {
+  cursor: wait;
+}
+
+.persons-page > .persons-grid-expanded {
+  position: fixed;
+  inset: 12px;
+  z-index: 100;
+  width: auto;
+  max-width: none;
+  height: auto;
+  margin: 0;
+}
+
+.operational-personal-host .person-form-grid .personal-selected {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}

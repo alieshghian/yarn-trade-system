@@ -1,5 +1,7 @@
 import {useDefinitionRowSelection,deleteSelectedDefinitionRows} from './components/base-form/useDefinitionRowSelection'
-import {FormSettingsButton} from './components/base-form/FormSettingsButton'
+import {GridToolbarIcon} from './components/base-form/GridToolbarIcon'
+import {OperationalFormFrame, type OperationalSettingsControls} from './components/base-form/OperationalFormFrame'
+import {emptyDesignerDraft} from './components/base-form/designer'
 import {useFieldValidation} from './components/base-form/useFieldValidation'
 import { NumberControl, formatInternationalNumber } from './components/base-form/NumberControl'
 import { PersonTitleControl, type PersonTitleOption } from './components/base-form/PersonTitleControl'
@@ -15,6 +17,10 @@ import { createPortal } from 'react-dom'
 import { ApiError, api, apiRequest, currentUserKey, hasPermission, isConcurrencyConflict, withRowVersion } from './api'
 import type { Language } from './i18n'
 import { suggestSerial } from './sequences'
+import './personsToolbar.css'
+
+const personsAppearance = { colors: true, typography: true, formSize: false, tablePresentation: false }
+const personsDesign = emptyDesignerDraft('persons')
 
 type ParameterType = 'Job' | 'Title' | 'Nationality'
 type Parameter = { id: string, parameterType: ParameterType, code: string, nameFa: string, nameEn: string, personType?: 'Individual' | 'Company' }
@@ -136,7 +142,11 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const columnKey = `persons-columns:${authenticatedUserId ?? userKey}`
   const legacyColumnKey = `persons-columns:${userKey}`
   const shortcutKey = `persons-shortcuts:${userKey}`
-  const [settingsOpen,setSettingsOpen]=useState(false)
+  const [gridNormalHeight, setGridNormalHeight] = useState<number | null>(null)
+  const gridPanel = useRef<HTMLElement>(null)
+  const gridExpanded = gridNormalHeight !== null
+  const [exporting, setExporting] = useState(false)
+  const [exportStatus, setExportStatus] = useState('')
   const [topHeight, setTopHeight] = useState(() => Number(localStorage.getItem(splitKey)) || defaultFormTheme.editorHeight)
   const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns(columnKey, legacyColumnKey))
   const columnOwner = useRef(columnKey)
@@ -343,6 +353,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [validateField])
 
   const beginNew = useCallback(async () => {
+    setGridNormalHeight(null)
     const value = emptyDraft()
     value.titleId = parameters.find(x=>x.parameterType==='Title'&&x.id===titleDefaultId)?.id??parameters.find(x => x.parameterType === 'Title' && x.code === 'MR')?.id ?? ''
     value.nationalityId = parameters.find(x => x.parameterType === 'Nationality' && x.code === 'IR')?.id ?? ''
@@ -365,6 +376,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [contractCreation, lookupCreation, loading, parameters, beginNew, persons, fa])
   const beginEdit = useCallback(() => {
     if (!selected || selected.isContractPartner && !contractCreation) return
+    setGridNormalHeight(null)
     const value = copyDraft(selected)
     if (!value.titleId) value.titleId = parameters.find(x => x.parameterType === 'Title' && x.code === (value.personType === 'Company' ? 'COMPANY' : 'MR'))?.id ?? ''
     setDraft(value); original.current = JSON.stringify(value); setMode('edit'); setError(''); setMessage(''); setFieldErrors({})
@@ -586,9 +598,56 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     return { id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? personType }
   }
 
-  return <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} data-record-presentation={mode!=='view'?'entry':selectedId?'view':'empty'} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
+  const standalone = !contractCreation && !lookupCreation
+  const gridTitle = fa ? 'فهرست اشخاص' : 'People'
+  const columnsLabel = fa ? 'ستون‌ها' : 'Columns'
+  const expandLabel = fa ? (gridExpanded ? 'کوچک کردن فرم' : 'بزرگ کردن فرم') : (gridExpanded ? 'Shrink form' : 'Expand form')
+  const exportLabel = fa ? 'خروجی اکسل' : 'Excel export'
+  const shortcutLabel = fa ? 'میان‌برهای صفحه‌کلید' : 'Keyboard shortcuts'
+  async function exportPersons() {
+    if (exporting) return
+    setExporting(true)
+    setExportStatus('')
+    try {
+      const visible = visibleColumns.map(column => gridColumns.find(item => item.id === column.key)!)
+      const query = gridQueryRef.current
+      const { downloadGridWorkbook } = await import('./components/base-form/exportGridWorkbook')
+      const rows = demoMode ? filtered : []
+      if (!demoMode) {
+        const seen = new Set<string>()
+        let total: number | undefined
+        for (let page = 1; total === undefined || rows.length < total; page++) {
+          const result = await apiRequest<GridPage<Person>>('/api/master-data/persons/grid', { method: 'POST', body: JSON.stringify({ ...query, page }) })
+          total ??= result.total
+          for (const row of result.items) seen.add(row.id)
+          rows.push(...result.items)
+          if (total !== result.total || rows.length !== seen.size || rows.length > total || (!result.items.length && rows.length < total)) {
+            throw new Error(fa ? 'فهرست اشخاص هنگام خروجی تغییر کرد. دوباره تلاش کنید.' : 'The person list changed during export. Try again.')
+          }
+        }
+      }
+      downloadGridWorkbook({ title: gridTitle, language, columns: visible, rows })
+      setExportStatus(fa ? 'فایل اکسل آماده شد.' : 'Excel file created.')
+    } catch (error) {
+      setExportStatus(error instanceof Error ? error.message : (fa ? 'خروجی اکسل انجام نشد.' : 'Excel export failed.'))
+    } finally {
+      setExporting(false)
+    }
+  }
+  const renderPage = (settings?: OperationalSettingsControls) => <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} data-record-presentation={mode!=='view'?'entry':selectedId?'view':'empty'} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
     <section className="person-editor panel">
-      <div className="person-section-head"><div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div><span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span><details className="shortcut-settings person-header-settings" open={settingsOpen}><summary onClick={event=>event.preventDefault()}><FormSettingsButton language={language} expanded={settingsOpen} onClick={()=>setSettingsOpen(open=>!open)}/></summary><div>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div></details></div>
+      <div className="person-section-head">
+        <div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div>
+        <span className={`mode-badge ${mode}`}>{mode === 'view' ? (fa ? 'مشاهده' : 'View') : mode === 'new' ? (fa ? 'جدید' : 'New') : (fa ? 'ویرایش' : 'Edit')}</span>
+        <div className="persons-settings-controls">
+          {settings?.actions}
+          {!settings?.editing && <details className="shortcut-settings person-header-settings">
+            <summary role="button" aria-label={shortcutLabel} title={shortcutLabel} className="form-settings-button">{standalone ? '⌨' : '⚙'}</summary>
+            <div>{(Object.keys(shortcuts) as ShortcutAction[]).map(action => <label key={action}><span>{({ new: fa ? 'جدید' : 'New', edit: fa ? 'ویرایش' : 'Edit', delete: fa ? 'حذف' : 'Delete', save: fa ? 'ثبت' : 'Save' })[action]}</span><select value={shortcuts[action]} onChange={e => setShortcuts(current => ({ ...current, [action]: e.target.value }))}>{shortcutOptions.map(option => <option key={option}>{option}</option>)}</select></label>)}</div>
+          </details>}
+        </div>
+      </div>
+      {settings?.tools}
       {error && <div className="form-message error-message">{error}</div>}{message && <div className="form-message success-message">{message}</div>}
       <div className={`person-form-grid ${mode !== 'view' ? 'editing' : ''}`} ref={formRef} onKeyDown={formKeyDown} onBlur={formBlur}>
         <Field className="person-code-field" label={fa ? 'کد شخص *' : 'Person code *'} error={fieldErrors.personCode}><input data-field="personCode" aria-invalid={Boolean(fieldErrors.personCode)} autoFocus={mode === 'new'} disabled={disabled || selected?.isContractPartner} maxLength={30} value={draft.personCode} onChange={e => set('personCode', e.target.value)} /></Field>
@@ -606,8 +665,20 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       </div>
     </section>
     <div className="split-handle" onPointerDown={resizeStart}><span /></div>
-    <section className="person-grid-panel panel">
-      <div className="grid-toolbar"><div><h2>{fa ? 'فهرست اشخاص' : 'People'}</h2><span>{fa ? `${gridStart} تا ${gridEnd} از ${gridTotal} رکورد` : `${gridStart}–${gridEnd} of ${gridTotal} records`}</span></div><div className="persons-grid-pager"><button type="button" disabled={gridPage <= 1 || gridLoading} onClick={() => setGridPage(page => page - 1)}>{fa ? 'قبلی' : 'Previous'}</button><span>{gridPage} / {gridPageCount}</span><button type="button" disabled={gridPage >= gridPageCount || gridLoading} onClick={() => setGridPage(page => page + 1)}>{fa ? 'بعدی' : 'Next'}</button></div><details className="column-picker" ref={columnPicker} open={columnMenuOpen}><summary aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>☷ {fa ? 'ستون‌ها' : 'Columns'}</summary></details></div>
+    {gridExpanded && <div aria-hidden="true" style={{ height: gridNormalHeight, flex: '0 0 auto' }} />}
+    <section ref={gridPanel} className={`person-grid-panel panel${gridExpanded ? ' persons-grid-expanded' : ''}`}>
+      <div className="grid-toolbar">
+        <div><h2>{gridTitle}</h2><span>{fa ? `${gridStart} تا ${gridEnd} از ${gridTotal} رکورد` : `${gridStart}–${gridEnd} of ${gridTotal} records`}</span></div>
+        <div className="persons-grid-pager"><button type="button" disabled={gridPage <= 1 || gridLoading} onClick={() => setGridPage(page => page - 1)}>{fa ? 'قبلی' : 'Previous'}</button><span>{gridPage} / {gridPageCount}</span><button type="button" disabled={gridPage >= gridPageCount || gridLoading} onClick={() => setGridPage(page => page + 1)}>{fa ? 'بعدی' : 'Next'}</button></div>
+        <div className={standalone ? 'persons-grid-actions' : undefined}>
+          <details className="column-picker" ref={columnPicker} open={columnMenuOpen} data-toolbar-part="columns">
+            <summary role="button" aria-label={columnsLabel} title={columnsLabel} aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>{standalone ? <GridToolbarIcon kind="columns" /> : `☷ ${columnsLabel}`}</summary>
+          </details>
+          {standalone && <><span data-toolbar-part="expand"><button type="button" aria-label={expandLabel} title={expandLabel} aria-pressed={gridExpanded} onClick={() => setGridNormalHeight(gridExpanded ? null : gridPanel.current?.getBoundingClientRect().height ?? null)}><GridToolbarIcon kind={gridExpanded ? 'restore' : 'expand'} /></button></span>
+          <span data-toolbar-part="export"><button type="button" aria-label={exportLabel} title={exportLabel} disabled={exporting} aria-busy={exporting} onClick={() => void exportPersons()}><GridToolbarIcon kind="excel" /></button></span>
+          <span className="grid-export-status" role="status">{exportStatus}</span></>}
+        </div>
+      </div>
       {columnMenuOpen && createPortal(<div ref={columnMenu} className="person-column-menu" dir={fa ? 'rtl' : 'ltr'} style={columnMenuPosition}>{columns.map(column => <label key={column.key}><input type="checkbox" checked={column.visible} disabled={column.visible && visibleColumns.length === 1} onChange={() => toggleColumn(column.key)} />{columnLabel(column.key)}</label>)}<button type="button" onClick={() => setColumns(defaultColumns)}>↺ {fa ? 'حالت پیش‌فرض' : 'Reset'}</button></div>, document.body)}
       {(bulk.multiSelection&&(bulk.selection.size>0||bulk.error))&&<div className="definition-bulk-status" role="status">{bulk.selection.size>1&&<span>{bulk.selection.size} ردیف انتخاب شده — Delete: حذف</span>}{bulk.selection.size>0&&<button type="button" data-definition-bulk-delete disabled={bulk.busy} onClick={()=>void bulk.remove()}>حذف انتخاب‌ها</button>}{bulk.error&&<span role="alert">{bulk.error}</span>}</div>}
       <div className="person-table-wrap" tabIndex={0} onKeyDownCapture={bulk.keyDown}><ExcelGridFilterScope onReset={() => { setFilters({}); setGridPage(1) }}><table className="person-table excel-grid" style={{ minWidth: visibleColumns.reduce((sum, column) => sum + column.width, 0) }}><colgroup>{visibleColumns.map(column => <col key={column.key} style={{ width: column.width }} />)}</colgroup><thead>
@@ -626,11 +697,17 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
           <Shortcut code="PgDn" label={fa ? 'صفحه بعد' : 'Page down'} onClick={() => move('pageDown')} />
           <Shortcut code="End" label={fa ? 'آخر' : 'Last'} onClick={() => move('end')} />
         </> : <>
-          <Shortcut code="F3" label={fa ? 'ثبت اطلاعات' : 'Save'} onClick={() => void save()} primary />
+          <Shortcut code={shortcuts.save} label={fa ? 'ثبت اطلاعات' : 'Save'} onClick={() => void save()} primary />
           <Shortcut code="Esc" label={fa ? 'انصراف' : 'Cancel'} onClick={cancel} />
         </>}
 
       </div>
     </section>
   </div>
+  const owner = demoMode ? 'demo-persons' : authenticatedUserId ?? userKey
+  if (!standalone || (!demoMode && !hasPermission('persons.view'))) return renderPage()
+  return <OperationalFormFrame key={owner} formId="persons" title={gridTitle} language={language}
+    designerDraft={personsDesign} permissions={personsAppearance} legacyLayout userId={owner} settingsDisabled={mode !== 'view'}>
+    {(_draft, settings) => renderPage(settings)}
+  </OperationalFormFrame>
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 
@@ -119,6 +119,17 @@ try {
     await until(`performance.getEntriesByType('resource').some(entry => entry.name.includes('/assets/${moduleName}-'))`, moduleName + ' code')
     await until("!!document.querySelector('.form-tab-pane.active > :not([role=status])')", moduleName + ' page')
     assert.equal(await evaluate("document.querySelector('.form-tab-pane.active')?.textContent.includes('بارگیری این صفحه انجام نشد')"), false, moduleName + ' renders without a page load error')
+    if (moduleName === 'PersonsPage') {
+      const persons = '.form-tab-pane.active .persons-page'
+      await until(`document.querySelectorAll('${persons} .persons-grid-actions svg').length===3`, 'Persons production toolbar')
+      if (process.env.PERSONS_PRODUCTION_SCREENSHOT) {
+        const screenshot = await send('Page.captureScreenshot', { format: 'png' })
+        await writeFile(process.env.PERSONS_PRODUCTION_SCREENSHOT, Buffer.from(screenshot.data, 'base64'))
+      }
+      await evaluate(`document.querySelector('${persons} button[aria-label="تنظیمات فرم"]').click()`)
+      await until(`!!document.querySelector('${persons} .operational-settings-tools')&&!document.querySelector('${persons} .shortcut-settings[open]')`, 'Persons production appearance settings')
+      await evaluate(`[...document.querySelectorAll('${persons} .operational-settings-header-actions button')].find(button=>button.textContent==='خروج بدون ذخیره').click()`)
+    }
   }
   console.log('PASS all remaining page modules load when selected')
   assert.deepEqual(errors, [], 'browser must not report uncaught exceptions')

@@ -138,6 +138,7 @@ try {
   await inputValue("document.querySelector('[data-field=brandCode]')",'MiXeD-۱۲۳');
   await action('save');
   await until("window.brandRequests.some(r=>r.path==='/api/master-data/brands'&&r.method==='POST')");
+  await until("!document.querySelector('[data-action-id=\"operational.save\"] button')", 'Brand returns to view after the create response')
   await check('save clears the entry focus indicator',"!document.querySelector('[data-entry-focus-indicator=true]')");
   assert.deepEqual(await evaluate("({code:window.brandRequests.find(r=>r.path==='/api/master-data/brands'&&r.method==='POST').body.brandCode,events:window.brandEvents})"),{code:'MiXeD-123',events:2}, 'brand creation preserves mixed case, normalizes digits and publishes one event per save');
   await check('saved record is selected in both table and editor',"document.querySelector('tr[aria-selected=true]')?.textContent.includes('MiXeD-123')&&document.querySelector('[data-field=brandCode]').value==='MiXeD-123'");

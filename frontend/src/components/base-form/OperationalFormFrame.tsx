@@ -1,6 +1,6 @@
 import {FormDocumentDialog} from './FormDocumentDialog'
 import {FormDocumentHeader} from './FormDocumentHeader'
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { currentUserKey } from '../../api'
 import { FormSettingsButton } from './FormSettingsButton'
@@ -17,7 +17,9 @@ type Preferences = { width?: number; height?: number; offsetX?: number; offsetY?
 type BehaviorContract = Pick<typeof behaviorDefaults, 'personalCustomization'>
 type TargetRule = { id: string; selector: string; backgroundSelector?: string; borderSelector?: string; label: { fa: string; en: string }; positionEditable: boolean; resize?: 'headerHeight' | 'toolbarHeight' | 'editorRatio' | 'formHeaderHeight' }
 type TargetMatch = { key: string; node: HTMLElement; label: string; gridId?: string }
-type Props = { formId: string; title: string; language: 'fa' | 'en' | 'zh'; designerDraft: DesignerDraft; permissions: ManagedFormCustomization; width: number; height?: number | null; notice?: ReactNode; fieldIds?: Record<string, string>; behaviorContract?: BehaviorContract; children: (draft: DesignerDraft) => ReactNode }
+export type OperationalSettingsControls = { actions: ReactNode; tools: ReactNode; editing: boolean }
+type Props = { formId: string; title: string; language: 'fa' | 'en' | 'zh'; designerDraft: DesignerDraft; permissions: ManagedFormCustomization; height?: number | null; notice?: ReactNode; fieldIds?: Record<string, string>; behaviorContract?: BehaviorContract; userId?: string; settingsDisabled?: boolean; children: (draft: DesignerDraft, controls: OperationalSettingsControls) => ReactNode }
+  & ({ legacyLayout: true; width?: never } | { legacyLayout?: false; width: number })
 
 const fontKeys = ['fontFamily', 'fontSize', 'bold', 'italic', 'underline', 'strikeThrough', 'script']
 const colorKeys = ['backgroundColor', 'textColor', 'borderColor']
@@ -121,9 +123,9 @@ function cssDeclarations(style: PersonalStyle): string {
   return declarations.join(';')
 }
 
-function personalStylesheet(regions: Record<string, PersonalStyle>, contract: BehaviorContract): string {
+function personalStylesheet(regions: Record<string, PersonalStyle>, contract: BehaviorContract, scope = '.operational-form-frame'): string {
   const priority = (id: string) => id === 'form-title' || ['table-headers', 'table-rows', 'table-cells'].includes(id) ? 1 : id === 'toolbar:search' ? 1 : id.startsWith('toolbar:searchOption:') ? 4 : ['toolbar:searchInput', 'toolbar:searchInput:focus'].includes(id) ? 5 : id.startsWith('toolbar:') || id.startsWith('table-header:') || id.startsWith('table-column:') ? 3 : 0
-  const scoped = (selector: string) => selector.split(',').map(part => `.operational-form-frame ${part.trim()}`).join(',')
+  const scoped = (selector: string) => selector.split(',').map(part => `${scope} ${part.trim()}`).join(',')
   return Object.entries(regions).sort(([left], [right]) => priority(left) - priority(right)).flatMap(([id, style]) => {
     const rule = targetRule(id, contract)
     if (!rule) return []
@@ -140,7 +142,9 @@ function personalStylesheet(regions: Record<string, PersonalStyle>, contract: Be
 /** Personal appearance follows the form's embedded Laboratory contract and shared formatting controls. */
 export function OperationalFormFrame(p: Props) {
   const fa = p.language === 'fa', contract = p.behaviorContract ?? behaviorDefaults
-  const key = 'yarn-trade:operational-form-preferences:v1:' + encodeURIComponent(currentUserKey()) + ':' + p.formId
+  const scopeId = useId()
+  const scope = `[data-legacy-personal-scope=${JSON.stringify(scopeId)}]`
+  const key = 'yarn-trade:operational-form-preferences:v1:' + encodeURIComponent(p.userId ?? currentUserKey()) + ':' + p.formId
   const [saved, setSaved] = useState<Preferences>(() => { try { return permitted(JSON.parse(localStorage.getItem(key) ?? '{}'), p.permissions, contract) } catch { return {} } })
   const [editing, setEditing] = useState<Preferences | null>(null)
   const [target, setTarget] = useState<string | null>(null)
@@ -217,6 +221,13 @@ export function OperationalFormFrame(p: Props) {
     if (fieldPart) {
       const field = fieldPart.closest('.laboratory-designer-field')?.querySelector<HTMLElement>('[data-field]')?.dataset.field
       if (field) return { key: (p.fieldIds?.[field] ?? field) + (fieldPart.classList.contains('designer-label-part') ? '::label' : '::input'), node: fieldPart, label: fieldPart.classList.contains('designer-label-part') ? (fa ? 'برچسب فیلد' : 'Field label') : (fa ? 'فیلد فرم' : 'Form field') }
+    }
+    if (p.legacyLayout && element.closest('.person-form-grid')) {
+      const label = element.closest<HTMLElement>('label > span')
+      const control = element.closest<HTMLElement>('[data-field]') ?? label?.parentElement?.querySelector<HTMLElement>('[data-field]')
+      if (control?.dataset.field && (p.permissions.typography || p.permissions.colors)) {
+        return { key: control.dataset.field + (label ? '::label' : '::input'), node: label ?? control, label: fa ? (label ? 'برچسب فیلد' : 'فیلد فرم') : (label ? 'Field label' : 'Form field') }
+      }
     }
     const target = (key: string, node: Element | null): TargetMatch | null => {
       if (!node || !frameRef.current?.contains(node)) return null
@@ -313,6 +324,7 @@ export function OperationalFormFrame(p: Props) {
   }
   const exitWithoutSaving = () => { setEditing(null); setContextMenu(null); setContextGroup(null); setFont(null); setColor(null); colorPreviewBase.current = null; clearSelection(); setError('') }
   const resize = (event: PointerEvent<HTMLButtonElement>, edge: typeof resizeHandles[number]) => {
+    if (p.legacyLayout) return
     const width = preferences.width ?? p.width, height = preferences.height ?? p.height ?? 760
     captureDesignerPointer(event, (dx, dy) => {
       const x = edge.includes('left') ? resizeDesignerEdge(width, dx, 'left', 320, 1920) : edge.includes('right') ? resizeDesignerEdge(width, dx, 'right', 320, 1920) : { size: width, positionDelta: 0 }
@@ -385,17 +397,26 @@ export function OperationalFormFrame(p: Props) {
     }
   }
   const treeWeights=Object.entries(preferences.overrides??{}).flatMap(([id,style])=>{if(id.endsWith('::label'))return [];const fieldId=id.split('::')[0],field=Object.entries(p.fieldIds??{}).find(([,value])=>value===fieldId)?.[0]??fieldId;if(!/^[a-zA-Z0-9_.-]+$/.test(field))return [];return [` .operational-form-frame .laboratory-designer-field:has([data-field="${field}"]) .cascading-tree-node{${cssDeclarations({...style,backgroundColor:undefined,borderColor:undefined} as PersonalStyle)};${typeof style.bold==='boolean'?'--lab-tree-selected-weight:'+(style.bold?700:400):''}}`] }).join('\n')
-  const styleSheet = personalStylesheet(preferences.regions ?? {}, contract)+'\n'+treeWeights
+  const legacyStyles = p.legacyLayout ? Object.entries(preferences.overrides ?? {}).flatMap(([key, style]) => {
+    const match = /^([\w.-]+)::(label|input)$/.exec(key)
+    if (!match) return []
+    const control = `[data-field="${match[1]}"]`
+    const target = match[2] === 'label' ? `label:has(${control}) > span:first-child` : control
+    return `${scope} .person-form-grid ${target}{${cssDeclarations(style as PersonalStyle)}}`
+  }).join('\n') : ''
+  const styleSheet = personalStylesheet(preferences.regions ?? {}, contract, p.legacyLayout ? scope : undefined)+'\n'+(p.legacyLayout ? legacyStyles : treeWeights)
   const menuLabel = selectedRule?.label[fa ? 'fa' : 'en'] ?? (fa ? target?.endsWith('::label') ? 'برچسب فیلد' : 'فیلد فرم' : target?.endsWith('::label') ? 'Field label' : 'Form field')
   const menuTop = contextMenu ? Math.max(8, Math.min(contextMenu.top, window.innerHeight - 300)) : 8
   const menuLeft = contextMenu ? Math.max(8, Math.min(window.innerWidth - 228, contextMenu.left > 236 ? contextMenu.left - 228 : contextMenu.left + 220)) : 8
   const gridCustomization: OperationalGridCustomization = { settingsOpen: Boolean(editing), canResize: p.permissions.tablePresentation, canResizeSplit: p.permissions.tablePresentation || p.permissions.formSize, editorRatio: preferences.editorRatio, layouts: preferences.gridLayouts ?? {}, updateLayout: updateGridLayout, updateEditorRatio }
 
-  return <div ref={frameRef} className="laboratory-form-frame operational-form-frame" data-preview-device="desktop" data-personal-edit={Boolean(editing)} onPointerDownCapture={select} onContextMenuCapture={openElementMenu} onKeyDownCapture={handleFrameKeyDown} style={{ width: preferences.width ?? p.width, height: preferences.height ?? p.height ?? 760, maxWidth: '100%', marginInline: 'auto', left: preferences.offsetX ?? 0, top: preferences.offsetY ?? 0 }}>
+  const settingsActions = editing ? <div className="operational-settings-header-actions"><button type="button" onClick={saveSettings}>{fa ? 'ذخیره تنظیمات' : 'Save settings'}</button><button type="button" onClick={exitWithoutSaving}>{fa ? 'خروج بدون ذخیره' : 'Exit without saving'}</button></div> : !p.settingsDisabled && <FormSettingsButton language={p.language} onClick={() => { setError(''); clearSelection(); setEditing({ ...saved }) }} />
+  const settingsTools = editing && <div className="operational-settings-tools" role="toolbar" aria-label={fa ? 'تنظیمات مجاز فرم' : 'Available form settings'}><span>{fa ? 'بخش یا فیلد موردنظر را با موس انتخاب کنید.' : 'Select a section or field with the mouse.'}</span><button type="button" onClick={() => setEditing({})}>{fa ? 'بازنشانی به طرح اصلی' : 'Reset to designed settings'}</button>{error && <span role="alert">{error}</span>}</div>
+  const controls = { actions: settingsActions, tools: settingsTools, editing: Boolean(editing) }
+  return <div ref={frameRef} className={p.legacyLayout ? 'operational-personal-host' : 'laboratory-form-frame operational-form-frame'} data-legacy-personal-scope={p.legacyLayout ? scopeId : undefined} data-preview-device={p.legacyLayout ? undefined : 'desktop'} data-personal-edit={Boolean(editing)} onPointerDownCapture={select} onContextMenuCapture={openElementMenu} onKeyDownCapture={handleFrameKeyDown} style={p.legacyLayout ? { display: 'contents' } : { width: preferences.width ?? p.width, height: preferences.height ?? p.height ?? 760, maxWidth: '100%', marginInline: 'auto', left: preferences.offsetX ?? 0, top: preferences.offsetY ?? 0 }}>
     {styleSheet && <style data-operational-personal-styles>{styleSheet}</style>}
-    <FormDocumentHeader title={p.title} style={preferences.formHeaderHeight ? { height: preferences.formHeaderHeight, minHeight: preferences.formHeaderHeight } : undefined} actions={editing ? <div className="operational-settings-header-actions"><button type="button" onClick={saveSettings}>{fa ? 'ذخیره تنظیمات' : 'Save settings'}</button><button type="button" onClick={exitWithoutSaving}>{fa ? 'خروج بدون ذخیره' : 'Exit without saving'}</button></div> : <FormSettingsButton language={p.language} onClick={() => { setError(''); clearSelection(); setEditing({ ...saved }) }} />} />
-    {editing && <div className="operational-settings-tools" role="toolbar" aria-label={fa ? 'تنظیمات مجاز فرم' : 'Available form settings'}><span>{fa ? 'بخش یا فیلد موردنظر را با موس انتخاب کنید.' : 'Select a section or field with the mouse.'}</span><button type="button" onClick={() => setEditing({})}>{fa ? 'بازنشانی به طرح اصلی' : 'Reset to designed settings'}</button>{error && <span role="alert">{error}</span>}</div>}
-    <div className="operational-form-notice">{p.notice}</div><OperationalGridCustomizationContext.Provider value={gridCustomization}>{p.children(draft)}</OperationalGridCustomizationContext.Provider>
+    {!p.legacyLayout && <><FormDocumentHeader title={p.title} style={preferences.formHeaderHeight ? { height: preferences.formHeaderHeight, minHeight: preferences.formHeaderHeight } : undefined} actions={settingsActions} />{settingsTools}<div className="operational-form-notice">{p.notice}</div></>}
+    <OperationalGridCustomizationContext.Provider value={gridCustomization}>{p.children(draft, controls)}</OperationalGridCustomizationContext.Provider>
     {editing && p.permissions.formSize && resizeHandles.map(edge => <button key={edge} type="button" className={'designer-edge-handle designer-edge-' + edge} aria-label={'Resize form ' + edge} onPointerDown={event => resize(event, edge)} />)}
     {editing && selectedRule?.resize && selectedNode && ((['toolbarHeight','headerHeight'].includes(selectedRule.resize) && p.permissions.tablePresentation && targetGridId) || (selectedRule.resize === 'editorRatio' && (p.permissions.tablePresentation || p.permissions.formSize)) || (selectedRule.resize === 'formHeaderHeight' && p.permissions.formSize)) && (['editorRatio','formHeaderHeight'].includes(selectedRule.resize) ? (['left','right','bottom'] as const).map(edge => createPortal(<button key={edge} ref={edge === 'bottom' ? resizeHandleRef : undefined} type="button" className={'operational-region-resize-handle is-' + edge} data-resize-kind={selectedRule.resize} aria-label={fa ? 'تغییر اندازه ' + selectedRule.label.fa : 'Resize ' + selectedRule.label.en} aria-keyshortcuts={edge === 'bottom' ? 'ArrowUp ArrowDown' : undefined} title={fa ? 'برای کوچک یا بزرگ کردن بکشید' : 'Drag to resize'} onPointerDown={edge === 'bottom' ? resizeSelectedRegion : event => resize(event, edge)} />, selectedRule.resize === 'formHeaderHeight' ? selectedNode.closest('.form-laboratory-banner') ?? selectedNode : selectedRule.resize === 'editorRatio' ? selectedNode.closest('.base-form-editor') ?? selectedNode : selectedNode, edge)) : createPortal(<button ref={resizeHandleRef} type="button" className="operational-region-resize-handle is-bottom" data-resize-kind={selectedRule.resize} aria-keyshortcuts="ArrowUp ArrowDown" aria-label={fa ? 'تغییر ارتفاع ' + selectedRule.label.fa : 'Resize height of ' + selectedRule.label.en} title={fa ? 'برای تغییر ارتفاع بکشید؛ با کلیدهای بالا و پایین هم تنظیم می‌شود' : 'Drag to resize; Arrow Up and Down also adjust height'} onPointerDown={resizeSelectedRegion} />, selectedNode))}
     {contextMenu && createPortal(<div ref={contextMenuRef} className="designer-context-menu" role="menu" aria-label={fa ? 'ویژگی‌های بخش انتخاب‌شده' : 'Selected section properties'} dir={fa ? 'rtl' : 'ltr'} style={{ left: contextMenu.left, top: contextMenu.top }} onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation() }}>

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+import { checkPersonsToolbar } from './persons-toolbar.scenarios.mjs'
 
 // Run against `npm run preview`; the browser profile and workspace are disposable.
 const base = process.env.APP_TEST_URL || 'http://127.1.0.1:5173'
@@ -41,7 +42,8 @@ async function devToolsEndpoint() {
         return `ws://127.0.0.1:${port}${path}`
       }
     } catch (error) {
-      if (error.code !== 'ENOENT') throw error
+      // Chrome can briefly hold the newly created profile file open on Windows.
+      if (error.code !== 'ENOENT' && error.code !== 'EBUSY') throw error
     }
     await pause(100)
   }
@@ -87,6 +89,9 @@ try {
     await evaluate(`(${expression}).click()`)
   }
 
+  await checkPersonsToolbar({ base, send, evaluate, until, profile })
+  assert.deepEqual(errors, [])
+  if (!process.env.PERSONS_TOOLBAR_ONLY) {
   await send('Page.navigate',{url:base+'/tests/person-brand-lookup.html'});
   await until("!!document.querySelector('.active .shortcut-bar button')",'Persons loaded');
   await evaluate("Array.from(document.querySelectorAll('.active .shortcut-bar button')).find(e=>e.textContent.includes('شخص جدید')).click()");
@@ -209,6 +214,7 @@ try {
   await until(lookup+".querySelector('[data-field]').value===''",'Blank clears brand');
   assert.deepEqual(errors,[]);
   console.log('PASS optional blank choice and first result highlight, ArrowUp/Down, single Enter, visible create button, Insert from search; actual Persons lookup: standard height, blank choice, code/name, Insert real Brands create, save/select, preserved draft');
+  }
 } catch(error){console.error(error);process.exitCode=1}
 finally{
  socket?.close()

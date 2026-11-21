@@ -8,13 +8,21 @@ import {setAccessPermissions} from '../src/api'
 import '../src/styles.css'
 import '../src/components/base-form/formTheme.css'
 if(!import.meta.env.DEV)throw Error('Development fixture only')
-setAccessPermissions(['persons.view','persons.create','persons.edit','brands.view','brands.create','brands.edit'])
+const toolbarFixture = new URLSearchParams(location.search).has('toolbar')
+const actor = toolbarFixture ? sessionStorage.getItem('currentUser') ?? 'toolbar-owner' : undefined
+setAccessPermissions(actor === 'toolbar-denied' ? [] : actor === 'toolbar-other-viewer' ? ['persons.view'] :
+  ['persons.view','persons.create','persons.edit','brands.view','brands.create','brands.edit'])
 installFormInteraction()
 // Deliberately cold source: no empty dialog may be mounted while code loads.
 const brandSource=getSystemLookupSource('brands')!,originalCreate=brandSource.Create!
 brandSource.Create=lazy(async()=>{await new Promise(resolve=>setTimeout(resolve,350));return {default:(props:React.ComponentProps<typeof originalCreate>)=>createElement(originalCreate,props)}})
 Object.assign(window,{lookupRequests:[],personSaves:0})
 const records=[{id:'brand-existing',brandCode:'995',brandName:'برند موجود'},{id:'brand-second',brandCode:'997',brandName:'برند دوم'}]
+const people = toolbarFixture ? Array.from({length: 102}, (_, index) => ({
+  id: 'person-'+index, personCode: 'PERSON-'+index, personType: 'Individual', firstName: 'Test',
+  lastName: 'Person '+index, displayName: 'Test Person '+index, titleId: 'title',
+  preferredLanguage: 'fa', creditLimitIRR: 0, isActive: true, phone: '02112345678'
+})) : []
 window.fetch=async(input,options)=>{
  const url=String(typeof input==='string'?input:input instanceof URL?input:input.url)
  ;(window as unknown as {lookupRequests:string[]}).lookupRequests.push((options?.method??'GET')+' '+url)
@@ -27,7 +35,10 @@ window.fetch=async(input,options)=>{
  if(url.includes('/api/master-data/brands'))return json({items:records,total:records.length})
  if(url.includes('/api/master-data/parameters'))return json([{id:'title',parameterType:'Title',code:'MR',nameFa:'آقای',nameEn:'Mr',personType:'Individual'}])
  if(url.includes('/api/sequence-suggestions'))return json({value:'996',suggestion:'996',code:'996'})
- if(url.includes('/api/master-data/persons/grid'))return json({items:[],total:0,page:1,pageSize:50})
+ if(url.includes('/api/master-data/persons/grid')){
+   const {page,pageSize}=JSON.parse(String(options?.body))
+   return json({items:people.slice((page-1)*pageSize,page*pageSize),total:people.length,page,pageSize})
+ }
  return json({})
 }
-createRoot(document.getElementById('root')!).render(<><div className="form-tab-pane active"><PersonsPage language="fa"/></div><div className="form-tab-pane" style={{display:'none'}}><BrandsPage language="fa"/></div></>)
+createRoot(document.getElementById('root')!).render(<><div className="form-tab-pane active"><PersonsPage language="fa" authenticatedUserId={actor}/></div><div className="form-tab-pane" style={{display:'none'}}><BrandsPage language="fa"/></div></>)
