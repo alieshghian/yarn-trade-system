@@ -178,12 +178,15 @@ try {
   await evaluate("document.querySelector('[data-field=single]').focus()");assert.equal(await evaluate("document.querySelectorAll('[data-component-popup]').length"),0);await press('Enter');await expectFocus('singleNext');assert.equal(await evaluate("document.querySelector('[data-field=single]').value"),'تنها گزینه');assert.equal(await evaluate("document.querySelectorAll('[data-component-popup]').length"),0,'single choice selected without opening list');
   console.log('PASS compound value list Enter skips unchecked fields while preserving mouse access')
   await send('Page.navigate',{url:base+'/tests/form-designer.html?personsDemo=1'})
-  await until("!!document.querySelector('.person-header-settings summary[aria-label=\"میان‌برهای صفحه‌کلید\"]')",'Persons keyboard settings')
-  await evaluate("document.querySelector('.person-header-settings summary').click()")
-  await until("document.querySelector('.person-header-settings').open",'settings opens')
-  assert.equal(await evaluate("document.querySelectorAll('.person-header-settings select').length"),4)
-  await evaluate("document.querySelector('.person-header-settings summary').click()")
-  await until("!document.querySelector('.person-header-settings').open",'settings closes')
+  const shortcutTrigger = "document.querySelector('.person-header-settings button[aria-label=\"میان‌برهای صفحه‌کلید\"]')"
+  const shortcutPanel = `document.getElementById((${shortcutTrigger}).getAttribute('aria-controls'))`
+  await until(`(${shortcutTrigger})?.getAttribute('aria-expanded')==='false'`,'Persons keyboard settings')
+  assert.equal(await evaluate(`${shortcutPanel}.hidden`), true)
+  await evaluate(`(${shortcutTrigger}).click()`)
+  await until(`(${shortcutTrigger}).getAttribute('aria-expanded')==='true' && !${shortcutPanel}.hidden`,'settings opens')
+  assert.equal(await evaluate(`${shortcutPanel}.querySelectorAll('select').length`),4)
+  await evaluate(`(${shortcutTrigger}).click()`)
+  await until(`(${shortcutTrigger}).getAttribute('aria-expanded')==='false' && ${shortcutPanel}.hidden`,'settings closes')
   console.log('PASS Persons separate keyboard settings retains all shortcut assignments')
   await send('Page.navigate',{url:base+'/tests/form-designer.html?smartLayout=1&language=fa'})
   await until("!!document.querySelector('.laboratory-form-manager')",'design manager')
