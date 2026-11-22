@@ -14,7 +14,7 @@ const person = 'src/PersonsPage.tsx'
 const style = 'src/personsToolbar.css'
 const faults = [
   ['persons-editor-field-shift', 'person-brand-lookup', style, /\s*$/, '\n.persons-page .person-first-name-field { transform: translateX(5px); }\n', 'Persons editor Golden tracks for firstName'],
-  ['persons-editor-label-size', 'person-brand-lookup', style, /\s*$/, '\n.persons-page .person-form-grid .person-phone-field > span { font-size: 18px !important; }\n', 'phone label typography'],
+  ['persons-editor-label-size', 'person-brand-lookup', style, /\s*$/, '\n.persons-page .person-form-grid .person-phone-field > span { font-size: 14px !important; line-height: 21.4375px !important; }\n', 'phone label typography'],
   ['shared-xlsx-hidden-column', 'person-brand-lookup', 'src/components/base-form/BaseFormGridBoundary.tsx',
     'columns: visible, rows: exportRows', 'columns, rows: exportRows', 'Brand workbook excludes hidden column'],
   ['contract-amendment-link', 'person-brand-lookup', 'src/BusinessContractPage.tsx',

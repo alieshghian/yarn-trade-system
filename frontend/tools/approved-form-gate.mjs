@@ -77,7 +77,11 @@ async function checkFixtures(suites) {
   try {
     await server.listen()
     const url = urlFor(server)
-    await checkNode(suites, { ...process.env, FORM_TEST_URL: url, APP_TEST_URL: url })
+    // Approved Yarn routing evidence is required in the central gate. The
+    // standalone fixture also supports reviewing a design before activation.
+    await checkNode(suites, {
+      ...process.env, FORM_TEST_URL: url, APP_TEST_URL: url, FORM_TEST_EXPECT_ACTIVATED: '1',
+    })
   } finally {
     await server.close()
   }

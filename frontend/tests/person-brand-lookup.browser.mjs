@@ -157,7 +157,7 @@ try {
   await until("!document.querySelector('.system-lookup-create-dialog')",'Explicit select returns');
   await until(lookup+".querySelector('[data-field]').value.includes('برند اصلاح شده')",'New brand selected');
   assert.equal(await evaluate("document.querySelector('[data-field=firstName]').value"),'نام حفظ شده');
-  assert.equal(await evaluate("document.activeElement?.getAttribute('data-field')"),'nationalityId');
+  await until("document.activeElement?.getAttribute('data-field')==='nationalityId'",'Brand selection restores focus to nationality');
   assert.equal(await evaluate("window.personSaves"),0,'F3 never saves parent person');
   assert.equal(await evaluate("document.querySelector('[data-field=firstName]').disabled"),false,'Person remains in entry mode');
   assert.equal(await evaluate("window.lookupRequests.filter(x=>x==='POST /api/master-data/brands').length"),1,'Exactly one brand save');
@@ -180,7 +180,7 @@ try {
   await evaluate("document.querySelector('.system-lookup-create-dialog .base-grid-table-wrap').focus()");
   await key('Enter');
   await until("!document.querySelector('.system-lookup-create-dialog')",'Explicit mouse selection returns');
-  assert.equal(await evaluate("document.activeElement?.getAttribute('data-field')"),'nationalityId');
+  await until("document.activeElement?.getAttribute('data-field')==='nationalityId'",'Brand selection restores focus to nationality');
   assert.equal(await evaluate("window.personSaves"),0);
   assert.equal(await evaluate("window.lookupRequests.filter(x=>x==='POST /api/master-data/brands').length"),2);
   assert.ok(await evaluate(lookup+".querySelector('[data-field]').value.includes('998')"));

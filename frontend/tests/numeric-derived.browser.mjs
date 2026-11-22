@@ -15,6 +15,7 @@ assert.ok(profile.startsWith(temporaryRoot + sep), 'Browser profile must remain 
 const browser = spawn(executable, ['--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1600,1000', '--remote-debugging-port=0', '--user-data-dir=' + profile, 'about:blank'], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] })
 let socket, session, sequence = 0
 const pending = new Map(), errors = []
+const closed = new Promise(resolveExit => browser.once('close', resolveExit))
 const pause = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms))
 
 try {
@@ -69,10 +70,12 @@ try {
  for(const [name,unit] of [['نمره نخ','دنیر'],['تعداد لا','لا']]){await select('ترکیب '+name,'valueLabel');await select('نوع برچسب '+name,'custom');await evaluate("(()=>{const e=document.querySelector('input[aria-label='+"+JSON.stringify(JSON.stringify('متن همراه '+name))+"+']');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,"+JSON.stringify(unit)+");e.dispatchEvent(new Event('input',{bubbles:true}))})()");}
  await until("document.querySelector('[data-full-name]').textContent==='300 دنیر 2 لا'",'live composed units');const json=await evaluate("JSON.parse(document.querySelector('[data-json]').textContent)");assert.equal(json.config.sourceFormats.plies.label,'لا');assert.equal(json.schema.fields[0].settings.numericSettings.decimalPlaces,2);await select('نوع برچسب نمره نخ','word:1');await until("document.querySelector('[data-full-name]').textContent==='300 نخ 2 لا'",'partial field label live');assert.equal(await evaluate("JSON.parse(document.querySelector('[data-json]').textContent).config.sourceFormats.count.label"),'نخ');assert.deepEqual(errors,[]);console.log('PASS decimal entry, configurable two-place validation, live custom units and JSON settings');
 } finally {
-  if (socket) socket.close()
-  browser.kill()
-  await new Promise(resolveExit => { if (browser.exitCode !== null) resolveExit(); else { browser.once('exit', resolveExit); setTimeout(resolveExit, 5000) } })
-  await rm(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 })
+  if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({id:++sequence, method:'Browser.close'}))
+  else browser.kill()
+  const terminate = setTimeout(() => browser.kill(), 5000)
+  try { await closed }
+  finally { clearTimeout(terminate); socket?.close() }
+  await rm(profile, { recursive: true, force: true, maxRetries: 8, retryDelay: 250 })
 }
 
 
