@@ -14,6 +14,8 @@ const group = 'notes-active-group'
 /** The archived 20-track layout defines the old rectangles. The combined Brand
  * takes the union of the two adjacent old controls. Its full raster has no authenticated reference. */
 export async function checkPersonsEditorGeometry(evaluate, company = false) {
+  const source = await evaluate("document.querySelector('.persons-page[data-operational-design]')?.dataset.operationalDesign")
+  assert.equal(source, reference.form.id, 'Persons uses the original native Golden design identity')
   const fields = rows.flatMap(({row,fields}) => fields.flatMap(field => {
     if (field.id === 'brandIds' || (company ? field.id === 'firstName' : field.id === 'directorName')) return []
     const key = field.id

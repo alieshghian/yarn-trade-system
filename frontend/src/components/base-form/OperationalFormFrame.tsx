@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboard
 import { createPortal } from 'react-dom'
 import { currentUserKey } from '../../api'
 import { FormSettingsButton } from './FormSettingsButton'
-import { captureDesignerPointer, designerResizeHandles as resizeHandles, designerEffectiveValues, resizeDesignerEdge, type DesignerDraft } from './designer'
+import { captureDesignerPointer, designerResizeHandles as resizeHandles, designerEffectiveValues, emptyDesignerDraft, resizeDesignerEdge, type DesignerDraft } from './designer'
 import type { ManagedFormCustomization } from './laboratoryFormDraftState'
 import { DesignerFontPanel, type DesignerFontValue } from './DesignerFontPanel'
 import { ExcelColorPicker } from './ExcelColorPicker'
@@ -18,8 +18,9 @@ type BehaviorContract = Pick<typeof behaviorDefaults, 'personalCustomization'>
 type TargetRule = { id: string; selector: string; backgroundSelector?: string; borderSelector?: string; label: { fa: string; en: string }; positionEditable: boolean; resize?: 'headerHeight' | 'toolbarHeight' | 'editorRatio' | 'formHeaderHeight' }
 type TargetMatch = { key: string; node: HTMLElement; label: string; gridId?: string }
 export type OperationalSettingsControls = { actions: ReactNode; tools: ReactNode; editing: boolean }
-type Props = { formId: string; title: string; language: 'fa' | 'en' | 'zh'; designerDraft: DesignerDraft; permissions: ManagedFormCustomization; height?: number | null; notice?: ReactNode; fieldIds?: Record<string, string>; behaviorContract?: BehaviorContract; userId?: string; settingsDisabled?: boolean; children: (draft: DesignerDraft, controls: OperationalSettingsControls) => ReactNode }
-  & ({ legacyLayout: true; width?: never } | { legacyLayout?: false; width: number })
+type Props = { formId: string; title: string; language: 'fa' | 'en' | 'zh'; permissions: ManagedFormCustomization; height?: number | null; notice?: ReactNode; fieldIds?: Record<string, string>; behaviorContract?: BehaviorContract; userId?: string; settingsDisabled?: boolean }
+  & ({ nativeLayout: true; children: (controls: OperationalSettingsControls) => ReactNode; width?: never; designerDraft?: never }
+    | { nativeLayout?: false; width: number; designerDraft: DesignerDraft; children: (draft: DesignerDraft, controls: OperationalSettingsControls) => ReactNode })
 
 const fontKeys = ['fontFamily', 'fontSize', 'bold', 'italic', 'underline', 'strikeThrough', 'script']
 const colorKeys = ['backgroundColor', 'textColor', 'borderColor']
@@ -163,9 +164,10 @@ export function OperationalFormFrame(p: Props) {
   const fontPatch=font?{fontFamily:font.fontFamily,fontSize:font.fontSize,bold:font.bold,italic:font.italic,underline:font.underline,strikeThrough:font.strikeThrough,script:font.script,...(p.permissions.colors?{textColor:fontPreviewColor??font.color}:{})}:null
   const livePreferences=fontPatch&&editing&&target ? target.startsWith('region:') ? {...editing,regions:{...editing.regions,[target.slice(7)]:{...editing.regions?.[target.slice(7)],...fontPatch}}} : {...editing,overrides:{...editing.overrides,[target]:{...editing.overrides?.[target],...fontPatch}}} : editing??saved
   const preferences = permitted(livePreferences, p.permissions, contract)
-  const input = { ...p.designerDraft.defaults?.input, ...(preferences.fontSize ? { fontSize: preferences.fontSize } : {}), ...(preferences.fontFamily ? { fontFamily: preferences.fontFamily } : {}), ...(preferences.backgroundColor ? { backgroundColor: preferences.backgroundColor } : {}) }
-  const overrides = Object.fromEntries([...new Set([...Object.keys(p.designerDraft.overrides), ...Object.keys(preferences.overrides ?? {})])].map(id => [id, { ...p.designerDraft.overrides[id], ...preferences.overrides?.[id] }]))
-  const draft: DesignerDraft = { ...p.designerDraft, overrides, defaults: { ...p.designerDraft.defaults, input, label: { ...p.designerDraft.defaults?.label, ...(preferences.fontSize ? { fontSize: preferences.fontSize } : {}) } } }
+  const baseDesign = p.designerDraft ?? emptyDesignerDraft(p.formId)
+  const input = { ...baseDesign.defaults?.input, ...(preferences.fontSize ? { fontSize: preferences.fontSize } : {}), ...(preferences.fontFamily ? { fontFamily: preferences.fontFamily } : {}), ...(preferences.backgroundColor ? { backgroundColor: preferences.backgroundColor } : {}) }
+  const overrides = Object.fromEntries([...new Set([...Object.keys(baseDesign.overrides), ...Object.keys(preferences.overrides ?? {})])].map(id => [id, { ...baseDesign.overrides[id], ...preferences.overrides?.[id] }]))
+  const draft: DesignerDraft = { ...baseDesign, overrides, defaults: { ...baseDesign.defaults, input, label: { ...baseDesign.defaults?.label, ...(preferences.fontSize ? { fontSize: preferences.fontSize } : {}) } } }
   const regionId = target?.startsWith('region:') ? target.slice('region:'.length) : null
   const selectedRule = regionId ? targetRule(regionId, contract) : undefined
   const values = regionId ? { ...targetBaseStyle, ...preferences.regions?.[regionId] } : target ? designerEffectiveValues(draft, target.split('::')[0], target.endsWith('::label') ? 'label' : 'input') : input
@@ -209,7 +211,7 @@ export function OperationalFormFrame(p: Props) {
       return next
     })
   }
-  const openFont = () => {setFontPreviewColor(null);const sample=selectedNode?.querySelector<HTMLElement>('.cascading-tree-node[style*="font-weight"]')??selectedNode?.querySelector<HTMLElement>('input,textarea,select')??selectedNode;const effective={...values,...(sample?regionStyleFromElement(sample):targetBaseStyle)};setFont({ fontFamily: String(effective.fontFamily ?? 'inherit'), fontSize: Number(effective.fontSize ?? 16), bold: typeof effective.bold === 'boolean' ? effective.bold : Number((values as {fontWeight?:number}).fontWeight ?? 400)>=600, italic: effective.italic === true, underline: (effective.underline ?? 'none') as DesignerFontValue['underline'], strikeThrough: effective.strikeThrough === true, script: (effective.script ?? 'none') as DesignerFontValue['script'], normalFont: false, color: String(effective.textColor ?? '#263a38'), base: p.designerDraft })}
+  const openFont = () => {setFontPreviewColor(null);const sample=selectedNode?.querySelector<HTMLElement>('.cascading-tree-node[style*="font-weight"]')??selectedNode?.querySelector<HTMLElement>('input,textarea,select')??selectedNode;const effective={...values,...(sample?regionStyleFromElement(sample):targetBaseStyle)};setFont({ fontFamily: String(effective.fontFamily ?? 'inherit'), fontSize: Number(effective.fontSize ?? 16), bold: typeof effective.bold === 'boolean' ? effective.bold : Number((values as {fontWeight?:number}).fontWeight ?? 400)>=600, italic: effective.italic === true, underline: (effective.underline ?? 'none') as DesignerFontValue['underline'], strikeThrough: effective.strikeThrough === true, script: (effective.script ?? 'none') as DesignerFontValue['script'], normalFont: false, color: String(effective.textColor ?? '#263a38'), base: baseDesign })}
   const openColor = (property: 'textColor' | 'backgroundColor' | 'borderColor') => {
     const stored = target?.startsWith('region:') ? preferences.regions?.[target.slice('region:'.length)]?.[property] : target ? preferences.overrides?.[target]?.[property] : undefined
     colorPreviewBase.current = target ? { target, property, value: typeof stored === 'string' ? stored : undefined } : null
@@ -222,7 +224,7 @@ export function OperationalFormFrame(p: Props) {
       const field = fieldPart.closest('.laboratory-designer-field')?.querySelector<HTMLElement>('[data-field]')?.dataset.field
       if (field) return { key: (p.fieldIds?.[field] ?? field) + (fieldPart.classList.contains('designer-label-part') ? '::label' : '::input'), node: fieldPart, label: fieldPart.classList.contains('designer-label-part') ? (fa ? 'برچسب فیلد' : 'Field label') : (fa ? 'فیلد فرم' : 'Form field') }
     }
-    if (p.legacyLayout && element.closest('.person-form-grid')) {
+    if (p.nativeLayout && element.closest('.person-form-grid')) {
       const label = element.closest<HTMLElement>('label > span')
       const control = element.closest<HTMLElement>('[data-field]') ?? label?.parentElement?.querySelector<HTMLElement>('[data-field]')
       if (control?.dataset.field && (p.permissions.typography || p.permissions.colors)) {
@@ -324,7 +326,7 @@ export function OperationalFormFrame(p: Props) {
   }
   const exitWithoutSaving = () => { setEditing(null); setContextMenu(null); setContextGroup(null); setFont(null); setColor(null); colorPreviewBase.current = null; clearSelection(); setError('') }
   const resize = (event: PointerEvent<HTMLButtonElement>, edge: typeof resizeHandles[number]) => {
-    if (p.legacyLayout) return
+    if (p.nativeLayout) return
     const width = preferences.width ?? p.width, height = preferences.height ?? p.height ?? 760
     captureDesignerPointer(event, (dx, dy) => {
       const x = edge.includes('left') ? resizeDesignerEdge(width, dx, 'left', 320, 1920) : edge.includes('right') ? resizeDesignerEdge(width, dx, 'right', 320, 1920) : { size: width, positionDelta: 0 }
@@ -397,14 +399,14 @@ export function OperationalFormFrame(p: Props) {
     }
   }
   const treeWeights=Object.entries(preferences.overrides??{}).flatMap(([id,style])=>{if(id.endsWith('::label'))return [];const fieldId=id.split('::')[0],field=Object.entries(p.fieldIds??{}).find(([,value])=>value===fieldId)?.[0]??fieldId;if(!/^[a-zA-Z0-9_.-]+$/.test(field))return [];return [` .operational-form-frame .laboratory-designer-field:has([data-field="${field}"]) .cascading-tree-node{${cssDeclarations({...style,backgroundColor:undefined,borderColor:undefined} as PersonalStyle)};${typeof style.bold==='boolean'?'--lab-tree-selected-weight:'+(style.bold?700:400):''}}`] }).join('\n')
-  const legacyStyles = p.legacyLayout ? Object.entries(preferences.overrides ?? {}).flatMap(([key, style]) => {
+  const legacyStyles = p.nativeLayout ? Object.entries(preferences.overrides ?? {}).flatMap(([key, style]) => {
     const match = /^([\w.-]+)::(label|input)$/.exec(key)
     if (!match) return []
     const control = `[data-field="${match[1]}"]`
     const target = match[2] === 'label' ? `label:has(${control}) > span:first-child` : control
     return `${scope} .person-form-grid ${target}{${cssDeclarations(style as PersonalStyle)}}`
   }).join('\n') : ''
-  const styleSheet = personalStylesheet(preferences.regions ?? {}, contract, p.legacyLayout ? scope : undefined)+'\n'+(p.legacyLayout ? legacyStyles : treeWeights)
+  const styleSheet = personalStylesheet(preferences.regions ?? {}, contract, p.nativeLayout ? scope : undefined)+'\n'+(p.nativeLayout ? legacyStyles : treeWeights)
   const menuLabel = selectedRule?.label[fa ? 'fa' : 'en'] ?? (fa ? target?.endsWith('::label') ? 'برچسب فیلد' : 'فیلد فرم' : target?.endsWith('::label') ? 'Field label' : 'Form field')
   const menuTop = contextMenu ? Math.max(8, Math.min(contextMenu.top, window.innerHeight - 300)) : 8
   const menuLeft = contextMenu ? Math.max(8, Math.min(window.innerWidth - 228, contextMenu.left > 236 ? contextMenu.left - 228 : contextMenu.left + 220)) : 8
@@ -413,10 +415,10 @@ export function OperationalFormFrame(p: Props) {
   const settingsActions = editing ? <div className="operational-settings-header-actions"><button type="button" onClick={saveSettings}>{fa ? 'ذخیره تنظیمات' : 'Save settings'}</button><button type="button" onClick={exitWithoutSaving}>{fa ? 'خروج بدون ذخیره' : 'Exit without saving'}</button></div> : !p.settingsDisabled && <FormSettingsButton language={p.language} onClick={() => { setError(''); clearSelection(); setEditing({ ...saved }) }} />
   const settingsTools = editing && <div className="operational-settings-tools" role="toolbar" aria-label={fa ? 'تنظیمات مجاز فرم' : 'Available form settings'}><span>{fa ? 'بخش یا فیلد موردنظر را با موس انتخاب کنید.' : 'Select a section or field with the mouse.'}</span><button type="button" onClick={() => setEditing({})}>{fa ? 'بازنشانی به طرح اصلی' : 'Reset to designed settings'}</button>{error && <span role="alert">{error}</span>}</div>
   const controls = { actions: settingsActions, tools: settingsTools, editing: Boolean(editing) }
-  return <div ref={frameRef} className={p.legacyLayout ? 'operational-personal-host' : 'laboratory-form-frame operational-form-frame'} data-legacy-personal-scope={p.legacyLayout ? scopeId : undefined} data-preview-device={p.legacyLayout ? undefined : 'desktop'} data-personal-edit={Boolean(editing)} onPointerDownCapture={select} onContextMenuCapture={openElementMenu} onKeyDownCapture={handleFrameKeyDown} style={p.legacyLayout ? { display: 'contents' } : { width: preferences.width ?? p.width, height: preferences.height ?? p.height ?? 760, maxWidth: '100%', marginInline: 'auto', left: preferences.offsetX ?? 0, top: preferences.offsetY ?? 0 }}>
+  return <div ref={frameRef} className={p.nativeLayout ? 'operational-personal-host' : 'laboratory-form-frame operational-form-frame'} data-legacy-personal-scope={p.nativeLayout ? scopeId : undefined} data-preview-device={p.nativeLayout ? undefined : 'desktop'} data-personal-edit={Boolean(editing)} onPointerDownCapture={select} onContextMenuCapture={openElementMenu} onKeyDownCapture={handleFrameKeyDown} style={p.nativeLayout ? { display: 'contents' } : { width: preferences.width ?? p.width, height: preferences.height ?? p.height ?? 760, maxWidth: '100%', marginInline: 'auto', left: preferences.offsetX ?? 0, top: preferences.offsetY ?? 0 }}>
     {styleSheet && <style data-operational-personal-styles>{styleSheet}</style>}
-    {!p.legacyLayout && <><FormDocumentHeader title={p.title} style={preferences.formHeaderHeight ? { height: preferences.formHeaderHeight, minHeight: preferences.formHeaderHeight } : undefined} actions={settingsActions} />{settingsTools}<div className="operational-form-notice">{p.notice}</div></>}
-    <OperationalGridCustomizationContext.Provider value={gridCustomization}>{p.children(draft, controls)}</OperationalGridCustomizationContext.Provider>
+    {!p.nativeLayout && <><FormDocumentHeader title={p.title} style={preferences.formHeaderHeight ? { height: preferences.formHeaderHeight, minHeight: preferences.formHeaderHeight } : undefined} actions={settingsActions} />{settingsTools}<div className="operational-form-notice">{p.notice}</div></>}
+    <OperationalGridCustomizationContext.Provider value={gridCustomization}>{p.nativeLayout ? p.children(controls) : p.children(draft, controls)}</OperationalGridCustomizationContext.Provider>
     {editing && p.permissions.formSize && resizeHandles.map(edge => <button key={edge} type="button" className={'designer-edge-handle designer-edge-' + edge} aria-label={'Resize form ' + edge} onPointerDown={event => resize(event, edge)} />)}
     {editing && selectedRule?.resize && selectedNode && ((['toolbarHeight','headerHeight'].includes(selectedRule.resize) && p.permissions.tablePresentation && targetGridId) || (selectedRule.resize === 'editorRatio' && (p.permissions.tablePresentation || p.permissions.formSize)) || (selectedRule.resize === 'formHeaderHeight' && p.permissions.formSize)) && (['editorRatio','formHeaderHeight'].includes(selectedRule.resize) ? (['left','right','bottom'] as const).map(edge => createPortal(<button key={edge} ref={edge === 'bottom' ? resizeHandleRef : undefined} type="button" className={'operational-region-resize-handle is-' + edge} data-resize-kind={selectedRule.resize} aria-label={fa ? 'تغییر اندازه ' + selectedRule.label.fa : 'Resize ' + selectedRule.label.en} aria-keyshortcuts={edge === 'bottom' ? 'ArrowUp ArrowDown' : undefined} title={fa ? 'برای کوچک یا بزرگ کردن بکشید' : 'Drag to resize'} onPointerDown={edge === 'bottom' ? resizeSelectedRegion : event => resize(event, edge)} />, selectedRule.resize === 'formHeaderHeight' ? selectedNode.closest('.form-laboratory-banner') ?? selectedNode : selectedRule.resize === 'editorRatio' ? selectedNode.closest('.base-form-editor') ?? selectedNode : selectedNode, edge)) : createPortal(<button ref={resizeHandleRef} type="button" className="operational-region-resize-handle is-bottom" data-resize-kind={selectedRule.resize} aria-keyshortcuts="ArrowUp ArrowDown" aria-label={fa ? 'تغییر ارتفاع ' + selectedRule.label.fa : 'Resize height of ' + selectedRule.label.en} title={fa ? 'برای تغییر ارتفاع بکشید؛ با کلیدهای بالا و پایین هم تنظیم می‌شود' : 'Drag to resize; Arrow Up and Down also adjust height'} onPointerDown={resizeSelectedRegion} />, selectedNode))}
     {contextMenu && createPortal(<div ref={contextMenuRef} className="designer-context-menu" role="menu" aria-label={fa ? 'ویژگی‌های بخش انتخاب‌شده' : 'Selected section properties'} dir={fa ? 'rtl' : 'ltr'} style={{ left: contextMenu.left, top: contextMenu.top }} onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation() }}>

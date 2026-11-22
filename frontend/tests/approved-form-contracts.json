@@ -2127,6 +2127,73 @@
           ]
         }
       ]
+    },
+    {
+      "id": "warehouse.zone",
+      "revision": 4,
+      "status": "operational-evidence",
+      "provenance": "Built-in operational Zone design with Zone-only schema and responsive editor projection; Laboratory activation receipt remains unavailable",
+      "dependencies": [
+        "WarehouseZones",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/warehouse-zone-design.json",
+          "format": "json",
+          "sha256": "e72fb199224f6f3b78588d3de55ee0fa92c4bae62b0b88b53664e7c4d1da9e51"
+        },
+        {
+          "file": "src/forms/warehouse-zone-operational.v2.json",
+          "format": "json",
+          "sha256": "167f02434bd916ad9bab785dd65cff25a1eac6997b7a397861731d883306475d"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "zone-entry",
+          "status": "covered",
+          "contract": "Zone modal editing and retained keyboard/typing access in Warehouse workflows.",
+          "checks": [
+            "warehouse.runtime"
+          ]
+        },
+        {
+          "id": "data",
+          "status": "covered",
+          "contract": "Zone duplicate handling and single custodian or keeper history.",
+          "checks": [
+            "warehouse.zone-data"
+          ]
+        },
+        {
+          "id": "visual-and-tools",
+          "status": "partial",
+          "contract": "The actual zone modal preserves RTL geometry, column visibility, XLSX, selection through maximize/reset, reversible server filter inversion, physical edit/cancel, and account-scoped title font and color.",
+          "checks": [
+            "zone.report-tools",
+            "zone.operational-tools"
+          ],
+          "gap": "No independently authenticated whole-form raster or identity-matched owner Zone Canvas; the current screenshot is pending visual approval."
+        },
+        {
+          "id": "floor-copy-and-default",
+          "status": "covered",
+          "contract": "Copy uses the selected source and rebinds the returned zone to destination floor; default receiving row stays distinct.",
+          "checks": [
+            "zone.report-tools"
+          ]
+        },
+        {
+          "id": "exclusive-session-atomic-batch",
+          "status": "covered",
+          "contract": "Zone mutation endpoints require a lease; SQL prevents simultaneous editing and partial or duplicate batch inserts.",
+          "checks": [
+            "zone.lease-and-batch"
+          ]
+        }
+      ]
     }
   ]
 }

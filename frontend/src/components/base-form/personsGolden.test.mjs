@@ -31,9 +31,9 @@ test('Golden reference is versioned, stable-ID based and contains no Person reco
 })
 
 test('Golden editor track proportions, rows, and responsive breakpoints remain anchored to CSS', () => {
-  assert.match(css, /persons-page\.person-layout-five \.person-editor \.person-form-grid:not\(\.laboratory-form-grid\)\{grid-template-columns:repeat\(20,minmax\(0,1fr\)\)/)
-  assert.match(css, /person-code-field\{grid-column:1 \/ span 2;grid-row:1\}/)
-  assert.match(css, /person-address-field\{grid-column:1 \/ span 10;grid-row:3\}/)
+  assert.match(css, /persons-page\.person-layout-five \.person-editor \.person-form-grid:not\(\.laboratory-form-grid\)\{grid-template-columns:var\(--persons-editor-tracks,repeat\(20,minmax\(0,1fr\)\)\)/)
+  assert.match(css, /person-code-field\{grid-column:var\(--persons-field-column,1 \/ span 2\);grid-row:var\(--persons-field-row,1\)\}/)
+  assert.match(css, /person-address-field\{grid-column:var\(--persons-field-column,1 \/ span 10\);grid-row:var\(--persons-field-row,3\)\}/)
   assert.match(css, /@media\(max-width:760px\).*person-form-grid:not\(\.laboratory-form-grid\)\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)!important\}/)
   assert.match(css, /@media\(max-width:520px\).*person-form-grid:not\(\.laboratory-form-grid\)\{grid-template-columns:minmax\(0,1fr\)!important\}/)
 })

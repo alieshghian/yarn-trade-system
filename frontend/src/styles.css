@@ -507,24 +507,24 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 @media(max-width:520px){.navigation-editor-body.admin{grid-template-columns:1fr}}
 
 /* Persons: five fields in the first row, retaining the four-field lower rows. */
-.persons-page.person-layout-five .person-editor .person-form-grid:not(.laboratory-form-grid){grid-template-columns:repeat(20,minmax(0,1fr))}
+.persons-page.person-layout-five .person-editor .person-form-grid:not(.laboratory-form-grid){grid-template-columns:var(--persons-editor-tracks,repeat(20,minmax(0,1fr)))}
 .persons-page.person-layout-five .person-editor .person-form-grid>label:not(.wide-field){grid-column:span 5}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-code-field{grid-column:1 / span 2;grid-row:1}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-title-field{grid-column:3 / span 3;grid-row:1}
-.persons-page.person-layout-five .person-editor .person-form-grid>label:is(.person-first-name-field,.person-organization-field){grid-column:6 / span 5;grid-row:1}
-.persons-page.person-layout-five .person-editor .person-form-grid>label:is(.person-family-name-field,.person-director-field){grid-column:11 / span 5;grid-row:1}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-job-field{grid-column:16 / span 5;grid-row:1}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-nationality-field{grid-column:6 / span 5;grid-row:2}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-phone-field{grid-column:11 / span 5;grid-row:2}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-mobile-field{grid-column:16 / span 5;grid-row:2}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-address-field{grid-column:1 / span 10;grid-row:3}
-.persons-page.person-layout-five .person-editor .person-form-grid>.person-notes-active{grid-column:11 / span 10;grid-row:3}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-code-field{grid-column:var(--persons-field-column,1 / span 2);grid-row:var(--persons-field-row,1)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-title-field{grid-column:var(--persons-field-column,3 / span 3);grid-row:var(--persons-field-row,1)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label:is(.person-first-name-field,.person-organization-field){grid-column:var(--persons-field-column,6 / span 5);grid-row:var(--persons-field-row,1)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label:is(.person-family-name-field,.person-director-field){grid-column:var(--persons-field-column,11 / span 5);grid-row:var(--persons-field-row,1)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-job-field{grid-column:var(--persons-field-column,16 / span 5);grid-row:var(--persons-field-row,1)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-nationality-field{grid-column:var(--persons-field-column,6 / span 5);grid-row:var(--persons-field-row,2)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-phone-field{grid-column:var(--persons-field-column,11 / span 5);grid-row:var(--persons-field-row,2)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-mobile-field{grid-column:var(--persons-field-column,16 / span 5);grid-row:var(--persons-field-row,2)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-address-field{grid-column:var(--persons-field-column,1 / span 10);grid-row:var(--persons-field-row,3)}
+.persons-page.person-layout-five .person-editor .person-form-grid>.person-notes-active{grid-column:var(--persons-field-column,11 / span 10);grid-row:var(--persons-field-row,3)}
 
 .navigation-quick{max-height:76px;overflow-y:auto;scrollbar-width:thin}.navigation-tools:empty{display:none}
 
 .persons-page .person-editor select[multiple]{height:56px!important}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-brands-field{grid-column:1 / span 5;grid-row:2}
-.persons-page.person-layout-five .person-editor .person-form-grid>label.person-default-brand-field{grid-column:4 / span 2;grid-row:2}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-brands-field{grid-column:var(--persons-field-column,1 / span 5);grid-row:var(--persons-field-row,2)}
+.persons-page.person-layout-five .person-editor .person-form-grid>label.person-default-brand-field{grid-column:var(--persons-field-column,4 / span 2);grid-row:var(--persons-field-row,2)}
 .brands-page .person-editor .brand-form-grid{grid-template-columns:minmax(100px,1fr) minmax(160px,2fr) minmax(180px,3fr)}
 .brands-page .person-editor .brand-form-grid>label,.brands-page .person-editor .brand-form-grid>label.wide-field{grid-column:auto}
 .brands-page .grid-toolbar input[type=search]{max-width:220px;height:32px}

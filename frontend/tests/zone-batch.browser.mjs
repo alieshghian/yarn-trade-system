@@ -61,6 +61,21 @@ try {
 
  await send('Page.navigate',{url:base+'/tests/zone-batch.html'});
  await until("document.querySelectorAll('.base-grid-table tbody tr').length===2",'existing rows');
+ const editorDesign = await evaluate(`(() => {
+   const editor = document.querySelector('.zone-editor');
+   const fields = [...editor.querySelectorAll('[data-field]')];
+   return {
+     id: editor.dataset.operationalDesign,
+     fields: fields.map(field => field.dataset.field),
+     parts: fields.every(field => field.closest('.designer-input-part') &&
+       field.closest('.laboratory-designer-field')?.querySelector('.designer-label-part')),
+     codeHeight: editor.querySelector('.zone-code').getBoundingClientRect().height
+   };
+ })()`);
+ assert.equal(editorDesign.id, 'operational.warehouse-zones');
+ assert.deepEqual(editorDesign.fields, ['code', 'name', 'description', 'isActive'], 'Single-floor view shows the four Zone fields and omits the floor selector');
+ assert.ok(editorDesign.parts, 'Zone controls use the shared personal-appearance targets');
+ assert.equal(editorDesign.codeHeight, 34, 'Zone rendered geometry follows its section Canvas control height');
  const fill=async(selector,text)=>evaluate("(()=>{const e=document.querySelector("+JSON.stringify(selector)+");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,"+JSON.stringify(text)+");e.dispatchEvent(new Event('input',{bubbles:true}))})()");
  const key=async(name,vk)=>send('Input.dispatchKeyEvent',{type:'keyDown',key:name,code:name==='+'?'NumpadAdd':name,windowsVirtualKeyCode:vk});
  await evaluate("[...document.querySelectorAll('.laboratory-footer button')].find(b=>b.textContent.includes('Space')).click()");

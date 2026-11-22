@@ -16,6 +16,10 @@
     "sha256": "a70d798d1192d0fb41a96320f869e936e6d4626f172f083e0d22b65ce5c7296d"
   },
   "warehouseZone": {
+    "design": "warehouse-zone-operational.v2.json",
+    "sha256": "167f02434bd916ad9bab785dd65cff25a1eac6997b7a397861731d883306475d"
+  },
+  "warehouseZoneHistorical": {
     "design": "warehouse-zone-design.json",
     "sha256": "e72fb199224f6f3b78588d3de55ee0fa92c4bae62b0b88b53664e7c4d1da9e51"
   }

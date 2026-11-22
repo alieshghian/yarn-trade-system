@@ -1,7 +1,7 @@
 import {useDefinitionRowSelection,deleteSelectedDefinitionRows} from './components/base-form/useDefinitionRowSelection'
 import {GridToolbarIcon} from './components/base-form/GridToolbarIcon'
 import {OperationalFormFrame, type OperationalSettingsControls} from './components/base-form/OperationalFormFrame'
-import {emptyDesignerDraft} from './components/base-form/designer'
+import { personsDefaultGridColumns, personsEditorTrackSizing, personsFieldPlacement, personsOperationalLayout } from './personsOperationalLayout'
 import {useFieldValidation} from './components/base-form/useFieldValidation'
 import { NumberControl, formatInternationalNumber } from './components/base-form/NumberControl'
 import { PersonTitleControl, type PersonTitleOption } from './components/base-form/PersonTitleControl'
@@ -20,7 +20,7 @@ import { suggestSerial } from './sequences'
 import './personsToolbar.css'
 
 const personsAppearance = { colors: true, typography: true, formSize: false, tablePresentation: false }
-const personsDesign = emptyDesignerDraft('persons')
+
 
 type ParameterType = 'Job' | 'Title' | 'Nationality'
 type Parameter = { id: string, parameterType: ParameterType, code: string, nameFa: string, nameEn: string, personType?: 'Individual' | 'Company' }
@@ -48,15 +48,7 @@ function shortcutMatches(event: KeyboardEvent, shortcut: string) {
   return shortcut === 'Space' ? event.code === 'Space' : /^F(?:[1-9]|1[0-2])$/.test(shortcut) ? functionKeyFromEvent(event) === shortcut : event.key === shortcut
 }
 
-const defaultColumns: ColumnState[] = [
-  { key: 'personCode', width: 130, visible: true },
-  { key: 'displayName', width: 280, visible: true },
-  { key: 'job', width: 150, visible: true },
-  { key: 'nationality', width: 130, visible: true },
-  { key: 'mobile', width: 145, visible: true },
-  { key: 'phone', width: 160, visible: true },
-  { key: 'isActive', width: 100, visible: true }
-]
+const defaultColumns: ColumnState[] = personsDefaultGridColumns.map(column => ({ key: column.id as ColumnKey, width: column.widthPx, visible: true }))
 
 function loadColumns(key: string, legacyKey = key): ColumnState[] {
   try {
@@ -666,7 +658,8 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       setExporting(false)
     }
   }
-  const renderPage = (settings?: OperationalSettingsControls) => <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} data-record-presentation={mode!=='view'?'entry':selectedId?'view':'empty'} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
+  const place = (id: string) => standalone ? personsFieldPlacement(id, organization) : undefined
+  const renderPage = (settings?: OperationalSettingsControls) => <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} data-operational-design={standalone ? personsOperationalLayout.id : undefined} data-record-presentation={mode!=='view'?'entry':selectedId?'view':'empty'} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
     <section className="person-editor panel">
       <div className="person-section-head">
         <div><h2>{fa ? 'اطلاعات کامل شخص' : 'Person details'}</h2><p>{mode === 'new' ? (fa ? 'تعریف شخص جدید' : 'New person') : mode === 'edit' ? (fa ? 'اصلاح اطلاعات' : 'Edit person') : (fa ? 'حالت مشاهده' : 'View mode')}</p></div>
@@ -686,19 +679,19 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       </div>
       {settings?.tools}
       {error && <div className="form-message error-message">{error}</div>}{message && <div className="form-message success-message">{message}</div>}
-      <div className={`person-form-grid ${mode !== 'view' ? 'editing' : ''}`} ref={formRef} onKeyDown={formKeyDown} onBlur={formBlur}>
-        <Field className="person-code-field" label={fa ? 'کد شخص *' : 'Person code *'} error={fieldErrors.personCode}><input data-field="personCode" aria-invalid={Boolean(fieldErrors.personCode)} autoFocus={mode === 'new'} disabled={disabled || selected?.isContractPartner} maxLength={30} value={draft.personCode} onChange={e => set('personCode', e.target.value)} /></Field>
-        <Field className="person-title-field" label={fa ? 'عنوان *' : 'Title *'} error={fieldErrors.titleId}><PersonTitleControl label={fa?'عنوان':'Title'} defaultValue={titleDefaultId||draft.titleId} onSetDefault={id=>{localStorage.setItem(titleDefaultKey,id);setTitleDefaultId(id)}} onCommit={commitPersonTitleList} canEdit={option=>hasPermission('persons.edit')&&titleCanChange(option.id)} canRemove={option=>hasPermission('persons.delete')&&titleCanChange(option.id)} value={draft.titleId ?? ''} options={titles.map(title => ({ id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? 'Company' }))} disabled={disabled} required invalid={Boolean(fieldErrors.titleId)} canCreate={hasPermission('persons.create')} fa={fa} language={language} onChange={changeTitle} onCreate={createPersonTitle} /></Field>
-        {!organization && <Field className="person-first-name-field" compact label={fa ? 'نام' : 'First name'}><input data-field="firstName" disabled={disabled} value={draft.firstName} onChange={e => set('firstName', e.target.value)} /></Field>}
-        <Field className={organization ? 'person-organization-field' : 'person-family-name-field'} label={organization ? (fa ? `نام ${selectedTitle?.nameFa ?? 'شرکت'} *` : `${selectedTitle?.nameEn ?? 'Organization'} name *`) : (fa ? 'نام خانوادگی *' : 'Family name *')} wide={organization} compact={!organization} error={fieldErrors.lastName}><input data-field="lastName" required aria-invalid={Boolean(fieldErrors.lastName)} disabled={disabled} value={draft.lastName} onChange={e => set('lastName', e.target.value)} /></Field>
-        {organization && <Field className="person-director-field" label={fa ? `نام مدیر ${selectedTitle?.nameFa ?? 'شرکت'}` : `${selectedTitle?.nameEn ?? 'Organization'} director`}><input data-field="directorName" disabled={disabled} maxLength={200} value={draft.directorName} onChange={e => set('directorName', e.target.value)} /></Field>}
-        {!contractCreation && <Field className="person-job-field" compact label={fa ? 'نقش یا شغل' : 'Job'}><select data-field="jobId" disabled={disabled} value={draft.jobId} onChange={e => set('jobId', e.target.value)}><option value="">—</option>{parameters.find(x => x.id === draft.jobId)?.code === 'PARTNER' && <option value={draft.jobId} disabled>{parameterLabel(parameters.find(x => x.id === draft.jobId))}</option>}{jobs.map(x => <option key={x.id} value={x.id}>{parameterLabel(x)}</option>)}</select></Field>}
-        <Field className="person-nationality-field" compact label={fa ? 'ملیت' : 'Nationality'}><select data-field="nationalityId" disabled={disabled} value={draft.nationalityId} onChange={e => set('nationalityId', e.target.value)}><option value="">—</option>{nationalities.map(x => <option key={x.id} value={x.id}>{parameterLabel(x)}</option>)}</select></Field>
-        <Field className="person-phone-field" label={fa ? 'تلفن' : 'Phone'}><NumberControl field="phone" label={fa ? 'تلفن' : 'Phone'} primary={draft.phone ?? ''} numbers={draft.phoneNumbers ?? []} disabled={disabled} fa={fa} suggestedCode={dialingCode} onChange={(phone, phoneNumbers) => setDraft(current => ({ ...current, phone, phoneNumbers }))} /></Field>
-        <Field className="person-mobile-field" label={fa ? 'موبایل' : 'Mobile'}><NumberControl field="mobile" label={fa ? 'موبایل' : 'Mobile'} primary={draft.mobile ?? ''} numbers={draft.mobileNumbers ?? []} disabled={disabled} fa={fa} suggestedCode={dialingCode} onChange={(mobile, mobileNumbers) => setDraft(current => ({ ...current, mobile, mobileNumbers }))} /></Field>
-        <Field label={fa ? 'آدرس' : 'Address'} wide className="person-address-field"><NumberControl field="address" label={fa ? 'آدرس' : 'Address'} primary={draft.address ?? ''} numbers={draft.addresses ?? []} disabled={disabled} fa={fa} onChange={(address, addresses) => setDraft(current => ({ ...current, address, addresses }))} multiline /></Field>
-        <div className="person-notes-active"><Field label={fa ? 'توضیحات' : 'Notes'} className="person-notes-field"><input data-field="notes" disabled={disabled} value={draft.notes} onChange={e => set('notes', e.target.value)} /></Field><label className="active-check"><input data-field="isActive" type="checkbox" disabled={disabled} checked={draft.isActive} onChange={e => set('isActive', e.target.checked)} />{fa ? 'فعال' : 'Active'}</label></div>
-        <Field label={fa ? 'کد و نام برند' : 'Brand code and name'} className="person-brands-field"><SystemLookup field="defaultBrandId" label={fa?'کد و نام برند':'Brand code and name'} value={draft.defaultBrandId??''} language={language} disabled={disabled} settings={{sourceId:'brands',returnMode:'saveAndSelect'}} ownerId={mode==='new'?'':selectedId} listSettings={{allowEmpty:true,searchEnabled:true,addPlacement:'popup'}} onCreationChange={setBrandCreation} onChange={id=>setDraft(current=>({...current,brandIds:id?[...new Set([...(current.brandIds??[]),id])]:[],defaultBrandId:id||null}))} onSelected={()=>formRef.current?.querySelector<HTMLElement>('[data-field="nationalityId"]')?.focus({preventScroll:true})}/></Field>
+      <div className={`person-form-grid ${mode !== 'view' ? 'editing' : ''}`} ref={formRef} style={standalone ? { '--persons-editor-tracks': personsEditorTrackSizing } as React.CSSProperties : undefined} onKeyDown={formKeyDown} onBlur={formBlur}>
+        <Field className="person-code-field" style={place('personCode')} label={fa ? 'کد شخص *' : 'Person code *'} error={fieldErrors.personCode}><input data-field="personCode" aria-invalid={Boolean(fieldErrors.personCode)} autoFocus={mode === 'new'} disabled={disabled || selected?.isContractPartner} maxLength={30} value={draft.personCode} onChange={e => set('personCode', e.target.value)} /></Field>
+        <Field className="person-title-field" style={place('titleId')} label={fa ? 'عنوان *' : 'Title *'} error={fieldErrors.titleId}><PersonTitleControl label={fa?'عنوان':'Title'} defaultValue={titleDefaultId||draft.titleId} onSetDefault={id=>{localStorage.setItem(titleDefaultKey,id);setTitleDefaultId(id)}} onCommit={commitPersonTitleList} canEdit={option=>hasPermission('persons.edit')&&titleCanChange(option.id)} canRemove={option=>hasPermission('persons.delete')&&titleCanChange(option.id)} value={draft.titleId ?? ''} options={titles.map(title => ({ id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? 'Company' }))} disabled={disabled} required invalid={Boolean(fieldErrors.titleId)} canCreate={hasPermission('persons.create')} fa={fa} language={language} onChange={changeTitle} onCreate={createPersonTitle} /></Field>
+        {!organization && <Field className="person-first-name-field" style={place('firstName')} compact label={fa ? 'نام' : 'First name'}><input data-field="firstName" disabled={disabled} value={draft.firstName} onChange={e => set('firstName', e.target.value)} /></Field>}
+        <Field style={place('lastName')} className={organization ? 'person-organization-field' : 'person-family-name-field'} label={organization ? (fa ? `نام ${selectedTitle?.nameFa ?? 'شرکت'} *` : `${selectedTitle?.nameEn ?? 'Organization'} name *`) : (fa ? 'نام خانوادگی *' : 'Family name *')} wide={organization} compact={!organization} error={fieldErrors.lastName}><input data-field="lastName" required aria-invalid={Boolean(fieldErrors.lastName)} disabled={disabled} value={draft.lastName} onChange={e => set('lastName', e.target.value)} /></Field>
+        {organization && <Field className="person-director-field" style={place('directorName')} label={fa ? `نام مدیر ${selectedTitle?.nameFa ?? 'شرکت'}` : `${selectedTitle?.nameEn ?? 'Organization'} director`}><input data-field="directorName" disabled={disabled} maxLength={200} value={draft.directorName} onChange={e => set('directorName', e.target.value)} /></Field>}
+        {!contractCreation && <Field className="person-job-field" style={place('jobId')} compact label={fa ? 'نقش یا شغل' : 'Job'}><select data-field="jobId" disabled={disabled} value={draft.jobId} onChange={e => set('jobId', e.target.value)}><option value="">—</option>{parameters.find(x => x.id === draft.jobId)?.code === 'PARTNER' && <option value={draft.jobId} disabled>{parameterLabel(parameters.find(x => x.id === draft.jobId))}</option>}{jobs.map(x => <option key={x.id} value={x.id}>{parameterLabel(x)}</option>)}</select></Field>}
+        <Field className="person-nationality-field" style={place('nationalityId')} compact label={fa ? 'ملیت' : 'Nationality'}><select data-field="nationalityId" disabled={disabled} value={draft.nationalityId} onChange={e => set('nationalityId', e.target.value)}><option value="">—</option>{nationalities.map(x => <option key={x.id} value={x.id}>{parameterLabel(x)}</option>)}</select></Field>
+        <Field className="person-phone-field" style={place('phone')} label={fa ? 'تلفن' : 'Phone'}><NumberControl field="phone" label={fa ? 'تلفن' : 'Phone'} primary={draft.phone ?? ''} numbers={draft.phoneNumbers ?? []} disabled={disabled} fa={fa} suggestedCode={dialingCode} onChange={(phone, phoneNumbers) => setDraft(current => ({ ...current, phone, phoneNumbers }))} /></Field>
+        <Field className="person-mobile-field" style={place('mobile')} label={fa ? 'موبایل' : 'Mobile'}><NumberControl field="mobile" label={fa ? 'موبایل' : 'Mobile'} primary={draft.mobile ?? ''} numbers={draft.mobileNumbers ?? []} disabled={disabled} fa={fa} suggestedCode={dialingCode} onChange={(mobile, mobileNumbers) => setDraft(current => ({ ...current, mobile, mobileNumbers }))} /></Field>
+        <Field label={fa ? 'آدرس' : 'Address'} wide className="person-address-field" style={place('address')}><NumberControl field="address" label={fa ? 'آدرس' : 'Address'} primary={draft.address ?? ''} numbers={draft.addresses ?? []} disabled={disabled} fa={fa} onChange={(address, addresses) => setDraft(current => ({ ...current, address, addresses }))} multiline /></Field>
+        <div className="person-notes-active" style={place('notes-active-group')}><Field label={fa ? 'توضیحات' : 'Notes'} className="person-notes-field"><input data-field="notes" disabled={disabled} value={draft.notes} onChange={e => set('notes', e.target.value)} /></Field><label className="active-check"><input data-field="isActive" type="checkbox" disabled={disabled} checked={draft.isActive} onChange={e => set('isActive', e.target.checked)} />{fa ? 'فعال' : 'Active'}</label></div>
+        <Field label={fa ? 'کد و نام برند' : 'Brand code and name'} className="person-brands-field" style={place('brandIds')}><SystemLookup field="defaultBrandId" label={fa?'کد و نام برند':'Brand code and name'} value={draft.defaultBrandId??''} language={language} disabled={disabled} settings={{sourceId:'brands',returnMode:'saveAndSelect'}} ownerId={mode==='new'?'':selectedId} listSettings={{allowEmpty:true,searchEnabled:true,addPlacement:'popup'}} onCreationChange={setBrandCreation} onChange={id=>setDraft(current=>({...current,brandIds:id?[...new Set([...(current.brandIds??[]),id])]:[],defaultBrandId:id||null}))} onSelected={()=>formRef.current?.querySelector<HTMLElement>('[data-field="nationalityId"]')?.focus({preventScroll:true})}/></Field>
       </div>
     </section>
     <div className="split-handle" onPointerDown={resizeStart}><span /></div>
@@ -746,7 +739,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const owner = demoMode ? 'demo-persons' : authenticatedUserId ?? userKey
   if (!standalone || (!demoMode && !hasPermission('persons.view'))) return renderPage()
   return <OperationalFormFrame key={owner} formId="persons" title={gridTitle} language={language}
-    designerDraft={personsDesign} permissions={personsAppearance} legacyLayout userId={owner} settingsDisabled={mode !== 'view'}>
-    {(_draft, settings) => renderPage(settings)}
+    permissions={personsAppearance} nativeLayout userId={owner} settingsDisabled={mode !== 'view'}>
+    {renderPage}
   </OperationalFormFrame>
 }
