@@ -104,6 +104,7 @@ try {
   const actual=await evaluate(rectangles);
   assert.equal(actual.length,3);for(let i=0;i<3;i++)for(let j=0;j<4;j++)assert.ok(Math.abs(actual[i][j]-reference[i][j])<1.1,'pinned Canvas rectangle '+i+': '+JSON.stringify({actual,reference}));
   results.push('three operational fields retain the exact pinned Designer Canvas rectangles');
+  console.log('PASS Brand operational fields retain the published Designer Canvas rectangles')
   await check('exactly three saved columns and no address control',"document.querySelectorAll('.base-grid-table thead th').length===3&&!document.querySelector('[data-field=address]')");
   await check('new action is named Brand, not Person',"document.querySelector('[data-action-id=\"operational.new\"]').textContent.includes('برند جدید')");
   const frameGeometry="(()=>{const f=document.querySelector('.operational-form-frame').getBoundingClientRect(),footer=document.querySelector('.base-form-footer').getBoundingClientRect();return [f.height,footer.top-f.top]})()";

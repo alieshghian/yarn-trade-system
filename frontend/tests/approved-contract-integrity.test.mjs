@@ -35,3 +35,22 @@ test('registered contracts reject a missing required test', async () => {
   registry.forms[0].capabilities[0].checks = ['nonexistent.check']
   await assert.rejects(validateRegistry(registry), /Undiscovered test/)
 })
+
+test('coverage counts the latest version and successors preserve prior evidence', async () => {
+  const registry = await readRegistry()
+  const latest = [...new Map(registry.forms.map(form=>[form.id,form])).values()]
+  const active = latest.flatMap(form=>form.capabilities)
+  const counts = await validateRegistry(registry)
+  assert.equal(counts.capabilities, active.length)
+  assert.equal(counts.covered + counts.partial + counts.unverified, active.length)
+  assert.ok(counts.partial > 0, 'Partial evidence is explicitly tracked')
+
+  const modified = structuredClone(registry)
+  const successor = modified.forms.find(form=>form.id==='persons.definition'&&form.revision===2)
+  const initial = successor.capabilities.shift()
+  await assert.rejects(validateRegistry(modified), /Successor dropped capability/)
+  successor.capabilities.unshift({...initial,checks:initial.checks.slice(1)})
+  await assert.rejects(validateRegistry(modified), /Successor dropped required evidence|Required test missing/)
+  successor.capabilities[0] = {...initial,status:'partial',gap:'Tested promotion guard'}
+  await assert.rejects(validateRegistry(modified), /Successor demoted verified capability/)
+})

@@ -153,6 +153,45 @@ public sealed partial class SecurityBaselineTests
     }
 
     [Fact]
+    public async Task Business_contract_read_permission_cannot_create_update_or_amend()
+    {
+        const string root = "/api/business-contract";
+        var writes = new (string Method, string Path)[]
+        {
+            ("POST", root),
+            ("PUT", root + "/00000000-0000-0000-0000-000000000001"),
+            ("POST", root + "/amendments")
+        };
+
+        await using var host = await CreateApp();
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.GetAsync(root)).StatusCode);
+        foreach (var route in writes)
+        {
+            using var anonymous = await A3Request(host, route.Method, route.Path);
+            Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        }
+
+        const string account = "contract-policy@example.test";
+        await CreateUser(host.App, account, "Administrator");
+        await SignIn(host, account);
+        await SetPermissions(host, account, "settings.view");
+        Assert.Equal(HttpStatusCode.OK, (await host.Client.GetAsync(root)).StatusCode);
+        foreach (var route in writes)
+        {
+            using var denied = await A3Request(host, route.Method, route.Path);
+            Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
+            Assert.Equal("settings.edit", (await denied.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("permission").GetString());
+        }
+
+        await SetPermissions(host, account, "settings.view", "settings.edit");
+        foreach (var route in writes)
+        {
+            using var allowed = await A3Request(host, route.Method, route.Path);
+            Assert.Contains(allowed.StatusCode, new[] { HttpStatusCode.BadRequest, HttpStatusCode.NotFound });
+        }
+    }
+
+    [Fact]
     public async Task A3_view_permissions_do_not_authorize_writes_posting_or_restore()
     {
         await using var host = await CreateApp();

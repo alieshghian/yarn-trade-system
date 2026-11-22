@@ -192,6 +192,24 @@ try {
   await evaluate("[...document.querySelectorAll('.zone-copy-dialog button')].find(b=>b.textContent.includes('F3')).click()")
   await until("!document.querySelector('.zone-copy-dialog')",'copy closes after save')
   await until("document.querySelector('.warehouse-zones-page .base-grid-table')?.innerText.includes('۱ قفسه اول')",'copied target uses destination floor prefix')
+  const zone = '.warehouse-zones-page'
+  const zoneGeometry = await evaluate("(()=>{const p=document.querySelector('.warehouse-zones-page');const frame=p.querySelector('.operational-form-frame').getBoundingClientRect(),table=p.querySelector('.base-grid-table-wrap').getBoundingClientRect(),fields=p.querySelector('.zone-fields').getBoundingClientRect(),footer=p.querySelector('.laboratory-footer').getBoundingClientRect();return {ordered:fields.bottom<=table.top&&table.bottom<=footer.top+1,inset:table.left>=frame.left&&table.right<=frame.right,controls:[...p.querySelectorAll('.zone-fields [data-field]')].map(e=>e.dataset.field),dir:getComputedStyle(p).direction}})()")
+  assert.deepEqual(zoneGeometry,{ordered:true,inset:true,controls:['code','name','description','isActive'],dir:'rtl'},'Zone labels and inputs remain separate from the RTL report and footer')
+  const chooseColumns = zone + ' .grid-columns-slot summary'
+  const choose = JSON.stringify(chooseColumns)
+  const clickZoneControl = async expression => {
+    await until('!!(' + expression + ')', expression)
+    const point = await evaluate('(async()=>{const e=(' + expression + ');e.scrollIntoView({block:"nearest",inline:"nearest"});await new Promise(requestAnimationFrame);const r=e.getBoundingClientRect();const x=r.x+r.width/2,y=r.y+r.height/2;return {x,y,hit:e.contains(document.elementFromPoint(x,y))}})()')
+    assert.ok(point.hit,'Zone control must be physically reachable: '+expression)
+    const {x,y}=point
+    for(const type of ['mousePressed','mouseReleased']) await send('Input.dispatchMouseEvent',{type,x,y,button:'left',clickCount:1})
+  }
+  await clickZoneControl('document.querySelector('+choose+')')
+  const zoneDescription = "[...document.querySelectorAll('.grid-column-visibility-list label')].find(e=>e.textContent.trim()==='توضیحات')?.querySelector('input')"
+  await clickZoneControl(zoneDescription)
+  await until("!document.querySelector('.warehouse-zones-page th[data-column=description]')&&!!document.querySelector('.warehouse-zones-page th[data-column=code]')",'Zone hides only the chosen report column')
+  await clickZoneControl('document.querySelector('+choose+')')
+  console.log('PASS Zone report controls and RTL geometry survive floor copy with the receiving row available')
   await send('Page.captureScreenshot',{format:'png'}).then(r=>import('node:fs/promises').then(fs=>fs.writeFile(resolve('..','artifacts','warehouse-floors','zone-form.png'),Buffer.from(r.data,'base64'))))
   await evaluate("document.querySelector('.form-document-dialog-close').click()")
   await until("!document.querySelector('[role=dialog]')",'close modal')

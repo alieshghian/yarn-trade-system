@@ -9,7 +9,9 @@ import {applyGridFiltersAndSort, type ExcelGridColumn, type GridQuery} from '../
 import '../src/styles.css'
 import '../src/components/base-form/formTheme.css'
 if(!import.meta.env.DEV)throw Error('Development fixture only')
-const toolbarFixture = new URLSearchParams(location.search).has('toolbar')
+const params = new URLSearchParams(location.search)
+const toolbarFixture = params.has('toolbar')
+const company = params.has('company')
 if (toolbarFixture) document.documentElement.style.scrollbarGutter = 'stable'
 const actor = toolbarFixture ? sessionStorage.getItem('currentUser') ?? 'toolbar-owner' : undefined
 setAccessPermissions(actor === 'toolbar-denied' ? [] : actor === 'toolbar-other-viewer' ? ['persons.view'] :
@@ -23,8 +25,8 @@ const records=[{id:'brand-existing',brandCode:'995',brandName:'برند موجو
 const savedPersonKey = 'persons-toolbar-fixture-record'
 const savedPerson = toolbarFixture ? JSON.parse(sessionStorage.getItem(savedPersonKey) ?? 'null') as Person | null : null
 const people: Person[] = toolbarFixture ? Array.from({length: 102}, (_, index) => savedPerson?.id === 'person-'+index ? savedPerson : ({
-  id: 'person-'+index, personCode: 'PERSON-'+index, personType: 'Individual', firstName: 'Test',
-  lastName: 'Person '+index, displayName: 'Test Person '+index, titleId: 'title',
+  id: 'person-'+index, personCode: 'PERSON-'+index, personType: company ? 'Company' : 'Individual', firstName: 'Test',
+  lastName: 'Person '+index, displayName: 'Test Person '+index, titleId: company ? 'company-title' : 'title',
   preferredLanguage: 'fa', creditLimitIRR: 0, isActive: true, phone: '02112345678', rowVersion: 'fixture-1'
 })) : []
 const peopleColumns: ExcelGridColumn<typeof people[number]>[] = [
@@ -40,7 +42,7 @@ window.fetch=async(input,options)=>{
  if(url.includes('/api/master-data/brands/')&&options?.method==='PUT'){const id=url.split('/').pop().split('?')[0];const i=records.findIndex(b=>b.id===id);records[i]={...records[i],...JSON.parse(String(options.body))};return json(records[i])}
  if(url.includes('/api/master-data/brands/'))return json(records.find(b=>url.endsWith(b.id)))
  if(url.includes('/api/master-data/brands'))return json({items:records,total:records.length})
- if(url.includes('/api/master-data/parameters'))return json([{id:'title',parameterType:'Title',code:'MR',nameFa:'آقای',nameEn:'Mr',personType:'Individual'}])
+ if(url.includes('/api/master-data/parameters'))return json([{id:'title',parameterType:'Title',code:'MR',nameFa:'آقای',nameEn:'Mr',personType:'Individual'}, {id:'company-title',parameterType:'Title',code:'CO',nameFa:'شرکت',nameEn:'Company',personType:'Company'}])
  if(url.includes('/api/sequence-suggestions'))return json({value:'996',suggestion:'996',code:'996'})
  const requestUrl = new URL(url, location.origin)
  if(toolbarFixture && options?.method === 'PUT' && /\/api\/master-data\/persons\/person-\d+$/.test(requestUrl.pathname)){

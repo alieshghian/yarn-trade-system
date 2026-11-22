@@ -342,6 +342,174 @@
         "required evidence cannot be replaced with a skip or an empty run",
         "registered contracts reject a missing required test"
       ]
+    },
+    {
+      "id": "persons.full-editor",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons full desktop editor geometry matches Golden tracks in both identity variants and combined Brand footprint"
+      ]
+    },
+    {
+      "id": "persons.personal-font",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons personal font preview is target scoped and discarded changes stay absent after reload"
+      ]
+    },
+    {
+      "id": "brand.xlsx-maximize-keys",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Brand workbook contents and maximize restore preserve the selected row and hidden column",
+        "Brand F4 setting persists without disabling F2 copy and Escape cancellation"
+      ]
+    },
+    {
+      "id": "product-group.personal-tools",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Product Group workbook contents and maximize restore preserve the selected row and hidden column",
+        "Product Group personal appearance previews, cancels and survives reload"
+      ]
+    },
+    {
+      "id": "yarn.personal-tools",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Yarn workbook contents and maximize restore preserve the selected row and hidden column",
+        "Yarn personal appearance previews, cancels and survives reload"
+      ]
+    },
+    {
+      "id": "warehouse.personal-tools",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Warehouse workbook contents and maximize restore preserve the selected row and hidden column",
+        "Warehouse personal appearance previews, cancels and survives reload"
+      ]
+    },
+    {
+      "id": "shared.operational-search",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Shared grid F1, search mode selection and reverse operate on actual Brand results"
+      ]
+    },
+    {
+      "id": "contract.browser-workflow",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Business Contract viewer, edit, lock and F3 amendment enforce roles and retain saved version across reload"
+      ]
+    },
+    {
+      "id": "contract.relative-geometry",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Business Contract RTL state header and eleven cost rows share a contained editor and independent footer"
+      ]
+    },
+    {
+      "id": "brand.canvas",
+      "lane": "brands-operational",
+      "file": "tests/brands-operational.browser.mjs",
+      "required": [
+        "Brand operational fields retain the published Designer Canvas rectangles"
+      ]
+    },
+    {
+      "id": "brand.blur-focus",
+      "lane": "brands-operational",
+      "file": "tests/brands-operational.browser.mjs",
+      "required": [
+        "entry focus marker remains after the active input loses browser focus",
+        "entry focus marker moves to another field and then remains visible",
+        "save clears the entry focus indicator"
+      ]
+    },
+    {
+      "id": "product-group.cancelled-write",
+      "lane": "product-group-operational",
+      "file": "tests/product-group-operational.browser.mjs",
+      "required": [
+        "Pending edit prevents repeated requests and preserves the visible tree",
+        "Cancelled edit aborts its signal and discards late confirmation"
+      ]
+    },
+    {
+      "id": "product-group.depth-guard",
+      "lane": "product-group-operational",
+      "file": "tests/product-group-operational.browser.mjs",
+      "required": [
+        "Admin depth uses the existing settings entry and policy API",
+        "Reducing depth cannot hide or delete existing deeper groups",
+        "Non-administrators have no depth control"
+      ]
+    },
+    {
+      "id": "yarn.approved-release",
+      "lane": "approved-yarns",
+      "file": "tests/approved-yarns.browser.mjs",
+      "required": [
+        "exact approved release activates; missing receipt, wrong digest/baseline or missing acceptance retain the legacy route"
+      ]
+    },
+    {
+      "id": "yarn.text-component",
+      "lane": "approved-yarns",
+      "file": "tests/approved-yarns.browser.mjs",
+      "required": [
+        "saved title component uses text entry with no phone/dial-code controls"
+      ]
+    },
+    {
+      "id": "zone.report-tools",
+      "lane": "warehouses",
+      "file": "tests/warehouses.browser.mjs",
+      "required": [
+        "Zone report controls and RTL geometry survive floor copy with the receiving row available"
+      ]
+    },
+    {
+      "id": "zone.lease-and-batch",
+      "lane": "integration",
+      "required": [
+        "ZoneEditor_SQL_excludes_other_users_browsers_and_instances_and_releases_expired_sessions",
+        "ZoneEditor_all_mutation_endpoints_require_the_editor_session",
+        "ZoneBatch_SQL_concurrent_submissions_never_partially_insert_or_duplicate"
+      ]
+    },
+    {
+      "id": "contract.ordered-cost-flags",
+      "lane": "integration",
+      "required": [
+        "Cost_rows_keep_the_required_order_and_capital_flags_are_enforced_and_persisted_only_when_configurable"
+      ]
+    },
+    {
+      "id": "shared.coverage-versions",
+      "lane": "unit",
+      "file": "tests/approved-contract-integrity.test.mjs",
+      "required": [
+        "coverage counts the latest version and successors preserve prior evidence"
+      ]
+    },
+    {
+      "id": "contract.http-permissions",
+      "lane": "integration",
+      "required": [
+        "Business_contract_read_permission_cannot_create_update_or_amend"
+      ]
     }
   ],
   "forms": [
@@ -915,6 +1083,697 @@
           "contract": "Required named tests must be discovered; gate rejects missing or skipped evidence and baseline replacement.",
           "checks": [
             "gate.self-test"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "persons.definition",
+      "revision": 2,
+      "status": "approved",
+      "provenance": "Golden d0f15535f712df68e437b4ae154470d3836666b1 and subsequent toolbar evidence in docs/audits/approved-form-regression-matrix.md",
+      "dependencies": [
+        "PersonsPage",
+        "ExcelGridColumnHeader",
+        "OperationalFormFrame",
+        "FormValueList",
+        "formInteraction",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/components/base-form/specs/persons.golden.v1.json",
+          "format": "json",
+          "sha256": "5f7608ba88b10b5d67b056c8bef045bcedb62e51cf4b75c03811d75257dee33a"
+        },
+        {
+          "file": "tests/persons-golden-geometry.json",
+          "format": "json",
+          "sha256": "175d68b1b884e55e29272b90fe367684fa423a7e60bab86d75ca1828f44036ec"
+        },
+        {
+          "file": "tests/persons-golden-grid.png",
+          "format": "bytes",
+          "sha256": "2124908ebd55a70ae4ea9b7b2100a22762a05b259fe0004be764dfd1e54b6e48"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "fields",
+          "status": "covered",
+          "contract": "Golden IDs, field types and editor track/size contract; split layout, controls and footer.",
+          "checks": [
+            "persons.saved-schema",
+            "persons.rendered-geometry"
+          ]
+        },
+        {
+          "id": "geometry",
+          "status": "covered",
+          "contract": "31px header and reference row, 42px toolbar, approved typography, header/editor/footer coordinates; known synthetic data and clipped raster.",
+          "checks": [
+            "persons.rendered-geometry"
+          ]
+        },
+        {
+          "id": "columns",
+          "status": "covered",
+          "contract": "Column chooser hides only the chosen field.",
+          "checks": [
+            "persons.columns"
+          ]
+        },
+        {
+          "id": "export",
+          "status": "covered",
+          "contract": "All pages and only visible columns in actual downloaded XLSX.",
+          "checks": [
+            "persons.xlsx"
+          ]
+        },
+        {
+          "id": "maximize",
+          "status": "covered",
+          "contract": "Expanded table returns to original geometry and retains selection.",
+          "checks": [
+            "persons.maximize"
+          ]
+        },
+        {
+          "id": "filter-sort",
+          "status": "covered",
+          "contract": "On-demand filter values; Clear Filters and F8 preserve sort and columns.",
+          "checks": [
+            "persons.filters"
+          ]
+        },
+        {
+          "id": "appearance",
+          "status": "covered",
+          "contract": "Colors, font and size persist for one viewer and respect permission.",
+          "checks": [
+            "persons.appearance"
+          ]
+        },
+        {
+          "id": "popup",
+          "status": "covered",
+          "contract": "Escape, outside click, trigger and application tab switches close shortcuts.",
+          "checks": [
+            "persons.popup",
+            "persons.switch-tab"
+          ]
+        },
+        {
+          "id": "keyboard",
+          "status": "covered",
+          "contract": "Configured F7 invokes Create; F3 commits an edit; preferences reload.",
+          "checks": [
+            "persons.shortcuts",
+            "persons.save-reload"
+          ]
+        },
+        {
+          "id": "save-reload",
+          "status": "covered",
+          "contract": "Notes survive API save and full page reload; phone/title/legacy list contracts.",
+          "checks": [
+            "persons.save-reload",
+            "persons.data"
+          ]
+        },
+        {
+          "id": "brand-source",
+          "status": "covered",
+          "contract": "Lookup selection, keyboard/clipped popup, brand create/save-and-select and cancel.",
+          "checks": [
+            "persons.brand-lookup"
+          ]
+        },
+        {
+          "id": "authorization",
+          "status": "covered",
+          "contract": "Contract and person scopes enforced by API, separate from normal edit.",
+          "checks": [
+            "persons.authorization"
+          ]
+        },
+        {
+          "id": "performance",
+          "status": "covered",
+          "contract": "Client request paging and export across 102 items plus generic bounded grid filtering at 50000.",
+          "checks": [
+            "persons.xlsx",
+            "shared.grid-volume"
+          ]
+        },
+        {
+          "id": "full-editor-raster",
+          "status": "partial",
+          "contract": "Both actual desktop identity layouts satisfy Golden tracks; combined Brand occupies the union of historical controls.",
+          "checks": [
+            "persons.full-editor",
+            "persons.rendered-geometry",
+            "persons.brand-lookup"
+          ],
+          "gap": "No authenticated full-editor raster for the combined Brand and personalized fonts."
+        },
+        {
+          "id": "personal-font-rollback",
+          "status": "covered",
+          "contract": "The font and size affect the selected input only. Discarded font stays absent after reload; committed settings are isolated by field and account.",
+          "checks": [
+            "persons.personal-font",
+            "persons.appearance"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brand.definition",
+      "revision": 2,
+      "status": "protected-reference",
+      "provenance": "Versioned design and runtime evidence in docs/brand-operational-integration.md",
+      "dependencies": [
+        "BrandsPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "SystemLookup",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/brand-design.json",
+          "format": "json",
+          "sha256": "2301d09a07904bfcfdba85c859ed99394032deeb581166b60e6855bec8efa9b6"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "fields-grid",
+          "status": "covered",
+          "contract": "Published schema positions, types and three view columns; hidden address retained.",
+          "checks": [
+            "brand.search",
+            "brand.save"
+          ]
+        },
+        {
+          "id": "geometry",
+          "status": "covered",
+          "contract": "Fixed frame, RTL grid inset and scroll containment.",
+          "checks": [
+            "brand.layout"
+          ]
+        },
+        {
+          "id": "search",
+          "status": "covered",
+          "contract": "Actual shared search filters Brand API rows.",
+          "checks": [
+            "brand.search"
+          ]
+        },
+        {
+          "id": "save-permissions",
+          "status": "covered",
+          "contract": "Row-version edit and schema migration preserve hidden address and authorization.",
+          "checks": [
+            "brand.save",
+            "brand.data"
+          ]
+        },
+        {
+          "id": "appearance",
+          "status": "covered",
+          "contract": "Save/reload levels and revoked preferences across frame regions.",
+          "checks": [
+            "brand.appearance"
+          ]
+        },
+        {
+          "id": "xlsx-maximize-keyboard",
+          "status": "covered",
+          "contract": "Actual downloadable workbook includes first/last fixture rows and excludes the hidden column; restore preserves selection; configured F4 and F2/Escape are independent.",
+          "checks": [
+            "brand.xlsx-maximize-keys"
+          ]
+        },
+        {
+          "id": "full-raster",
+          "status": "partial",
+          "contract": "Three operational fields match the pinned Canvas; fixed frame, footer and RTL grid are tested.",
+          "checks": [
+            "brand.canvas"
+          ],
+          "gap": "No authenticated full-form raster and the owner export raw hash in the original integration note is not reproducible from the current companion."
+        },
+        {
+          "id": "entry-focus-after-blur",
+          "status": "covered",
+          "contract": "Entry focus marker remains after blur, moves to the next focused field and clears on Save.",
+          "checks": [
+            "brand.blur-focus"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "product-group.definition",
+      "revision": 2,
+      "status": "approved",
+      "provenance": "Registry receipt 71bde8e8-51d2-4d93-b73a-a8bab7f687cc and versioned owner design",
+      "dependencies": [
+        "ProductGroupOperationalPage",
+        "CascadingTreePanels",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/product-group-design.json",
+          "format": "json",
+          "sha256": "1ad5cfb5f9e983971bfd6aa310019a8b6ad7f88c877376742a84d33ac4ad8653"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-geometry",
+          "status": "covered",
+          "contract": "Published schema and compared tree pieces, header, report table, title and footer.",
+          "checks": [
+            "product-group.layout"
+          ]
+        },
+        {
+          "id": "tree-grid-save",
+          "status": "covered",
+          "contract": "Header/table layout, ancestry binding and server save/reload.",
+          "checks": [
+            "product-group.tree"
+          ]
+        },
+        {
+          "id": "keyboard",
+          "status": "covered",
+          "contract": "F2/F3/F4 and selection-preserving tree navigation.",
+          "checks": [
+            "product-group.shortcuts"
+          ]
+        },
+        {
+          "id": "authorization",
+          "status": "covered",
+          "contract": "Admin-only depth changes and permission-scoped CRUD.",
+          "checks": [
+            "product-group.authorization"
+          ]
+        },
+        {
+          "id": "data-volume",
+          "status": "covered",
+          "contract": "100000 SQL leaf paths with server paging/filtering/sort, concurrency and stale writes.",
+          "checks": [
+            "product-group.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "covered",
+          "contract": "Report workbook contains server fixture hierarchy and excludes the hidden level; maximize restores grid and row. Personal appearance previews, cancels and reloads.",
+          "checks": [
+            "product-group.personal-tools"
+          ]
+        },
+        {
+          "id": "full-raster",
+          "status": "partial",
+          "contract": "Rendered tree, 11 design parts, form header, grid and footer are compared to the pinned Laboratory design.",
+          "checks": [
+            "product-group.layout"
+          ],
+          "gap": "No authenticated whole-form raster."
+        },
+        {
+          "id": "stale-write-cancellation",
+          "status": "covered",
+          "contract": "A pending edit blocks duplicate writes; cancellation aborts its request and discards a late acknowledgement.",
+          "checks": [
+            "product-group.cancelled-write"
+          ]
+        },
+        {
+          "id": "depth-policy-controls",
+          "status": "covered",
+          "contract": "Policy changes use administrator-only controls and cannot hide existing descendants.",
+          "checks": [
+            "product-group.depth-guard"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yarn.definition",
+      "revision": 2,
+      "status": "approved",
+      "provenance": "Registry receipt a348e3e7-ae39-4ff6-b701-7dc55c3201c5 and yarn-operational-acceptance.json",
+      "dependencies": [
+        "ApprovedYarnsPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "FormSchemaPresentation",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/yarn-approved-design.json",
+          "format": "json",
+          "sha256": "9746520995b4bc2bad165bcc1bda1bb84cf140c52dfb3b198529430f5b98de6f"
+        },
+        {
+          "file": "src/forms/yarn-operational-acceptance.json",
+          "format": "json",
+          "sha256": "6000f575e84361e7d01249127d28a0f1210d846a8f0ba141832d98c7af6a433b"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-geometry",
+          "status": "covered",
+          "contract": "18 actual fields and labels match the approved section Canvas within 0.1px; input/derived formatting.",
+          "checks": [
+            "yarn.layout"
+          ]
+        },
+        {
+          "id": "grid-save-keyboard",
+          "status": "covered",
+          "contract": "Master and detail report binding, sticky header, typed runtime title, one-click Save and record identities.",
+          "checks": [
+            "yarn.runtime"
+          ]
+        },
+        {
+          "id": "api-concurrency-performance",
+          "status": "covered",
+          "contract": "SQL roundtrip, large numeric report, distinct bounded suggestions and stable pages.",
+          "checks": [
+            "yarn.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "partial",
+          "contract": "Workbook contains both color rows and excludes the hidden column. Maximize restores selection and settings. Personal field appearance previews, cancels and reloads.",
+          "checks": [
+            "yarn.personal-tools"
+          ],
+          "gap": "Complete independent shortcut and mode matrix is still missing."
+        },
+        {
+          "id": "full-raster",
+          "status": "partial",
+          "contract": "All 18 fields and labels are compared to the approved editor Canvas; derived output is verified.",
+          "checks": [
+            "yarn.layout"
+          ],
+          "gap": "No authenticated full-form raster including visible grid, editor and footer."
+        },
+        {
+          "id": "release-fallback",
+          "status": "covered",
+          "contract": "Only exact release binding activates the approved route; failed receipts retain legacy route.",
+          "checks": [
+            "yarn.approved-release"
+          ]
+        },
+        {
+          "id": "approved-text-component",
+          "status": "covered",
+          "contract": "Title-derived component opens an actual text editor without dial code or telephone input.",
+          "checks": [
+            "yarn.text-component"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "warehouse.definition",
+      "revision": 2,
+      "status": "protected-reference",
+      "provenance": "Warehouse design/runtime inventory in docs/audits/approved-forms-baseline.md",
+      "dependencies": [
+        "WarehousesPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "SharedContactPopup"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/warehouse-design.json",
+          "format": "json",
+          "sha256": "a70d798d1192d0fb41a96320f869e936e6d4626f172f083e0d22b65ce5c7296d"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-layout",
+          "status": "covered",
+          "contract": "Stored editor and grid schema, fixed frame, visible footer and dock dialog.",
+          "checks": [
+            "warehouse.runtime"
+          ]
+        },
+        {
+          "id": "keyboard-save",
+          "status": "covered",
+          "contract": "Actual Create/F3/Cancel; persisted keeper and dock behavior and concurrency.",
+          "checks": [
+            "warehouse.runtime",
+            "warehouse.data"
+          ]
+        },
+        {
+          "id": "filter-permissions",
+          "status": "covered",
+          "contract": "Permission-checked server sort/filter and stable grid.",
+          "checks": [
+            "warehouse.data"
+          ]
+        },
+        {
+          "id": "performance",
+          "status": "covered",
+          "contract": "Browser first and last pages bounded through 50000 and SQL queries through 100000.",
+          "checks": [
+            "warehouse.virtualization",
+            "warehouse.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "covered",
+          "contract": "Workbook spans 102 virtual rows and excludes hidden column; maximize preserves selection and column preferences. Personal field color previews, cancels and reloads.",
+          "checks": [
+            "warehouse.personal-tools"
+          ]
+        },
+        {
+          "id": "full-raster",
+          "status": "partial",
+          "contract": "The fixed frame, footer, dock interaction and stable geometry in edit are browser checked.",
+          "checks": [
+            "warehouse.runtime"
+          ],
+          "gap": "No authenticated full raster or complete historical position map."
+        }
+      ]
+    },
+    {
+      "id": "warehouse.zone",
+      "revision": 2,
+      "status": "operational-evidence",
+      "provenance": "Versioned reference with no independently authenticated activation receipt",
+      "dependencies": [
+        "WarehouseZones",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/warehouse-zone-design.json",
+          "format": "json",
+          "sha256": "e72fb199224f6f3b78588d3de55ee0fa92c4bae62b0b88b53664e7c4d1da9e51"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "zone-entry",
+          "status": "covered",
+          "contract": "Zone modal editing and retained keyboard/typing access in Warehouse workflows.",
+          "checks": [
+            "warehouse.runtime"
+          ]
+        },
+        {
+          "id": "data",
+          "status": "covered",
+          "contract": "Zone duplicate handling and single custodian or keeper history.",
+          "checks": [
+            "warehouse.zone-data"
+          ]
+        },
+        {
+          "id": "visual-and-tools",
+          "status": "partial",
+          "contract": "The actual zone modal keeps RTL inputs, grid and footer in order; changing visible columns preserves the independent report.",
+          "checks": [
+            "zone.report-tools"
+          ],
+          "gap": "Independent full visual acceptance and complete toolbar, personalization and keyboard matrix are missing."
+        },
+        {
+          "id": "floor-copy-and-default",
+          "status": "covered",
+          "contract": "Copy uses the selected source and rebinds the returned zone to destination floor; default receiving row stays distinct.",
+          "checks": [
+            "zone.report-tools"
+          ]
+        },
+        {
+          "id": "exclusive-session-atomic-batch",
+          "status": "covered",
+          "contract": "Zone mutation endpoints require a lease; SQL prevents simultaneous editing and partial or duplicate batch inserts.",
+          "checks": [
+            "zone.lease-and-batch"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "business-contract.rules",
+      "revision": 2,
+      "status": "operational-evidence",
+      "provenance": "Business contract runtime and legal business-rule tests; no approved Laboratory visual receipt",
+      "dependencies": [
+        "BusinessContractPage",
+        "SystemDateInput",
+        "formInteraction"
+      ],
+      "assets": [],
+      "capabilities": [
+        {
+          "id": "create-cancel",
+          "status": "covered",
+          "contract": "Rendered create/cancel controls release draft and retain tab.",
+          "checks": [
+            "business-contract.runtime"
+          ]
+        },
+        {
+          "id": "versioned-rules",
+          "status": "covered",
+          "contract": "Contract lock after posting, explicit investor IDs, historical effective dates and capital cost flags.",
+          "checks": [
+            "business-contract.rules"
+          ]
+        },
+        {
+          "id": "schema-geometry",
+          "status": "partial",
+          "contract": "The RTL page has contained header, 11 visible cost rows and a footer outside the scroll area.",
+          "checks": [
+            "contract.relative-geometry"
+          ],
+          "gap": "No authenticated historical field map or raster."
+        },
+        {
+          "id": "grid-tools",
+          "status": "unverified",
+          "contract": "No documented independent approved contract grid/filter/export/maximize/custom appearance requirements.",
+          "checks": []
+        },
+        {
+          "id": "keyboard-permission-matrix",
+          "status": "covered",
+          "contract": "Viewer cannot write on F3; writer can cancel editing; locked view offers amendment only; F3 preserves rejected draft, then saves and reloads the successor with its original identity.",
+          "checks": [
+            "contract.browser-workflow",
+            "contract.http-permissions"
+          ]
+        },
+        {
+          "id": "capital-cost-flags",
+          "status": "covered",
+          "contract": "Backend enforces order and only persists a toggled capital flag for configurable costs.",
+          "checks": [
+            "contract.ordered-cost-flags"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shared.operational",
+      "revision": 2,
+      "status": "protected-reference",
+      "provenance": "Published operational behavior references and existing approved integration tests; Laboratory drafts are outside the registry",
+      "dependencies": [
+        "BaseFormGridBoundary",
+        "OperationalFormFrame",
+        "ExcelGridColumnHeader",
+        "FormValueList",
+        "App"
+      ],
+      "assets": [],
+      "capabilities": [
+        {
+          "id": "grid",
+          "status": "covered",
+          "contract": "RTL/LTR resize bounds and typed sort/filter behaviors.",
+          "checks": [
+            "shared.grid"
+          ]
+        },
+        {
+          "id": "large-data",
+          "status": "covered",
+          "contract": "Deterministic Persian filtering and stable sort of up to 50000 rows.",
+          "checks": [
+            "shared.grid-volume"
+          ]
+        },
+        {
+          "id": "loading",
+          "status": "covered",
+          "contract": "Lazy-loaded forms, state preservation and failed-module recovery.",
+          "checks": [
+            "shared.lazy-navigation"
+          ]
+        },
+        {
+          "id": "revisions-permissions",
+          "status": "covered",
+          "contract": "Persisted shared title and theme versions, denied unauthorized changes, isolated overrides.",
+          "checks": [
+            "shared.versions-and-permissions"
+          ]
+        },
+        {
+          "id": "gate-integrity",
+          "status": "covered",
+          "contract": "Required named tests must be discovered; gate rejects missing or skipped evidence and baseline replacement.",
+          "checks": [
+            "gate.self-test",
+            "shared.coverage-versions"
+          ]
+        },
+        {
+          "id": "interactive-search-modes",
+          "status": "covered",
+          "contract": "F1 focuses the actual search input. Contains, Exact and reverse operate on distinct Brand results.",
+          "checks": [
+            "shared.operational-search"
           ]
         }
       ]

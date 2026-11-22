@@ -6,6 +6,8 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
 import { checkPersonsToolbar } from './persons-toolbar.scenarios.mjs'
+import { checkOperationalTools } from './approved-operational-tools.scenarios.mjs'
+import { checkPersonsEditorGeometry } from './persons-editor-geometry.scenarios.mjs'
 
 // Run against `npm run preview`; the browser profile and workspace are disposable.
 const base = process.env.APP_TEST_URL || 'http://127.1.0.1:5173'
@@ -54,6 +56,15 @@ try {
     await evaluate(`(${expression}).click()`)
   }
 
+  for (const company of [false,true]) {
+    const token = await evaluate('performance.timeOrigin')
+    await send('Page.navigate', {url:base+'/tests/person-brand-lookup.html?toolbar=1'+(company?'&company=1':'')})
+    await until('performance.timeOrigin!=='+token+'&&!!document.querySelector(".active tr[data-person-id]")','Persons geometry fixture')
+    await until(company ? '!!document.querySelector(".person-director-field")' : '!!document.querySelector(".person-first-name-field")','Persons identity variant')
+    await evaluate('document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))))')
+    await checkPersonsEditorGeometry(evaluate, company)
+  }
+  console.log('PASS Persons full desktop editor geometry matches Golden tracks in both identity variants and combined Brand footprint')
   await checkPersonsToolbar({ base, send, evaluate, until, profile })
   assert.deepEqual(errors, [])
   if (!process.env.PERSONS_TOOLBAR_ONLY) {
@@ -179,6 +190,8 @@ try {
   await until(lookup+".querySelector('[data-field]').value===''",'Blank clears brand');
   assert.deepEqual(errors,[]);
   console.log('PASS optional blank choice and first result highlight, ArrowUp/Down, single Enter, visible create button, Insert from search; actual Persons lookup: standard height, blank choice, code/name, Insert real Brands create, save/select, preserved draft');
+    await checkOperationalTools({ base, send, evaluate, until, profile })
+    assert.deepEqual(errors, [])
   }
 } catch(error){console.error(error);process.exitCode=1}
 finally{

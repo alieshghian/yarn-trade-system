@@ -2,20 +2,7 @@ import assert from 'node:assert/strict'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-function worksheet(workbook) {
-  for (let offset = 0; offset + 30 < workbook.length && workbook.readUInt32LE(offset) === 0x04034b50;) {
-    const size = workbook.readUInt32LE(offset + 18)
-    const nameLength = workbook.readUInt16LE(offset + 26)
-    const name = workbook.toString('utf8', offset + 30, offset + 30 + nameLength)
-    const start = offset + 30 + nameLength + workbook.readUInt16LE(offset + 28)
-    if (name === 'xl/worksheets/sheet1.xml') {
-      assert.equal(workbook.readUInt16LE(offset + 8), 0)
-      return workbook.toString('utf8', start, start + size)
-    }
-    offset = start + size
-  }
-  assert.fail('Downloaded workbook has no worksheet')
-}
+import { worksheet } from './approved-operational-tools.scenarios.mjs'
 
 export async function checkPersonsToolbar({ base, send, evaluate, until, profile }) {
   const url = base + '/tests/person-brand-lookup.html?toolbar=1'
@@ -139,7 +126,22 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
     assert.equal(await evaluate(`${find(panel + ' th[data-column="personCode"]')}.getAttribute('aria-sort')`), sort, 'Reset preserves sorting')
   }
 
+  const unrelatedField = panel + ' input[data-field="lastName"]'
+  const unrelatedFont = 'getComputedStyle(' + find(unrelatedField) + ').fontFamily'
+  const unrelatedBefore = await evaluate(unrelatedFont)
   const initial = await appearance()
+  await mouse(find(panel + ' .form-settings-button'))
+  await appearanceMenu('text', 'تنظیم قلم…')
+  await select('.operational-font-dialog select[aria-label="قلم"]', 'georgia')
+  await select('.operational-font-dialog select[aria-label="اندازه"]', '24')
+  await click('تأیید')
+  assert.match((await appearance())[0], /Georgia/i, 'Personal font preview changes the selected control')
+  assert.equal(await evaluate(unrelatedFont), unrelatedBefore, 'Personal font in preview leaves adjacent field alone')
+  await click('خروج بدون ذخیره')
+  assert.deepEqual(await appearance(), initial, 'Exit without saving restores the original font')
+  await load()
+  assert.deepEqual(await appearance(), initial, 'Discarded font does not reappear after reload')
+  console.log('PASS Persons personal font preview is target scoped and discarded changes stay absent after reload')
   await mouse(find(panel + ' .form-settings-button'))
   await appearanceMenu('text', 'تنظیم قلم…')
   await snapshot('font')
@@ -158,6 +160,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   await click('ذخیره تنظیمات')
   await load()
   assert.deepEqual(await appearance(), expected)
+  assert.equal(await evaluate(unrelatedFont), unrelatedBefore, 'Saved font remains scoped to the selected field')
   await evaluate("sessionStorage.setItem('currentUser','toolbar-other-viewer')")
   await load()
   assert.deepEqual(await appearance(), initial, 'Appearance is isolated by user')

@@ -13,6 +13,12 @@ assert.ok(npmCli, 'Use npm run test:approved:faults')
 const person = 'src/PersonsPage.tsx'
 const style = 'src/personsToolbar.css'
 const faults = [
+  ['persons-editor-field-shift', 'person-brand-lookup', style, /\s*$/, '\n.persons-page .person-first-name-field { transform: translateX(5px); }\n', 'Persons editor Golden tracks for firstName'],
+  ['persons-editor-label-size', 'person-brand-lookup', style, /\s*$/, '\n.persons-page .person-form-grid .person-phone-field > span { font-size: 18px !important; }\n', 'phone label typography'],
+  ['shared-xlsx-hidden-column', 'person-brand-lookup', 'src/components/base-form/BaseFormGridBoundary.tsx',
+    'columns: visible, rows: exportRows', 'columns, rows: exportRows', 'Brand workbook excludes hidden column'],
+  ['contract-amendment-link', 'person-brand-lookup', 'src/BusinessContractPage.tsx',
+    'previousVersionId: current.id, versionNumber:', "previousVersionId: 'wrong-version', versionNumber:", 'Amendment references its immutable predecessor'],
   ['excel-button', 'person-brand-lookup', person, / *<span data-toolbar-part="export">[^\n]+<\/span>\r?\n/, '\n', 'Approved toolbar icons and appearance entry'],
   ['grid-header-height', 'production', style, /\.persons-page \.person-table \.column-heading \{\r?\n  height: 30px;/,
     '.persons-page .person-table .column-heading {\n  height: 48px;', 'Golden Persons grid visual diff'],
