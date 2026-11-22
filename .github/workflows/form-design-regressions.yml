@@ -96,6 +96,7 @@ jobs:
         working-directory: frontend
     steps:
       - name: Require every prerequisite to complete successfully
+        working-directory: .
         env:
           PRESENTATION: ${{ needs.presentation.result }}
           THEME_SECURITY: ${{ needs['theme-security'].result }}
