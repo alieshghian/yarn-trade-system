@@ -46,10 +46,33 @@ jobs:
           cat /tmp/yarn-form-vite.log
           exit 1
       - name: Behavioral tests, TypeScript and real browser geometry
+        working-directory: .
+        shell: pwsh
         run: |
-          export FORM_TEST_BROWSER="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
-          test -n "$FORM_TEST_BROWSER" || { echo 'A real browser is required; tests cannot skip.'; exit 1; }
-          npm run validate:form-designer
+          $env:FORM_TEST_BROWSER = (Get-Command google-chrome,chromium,chromium-browser -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+          try { ./scripts/Invoke-LaboratoryValidation.ps1 -Force }
+          catch {
+            $resultPath = 'artifacts/shared-laboratory-validation/result.json'
+            if (Test-Path -LiteralPath $resultPath) {
+              $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+              $logPath = Join-Path 'artifacts/shared-laboratory-validation' $result.log
+              if (Test-Path -LiteralPath $logPath) { Get-Content -LiteralPath $logPath -Tail 50 }
+            }
+            throw
+          }
+      - name: Archive independent Laboratory acceptance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laboratory-acceptance
+          path: |
+            artifacts/shared-laboratory-validation/result.json
+            artifacts/shared-laboratory-validation/validation-*.log
+      - name: Verify operational release contracts
+        run: |
+          export FORM_TEST_BROWSER="$(command -v google-chrome)"
+          test -n "$FORM_TEST_BROWSER"
+          npm run test:operational-contract
   theme-security:
     runs-on: ubuntu-latest
     timeout-minutes: 15

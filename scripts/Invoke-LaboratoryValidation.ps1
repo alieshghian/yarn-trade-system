@@ -21,7 +21,14 @@ function Get-ValidationFingerprint {
     }
     $taskBrowser = @($env:FORM_TEST_BROWSER, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe') | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
     if (!$taskBrowser) { throw 'A supported browser is required; validation cannot be skipped.' }
-    $taskLines += 'browser:' + $taskBrowser + ':' + (Get-Item -LiteralPath $taskBrowser).VersionInfo.FileVersion
+    $taskBrowserVersion = if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') {
+        (Get-Item -LiteralPath $taskBrowser).VersionInfo.FileVersion
+    } else {
+        $taskVersionOutput = (& $taskBrowser --version | Out-String).Trim()
+        if ($LASTEXITCODE -ne 0 -or !$taskVersionOutput) { throw 'The configured browser did not report its version.' }
+        $taskVersionOutput
+    }
+    $taskLines += 'browser:' + $taskBrowser + ':' + $taskBrowserVersion
     $taskBytes = [Text.Encoding]::UTF8.GetBytes(($taskLines -join "`n"))
     $taskHasher = [Security.Cryptography.SHA256]::Create()
     try { return [Convert]::ToHexString($taskHasher.ComputeHash($taskBytes)).ToLowerInvariant() }
@@ -47,7 +54,8 @@ try {
     $taskResult = [ordered]@{ version=1; status='RUNNING'; fingerprint=$taskFingerprint; node=$taskNode; command='npm run validate:form-designer'; log=$taskLogName; startedAt=[DateTime]::UtcNow.ToString('o') }
     $taskResult | ConvertTo-Json | Set-Content -LiteralPath $taskResultPath -Encoding utf8
     Push-Location $taskFrontend
-    try { & npm.cmd run validate:form-designer *> (Join-Path $taskArtifacts $taskLogName); $taskExit = $LASTEXITCODE }
+    $taskNpm = if ($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop') { 'npm.cmd' } else { 'npm' }
+    try { & $taskNpm run validate:form-designer *> (Join-Path $taskArtifacts $taskLogName); $taskExit = $LASTEXITCODE }
     finally { Pop-Location }
     $taskResult.finishedAt = [DateTime]::UtcNow.ToString('o')
     $taskResult.exitCode = $taskExit

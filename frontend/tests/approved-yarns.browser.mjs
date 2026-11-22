@@ -33,6 +33,7 @@ try {
   await new Promise((resolveOpen, reject) => { socket.addEventListener('open', resolveOpen, { once: true }); socket.addEventListener('error', reject, { once: true }) })
   socket.addEventListener('message', event => {
     const data = JSON.parse(event.data)
+    if (data.method === 'Page.javascriptDialogOpening') void send('Page.handleJavaScriptDialog',{accept:true})
     if (data.method === 'Runtime.exceptionThrown') errors.push(data.params.exceptionDetails.exception?.description || data.params.exceptionDetails.text)
     const call = pending.get(data.id)
     if (call) { pending.delete(data.id); data.error ? call.reject(new Error(JSON.stringify(data.error))) : call.resolve(data.result) }
@@ -62,6 +63,9 @@ try {
 
 
 
+ const press = async (key, code, windowsVirtualKeyCode) => {
+  for (const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,key,code,windowsVirtualKeyCode})
+ }
  await send('Page.navigate',{url:base+'/tests/approved-yarns.html?empty'});await until("document.querySelector('[data-approved-yarn-release]')",'approved form');
  await until("document.body.innerText.includes('رکوردی یافت نشد')",'empty persisted dataset');assert.equal(await evaluate("document.querySelectorAll('tbody tr[data-row-index]').length"),0);
  await send('Page.navigate',{url:base+'/tests/approved-yarns.html'});await until("document.querySelectorAll('tbody tr[data-row-index]').length===2",'two real color rows');
@@ -126,17 +130,39 @@ try {
  const geometry=await evaluate(`Array.from(document.querySelectorAll('[data-field-id]')).map(e=>{const part=e.querySelector('.designer-input-part'),control=part.querySelector('input,textarea,select,.person-number-control');return {id:e.dataset.fieldId,part:part.getBoundingClientRect().toJSON(),control:control?.getBoundingClientRect().toJSON()}})`);
  await writeFile('../artifacts/yarn-operational-integration/approved-geometry.json',JSON.stringify(geometry,null,2));
  const shot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});await writeFile('../artifacts/yarn-operational-integration/approved-preview.png',Buffer.from(shot.data,'base64'));
- await evaluate("[...document.querySelectorAll('.laboratory-footer button')].find(b=>b.textContent.includes('کپی انتخابی')).click()");
+ await evaluate("document.querySelector('.base-grid-table-wrap').focus()");
+ const latestRequests=await evaluate("approvedYarnCalls.filter(c=>c.path.endsWith('/definition-latest')).length");
+ await press('F4','F4',115);
  await until("document.querySelector('[data-field=code]')?.value==='002'",'copy uses approved server code suggestion');
  await evaluate("document.querySelector('[data-field=code]').focus()");
  assert.equal(await evaluate("document.querySelector('[data-field=code]').selectionEnd"),3,'suggestion selected for replacement');
  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
  await until("!document.querySelector('[data-entry-active]')&&document.querySelector('[data-field=name]')?.value==='FDY'",'copy cancellation restores selected original');
- await evaluate("[...document.querySelectorAll('.laboratory-footer button')].find(b=>b.textContent.includes('جدید')).click()");
+ assert.equal(await evaluate("approvedYarnCalls.filter(c=>c.path.endsWith('/definition-latest')).length"),latestRequests,'F4 copies selection without loading latest');
+ await evaluate("document.querySelector('.base-grid-table-wrap').focus()");await press('F2','F2',113);
+ await until("document.querySelector('[data-entry-active]')&&document.querySelector('[data-field=name]').value==='FDY'",'F2 copies the server latest');
+ assert.equal(await evaluate("approvedYarnCalls.filter(c=>c.path.endsWith('/definition-latest')).length"),latestRequests+1);
+ await press('Escape','Escape',27);await until("!document.querySelector('[data-entry-active]')",'cancel F2 draft');
+ await evaluate("document.querySelector('.base-grid-table-wrap').focus()");await press(' ','Space',32);
  await until("document.querySelector('[data-field=code]')?.value==='002'",'new entry from existing selection');
  assert.equal(await evaluate("document.querySelector('[data-field=name]').value"),'','new entry has no demo values');
  await send('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27});
  await until("!document.querySelector('[data-entry-active]')&&document.querySelector('[data-field=name]')?.value==='FDY'",'new cancellation restores original without inserting a row');
+ await evaluate("document.querySelector('.base-grid-table-wrap').focus()");await press('Insert','Insert',45);
+ await until("document.querySelector('[data-entry-active]')&&document.querySelector('[data-field=name]').value==='FDY'",'Insert edits selected Yarn');
+ await press('F3','F3',114);await until("!document.querySelector('[data-entry-active]')&&approvedYarnCalls.filter(c=>c.method==='PUT'&&c.path.startsWith('/api/yarns/')).length===4",'F3 commits one edit');
+ await evaluate("document.querySelector('tbody tr[data-row-index] td').click()");
+ await until("!!document.querySelector('tbody tr.is-selected')",'Yarn row selected before Delete');
+ await press('Delete','Delete',46);
+ await until("approvedYarnMaster().definition.colors.length===1&&document.querySelectorAll('tbody tr[data-row-index]').length===1",'Delete removes only the selected color');
+ const deleted=await evaluate("approvedYarnCalls.find(c=>c.path==='/api/yarns/bulk-delete').body.rows");
+ assert.deepEqual(deleted.map(r=>r.id),['33333333-3333-3333-3333-333333333333']);
+ await send('Page.navigate',{url:base+'/tests/approved-yarns.html?viewer'});
+ await until("document.querySelector('[data-action-id=\"operational.new\"] button')?.disabled",'viewer actions disabled');
+ await evaluate("document.querySelector('.base-grid-table-wrap').focus()");
+ for(const [key,code,vk] of [[' ','Space',32],['F2','F2',113],['F4','F4',115],['Insert','Insert',45],['Delete','Delete',46],['F3','F3',114]]) await press(key,code,vk);
+ assert.equal(await evaluate("!!document.querySelector('[data-entry-active]') || approvedYarnCalls.some(c=>['PUT','DELETE'].includes(c.method)||c.path.endsWith('/bulk-delete'))"),false,'Read-only keyboard cannot enter mutation paths');
+ console.log('PASS Approved Yarn physical Space F2 F4 Insert F3 Escape and Delete protect mode, selection and permissions');
  await send('Page.navigate',{url:base+'/tests/approved-yarns.html?large'});
  await until("document.querySelectorAll('tbody tr[data-row-index]').length>10",'bounded large report page');
  assert.ok(await evaluate("document.querySelectorAll('tbody tr[data-row-index]').length<=500"),'100000 total records never render the whole dataset');

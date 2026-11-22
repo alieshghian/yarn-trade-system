@@ -510,6 +510,49 @@
       "required": [
         "Business_contract_read_permission_cannot_create_update_or_amend"
       ]
+    },
+    {
+      "id": "brand.authentic-owner-export",
+      "lane": "unit",
+      "file": "tests/brand-owner-provenance.test.mjs",
+      "required": [
+        "Brand owner export matches the historical hash and companion preserves geometry"
+      ]
+    },
+    {
+      "id": "yarn.physical-keyboard",
+      "lane": "approved-yarns",
+      "file": "tests/approved-yarns.browser.mjs",
+      "required": [
+        "Approved Yarn physical Space F2 F4 Insert F3 Escape and Delete protect mode, selection and permissions"
+      ]
+    },
+    {
+      "id": "zone.operational-tools",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Zone workbook contents and maximize restore preserve the selected row and hidden column",
+        "Zone personal appearance previews, cancels and survives reload",
+        "Zone shared font typography and color survive reload without leaking to another account",
+        "Zone filter inversion stays reversible and physical Insert and Escape preserve selected zone"
+      ]
+    },
+    {
+      "id": "contract.ownership-controls",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Contract partnership percentages and conditional credit inputs respond and Escape restores the stored draft"
+      ]
+    },
+    {
+      "id": "contract.responsive-geometry",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Contract real inputs stay contained and sections stack at the documented RTL breakpoint"
+      ]
     }
   ],
   "forms": [
@@ -1774,6 +1817,313 @@
           "contract": "F1 focuses the actual search input. Contains, Exact and reverse operate on distinct Brand results.",
           "checks": [
             "shared.operational-search"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brand.definition",
+      "revision": 3,
+      "status": "protected-reference",
+      "provenance": "Versioned design and runtime evidence in docs/brand-operational-integration.md",
+      "dependencies": [
+        "BrandsPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "SystemLookup",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/brand-design.json",
+          "format": "json",
+          "sha256": "2301d09a07904bfcfdba85c859ed99394032deeb581166b60e6855bec8efa9b6"
+        },
+        {
+          "file": "tests/references/brand-owner-export-20261023.json",
+          "sha256": "6c2f801d8076d73007e31f5999cc588d8cb77c7a40bdb6365f5a82115cff543f",
+          "format": "bytes"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "fields-grid",
+          "status": "covered",
+          "contract": "Published schema positions, types and three view columns; hidden address retained.",
+          "checks": [
+            "brand.search",
+            "brand.save",
+            "brand.authentic-owner-export"
+          ]
+        },
+        {
+          "id": "geometry",
+          "status": "covered",
+          "contract": "Fixed frame, RTL grid inset and scroll containment.",
+          "checks": [
+            "brand.layout"
+          ]
+        },
+        {
+          "id": "search",
+          "status": "covered",
+          "contract": "Actual shared search filters Brand API rows.",
+          "checks": [
+            "brand.search"
+          ]
+        },
+        {
+          "id": "save-permissions",
+          "status": "covered",
+          "contract": "Row-version edit and schema migration preserve hidden address and authorization.",
+          "checks": [
+            "brand.save",
+            "brand.data"
+          ]
+        },
+        {
+          "id": "appearance",
+          "status": "covered",
+          "contract": "Save/reload levels and revoked preferences across frame regions.",
+          "checks": [
+            "brand.appearance"
+          ]
+        },
+        {
+          "id": "xlsx-maximize-keyboard",
+          "status": "covered",
+          "contract": "Actual downloadable workbook includes first/last fixture rows and excludes the hidden column; restore preserves selection; configured F4 and F2/Escape are independent.",
+          "checks": [
+            "brand.xlsx-maximize-keys"
+          ]
+        },
+        {
+          "id": "full-raster",
+          "status": "partial",
+          "contract": "Three operational fields match the pinned Canvas; fixed frame, footer and RTL grid are tested.",
+          "checks": [
+            "brand.canvas",
+            "brand.authentic-owner-export"
+          ],
+          "gap": "Owner export is authenticated and its frame, fields, grid, and Canvas match the companion. No authenticated whole-form raster."
+        },
+        {
+          "id": "entry-focus-after-blur",
+          "status": "covered",
+          "contract": "Entry focus marker remains after blur, moves to the next focused field and clears on Save.",
+          "checks": [
+            "brand.blur-focus"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yarn.definition",
+      "revision": 3,
+      "status": "approved",
+      "provenance": "Registry receipt a348e3e7-ae39-4ff6-b701-7dc55c3201c5 and yarn-operational-acceptance.json",
+      "dependencies": [
+        "ApprovedYarnsPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "FormSchemaPresentation",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/yarn-approved-design.json",
+          "format": "json",
+          "sha256": "9746520995b4bc2bad165bcc1bda1bb84cf140c52dfb3b198529430f5b98de6f"
+        },
+        {
+          "file": "src/forms/yarn-operational-acceptance.json",
+          "format": "json",
+          "sha256": "6000f575e84361e7d01249127d28a0f1210d846a8f0ba141832d98c7af6a433b"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-geometry",
+          "status": "covered",
+          "contract": "18 actual fields and labels match the approved section Canvas within 0.1px; input/derived formatting.",
+          "checks": [
+            "yarn.layout"
+          ]
+        },
+        {
+          "id": "grid-save-keyboard",
+          "status": "covered",
+          "contract": "Master and detail report binding, sticky header, typed runtime title, one-click Save and record identities.",
+          "checks": [
+            "yarn.runtime"
+          ]
+        },
+        {
+          "id": "api-concurrency-performance",
+          "status": "covered",
+          "contract": "SQL roundtrip, large numeric report, distinct bounded suggestions and stable pages.",
+          "checks": [
+            "yarn.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "covered",
+          "contract": "Workbook contains both color rows and excludes the hidden column. Maximize restores selection and settings. Personal field appearance previews, cancels and reloads. The approved physical shortcut matrix checks New, Copy Last, Copy Selected, Insert, Save, Cancel and selected-color deletion; the read-only role cannot mutate.",
+          "checks": [
+            "yarn.personal-tools",
+            "yarn.physical-keyboard"
+          ]
+        },
+        {
+          "id": "full-raster",
+          "status": "partial",
+          "contract": "All 18 fields and labels are compared to the approved editor Canvas; derived output is verified.",
+          "checks": [
+            "yarn.layout"
+          ],
+          "gap": "No authenticated full-form raster including visible grid, editor and footer."
+        },
+        {
+          "id": "release-fallback",
+          "status": "covered",
+          "contract": "Only exact release binding activates the approved route; failed receipts retain legacy route.",
+          "checks": [
+            "yarn.approved-release"
+          ]
+        },
+        {
+          "id": "approved-text-component",
+          "status": "covered",
+          "contract": "Title-derived component opens an actual text editor without dial code or telephone input.",
+          "checks": [
+            "yarn.text-component"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "warehouse.zone",
+      "revision": 3,
+      "status": "operational-evidence",
+      "provenance": "Versioned reference with no independently authenticated activation receipt",
+      "dependencies": [
+        "WarehouseZones",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/warehouse-zone-design.json",
+          "format": "json",
+          "sha256": "e72fb199224f6f3b78588d3de55ee0fa92c4bae62b0b88b53664e7c4d1da9e51"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "zone-entry",
+          "status": "covered",
+          "contract": "Zone modal editing and retained keyboard/typing access in Warehouse workflows.",
+          "checks": [
+            "warehouse.runtime"
+          ]
+        },
+        {
+          "id": "data",
+          "status": "covered",
+          "contract": "Zone duplicate handling and single custodian or keeper history.",
+          "checks": [
+            "warehouse.zone-data"
+          ]
+        },
+        {
+          "id": "visual-and-tools",
+          "status": "partial",
+          "contract": "The actual zone modal preserves RTL geometry, column visibility, XLSX, selection through maximize/reset, reversible server filter inversion, physical edit/cancel, and account-scoped title font and color.",
+          "checks": [
+            "zone.report-tools",
+            "zone.operational-tools"
+          ],
+          "gap": "No independently authenticated whole-form raster or identity-matched owner Zone Canvas; the current screenshot is pending visual approval."
+        },
+        {
+          "id": "floor-copy-and-default",
+          "status": "covered",
+          "contract": "Copy uses the selected source and rebinds the returned zone to destination floor; default receiving row stays distinct.",
+          "checks": [
+            "zone.report-tools"
+          ]
+        },
+        {
+          "id": "exclusive-session-atomic-batch",
+          "status": "covered",
+          "contract": "Zone mutation endpoints require a lease; SQL prevents simultaneous editing and partial or duplicate batch inserts.",
+          "checks": [
+            "zone.lease-and-batch"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "business-contract.rules",
+      "revision": 3,
+      "status": "operational-evidence",
+      "provenance": "Business contract runtime and legal business-rule tests; no approved Laboratory visual receipt",
+      "dependencies": [
+        "BusinessContractPage",
+        "SystemDateInput",
+        "formInteraction"
+      ],
+      "assets": [],
+      "capabilities": [
+        {
+          "id": "create-cancel",
+          "status": "covered",
+          "contract": "Rendered create/cancel controls release draft and retain tab.",
+          "checks": [
+            "business-contract.runtime"
+          ]
+        },
+        {
+          "id": "versioned-rules",
+          "status": "covered",
+          "contract": "Contract lock after posting, explicit investor IDs, historical effective dates and capital cost flags.",
+          "checks": [
+            "business-contract.rules"
+          ]
+        },
+        {
+          "id": "schema-geometry",
+          "status": "partial",
+          "contract": "The RTL page has contained header, 11 visible cost rows and a footer outside the scroll area. Current controls and sections remain contained at desktop width and stack at the documented RTL breakpoint.",
+          "checks": [
+            "contract.relative-geometry",
+            "contract.responsive-geometry"
+          ],
+          "gap": "No authenticated historical field map or raster."
+        },
+        {
+          "id": "grid-tools",
+          "status": "unverified",
+          "contract": "No documented independent approved contract grid/filter/export/maximize/custom appearance requirements.",
+          "checks": []
+        },
+        {
+          "id": "keyboard-permission-matrix",
+          "status": "covered",
+          "contract": "Viewer cannot write on F3; writer can cancel editing; locked view offers amendment only; F3 preserves rejected draft, then saves and reloads the successor with its original identity.",
+          "checks": [
+            "contract.browser-workflow",
+            "contract.http-permissions",
+            "contract.ownership-controls"
+          ]
+        },
+        {
+          "id": "capital-cost-flags",
+          "status": "covered",
+          "contract": "Backend enforces order and only persists a toggled capital flag for configurable costs.",
+          "checks": [
+            "contract.ordered-cost-flags"
           ]
         }
       ]

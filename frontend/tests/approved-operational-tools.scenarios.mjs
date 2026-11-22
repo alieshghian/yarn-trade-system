@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { captureVisualCandidate } from './pending-form-visual-candidates.mjs'
 import { readFile, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { revealMenuExpression } from './form-context-navigation.mjs'
@@ -128,6 +129,8 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   }
 
   await navigate('brands-operational.html?many')
+  if (process.env.FORM_VISUAL_CANDIDATE_DIR) await wait('!!'+find(grid+' tbody tr[data-row-index]:not([aria-busy=true]) td'),'Populated candidate: brand')
+  await captureVisualCandidate({send,evaluate}, "brand", ".operational-form-frame", "Original owner export 6c2f801d; unchanged Brand companion frame and Canvas")
   await gridTools('Brand', ['aB-200','1099'], 'description')
   const shortcut = '.shortcut-settings summary'
   const selectedAction = '[data-action-id="operational.copySelected"] button'
@@ -173,15 +176,63 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
 
   await evaluate("sessionStorage.setItem('isolated-product-group-records',JSON.stringify([{id:'root-1',parentId:null,name:'ریشه محافظت',code:'981',hierarchyCode:'981',depth:0,rowVersion:'AAAAAAAAAAE='},{id:'leaf-1',parentId:'root-1',name:'برگ محافظت',code:'981',hierarchyCode:'981.1',depth:1,rowVersion:'AAAAAAAAAAE='}]))")
   await navigate('product-group-operational.html')
+  if (process.env.FORM_VISUAL_CANDIDATE_DIR) await wait('!!'+find(grid+' tbody tr[data-row-index]:not([aria-busy=true]) td'),'Populated candidate: product-group')
+  await captureVisualCandidate({send,evaluate}, "product-group", ".operational-form-frame", "Published Product Group receipt 71bde8e8 and Canvas")
   await gridTools('Product Group', ['981','ریشه محافظت'], 'product-group.cascading-tree.level.1')
   await settings('Product Group', '.laboratory-banner-title')
   await navigate('approved-yarns.html')
+  if (process.env.FORM_VISUAL_CANDIDATE_DIR) await wait('!!'+find(grid+' tbody tr[data-row-index]:not([aria-busy=true]) td'),'Populated candidate: yarn')
+  await captureVisualCandidate({send,evaluate}, "yarn", ".operational-form-frame", "Published Yarn receipt a348e3e7, Canvas and behavior manifest")
   await gridTools('Yarn', ['110','120'], 'material')
   await settings('Yarn', '[data-field="code"]')
 
   await navigate('warehouses.html?large&size=102')
+  if (process.env.FORM_VISUAL_CANDIDATE_DIR) await wait('!!'+find(grid+' tbody tr[data-row-index]:not([aria-busy=true]) td'),'Populated candidate: warehouse')
+  await captureVisualCandidate({send,evaluate}, "warehouse", ".operational-form-frame", "Pinned Warehouse design and fixed operational frame")
   await gridTools('Warehouse', ['WH-0','WH-101'], 'description')
   await settings('Warehouse', '[data-field="name"]')
+
+  await navigate('warehouses.html?zone')
+  if (process.env.FORM_VISUAL_CANDIDATE_DIR) await wait('!!'+find(grid+' tbody tr[data-row-index]:not([aria-busy=true]) td'),'Populated candidate: zone')
+  await captureVisualCandidate({send,evaluate}, "zone", ".warehouse-zones-page .operational-form-frame", "Pinned Warehouse Zone report schema and actual modal runtime; no separate approved Zone Canvas")
+  const zoneTitle = '.warehouse-zones-page .laboratory-banner-title'
+  const originalZoneColor = await evaluate('getComputedStyle('+find(zoneTitle)+').backgroundColor')
+  await gridTools('Zone', ['1-DOCK','1-SEC'], 'description')
+  await settings('Zone', zoneTitle)
+  const fonts = label('تنظیم قلم…')
+  await mouse(label('تنظیمات فرم'));await mouse(find(zoneTitle),'right')
+  await revealMenuExpression(fonts,{evaluate,send,pause});await mouse(fonts)
+  const familySelect = find('.operational-font-dialog select[aria-label="قلم"]')
+  await wait('!!'+familySelect,'Zone uses the shared font dialog')
+  await evaluate('(()=>{const select='+familySelect+';select.value="georgia";select.dispatchEvent(new Event("change",{bubbles:true}))})()')
+  await mouse(label('تأیید'));await mouse(label('ذخیره تنظیمات'))
+  await navigate('warehouses.html?zone')
+  const titleFont = 'getComputedStyle('+find(zoneTitle+' strong')+').fontFamily'
+  await wait('/Georgia/i.test('+titleFont+')','Zone saved font applies to title text after navigation')
+  await navigate('warehouses.html?zone&alternateUser')
+  assert.equal(await evaluate('getComputedStyle('+find(zoneTitle)+').backgroundColor'),originalZoneColor,'Personal Zone color is account scoped')
+  assert.doesNotMatch(await evaluate(titleFont),/Georgia/i,'Personal Zone font is account scoped')
+  await navigate('warehouses.html?zone')
+  console.log('PASS Zone shared font typography and color survive reload without leaking to another account')
+  await wait('!!'+find('.warehouse-zones-page .excel-filter-trigger'), 'Zone grid ready after preference reload')
+  await click('.warehouse-zones-page th[data-column=code] .excel-filter-trigger')
+  const dockOption = "[...document.querySelectorAll('.filter-values label')].find(e=>e.textContent.trim()==='1-DOCK')?.querySelector('input')"
+  await mouse(dockOption)
+  await click('.filter-invert-selection')
+  await wait(find('.filter-invert-selection')+'.getAttribute("aria-pressed")==="true"','Zone enables inverted filter selection')
+  await click('.filter-invert-selection')
+  await wait(find('.filter-invert-selection')+'.getAttribute("aria-pressed")==="false"','Zone restores inverted filter selection')
+  await click('.filter-actions .primary')
+  const zoneRows = find('.warehouse-zones-page tbody')
+  await wait(zoneRows+'.innerText.includes("1-SEC")&&!'+zoneRows+'.innerText.includes("1-DOCK")','Zone filter excludes the unchecked dock only')
+  assert.ok(await evaluate("zoneRequests.some(r=>r.body.optionsColumn==='code')"),'Zone obtains filter choices from the API');
+  await click('.warehouse-zones-page tbody tr[data-row-index] td')
+  await key('Insert',45)
+  const zoneName = find('.warehouse-zones-page input[data-field=name]')
+  await wait('!'+zoneName+'.disabled','Insert edits the selected non-dock Zone')
+  await mouse(zoneName);await key('Escape',27)
+  await wait(zoneName+'.disabled','Escape discards Zone editing')
+  console.log('PASS Zone filter inversion stays reversible and physical Insert and Escape preserve selected zone')
 
   const page = '.business-contract-page'
   const footer = page + ' footer'
@@ -200,10 +251,24 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   assert.ok(await evaluate('!!' + edit), 'Editable contract exposes Edit')
   await mouse(edit)
   await wait('!!' + save + '&&!' + contractName + '.disabled', 'Editable settings open for the writer')
-  await mouse(contractName)
+  const structure = "[...document.querySelectorAll('.contract-field')].find(e=>e.firstElementChild.textContent==='ساختار کسب‌وکار').querySelector('select')"
+  await mouse(structure);await key('End',35);await key('Enter',13)
+  await wait("document.querySelectorAll('.allocation-row:first-of-type input').length===2||document.querySelector('.allocation-row')?.querySelectorAll('input').length===2", 'Partnership exposes the paired allocations')
+  const pair = ".allocation-row .percent-input input"
+  await click(pair)
+  await send('Input.insertText',{text:'۳۵'})
+  await key('Enter',13)
+  await wait("[...document.querySelector('.allocation-row').querySelectorAll('input')].map(e=>e.value).join(',')==='35,65'",'Persian percentage entry preserves both shares as complements')
+  const credit = "[...document.querySelectorAll('.contract-toggle')].find(e=>e.textContent.trim()==='فروش اعتباری مجاز است').querySelector('input')"
+  await mouse(credit)
+  await wait("!!document.querySelector('.contract-fields input[type=number]')",'Credit fields appear only when enabled')
+  await mouse(credit)
+  await wait("!document.querySelector('.contract-fields input[type=number]')",'Disabling credit hides dependent inputs')
   await key('Escape', 27)
   await wait('!!' + edit + '&&' + contractName + '.disabled', 'Escape cancels editing and reloads original data')
   assert.equal(await evaluate('contractEvidence.writes.length'), 0, 'Cancellation sends no mutations')
+  await wait(structure+'.value==="SoleOwnership"','Reload after cancellation restores the saved ownership structure')
+  console.log('PASS Contract partnership percentages and conditional credit inputs respond and Escape restores the stored draft')
 
   await navigate('business-contract-coverage.html', page)
   assert.equal(await evaluate('!!' + edit), false, 'A posted contract cannot use direct edit')
@@ -211,6 +276,16 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   const geometry = await evaluate("(()=>{const area=document.querySelector('.contract-scroll-content'),heading=area.querySelector('header'),box=area.getBoundingClientRect(),r=heading.getBoundingClientRect();return {headingInPanel:r.top>=box.top && r.left>=box.left && r.right<=box.right,costRows:area.querySelectorAll('.cost-row').length,footerOutsideScroll:!area.contains(document.querySelector('.business-contract-page footer')),direction:getComputedStyle(area).direction}})()")
   assert.deepEqual(geometry, {headingInPanel:true,costRows:11,footerOutsideScroll:true,direction:'rtl'}, 'Contract settings retain all cost rows and keep footer outside the scroll panel')
   console.log('PASS Business Contract RTL state header and eleven cost rows share a contained editor and independent footer')
+  for (const width of [1600,740]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:false})
+    await wait('innerWidth==='+width,'Contract viewport width')
+    const layout = await evaluate("(()=>{const p=document.querySelector('.business-contract-page'),r=p.getBoundingClientRect(),parts=[...p.querySelector('.contract-middle-row').children].map(e=>e.getBoundingClientRect()),footer=p.querySelector('footer').getBoundingClientRect();const controls=[...p.querySelectorAll('.contract-section input,.contract-section select')].filter(e=>e.getClientRects().length);return {horizontal:parts[0].right<=parts[1].left+1||parts[1].right<=parts[0].left+1,vertical:parts[0].bottom<=parts[1].top+1,contained:controls.every(e=>{const c=e.getBoundingClientRect();return c.left>=r.left-1&&c.right<=r.right+1}),footerWidth:footer.width<=r.width}})()")
+    assert.deepEqual(layout,{horizontal:width>760,vertical:width<=760,contained:true,footerWidth:true},'Contract sections and real controls fit at '+width+'px')
+  }
+  await send('Emulation.clearDeviceMetricsOverride')
+  console.log('PASS Contract real inputs stay contained and sections stack at the documented RTL breakpoint')
+  await captureVisualCandidate({send,evaluate}, "contract", ".business-contract-page", "Contract Rules document and existing runtime layout; no owner geometry or grid approval")
+
   await mouse(amendment)
   await wait('!!' + save + '&&!' + contractName + '.disabled', 'Locked contract offers amendment draft')
   assert.equal(await evaluate(find('[data-field="identity0Name"]') + '.disabled'), true, 'Amendment keeps a locked investor identity read-only')

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { captureVisualCandidate } from './pending-form-visual-candidates.mjs'
 import { connectChromeDevTools } from './chrome-devtools.mjs'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -47,7 +48,11 @@ try {
   }
   const until = async (expression, label) => {
     const deadline = Date.now() + 15000
-    while (Date.now() < deadline) { if (await evaluate(expression)) return; await pause(100) }
+    while (Date.now() < deadline) {
+      try { if (await evaluate(expression)) return }
+      catch(error) { if (!error.message.includes('Inspected target navigated or closed')) throw error }
+      await pause(100)
+    }
     throw new Error('Timed out: ' + label + '\n' + await evaluate('document.body.innerText.slice(0,1500)'))
   }
   const clickTab = async label => {
@@ -63,6 +68,7 @@ try {
     await until(company ? '!!document.querySelector(".person-director-field")' : '!!document.querySelector(".person-first-name-field")','Persons identity variant')
     await evaluate('document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))))')
     await checkPersonsEditorGeometry(evaluate, company)
+    if (!company) await captureVisualCandidate({send,evaluate}, 'persons', '.active .persons-page', 'Golden d0f1553 tracks and historical grid crop; combined Brand footprint')
   }
   console.log('PASS Persons full desktop editor geometry matches Golden tracks in both identity variants and combined Brand footprint')
   await checkPersonsToolbar({ base, send, evaluate, until, profile })

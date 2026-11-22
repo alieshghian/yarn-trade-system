@@ -2,12 +2,18 @@ import {createRoot} from 'react-dom/client'
 import '../src/styles.css'
 import '../src/components/base-form/formTheme.css'
 import {installFormInteraction} from '../src/formInteraction'
+import {WarehouseZones} from '../src/WarehouseZones'
+import {applyGridFiltersAndSort, gridRowMatchesSearch, type ExcelGridColumn} from '../src/components/base-form/excelGrid'
 sessionStorage.setItem('permissions',JSON.stringify([...['view','create','edit','delete','zones'].map(p=>'warehouses.'+p),'persons.view']))
-sessionStorage.setItem('currentUser','warehouse-fixture')
+sessionStorage.setItem('currentUser',location.search.includes('alternateUser')?'warehouse-fixture-other':'warehouse-fixture')
 localStorage.removeItem('operational-form:operational.warehouses')
 let record:Record<string,unknown>|null=null
 let zones=[{id:'dock',floorNumber:1,code:'1-DOCK',name:'بارانداز',description:'',isDefaultReceiving:true,isActive:true,rowVersion:'AAAAAAAAAAA='}]
-Object.assign(window,{warehouseWrites:0})
+const directZone = new URLSearchParams(location.search).has('zone')
+if(directZone)zones.push({...zones[0],id:'sample-zone',code:'1-SEC',name:'قفسه نمونه',description:'یادداشت خصوصی گرید',isDefaultReceiving:false})
+const zoneColumns:ExcelGridColumn<typeof zones[number]>[]=[{id:'code',label:'کد زون',width:120,type:'text',value:z=>z.code},{id:'name',label:'نام زون',width:120,type:'text',value:z=>z.name}]
+const zoneRequests:{path:string;method:string;body:unknown}[]=[]
+Object.assign(window,{warehouseWrites:0,zoneRequests})
 window.fetch=async(input,init)=>{
  const url=String(input),response=(body:unknown)=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}})
  if(url.endsWith('/api/warehouses/latest'))return record?response(record):new Response(null,{status:404})
@@ -20,7 +26,17 @@ window.fetch=async(input,init)=>{
   const duplicate=url.endsWith('/zones')?zones.some(z=>z.id!==q.currentId&&z.floorNumber===q.floorNumber&&normalize(q.field==='code'?z.code:z.name)===normalize(q.value)):q.field==='code'&&record?.id!==q.currentId&&normalize(record?.code)===normalize(q.value)
   return response({error:duplicate?'مقدار تکراری است.':null})
  }
- if(url.includes('/zones/grid?floor=')){const floor=Number(url.split('floor=')[1]),q=JSON.parse(String(init?.body??'{}'));let rows=zones.filter(z=>z.floorNumber===floor);if(q.filters?.code)rows=rows.filter(z=>q.filters.code.selectedValues.includes('string:'+z.code));return response({items:rows,total:rows.length,page:1,pageSize:100})}
+ if(url.includes('/zones/grid?floor=')){
+  const floor=Number(url.split('floor=')[1]),q=JSON.parse(String(init?.body??'{}'))
+  zoneRequests.push({path:'/zones/grid',method:init?.method??'GET',body:q})
+  let rows=zones.filter(z=>z.floorNumber===floor)
+  if(q.search)rows=rows.filter(z=>gridRowMatchesSearch(z,zoneColumns,q.search,q.searchMode)!==!!q.reverseSearch)
+  const filters={...q.filters};if(q.optionsColumn)delete filters[q.optionsColumn]
+  rows=applyGridFiltersAndSort(rows,zoneColumns,filters,q.sort,'fa')
+  if(q.optionsColumn==='code')return response({filterValues:rows.map(z=>z.code)})
+  const page=q.page??1,pageSize=q.pageSize??100
+  return response({items:rows.slice((page-1)*pageSize,page*pageSize),total:rows.length,page,pageSize})
+ }
  if(url.includes('/zones/suggest-code')){await new Promise(resolve=>setTimeout(resolve,350));return response({suggestion:'2-001'})}
  if(url.includes('/floors/2/dock')){const z={...zones[0],id:'dock2',floorNumber:2,code:'2-DOCK'};zones.push(z);return response(z)}
  if(url.includes('/zones/copy-options')){const q=new URL(url,'http://test').searchParams,source=Number(q.get('sourceFloor')),target=Number(q.get('targetFloor'));return response({items:zones.filter(z=>z.floorNumber===source&&!z.isDefaultReceiving&&!zones.some(t=>t.floorNumber===target&&t.name===z.name)),hasMore:false})}
@@ -49,5 +65,5 @@ window.fetch=async(input,init)=>{
 }
 const {default:Page}=await import('../src/WarehousesPage')
 installFormInteraction()
-const page=<Page language="fa" onClose={()=>{}}/>
+const page=directZone?<WarehouseZones language="fa" warehouse={{id:'isolated-warehouse',code:'WH-CANDIDATE',nameFa:'انبار آزمایشی',floorCount:2,location:null,address:null,addressesJson:null,description:null,custodianPersonId:null,rowVersion:'AAAAAAAAAAA=',isActive:true}} canEdit onClose={()=>{}}/>:<Page language="fa" onClose={()=>{}}/>
 createRoot(document.getElementById('root')!).render(location.search.includes('modal')?<div role="dialog" aria-modal="true">{page}</div>:page)

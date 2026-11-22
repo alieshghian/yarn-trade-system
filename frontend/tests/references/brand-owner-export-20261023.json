@@ -1,0 +1,1578 @@
+{
+  "artifact": "yarn-trade.single-form-design-export",
+  "version": 1,
+  "exportedAt": "2026-10-23T06:20:14.089Z",
+  "source": {
+    "kind": "current-designer",
+    "address": "http://127.1.0.1:5173/?formDesign=form.redesign.805deb77-bec5-41fa-af97-77b7007ca3a4"
+  },
+  "form": {
+    "id": "form.redesign.805deb77-bec5-41fa-af97-77b7007ca3a4",
+    "schema": {
+      "id": "form.redesign.805deb77-bec5-41fa-af97-77b7007ca3a4",
+      "schemaVersion": 1,
+      "version": 1,
+      "status": "draft",
+      "mode": "operational",
+      "title": {
+        "fa": "تعریف برند — بازطراحی",
+        "en": "تعریف برند — بازطراحی",
+        "zh": "تعریف برند — بازطراحی"
+      },
+      "layout": {
+        "direction": "vertical",
+        "gap": 0
+      },
+      "sections": [
+        {
+          "id": "catalog.editor",
+          "kind": "editor",
+          "layout": {
+            "columns": 20,
+            "direction": "horizontal",
+            "gap": 12,
+            "minimumWidth": 1440
+          }
+        },
+        {
+          "id": "catalog.grid.brands",
+          "kind": "grid"
+        },
+        {
+          "id": "catalog.footer",
+          "kind": "footer"
+        }
+      ],
+      "fields": [
+        {
+          "id": "brandCode",
+          "sectionId": "catalog.editor",
+          "minTracks": 5,
+          "span": 5,
+          "componentId": "definition.field",
+          "label": {
+            "fa": "کد برند",
+            "en": "کد برند",
+            "zh": "کد برند"
+          },
+          "kind": "text",
+          "required": true,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "brandCode"
+          },
+          "settings": {
+            "layout": {
+              "grid": {
+                "columns": 20,
+                "columnStart": 1,
+                "columnSpan": 5,
+                "rowStart": 1
+              }
+            }
+          },
+          "columnLinks": [
+            {
+              "tableId": "brands",
+              "columnId": "brandCode"
+            }
+          ]
+        },
+        {
+          "id": "brandName",
+          "sectionId": "catalog.editor",
+          "minTracks": 5,
+          "span": 5,
+          "componentId": "definition.field",
+          "label": {
+            "fa": "نام برند",
+            "en": "نام برند",
+            "zh": "نام برند"
+          },
+          "kind": "text",
+          "required": true,
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "brandName"
+          },
+          "settings": {
+            "layout": {
+              "grid": {
+                "columns": 20,
+                "columnStart": 6,
+                "columnSpan": 5,
+                "rowStart": 1
+              }
+            }
+          },
+          "columnLinks": [
+            {
+              "tableId": "brands",
+              "columnId": "brandName"
+            }
+          ]
+        },
+        {
+          "id": "brandDescription",
+          "sectionId": "catalog.editor",
+          "minTracks": 5,
+          "span": 5,
+          "componentId": "definition.field",
+          "label": {
+            "fa": "توضیحات",
+            "en": "توضیحات",
+            "zh": "توضیحات"
+          },
+          "kind": "textarea",
+          "dataBinding": {
+            "kind": "dataField",
+            "dataFieldId": "description"
+          },
+          "settings": {
+            "layout": {
+              "grid": {
+                "columns": 20,
+                "columnStart": 16,
+                "columnSpan": 5,
+                "rowStart": 1
+              }
+            }
+          },
+          "columnLinks": [
+            {
+              "tableId": "brands",
+              "columnId": "description"
+            }
+          ]
+        }
+      ],
+      "tables": [
+        {
+          "id": "brands",
+          "sectionId": "catalog.grid.brands",
+          "title": {
+            "fa": "برندها",
+            "en": "برندها",
+            "zh": "برندها"
+          },
+          "dataSourceId": "operational.brands.brands",
+          "columns": [
+            {
+              "id": "brandCode",
+              "label": {
+                "fa": "کد برند",
+                "en": "کد برند",
+                "zh": "کد برند"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "brandCode"
+              },
+              "sourceFieldIds": [
+                "brandCode"
+              ]
+            },
+            {
+              "id": "brandName",
+              "label": {
+                "fa": "نام برند",
+                "en": "نام برند",
+                "zh": "نام برند"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "brandName"
+              },
+              "sourceFieldIds": [
+                "brandName"
+              ],
+              "width": 196
+            },
+            {
+              "id": "description",
+              "label": {
+                "fa": "توضیحات",
+                "en": "توضیحات",
+                "zh": "توضیحات"
+              },
+              "binding": {
+                "kind": "dataField",
+                "dataFieldId": "description"
+              },
+              "sourceFieldIds": [
+                "brandDescription"
+              ],
+              "width": 386
+            }
+          ],
+          "searchable": true,
+          "columnSelection": true,
+          "rowSelection": "single",
+          "contextMenu": true,
+          "lazyLoading": true,
+          "virtualScrolling": true,
+          "settings": {
+            "toolbar": {
+              "header": {
+                "x": 0,
+                "y": 40.99989999999957,
+                "width": 744,
+                "height": 79
+              },
+              "searchInput": {
+                "x": -0.677063,
+                "y": -0.166659,
+                "width": 329.91668701171875,
+                "height": 34,
+                "backgroundColor": "#e1f3ee",
+                "borderColor": "#3a7d22"
+              },
+              "title": {
+                "fontSize": 12,
+                "bold": false,
+                "italic": false,
+                "strikeThrough": false,
+                "textColor": "#263a38",
+                "fontFamily": "inherit"
+              },
+              "counter": {
+                "fontSize": 11,
+                "bold": false,
+                "italic": false,
+                "strikeThrough": false,
+                "textColor": "#263a38",
+                "fontFamily": "inherit"
+              }
+            }
+          }
+        }
+      ],
+      "actions": [
+        {
+          "id": "operational.new",
+          "code": "Space",
+          "keys": [
+            " "
+          ],
+          "label": {
+            "fa": "شخص جدید",
+            "en": "New person",
+            "zh": "新建人员"
+          },
+          "primary": true,
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "brands.new"
+        },
+        {
+          "id": "operational.edit",
+          "code": "Insert",
+          "keys": [
+            "Insert"
+          ],
+          "label": {
+            "fa": "ویرایش",
+            "en": "Edit",
+            "zh": "编辑"
+          },
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "brands.edit"
+        },
+        {
+          "id": "operational.delete",
+          "code": "Delete",
+          "keys": [
+            "Delete"
+          ],
+          "label": {
+            "fa": "حذف",
+            "en": "Delete",
+            "zh": "删除"
+          },
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "brands.delete"
+        },
+        {
+          "id": "previous-page",
+          "code": "PgUp",
+          "keys": [
+            "PageUp"
+          ],
+          "label": {
+            "fa": "صفحه قبل",
+            "en": "Previous page",
+            "zh": "上一页"
+          },
+          "sectionId": "catalog.footer",
+          "required": false
+        },
+        {
+          "id": "browse-records",
+          "code": "↑ ↓",
+          "keys": [
+            "ArrowUp",
+            "ArrowDown"
+          ],
+          "label": {
+            "fa": "مرور",
+            "en": "Browse",
+            "zh": "浏览"
+          },
+          "sectionId": "catalog.footer",
+          "required": false
+        },
+        {
+          "id": "next-page",
+          "code": "PgDn",
+          "keys": [
+            "PageDown"
+          ],
+          "label": {
+            "fa": "صفحه بعد",
+            "en": "Next page",
+            "zh": "下一页"
+          },
+          "sectionId": "catalog.footer",
+          "required": false
+        },
+        {
+          "id": "action-settings",
+          "code": "⚙",
+          "label": {
+            "fa": "تنظیمات",
+            "en": "Settings",
+            "zh": "设置"
+          },
+          "iconOnly": true,
+          "sectionId": "catalog.footer",
+          "required": false
+        },
+        {
+          "id": "operational.save",
+          "code": "F3",
+          "keys": [
+            "F3"
+          ],
+          "label": {
+            "fa": "ذخیره",
+            "en": "Save",
+            "zh": "保存"
+          },
+          "primary": true,
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "brands.save"
+        },
+        {
+          "id": "operational.close",
+          "code": "Esc",
+          "keys": [
+            "Escape"
+          ],
+          "label": {
+            "fa": "خروج",
+            "en": "Exit",
+            "zh": "退出"
+          },
+          "required": false,
+          "sectionId": "catalog.footer",
+          "operationId": "brands.close"
+        }
+      ],
+      "behaviorInstruction": "بازطراحی تعریف برند؛ اتصال‌های موجود و اعتبارسنجی‌ها حفظ شوند. موارد نیازمند بررسی: کد یکتا، ارتباط برند با اشخاص و اسناد خرید",
+      "resources": {
+        "dataSourceIds": [
+          "/api/master-data/brands"
+        ],
+        "operationIds": [
+          "brands.read",
+          "brands.save"
+        ]
+      },
+      "templateFormId": "form-laboratory.persons-synthetic",
+      "settings": {
+        "shared": {
+          "standardId": "form-laboratory.persons-synthetic",
+          "version": 1,
+          "designer": {
+            "format": "yarn-trade.form-designer-draft",
+            "schemaVersion": 1,
+            "formId": "form-laboratory.persons-synthetic",
+            "defaults": {
+              "input": {
+                "focusBackgroundColor": "#f6eeb8",
+                "focusBorderColor": "#d8d8d8",
+                "backgroundColor": "#f4f6f5"
+              }
+            },
+            "appearance": {
+              "headerBackground": "#dee2de",
+              "headerBorder": "#3a7d22",
+              "entryFieldBackground": "#d8d8d8"
+            },
+            "overrides": {},
+            "actions": {
+              "operational.new": {
+                "visible": true
+              },
+              "operational.edit": {
+                "visible": true
+              },
+              "operational.delete": {
+                "visible": true
+              },
+              "first-record": {
+                "visible": true
+              },
+              "previous-page": {
+                "visible": true
+              },
+              "browse-records": {
+                "visible": true
+              },
+              "next-page": {
+                "visible": true
+              },
+              "last-record": {
+                "visible": true
+              },
+              "action-settings": {
+                "visible": true
+              },
+              "operational.save": {
+                "visible": true
+              },
+              "operational.close": {
+                "visible": true
+              }
+            },
+            "layoutMode": "schema"
+          }
+        },
+        "specific": {
+          "designer": {
+            "properties": {},
+            "appearance": {},
+            "components": {}
+          },
+          "values": {
+            "operationalSource": {
+              "route": "brands",
+              "sourceFiles": [
+                "frontend/src/BrandsPage.tsx"
+              ],
+              "api": [
+                "/api/master-data/brands"
+              ],
+              "availability": "operational",
+              "baseline": {
+                "id": "operational.brands",
+                "schemaVersion": 1,
+                "version": 1,
+                "status": "draft",
+                "mode": "operational",
+                "title": {
+                  "fa": "تعریف برند",
+                  "en": "تعریف برند",
+                  "zh": "تعریف برند"
+                },
+                "layout": {
+                  "direction": "vertical",
+                  "gap": 0
+                },
+                "sections": [
+                  {
+                    "id": "catalog.editor",
+                    "kind": "editor",
+                    "layout": {
+                      "columns": 20,
+                      "direction": "horizontal",
+                      "gap": 12,
+                      "minimumWidth": 1440
+                    }
+                  },
+                  {
+                    "id": "catalog.grid.brands",
+                    "kind": "grid"
+                  },
+                  {
+                    "id": "catalog.footer",
+                    "kind": "footer"
+                  }
+                ],
+                "fields": [
+                  {
+                    "id": "brandCode",
+                    "sectionId": "catalog.editor",
+                    "minTracks": 5,
+                    "span": 5,
+                    "componentId": "definition.field",
+                    "label": {
+                      "fa": "کد برند",
+                      "en": "کد برند",
+                      "zh": "کد برند"
+                    },
+                    "kind": "text",
+                    "required": true,
+                    "dataBinding": {
+                      "kind": "dataField",
+                      "dataFieldId": "brandCode"
+                    },
+                    "settings": {
+                      "layout": {
+                        "grid": {
+                          "columns": 20,
+                          "columnStart": 1,
+                          "columnSpan": 5,
+                          "rowStart": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "brandName",
+                    "sectionId": "catalog.editor",
+                    "minTracks": 5,
+                    "span": 5,
+                    "componentId": "definition.field",
+                    "label": {
+                      "fa": "نام برند",
+                      "en": "نام برند",
+                      "zh": "نام برند"
+                    },
+                    "kind": "text",
+                    "required": true,
+                    "dataBinding": {
+                      "kind": "dataField",
+                      "dataFieldId": "brandName"
+                    },
+                    "settings": {
+                      "layout": {
+                        "grid": {
+                          "columns": 20,
+                          "columnStart": 6,
+                          "columnSpan": 5,
+                          "rowStart": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "brandAddress",
+                    "sectionId": "catalog.editor",
+                    "minTracks": 5,
+                    "span": 5,
+                    "componentId": "definition.field",
+                    "label": {
+                      "fa": "آدرس",
+                      "en": "آدرس",
+                      "zh": "آدرس"
+                    },
+                    "kind": "text",
+                    "dataBinding": {
+                      "kind": "dataField",
+                      "dataFieldId": "address"
+                    },
+                    "settings": {
+                      "layout": {
+                        "grid": {
+                          "columns": 20,
+                          "columnStart": 11,
+                          "columnSpan": 5,
+                          "rowStart": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "brandDescription",
+                    "sectionId": "catalog.editor",
+                    "minTracks": 5,
+                    "span": 5,
+                    "componentId": "definition.field",
+                    "label": {
+                      "fa": "توضیحات",
+                      "en": "توضیحات",
+                      "zh": "توضیحات"
+                    },
+                    "kind": "textarea",
+                    "dataBinding": {
+                      "kind": "dataField",
+                      "dataFieldId": "description"
+                    },
+                    "settings": {
+                      "layout": {
+                        "grid": {
+                          "columns": 20,
+                          "columnStart": 16,
+                          "columnSpan": 5,
+                          "rowStart": 1
+                        }
+                      }
+                    }
+                  }
+                ],
+                "tables": [
+                  {
+                    "id": "brands",
+                    "sectionId": "catalog.grid.brands",
+                    "title": {
+                      "fa": "برندها",
+                      "en": "برندها",
+                      "zh": "برندها"
+                    },
+                    "dataSourceId": "operational.brands.brands",
+                    "columns": [
+                      {
+                        "id": "brandCode",
+                        "label": {
+                          "fa": "کد برند",
+                          "en": "کد برند",
+                          "zh": "کد برند"
+                        },
+                        "binding": {
+                          "kind": "dataField",
+                          "dataFieldId": "brandCode"
+                        },
+                        "sourceFieldIds": [
+                          "brandCode"
+                        ]
+                      },
+                      {
+                        "id": "brandName",
+                        "label": {
+                          "fa": "نام برند",
+                          "en": "نام برند",
+                          "zh": "نام برند"
+                        },
+                        "binding": {
+                          "kind": "dataField",
+                          "dataFieldId": "brandName"
+                        },
+                        "sourceFieldIds": [
+                          "brandName"
+                        ]
+                      },
+                      {
+                        "id": "address",
+                        "label": {
+                          "fa": "آدرس",
+                          "en": "آدرس",
+                          "zh": "آدرس"
+                        },
+                        "binding": {
+                          "kind": "dataField",
+                          "dataFieldId": "address"
+                        },
+                        "sourceFieldIds": [
+                          "brandAddress"
+                        ]
+                      },
+                      {
+                        "id": "description",
+                        "label": {
+                          "fa": "توضیحات",
+                          "en": "توضیحات",
+                          "zh": "توضیحات"
+                        },
+                        "binding": {
+                          "kind": "dataField",
+                          "dataFieldId": "description"
+                        },
+                        "sourceFieldIds": [
+                          "brandDescription"
+                        ]
+                      }
+                    ],
+                    "searchable": true,
+                    "columnSelection": true,
+                    "rowSelection": "single",
+                    "contextMenu": true,
+                    "lazyLoading": true,
+                    "virtualScrolling": true
+                  }
+                ],
+                "actions": [
+                  {
+                    "id": "operational.new",
+                    "code": "Space",
+                    "keys": [
+                      " "
+                    ],
+                    "label": {
+                      "fa": "شخص جدید",
+                      "en": "New person",
+                      "zh": "新建人员"
+                    },
+                    "primary": true,
+                    "required": true,
+                    "sectionId": "catalog.footer",
+                    "operationId": "brands.new"
+                  },
+                  {
+                    "id": "operational.edit",
+                    "code": "Insert",
+                    "keys": [
+                      "Insert"
+                    ],
+                    "label": {
+                      "fa": "ویرایش",
+                      "en": "Edit",
+                      "zh": "编辑"
+                    },
+                    "required": true,
+                    "sectionId": "catalog.footer",
+                    "operationId": "brands.edit"
+                  },
+                  {
+                    "id": "operational.delete",
+                    "code": "Delete",
+                    "keys": [
+                      "Delete"
+                    ],
+                    "label": {
+                      "fa": "حذف",
+                      "en": "Delete",
+                      "zh": "删除"
+                    },
+                    "required": true,
+                    "sectionId": "catalog.footer",
+                    "operationId": "brands.delete"
+                  },
+                  {
+                    "id": "first-record",
+                    "code": "Home",
+                    "keys": [
+                      "Home"
+                    ],
+                    "label": {
+                      "fa": "اول",
+                      "en": "First",
+                      "zh": "首条"
+                    },
+                    "sectionId": "catalog.footer"
+                  },
+                  {
+                    "id": "previous-page",
+                    "code": "PgUp",
+                    "keys": [
+                      "PageUp"
+                    ],
+                    "label": {
+                      "fa": "صفحه قبل",
+                      "en": "Previous page",
+                      "zh": "上一页"
+                    },
+                    "sectionId": "catalog.footer"
+                  },
+                  {
+                    "id": "browse-records",
+                    "code": "↑ ↓",
+                    "keys": [
+                      "ArrowUp",
+                      "ArrowDown"
+                    ],
+                    "label": {
+                      "fa": "مرور",
+                      "en": "Browse",
+                      "zh": "浏览"
+                    },
+                    "sectionId": "catalog.footer"
+                  },
+                  {
+                    "id": "next-page",
+                    "code": "PgDn",
+                    "keys": [
+                      "PageDown"
+                    ],
+                    "label": {
+                      "fa": "صفحه بعد",
+                      "en": "Next page",
+                      "zh": "下一页"
+                    },
+                    "sectionId": "catalog.footer"
+                  },
+                  {
+                    "id": "last-record",
+                    "code": "End",
+                    "keys": [
+                      "End"
+                    ],
+                    "label": {
+                      "fa": "آخر",
+                      "en": "Last",
+                      "zh": "末条"
+                    },
+                    "sectionId": "catalog.footer"
+                  },
+                  {
+                    "id": "action-settings",
+                    "code": "⚙",
+                    "label": {
+                      "fa": "تنظیمات",
+                      "en": "Settings",
+                      "zh": "设置"
+                    },
+                    "iconOnly": true,
+                    "sectionId": "catalog.footer"
+                  },
+                  {
+                    "id": "operational.save",
+                    "code": "F3",
+                    "keys": [
+                      "F3"
+                    ],
+                    "label": {
+                      "fa": "ذخیره",
+                      "en": "Save",
+                      "zh": "保存"
+                    },
+                    "primary": true,
+                    "required": true,
+                    "sectionId": "catalog.footer",
+                    "operationId": "brands.save"
+                  },
+                  {
+                    "id": "operational.close",
+                    "code": "Esc",
+                    "keys": [
+                      "Escape"
+                    ],
+                    "label": {
+                      "fa": "خروج",
+                      "en": "Exit",
+                      "zh": "退出"
+                    },
+                    "required": true,
+                    "sectionId": "catalog.footer",
+                    "operationId": "brands.close"
+                  }
+                ],
+                "behaviorInstruction": "بازطراحی تعریف برند؛ اتصال‌های موجود و اعتبارسنجی‌ها حفظ شوند. موارد نیازمند بررسی: کد یکتا، ارتباط برند با اشخاص و اسناد خرید",
+                "resources": {
+                  "dataSourceIds": [
+                    "/api/master-data/brands"
+                  ],
+                  "operationIds": [
+                    "brands.read",
+                    "brands.save"
+                  ]
+                },
+                "templateFormId": "form-laboratory.persons-synthetic",
+                "settings": {
+                  "shared": {
+                    "standardId": "form-laboratory.persons-synthetic",
+                    "version": 1
+                  }
+                }
+              }
+            },
+            "redesignIntent": "appearance"
+          }
+        }
+      },
+      "menuPlacement": {
+        "menuId": "definitions"
+      }
+    },
+    "frame": {
+      "device": "desktop",
+      "width": 746.6666564941406,
+      "height": null,
+      "fitToPage": false
+    },
+    "template": {
+      "formId": "form-laboratory.persons-synthetic",
+      "version": 1,
+      "schema": {
+        "id": "operational.brands",
+        "schemaVersion": 1,
+        "version": 1,
+        "status": "draft",
+        "mode": "operational",
+        "title": {
+          "fa": "تعریف برند",
+          "en": "تعریف برند",
+          "zh": "تعریف برند"
+        },
+        "layout": {
+          "direction": "vertical",
+          "gap": 0
+        },
+        "sections": [
+          {
+            "id": "catalog.editor",
+            "kind": "editor",
+            "layout": {
+              "columns": 20,
+              "direction": "horizontal",
+              "gap": 12,
+              "minimumWidth": 1440
+            }
+          },
+          {
+            "id": "catalog.grid.brands",
+            "kind": "grid"
+          },
+          {
+            "id": "catalog.footer",
+            "kind": "footer"
+          }
+        ],
+        "fields": [
+          {
+            "id": "brandCode",
+            "sectionId": "catalog.editor",
+            "minTracks": 5,
+            "span": 5,
+            "componentId": "definition.field",
+            "label": {
+              "fa": "کد برند",
+              "en": "کد برند",
+              "zh": "کد برند"
+            },
+            "kind": "text",
+            "required": true,
+            "dataBinding": {
+              "kind": "dataField",
+              "dataFieldId": "brandCode"
+            },
+            "settings": {
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 1,
+                  "columnSpan": 5,
+                  "rowStart": 1
+                }
+              }
+            }
+          },
+          {
+            "id": "brandName",
+            "sectionId": "catalog.editor",
+            "minTracks": 5,
+            "span": 5,
+            "componentId": "definition.field",
+            "label": {
+              "fa": "نام برند",
+              "en": "نام برند",
+              "zh": "نام برند"
+            },
+            "kind": "text",
+            "required": true,
+            "dataBinding": {
+              "kind": "dataField",
+              "dataFieldId": "brandName"
+            },
+            "settings": {
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 6,
+                  "columnSpan": 5,
+                  "rowStart": 1
+                }
+              }
+            }
+          },
+          {
+            "id": "brandAddress",
+            "sectionId": "catalog.editor",
+            "minTracks": 5,
+            "span": 5,
+            "componentId": "definition.field",
+            "label": {
+              "fa": "آدرس",
+              "en": "آدرس",
+              "zh": "آدرس"
+            },
+            "kind": "text",
+            "dataBinding": {
+              "kind": "dataField",
+              "dataFieldId": "address"
+            },
+            "settings": {
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 11,
+                  "columnSpan": 5,
+                  "rowStart": 1
+                }
+              }
+            }
+          },
+          {
+            "id": "brandDescription",
+            "sectionId": "catalog.editor",
+            "minTracks": 5,
+            "span": 5,
+            "componentId": "definition.field",
+            "label": {
+              "fa": "توضیحات",
+              "en": "توضیحات",
+              "zh": "توضیحات"
+            },
+            "kind": "textarea",
+            "dataBinding": {
+              "kind": "dataField",
+              "dataFieldId": "description"
+            },
+            "settings": {
+              "layout": {
+                "grid": {
+                  "columns": 20,
+                  "columnStart": 16,
+                  "columnSpan": 5,
+                  "rowStart": 1
+                }
+              }
+            }
+          }
+        ],
+        "tables": [
+          {
+            "id": "brands",
+            "sectionId": "catalog.grid.brands",
+            "title": {
+              "fa": "برندها",
+              "en": "برندها",
+              "zh": "برندها"
+            },
+            "dataSourceId": "operational.brands.brands",
+            "columns": [
+              {
+                "id": "brandCode",
+                "label": {
+                  "fa": "کد برند",
+                  "en": "کد برند",
+                  "zh": "کد برند"
+                },
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "brandCode"
+                },
+                "sourceFieldIds": [
+                  "brandCode"
+                ]
+              },
+              {
+                "id": "brandName",
+                "label": {
+                  "fa": "نام برند",
+                  "en": "نام برند",
+                  "zh": "نام برند"
+                },
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "brandName"
+                },
+                "sourceFieldIds": [
+                  "brandName"
+                ]
+              },
+              {
+                "id": "address",
+                "label": {
+                  "fa": "آدرس",
+                  "en": "آدرس",
+                  "zh": "آدرس"
+                },
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "address"
+                },
+                "sourceFieldIds": [
+                  "brandAddress"
+                ]
+              },
+              {
+                "id": "description",
+                "label": {
+                  "fa": "توضیحات",
+                  "en": "توضیحات",
+                  "zh": "توضیحات"
+                },
+                "binding": {
+                  "kind": "dataField",
+                  "dataFieldId": "description"
+                },
+                "sourceFieldIds": [
+                  "brandDescription"
+                ]
+              }
+            ],
+            "searchable": true,
+            "columnSelection": true,
+            "rowSelection": "single",
+            "contextMenu": true,
+            "lazyLoading": true,
+            "virtualScrolling": true
+          }
+        ],
+        "actions": [
+          {
+            "id": "operational.new",
+            "code": "Space",
+            "keys": [
+              " "
+            ],
+            "label": {
+              "fa": "شخص جدید",
+              "en": "New person",
+              "zh": "新建人员"
+            },
+            "primary": true,
+            "required": true,
+            "sectionId": "catalog.footer",
+            "operationId": "brands.new"
+          },
+          {
+            "id": "operational.edit",
+            "code": "Insert",
+            "keys": [
+              "Insert"
+            ],
+            "label": {
+              "fa": "ویرایش",
+              "en": "Edit",
+              "zh": "编辑"
+            },
+            "required": true,
+            "sectionId": "catalog.footer",
+            "operationId": "brands.edit"
+          },
+          {
+            "id": "operational.delete",
+            "code": "Delete",
+            "keys": [
+              "Delete"
+            ],
+            "label": {
+              "fa": "حذف",
+              "en": "Delete",
+              "zh": "删除"
+            },
+            "required": true,
+            "sectionId": "catalog.footer",
+            "operationId": "brands.delete"
+          },
+          {
+            "id": "first-record",
+            "code": "Home",
+            "keys": [
+              "Home"
+            ],
+            "label": {
+              "fa": "اول",
+              "en": "First",
+              "zh": "首条"
+            },
+            "sectionId": "catalog.footer"
+          },
+          {
+            "id": "previous-page",
+            "code": "PgUp",
+            "keys": [
+              "PageUp"
+            ],
+            "label": {
+              "fa": "صفحه قبل",
+              "en": "Previous page",
+              "zh": "上一页"
+            },
+            "sectionId": "catalog.footer"
+          },
+          {
+            "id": "browse-records",
+            "code": "↑ ↓",
+            "keys": [
+              "ArrowUp",
+              "ArrowDown"
+            ],
+            "label": {
+              "fa": "مرور",
+              "en": "Browse",
+              "zh": "浏览"
+            },
+            "sectionId": "catalog.footer"
+          },
+          {
+            "id": "next-page",
+            "code": "PgDn",
+            "keys": [
+              "PageDown"
+            ],
+            "label": {
+              "fa": "صفحه بعد",
+              "en": "Next page",
+              "zh": "下一页"
+            },
+            "sectionId": "catalog.footer"
+          },
+          {
+            "id": "last-record",
+            "code": "End",
+            "keys": [
+              "End"
+            ],
+            "label": {
+              "fa": "آخر",
+              "en": "Last",
+              "zh": "末条"
+            },
+            "sectionId": "catalog.footer"
+          },
+          {
+            "id": "action-settings",
+            "code": "⚙",
+            "label": {
+              "fa": "تنظیمات",
+              "en": "Settings",
+              "zh": "设置"
+            },
+            "iconOnly": true,
+            "sectionId": "catalog.footer"
+          },
+          {
+            "id": "operational.save",
+            "code": "F3",
+            "keys": [
+              "F3"
+            ],
+            "label": {
+              "fa": "ذخیره",
+              "en": "Save",
+              "zh": "保存"
+            },
+            "primary": true,
+            "required": true,
+            "sectionId": "catalog.footer",
+            "operationId": "brands.save"
+          },
+          {
+            "id": "operational.close",
+            "code": "Esc",
+            "keys": [
+              "Escape"
+            ],
+            "label": {
+              "fa": "خروج",
+              "en": "Exit",
+              "zh": "退出"
+            },
+            "required": true,
+            "sectionId": "catalog.footer",
+            "operationId": "brands.close"
+          }
+        ],
+        "behaviorInstruction": "بازطراحی تعریف برند؛ اتصال‌های موجود و اعتبارسنجی‌ها حفظ شوند. موارد نیازمند بررسی: کد یکتا، ارتباط برند با اشخاص و اسناد خرید",
+        "resources": {
+          "dataSourceIds": [
+            "/api/master-data/brands"
+          ],
+          "operationIds": [
+            "brands.read",
+            "brands.save"
+          ]
+        },
+        "templateFormId": "form-laboratory.persons-synthetic",
+        "settings": {
+          "shared": {
+            "standardId": "form-laboratory.persons-synthetic",
+            "version": 1
+          }
+        }
+      },
+      "frame": {
+        "device": "desktop",
+        "width": 1222,
+        "height": null,
+        "fitToPage": true
+      }
+    },
+    "designerOverrides": {
+      "overrides": {
+        "brandDescription::input": {
+          "offsetX": 58.99998474121094,
+          "offsetY": 99.33334350585938,
+          "width": 590.0000305175781
+        },
+        "brandDescription::label": {
+          "offsetX": 307.00001525878906,
+          "offsetY": 99.33334350585938
+        },
+        "brandName::input": {
+          "offsetX": -649.0000457794326,
+          "offsetY": 14.000030517578125
+        },
+        "brandName::label": {
+          "offsetX": -649.0000457794329,
+          "offsetY": 14.000030517578125
+        },
+        "brandCode::input": {
+          "offsetX": -628.3333282440046,
+          "offsetY": 13.33331298828125,
+          "width": 215.33331298828125
+        },
+        "brandCode::label": {
+          "offsetX": -755.0000152557234,
+          "offsetY": 13.33331298828125
+        }
+      },
+      "actions": {
+        "previous-page": {
+          "visible": false
+        },
+        "browse-records": {
+          "visible": false
+        },
+        "next-page": {
+          "visible": false
+        },
+        "action-settings": {
+          "visible": false
+        }
+      },
+      "layoutMode": "canvas",
+      "canvas": {
+        "width": 744,
+        "height": 252.3333282470703,
+        "fields": {
+          "brandCode": {
+            "input": {
+              "left": 451.66670227357343,
+              "top": 50.781219482421875,
+              "width": 215.33331298828125,
+              "height": 34
+            },
+            "label": {
+              "left": 613.2708892852922,
+              "top": 26.33331298828125,
+              "width": 53.72916793823242,
+              "height": 21.447917938232422
+            },
+            "select": {
+              "left": 329.0000152618547,
+              "top": 26.33331298828125,
+              "width": 19,
+              "height": 18
+            }
+          },
+          "brandName": {
+            "input": {
+              "left": 76.99998473814537,
+              "top": 51.44793701171875,
+              "width": 342,
+              "height": 34
+            },
+            "label": {
+              "left": 363.1978607147079,
+              "top": 27.000030517578125,
+              "width": 55.802085876464844,
+              "height": 21.447917938232422
+            },
+            "select": {
+              "left": 80.99998473814537,
+              "top": 27.000030517578125,
+              "width": 19,
+              "height": 18
+            }
+          },
+          "brandDescription": {
+            "input": {
+              "left": 76.99998474121094,
+              "top": 136.78125,
+              "width": 590.0000305175781,
+              "height": 34
+            },
+            "label": {
+              "left": 613.5833587646484,
+              "top": 112.33334350585938,
+              "width": 53.41666793823242,
+              "height": 21.447917938232422
+            },
+            "select": {
+              "left": 329.00001525878906,
+              "top": 112.33334350585938,
+              "width": 19,
+              "height": 18
+            }
+          }
+        },
+        "centeredFieldIds": [
+          "brandName",
+          "brandCode",
+          "brandDescription"
+        ]
+      }
+    },
+    "customization": {
+      "colors": true,
+      "typography": true,
+      "formSize": true,
+      "tablePresentation": false
+    },
+    "structurePermissions": {
+      "fieldAddRemove": false,
+      "fieldTypeChange": false,
+      "tableSchemaChange": false,
+      "businessBehaviorChange": false
+    }
+  },
+  "designerDraft": {
+    "format": "yarn-trade.form-designer-draft",
+    "schemaVersion": 1,
+    "formId": "form.redesign.805deb77-bec5-41fa-af97-77b7007ca3a4",
+    "defaults": {
+      "input": {
+        "focusBackgroundColor": "#f6eeb8",
+        "focusBorderColor": "#d8d8d8",
+        "backgroundColor": "#f4f6f5"
+      }
+    },
+    "appearance": {
+      "headerBackground": "#dee2de",
+      "headerBorder": "#3a7d22",
+      "entryFieldBackground": "#d8d8d8"
+    },
+    "overrides": {
+      "brandDescription::input": {
+        "offsetX": 58.99998474121094,
+        "offsetY": 99.33334350585938,
+        "width": 590.0000305175781
+      },
+      "brandDescription::label": {
+        "offsetX": 307.00001525878906,
+        "offsetY": 99.33334350585938
+      },
+      "brandName::input": {
+        "offsetX": -649.0000457794326,
+        "offsetY": 14.000030517578125
+      },
+      "brandName::label": {
+        "offsetX": -649.0000457794329,
+        "offsetY": 14.000030517578125
+      },
+      "brandCode::input": {
+        "offsetX": -628.3333282440046,
+        "offsetY": 13.33331298828125,
+        "width": 215.33331298828125
+      },
+      "brandCode::label": {
+        "offsetX": -755.0000152557234,
+        "offsetY": 13.33331298828125
+      }
+    },
+    "actions": {
+      "operational.new": {
+        "visible": true
+      },
+      "operational.edit": {
+        "visible": true
+      },
+      "operational.delete": {
+        "visible": true
+      },
+      "first-record": {
+        "visible": true
+      },
+      "previous-page": {
+        "visible": false
+      },
+      "browse-records": {
+        "visible": false
+      },
+      "next-page": {
+        "visible": false
+      },
+      "last-record": {
+        "visible": true
+      },
+      "action-settings": {
+        "visible": false
+      },
+      "operational.save": {
+        "visible": true
+      },
+      "operational.close": {
+        "visible": true
+      }
+    },
+    "layoutMode": "canvas",
+    "canvas": {
+      "width": 744,
+      "height": 252.3333282470703,
+      "fields": {
+        "brandCode": {
+          "input": {
+            "left": 451.66670227357343,
+            "top": 50.781219482421875,
+            "width": 215.33331298828125,
+            "height": 34
+          },
+          "label": {
+            "left": 613.2708892852922,
+            "top": 26.33331298828125,
+            "width": 53.72916793823242,
+            "height": 21.447917938232422
+          },
+          "select": {
+            "left": 329.0000152618547,
+            "top": 26.33331298828125,
+            "width": 19,
+            "height": 18
+          }
+        },
+        "brandName": {
+          "input": {
+            "left": 76.99998473814537,
+            "top": 51.44793701171875,
+            "width": 342,
+            "height": 34
+          },
+          "label": {
+            "left": 363.1978607147079,
+            "top": 27.000030517578125,
+            "width": 55.802085876464844,
+            "height": 21.447917938232422
+          },
+          "select": {
+            "left": 80.99998473814537,
+            "top": 27.000030517578125,
+            "width": 19,
+            "height": 18
+          }
+        },
+        "brandDescription": {
+          "input": {
+            "left": 76.99998474121094,
+            "top": 136.78125,
+            "width": 590.0000305175781,
+            "height": 34
+          },
+          "label": {
+            "left": 613.5833587646484,
+            "top": 112.33334350585938,
+            "width": 53.41666793823242,
+            "height": 21.447917938232422
+          },
+          "select": {
+            "left": 329.00001525878906,
+            "top": 112.33334350585938,
+            "width": 19,
+            "height": 18
+          }
+        }
+      },
+      "centeredFieldIds": [
+        "brandName",
+        "brandCode",
+        "brandDescription"
+      ]
+    }
+  }
+}

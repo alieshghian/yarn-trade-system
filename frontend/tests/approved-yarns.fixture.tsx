@@ -7,7 +7,7 @@ import {setAccessPermissions} from '../src/api'
 import '../src/styles.css'
 import '../src/components/base-form/formTheme.css'
 if(!import.meta.env.DEV)throw Error('Isolated integration fixture only')
-setAccessPermissions(['yarns.view','yarns.create','yarns.edit','yarns.delete','productGroups.view','productGroups.create'])
+setAccessPermissions(location.search.includes('viewer')?['yarns.view']:['yarns.view','yarns.create','yarns.edit','yarns.delete','productGroups.view','productGroups.create'])
 const calls:unknown[]=[],empty=new URLSearchParams(location.search).has('empty'),large=new URLSearchParams(location.search).has('large')
 const references=schema.fields.filter(f=>f.componentId==='persons.title-control').flatMap(f=>[1,2].map(i=>({id:crypto.randomUUID(),fieldId:f.id,name:f.label.fa+' '+i,isDefault:i===1,rowVersion:'AAAAAAAAAAA='})))
 references.push({id:crypto.randomUUID(),fieldId:'packaging',name:'کارتن',isDefault:true,rowVersion:'AAAAAAAAAAA='})
@@ -21,6 +21,7 @@ window.fetch=(async(input,init)=>{
  if(u.pathname==='/api/yarns/definition-references')return json(references)
  if(u.pathname==='/api/yarns/definition-latest')return json(master)
  if(u.pathname==='/api/yarns/definition-grid'){let rows=empty?[]:master.definition.colors.map((c:any)=>({id:c.id,yarnId:master.id,colorId:c.id,code:master.code,comprehensiveName:master.comprehensiveName,color:c.value,material:master.material,luster:master.luster,countValue:String(master.countValue),countType:master.countType,status:'فعال',yarnGroup:'گروه واقعی',filamentNumber:String(master.filamentNumber),continuityType:master.continuityType}));const page=body.page??1,size=Math.min(body.pageSize??100,500);if(large)rows=Array.from({length:size},(_,i)=>({...rows[i%rows.length],id:'report-'+((page-1)*size+i)}));return json({items:body.optionsColumn?[]:rows,total:large?100000:rows.length,page:large?page:1,pageSize:large?size:100,...(body.optionsColumn?{filterValues:['001','002']}: {})})}
+ if(u.pathname==='/api/yarns/bulk-delete'&&method==='POST'){master={...master,definition:{...master.definition,colors:master.definition.colors.filter((color:any)=>!body.rows.some((row:any)=>row.id===color.id))}};return json({deletedCount:body.rows.length})}
  if(u.pathname==='/api/yarns/'+master.id&&method==='GET')return json(master)
  if(u.pathname==='/api/yarns/'+master.id&&method==='PUT'){master={...master,...body,definition:{...body.definition,packaging:body.definition.packaging.map((p:any)=>({...p,packagingName:'کارتن'}))},rowVersion:'AQAAAAAAAAA='};return json(master)}
  if(u.pathname==='/api/field-validation/yarns')return json({error:null})
