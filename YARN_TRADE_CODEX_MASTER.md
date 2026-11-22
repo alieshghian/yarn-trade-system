@@ -8,6 +8,14 @@
 **Project type:** Focused yarn-trading business application — **NOT an ERP**.  
 **Architecture target:** Modular Monolith, ASP.NET Core + React + SQL Server, one application / one primary database.
 
+## Operational startup and design lineage (2026-11-22)
+
+- Global Trade opens at `http://127.1.0.1:5173/`. The verified frontend checkout is pinned to `dbf9cb3bb339aeec4803e45c3961142902e45ec2`. Its `/global-trade-runtime.json` endpoint reports the full Git revision. The Windows desktop launcher and sign-in startup use [Start-VerifiedGlobalTrade.ps1](scripts/Start-VerifiedGlobalTrade.ps1). Keep this runtime checkout available at the path configured in the launcher.
+- On this Windows installation the startup script, `runtime.json`, startup logs and copies of the original shortcuts live in `%LOCALAPPDATA%\GlobalTrade\VerifiedStartup`. The configuration contains `FrontendRoot`, `ApiRoot`, the full `Commit`, and the existing Chrome app's `BrowserTarget`, `BrowserArguments` and `BrowserWorkingDirectory`. The Desktop entry uses `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File <script> -ConfigPath <runtime.json>`. The Windows Startup entry adds `-ServicesOnly` and leaves the browser opening to the user. To reproduce the setup, copy the script to the local startup directory, create that configuration with the verified checkout and preserved Chrome shortcut properties, then point the two shortcuts to those commands. Preserve copies of original shortcuts before changing them.
+- The launcher checks the pinned checkout for tracked changes, rejects an unidentified frontend already holding port 5173 and starts services via `runapp1.bat` and `runapp2.bat`. The original checkout at `C:/project/yarn-trade-system` continues to supply the installed API and its existing storage on port 5223. API startup disables automatic migrations and seeding for this launch. The frontend checkout is separate from the original uncommitted work. Vite initializes the color sampler.
+- Persons uses the archived Golden native layout `persons.definition`, version 1, read directly from [the protected specification](frontend/src/components/base-form/specs/persons.golden.v1.json). A copy matches the archived specification in `form-lab-before-builder-20261015.zip` modulo line endings. The two recovered Laboratory documents `form.redesign.2bb88f5e-bff0-4368-b9ca-be63f9b6db37` and `form.redesign.b8e401a2-795e-48fd-9705-1e6bb4dc1e33` are version-1 drafts. No independently verified Laboratory publication record was recovered for Persons.
+- Warehouse Zones uses the built-in [Zone schema and editor Canvas](frontend/src/forms/warehouse-zone-operational.v2.json). Form, schema and Designer share `operational.warehouse-zones`. The editor contains `floorNumber`, `code`, `name`, `description` and `isActive`. The historical mismatched design file and digest are retained for provenance.
+
 ---
 
 ## 0. Mandatory Codex protocol

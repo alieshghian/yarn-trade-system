@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -88,19 +89,33 @@ public sealed partial class SecurityBaselineTests
         var version=Uri.EscapeDataString(reloaded.GetProperty("rowVersion").GetString()!);
         (await host.Client.PutAsJsonAsync($"/api/warehouses/{id}?rowVersion={version}",new WarehouseInput("SHARED","Updated",null,"Saved",null,Location:"inside"))).EnsureSuccessStatusCode();
         Assert.Equal(HttpStatusCode.Conflict,(await host.Client.PutAsJsonAsync($"/api/warehouses/{id}?rowVersion={version}",new WarehouseInput("SHARED","Stale",null,null,null,Location:"inside"))).StatusCode);
+        var timings = new Dictionary<string, double>();
+        var timer = Stopwatch.StartNew();
         await using(var db=sql.Context()){
             // Only this disposable database receives load fixtures; never seed the live application.
             await db.Database.ExecuteSqlRawAsync("WITH n AS (SELECT TOP (100000) ROW_NUMBER() OVER(ORDER BY (SELECT NULL)) AS i FROM sys.all_objects a CROSS JOIN sys.all_objects b) INSERT INTO Warehouses(Id,Code,NameFa,NameEn,IsActive,CreatedAtUtc) SELECT NEWID(), CONCAT('LOAD-',RIGHT(CONCAT('000000',i),6)),CONCAT('Load ',i),CONCAT('Load ',i),1,SYSUTCDATETIME() FROM n;");
         }
-        async Task<JsonElement> Grid(WarehouseGridRequest request){var response=await host.Client.PostAsJsonAsync("/api/warehouses/grid",request);response.EnsureSuccessStatusCode();return await response.Content.ReadFromJsonAsync<JsonElement>();}
-        var request=new WarehouseGridRequest(Page:2,PageSize:50,Sort:[new("code","asc")]);var page=await Grid(request);var repeated=await Grid(request);
+        timings["seed100000"] = timer.Elapsed.TotalMilliseconds;
+        async Task<JsonElement> Grid(WarehouseGridRequest request, string measurement)
+        {
+            var elapsed = Stopwatch.StartNew();
+            using var response = await host.Client.PostAsJsonAsync("/api/warehouses/grid", request);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+            timings[measurement] = elapsed.Elapsed.TotalMilliseconds;
+            return result;
+        }
+        var request=new WarehouseGridRequest(Page:2,PageSize:50,Sort:[new("code","asc")]);var page=await Grid(request,"page2");var repeated=await Grid(request,"page2Repeat");
         Assert.Equal(100001,page.GetProperty("total").GetInt32());Assert.Equal(50,page.GetProperty("items").GetArrayLength());
         Assert.Equal(page.GetProperty("items").GetRawText(),repeated.GetProperty("items").GetRawText());
-        var filter=await Grid(new(Search:"Updated",SearchMode:"exact"));Assert.Equal(1,filter.GetProperty("total").GetInt32());
-        var selected=await Grid(new(Filters:new(){["code"]=new(SelectedValues:["string:SHARED"])}));Assert.Equal(1,selected.GetProperty("total").GetInt32());
-        var options=await Grid(new(OptionsColumn:"code",OptionsSearch:"SHARED"));Assert.Contains("SHARED",options.GetProperty("filterValues").GetRawText());
+        var filter=await Grid(new(Search:"Updated",SearchMode:"exact"),"exactSearch");Assert.Equal(1,filter.GetProperty("total").GetInt32());
+        var selected=await Grid(new(Filters:new(){["code"]=new(SelectedValues:["string:SHARED"])}),"columnFilter");Assert.Equal(1,selected.GetProperty("total").GetInt32());
+        var options=await Grid(new(OptionsColumn:"code",OptionsSearch:"SHARED"),"filterOptions");Assert.Contains("SHARED",options.GetProperty("filterValues").GetRawText());
         var latest=await host.Client.GetFromJsonAsync<JsonElement>("/api/warehouses/"+id);(await host.Client.DeleteAsync($"/api/warehouses/{id}?rowVersion={Uri.EscapeDataString(latest.GetProperty("rowVersion").GetString()!)}")).EnsureSuccessStatusCode();
-        Assert.Equal(0,(await Grid(new(Search:"Updated",SearchMode:"exact"))).GetProperty("total").GetInt32());
+        Assert.Equal(0,(await Grid(new(Search:"Updated",SearchMode:"exact"),"searchAfterDelete")).GetProperty("total").GetInt32());
+        var report = Environment.GetEnvironmentVariable("YARN_TRADE_WAREHOUSE_TIMINGS_FILE");
+        if (!string.IsNullOrWhiteSpace(report))
+            await File.AppendAllLinesAsync(report, [JsonSerializer.Serialize(new { unit = "ms", timings })]);
     }
 
     [Fact]

@@ -216,6 +216,7 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   console.log('PASS Zone shared font typography and color survive reload without leaking to another account')
   await wait('!!'+find('.warehouse-zones-page .excel-filter-trigger'), 'Zone grid ready after preference reload')
   await click('.warehouse-zones-page th[data-column=code] .excel-filter-trigger')
+  await wait("zoneRequests.some(r=>r.body.optionsColumn==='code')", 'Zone requested server-side filter choices')
   const dockOption = "[...document.querySelectorAll('.filter-values label')].find(e=>e.textContent.trim()==='1-DOCK')?.querySelector('input')"
   await mouse(dockOption)
   await click('.filter-invert-selection')
@@ -236,7 +237,7 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
 
   const page = '.business-contract-page'
   const footer = page + ' footer'
-  const contractName = "[...document.querySelectorAll('.contract-field')].find(e=>e.firstElementChild.textContent==='نام قرارداد').querySelector('input')"
+  const contractName = "[...document.querySelectorAll('.contract-field')].find(e=>e.firstElementChild.textContent==='نام قرارداد')?.querySelector('input')"
   const save = find(footer + ' [data-save-action]')
   const edit = "[...document.querySelectorAll('.business-contract-page footer button')].find(e=>e.textContent.trim()==='ویرایش')"
   const amendment = find(footer + ' button')
@@ -250,7 +251,7 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   await navigate('business-contract-coverage.html?editable', page)
   assert.ok(await evaluate('!!' + edit), 'Editable contract exposes Edit')
   await mouse(edit)
-  await wait('!!' + save + '&&!' + contractName + '.disabled', 'Editable settings open for the writer')
+  await wait('!!' + save + '&&(' + contractName + ')?.disabled===false', 'Editable settings open for the writer')
   const structure = "[...document.querySelectorAll('.contract-field')].find(e=>e.firstElementChild.textContent==='ساختار کسب‌وکار').querySelector('select')"
   await mouse(structure);await key('End',35);await key('Enter',13)
   await wait("document.querySelectorAll('.allocation-row:first-of-type input').length===2||document.querySelector('.allocation-row')?.querySelectorAll('input').length===2", 'Partnership exposes the paired allocations')
@@ -265,7 +266,7 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   await mouse(credit)
   await wait("!document.querySelector('.contract-fields input[type=number]')",'Disabling credit hides dependent inputs')
   await key('Escape', 27)
-  await wait('!!' + edit + '&&' + contractName + '.disabled', 'Escape cancels editing and reloads original data')
+  await wait('!!' + edit + '&&(' + contractName + ')?.disabled===true', 'Escape cancels editing and reloads original data')
   assert.equal(await evaluate('contractEvidence.writes.length'), 0, 'Cancellation sends no mutations')
   await wait(structure+'.value==="SoleOwnership"','Reload after cancellation restores the saved ownership structure')
   console.log('PASS Contract partnership percentages and conditional credit inputs respond and Escape restores the stored draft')
@@ -287,7 +288,7 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   await captureVisualCandidate({send,evaluate}, "contract", ".business-contract-page", "Contract Rules document and existing runtime layout; no owner geometry or grid approval")
 
   await mouse(amendment)
-  await wait('!!' + save + '&&!' + contractName + '.disabled', 'Locked contract offers amendment draft')
+  await wait('!!' + save + '&&(' + contractName + ')?.disabled===false', 'Locked contract offers amendment draft')
   assert.equal(await evaluate(find('[data-field="identity0Name"]') + '.disabled'), true, 'Amendment keeps a locked investor identity read-only')
   await mouse(contractName)
   await send('Input.dispatchKeyEvent', {type:'keyDown',key:'a',code:'KeyA',modifiers:2,windowsVirtualKeyCode:65,commands:['selectAll']})
@@ -297,7 +298,7 @@ export async function checkOperationalTools({ base, send, evaluate, until, profi
   await wait('!!' + find('[role=alert]') + '&&contractEvidence.writes.length===1', 'Rejected amendment surfaces a conflict')
   assert.equal(await evaluate(contractName + '.value'), 'قرارداد اصلاح شده', 'Rejected amendment retains the draft')
   await key('F3', 114)
-  await wait('!' + save + '&&contractEvidence.writes.length===2&&' + contractName + '.disabled', 'Successful amendment returns to view')
+  await wait('!' + save + '&&contractEvidence.writes.length===2&&(' + contractName + ')?.disabled===true', 'Successful amendment returns to view')
   const requests = await evaluate('contractEvidence.writes')
   for (const request of requests) {
     assert.equal(request.method, 'POST')
