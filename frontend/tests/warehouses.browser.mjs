@@ -57,6 +57,7 @@ try {
     const lastPageMs = performance.now() - scrollStart
     const rendered = await evaluate("document.querySelectorAll('.base-grid-table tbody tr').length")
     assert.ok(rendered > 0 && rendered <= 101, 'bounded warehouse DOM at ' + size)
+    console.log('PASS Warehouse first and last pages stay virtualized at ' + size)
     const {usedSize} = await send('Runtime.getHeapUsage')
     console.log('WAREHOUSE_STRESS', JSON.stringify({size, firstPageMs, lastPageMs, rendered, heapBytes:usedSize}))
   }

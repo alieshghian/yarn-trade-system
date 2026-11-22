@@ -150,12 +150,14 @@ try {
       await evaluate(`document.querySelector('${persons}').style.setProperty('--grid-header-height', '70px')`)
       assert.deepEqual(await measure(), golden.measurements, 'Shared grid header token cannot change Golden Persons')
       await evaluate(`document.querySelector('${persons}').style.removeProperty('--grid-header-height')`)
+      console.log('PASS Persons Golden screenshot and geometry survive shared grid styling')
       const shortcut = `document.querySelector('${persons} .shortcut-settings button')`
       await evaluate(`${shortcut}.click()`)
       await until(`${shortcut}.getAttribute('aria-expanded')==='true'`, 'Production shortcut popup')
       await clickTab('داشبورد')
       await clickTab('تعریف اشخاص')
       assert.equal(await evaluate(`${shortcut}.getAttribute('aria-expanded')`), 'false', 'Switching tabs closes Persons shortcut settings')
+      console.log('PASS Persons shortcuts close on application tab switches')
       if (process.env.PERSONS_PRODUCTION_SCREENSHOT) {
         const screenshot = await send('Page.captureScreenshot', { format: 'png' })
         await writeFile(process.env.PERSONS_PRODUCTION_SCREENSHOT, Buffer.from(screenshot.data, 'base64'))
@@ -182,6 +184,7 @@ try {
         assert.deepEqual(available, { columns: width <= 520 ? 1 : 2, codeUsable:true, actionsContained:true, footerReachable:true }, `Persons responsive layout at ${width}px`)
       }
       await send('Emulation.setDeviceMetricsOverride', golden.capture)
+      console.log('PASS Persons fields, toolbar and footer remain reachable at both narrow widths')
     }
     if (moduleName === 'BusinessContractPage') {
       const create = "document.querySelector('.form-tab-pane.active [data-create-action=true]')"
@@ -191,6 +194,7 @@ try {
       await until(`!!${save} && !${create}`, 'New contract offers Save')
       await evaluate(`${save}.nextElementSibling.click()`)
       await until(`!!${create} && !${save}`, 'Cancel discards draft and retains contract tab')
+      console.log('PASS Business Contract Create and Cancel keep the operational tab usable')
     }
   }
   console.log('PASS all remaining page modules load when selected')

@@ -1,7 +1,7 @@
 import {createRoot} from 'react-dom/client'
 import {lazy,createElement} from 'react'
 import {getSystemLookupSource} from '../src/components/base-form/systemLookupSources'
-import PersonsPage from '../src/PersonsPage'
+import PersonsPage, { type Person } from '../src/PersonsPage'
 import BrandsPage from '../src/BrandsPage'
 import {installFormInteraction} from '../src/formInteraction'
 import {setAccessPermissions} from '../src/api'
@@ -20,10 +20,12 @@ const brandSource=getSystemLookupSource('brands')!,originalCreate=brandSource.Cr
 brandSource.Create=lazy(async()=>{await new Promise(resolve=>setTimeout(resolve,350));return {default:(props:React.ComponentProps<typeof originalCreate>)=>createElement(originalCreate,props)}})
 Object.assign(window,{lookupRequests:[],personSaves:0})
 const records=[{id:'brand-existing',brandCode:'995',brandName:'برند موجود'},{id:'brand-second',brandCode:'997',brandName:'برند دوم'}]
-const people = toolbarFixture ? Array.from({length: 102}, (_, index) => ({
+const savedPersonKey = 'persons-toolbar-fixture-record'
+const savedPerson = toolbarFixture ? JSON.parse(sessionStorage.getItem(savedPersonKey) ?? 'null') as Person | null : null
+const people: Person[] = toolbarFixture ? Array.from({length: 102}, (_, index) => savedPerson?.id === 'person-'+index ? savedPerson : ({
   id: 'person-'+index, personCode: 'PERSON-'+index, personType: 'Individual', firstName: 'Test',
   lastName: 'Person '+index, displayName: 'Test Person '+index, titleId: 'title',
-  preferredLanguage: 'fa', creditLimitIRR: 0, isActive: true, phone: '02112345678'
+  preferredLanguage: 'fa', creditLimitIRR: 0, isActive: true, phone: '02112345678', rowVersion: 'fixture-1'
 })) : []
 const peopleColumns: ExcelGridColumn<typeof people[number]>[] = [
   {id:'personCode',label:'Code',type:'text',width:130,value:person=>person.personCode},
@@ -40,6 +42,18 @@ window.fetch=async(input,options)=>{
  if(url.includes('/api/master-data/brands'))return json({items:records,total:records.length})
  if(url.includes('/api/master-data/parameters'))return json([{id:'title',parameterType:'Title',code:'MR',nameFa:'آقای',nameEn:'Mr',personType:'Individual'}])
  if(url.includes('/api/sequence-suggestions'))return json({value:'996',suggestion:'996',code:'996'})
+ const requestUrl = new URL(url, location.origin)
+ if(toolbarFixture && options?.method === 'PUT' && /\/api\/master-data\/persons\/person-\d+$/.test(requestUrl.pathname)){
+   const index = people.findIndex(person => requestUrl.pathname.endsWith('/' + person.id))
+   if (index === -1) return Response.json({}, {status:404})
+   if (requestUrl.searchParams.get('rowVersion') !== people[index].rowVersion)
+     return Response.json({code:'CONCURRENCY_CONFLICT'}, {status:409})
+   const edited = JSON.parse(String(options.body)) as Partial<Person>
+   people[index] = {...people[index], ...edited, rowVersion:'fixture-2'}
+   sessionStorage.setItem(savedPersonKey, JSON.stringify(people[index]))
+   return json(people[index])
+ }
+ if(toolbarFixture && url.endsWith('/api/master-data/persons/latest'))return json(savedPerson ?? people[0])
  if(url.includes('/api/master-data/persons/grid')){
    const {page,pageSize,filters,sort,optionsColumn}=JSON.parse(String(options?.body)) as GridQuery & {optionsColumn?: string}
    const matches=applyGridFiltersAndSort(people,peopleColumns,filters,sort,'fa')

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "test:approved": "node tools/approved-form-gate.mjs",
+    "test:approved:faults": "node tools/prove-approved-form-gate.mjs",
     "test:form-designer": "node --test src/components/base-form/packagingVolume.test.mjs src/components/base-form/batchValueRecords.test.mjs src/components/base-form/numericDerived.test.mjs src/components/base-form/batchValuePattern.test.mjs src/components/base-form/operationalAcceptance.test.mjs src/components/base-form/labelTranslationQueue.test.mjs src/components/base-form/formDesignExport.test.mjs src/components/base-form/serialCode.test.mjs src/components/base-form/formSchemaPresentation.test.mjs src/components/base-form/laboratoryFormDraftState.test.mjs src/components/base-form/formDocumentStructure.test.mjs src/components/base-form/formSchemaPresentation.behavior.test.mjs src/components/base-form/formDocumentRecovery.test.mjs src/components/base-form/formCatalogAndTheme.test.mjs src/components/base-form/headerDesignerRegression.test.mjs src/components/base-form/componentBehavior.test.mjs src/components/base-form/formBehavior.test.mjs src/components/base-form/appearanceCommands.test.mjs src/components/base-form/fieldFocusOrder.test.mjs src/components/base-form/fieldTypingLanguage.test.mjs src/components/base-form/componentListSettings.test.mjs src/components/base-form/formDesignLifecycle.test.mjs",
     "build": "node --test src/components/base-form/formDocumentRecovery.test.mjs && tsc --noEmit -p tsconfig.app.json && vite build",
     "package:color-sampler": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/Publish-ColorSamplerDownloads.ps1",

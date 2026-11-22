@@ -1,0 +1,923 @@
+{
+  "version": 1,
+  "suites": [
+    {
+      "id": "persons.saved-schema",
+      "lane": "unit",
+      "file": "src/components/base-form/personsGolden.test.mjs",
+      "required": [
+        "Golden reference is versioned, stable-ID based and contains no Person records",
+        "Golden editor track proportions, rows, and responsive breakpoints remain anchored to CSS",
+        "Golden grid retains sorting, Excel filtering, column search, resize, ordering and visibility",
+        "Editor/grid splitter retains pointer resize bounds and per-user storage"
+      ]
+    },
+    {
+      "id": "persons.rendered-geometry",
+      "lane": "production",
+      "file": "tests/app-lazy-loading.browser.mjs",
+      "required": [
+        "Persons Golden screenshot and geometry survive shared grid styling",
+        "Persons fields, toolbar and footer remain reachable at both narrow widths"
+      ]
+    },
+    {
+      "id": "persons.columns",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons column visibility changes only the selected column"
+      ]
+    },
+    {
+      "id": "persons.xlsx",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons Excel contains both pages and excludes hidden columns"
+      ]
+    },
+    {
+      "id": "persons.maximize",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons maximize and restore retain the selected row and grid preferences"
+      ]
+    },
+    {
+      "id": "persons.filters",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons filter reset by button and F8 preserves scope, order and columns"
+      ]
+    },
+    {
+      "id": "persons.appearance",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons appearance persists after reload and is permission and account scoped"
+      ]
+    },
+    {
+      "id": "persons.popup",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons shortcut popup dismisses by Escape, outside pointer and trigger"
+      ]
+    },
+    {
+      "id": "persons.switch-tab",
+      "lane": "production",
+      "file": "tests/app-lazy-loading.browser.mjs",
+      "required": [
+        "Persons shortcuts close on application tab switches"
+      ]
+    },
+    {
+      "id": "persons.shortcuts",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons configured shortcut invokes create and survives reload"
+      ]
+    },
+    {
+      "id": "persons.save-reload",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons note persists through F3 Save and API reload"
+      ]
+    },
+    {
+      "id": "persons.brand-lookup",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "optional blank choice and first result highlight, ArrowUp/Down, single Enter, visible create button, Insert from search; actual Persons lookup: standard height, blank choice, code/name, Insert real Brands create, save/select, preserved draft"
+      ]
+    },
+    {
+      "id": "persons.data",
+      "lane": "integration",
+      "required": [
+        "Mobile_list_and_primary_roundtrip_independently_of_phones",
+        "Title_controls_type_and_names_are_persisted",
+        "Persons_mobile_SQL_migration_preserves_legacy_mobile_and_phone_list"
+      ]
+    },
+    {
+      "id": "persons.authorization",
+      "lane": "integration",
+      "required": [
+        "Persons_partner_protection_SQL_HTTP_blocks_ordinary_bypass_and_respects_contract_lock",
+        "Persons_contract_creation_HTTP_requires_both_contract_and_person_permissions"
+      ]
+    },
+    {
+      "id": "brand.layout",
+      "lane": "brands-operational",
+      "file": "tests/brands-operational.browser.mjs",
+      "required": [
+        "table viewport has equal visible inset on both sides",
+        "many records scroll inside the fixed table viewport",
+        "Persian table opens at logical right with brand code visible"
+      ]
+    },
+    {
+      "id": "brand.save",
+      "lane": "brands-operational",
+      "file": "tests/brands-operational.browser.mjs",
+      "required": [
+        "edit preserves hidden address and sends rowVersion",
+        "saved record is selected in both table and editor"
+      ]
+    },
+    {
+      "id": "brand.search",
+      "lane": "brands-operational",
+      "file": "tests/brands-operational.browser.mjs",
+      "required": [
+        "shared search filters operational API rows",
+        "exactly three saved columns and no address control"
+      ]
+    },
+    {
+      "id": "brand.appearance",
+      "lane": "brands-operational",
+      "file": "tests/brands-operational.browser.mjs",
+      "required": [
+        "table toolbar and form header heights persist after reload",
+        "shared Laboratory font and palette changes persist personally",
+        "revoked customization ignores stored dimensions",
+        "revoked permissions hide font color and resize tools"
+      ]
+    },
+    {
+      "id": "brand.data",
+      "lane": "integration",
+      "required": [
+        "Brand_creation_update_duplicate_validation_and_stale_update",
+        "Brand_endpoints_permissions_and_menu_are_enforced",
+        "Brand_SQL_migration_preserves_records_layout_preferences_and_rollback"
+      ]
+    },
+    {
+      "id": "product-group.layout",
+      "lane": "product-group-operational",
+      "file": "tests/product-group-operational.browser.mjs",
+      "required": [
+        "Approved Laboratory visual parity: 11 parts, header, title, grid and footer; fluid body normalized to pane client width"
+      ]
+    },
+    {
+      "id": "product-group.tree",
+      "lane": "product-group-operational",
+      "file": "tests/product-group-operational.browser.mjs",
+      "required": [
+        "Empty API means empty tree and standard six-column grid",
+        "Report selection requests the matching tree ancestry",
+        "Reload uses persisted test server records, no demo fallback"
+      ]
+    },
+    {
+      "id": "product-group.shortcuts",
+      "lane": "product-group-operational",
+      "file": "tests/product-group-operational.browser.mjs",
+      "required": [
+        "F3 creates exactly one child under the selected node",
+        "F2 restores the newest path at the next permitted depth without saving",
+        "F4 restores selected ancestry with an empty draft and no implicit write"
+      ]
+    },
+    {
+      "id": "product-group.authorization",
+      "lane": "product-group-operational",
+      "file": "tests/product-group-operational.browser.mjs",
+      "required": [
+        "Unauthorized CRUD actions remain unavailable",
+        "Non-administrators have no depth control",
+        "Rejected edit keeps input, identity and parent context"
+      ]
+    },
+    {
+      "id": "product-group.data",
+      "lane": "integration",
+      "required": [
+        "ProductGroup_SQL_grid_pages_searches_filters_sorts_100000_leaf_paths",
+        "ProductGroup_SQL_concurrent_duplicate_codes_and_stale_write"
+      ]
+    },
+    {
+      "id": "yarn.layout",
+      "lane": "approved-yarns",
+      "file": "tests/approved-yarns.browser.mjs",
+      "required": [
+        "all 18 fields and labels match the owner section Canvas within 0.1px; derived display uses the Laboratory output",
+        "shared entry colors for name, notes and numeric controls"
+      ]
+    },
+    {
+      "id": "yarn.runtime",
+      "lane": "approved-yarns",
+      "file": "tests/approved-yarns.browser.mjs",
+      "required": [
+        "saved title component uses text entry with no phone/dial-code controls",
+        "approved immutable schema, empty API dataset, master/colors grid binding, populated grid during edit, derived name, saved identity, one-click Save, bounded 100000-total report and sticky header controls"
+      ]
+    },
+    {
+      "id": "yarn.data",
+      "lane": "integration",
+      "required": [
+        "Yarn_approved_SQL_roundtrip_concurrency_and_details",
+        "Yarn_approved_SQL_large_report_numeric_filters_and_stable_pages",
+        "Yarn_numeric_suggestions_SQL_prefix_distinct_bounded_and_read_only"
+      ]
+    },
+    {
+      "id": "warehouse.runtime",
+      "lane": "warehouses",
+      "file": "tests/warehouses.browser.mjs",
+      "required": [
+        "warehouse frame, empty server grid, create/F3/cancel, dock dialog, footer visibility and stable height"
+      ]
+    },
+    {
+      "id": "warehouse.virtualization",
+      "lane": "warehouses",
+      "file": "tests/warehouses.browser.mjs",
+      "required": [
+        "Warehouse first and last pages stay virtualized at 100",
+        "Warehouse first and last pages stay virtualized at 1000",
+        "Warehouse first and last pages stay virtualized at 10000",
+        "Warehouse first and last pages stay virtualized at 50000"
+      ]
+    },
+    {
+      "id": "warehouse.data",
+      "lane": "integration",
+      "required": [
+        "WarehouseDefinition_optional_keeper_dock_normalized_zones_and_restricted_deactivation",
+        "WarehouseDefinition_API_permissions_grid_filter_sort_and_empty_state",
+        "WarehouseDefinition_SQL_API_reload_grid_100000_paging_filter_options_and_concurrent_codes"
+      ]
+    },
+    {
+      "id": "warehouse.zone-data",
+      "lane": "integration",
+      "required": [
+        "WarehouseDefinition_SQL_concurrent_zone_duplicates_and_single_custodian",
+        "WarehouseDefinition_keeper_periods_and_stale_changes_preserve_history"
+      ]
+    },
+    {
+      "id": "business-contract.runtime",
+      "lane": "production",
+      "file": "tests/app-lazy-loading.browser.mjs",
+      "required": [
+        "Business Contract Create and Cancel keep the operational tab usable"
+      ]
+    },
+    {
+      "id": "business-contract.rules",
+      "lane": "integration",
+      "required": [
+        "Operational_activity_locks_update_and_amendment_preserves_previous_version",
+        "Amendment_cannot_be_backdated_over_historical_transactions",
+        "Contract_requires_registered_explicit_investor_identities",
+        "Cost_rows_keep_the_required_order_and_capital_flags_are_enforced_and_persisted_only_when_configurable"
+      ]
+    },
+    {
+      "id": "shared.grid",
+      "lane": "unit",
+      "file": "src/components/base-form/excelGrid.test.mjs",
+      "required": [
+        "column resize shrinks in the language direction and keeps its minimum width",
+        "multi-column sorting keeps the first sort as primary and applies later sorts within ties",
+        "two conditions combine with AND or OR and separate columns combine with AND"
+      ]
+    },
+    {
+      "id": "shared.grid-volume",
+      "lane": "unit",
+      "file": "tests/approved-grid-stress.test.mjs",
+      "required": [
+        "approved grid filters and stable Persian ordering across 100 synthetic records",
+        "approved grid filters and stable Persian ordering across 1000 synthetic records",
+        "approved grid filters and stable Persian ordering across 10000 synthetic records",
+        "approved grid filters and stable Persian ordering across 50000 synthetic records"
+      ]
+    },
+    {
+      "id": "shared.lazy-navigation",
+      "lane": "production",
+      "file": "tests/app-lazy-loading.browser.mjs",
+      "required": [
+        "restored inactive tabs do not load their page code",
+        "page code loads on selection and tab state survives switching",
+        "an unavailable page leaves other tabs and their state usable"
+      ]
+    },
+    {
+      "id": "shared.versions-and-permissions",
+      "lane": "theme-security",
+      "required": [
+        "Theme_design_library_versions_and_personal_overrides_are_isolated",
+        "Shared_title_list_batches_add_edit_remove_and_reject_stale_or_used_values",
+        "Shared_title_list_invalid_batch_is_atomic_and_unprivileged_users_cannot_write"
+      ]
+    },
+    {
+      "id": "gate.self-test",
+      "lane": "unit",
+      "file": "tests/approved-contract-integrity.test.mjs",
+      "required": [
+        "immutable records permit append and reject deletion or rewrites",
+        "required evidence cannot be replaced with a skip or an empty run",
+        "registered contracts reject a missing required test"
+      ]
+    }
+  ],
+  "forms": [
+    {
+      "id": "persons.definition",
+      "revision": 1,
+      "status": "approved",
+      "provenance": "Golden d0f15535f712df68e437b4ae154470d3836666b1 and subsequent toolbar evidence in docs/audits/approved-form-regression-matrix.md",
+      "dependencies": [
+        "PersonsPage",
+        "ExcelGridColumnHeader",
+        "OperationalFormFrame",
+        "FormValueList",
+        "formInteraction",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/components/base-form/specs/persons.golden.v1.json",
+          "format": "json",
+          "sha256": "5f7608ba88b10b5d67b056c8bef045bcedb62e51cf4b75c03811d75257dee33a"
+        },
+        {
+          "file": "tests/persons-golden-geometry.json",
+          "format": "json",
+          "sha256": "175d68b1b884e55e29272b90fe367684fa423a7e60bab86d75ca1828f44036ec"
+        },
+        {
+          "file": "tests/persons-golden-grid.png",
+          "format": "bytes",
+          "sha256": "2124908ebd55a70ae4ea9b7b2100a22762a05b259fe0004be764dfd1e54b6e48"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "fields",
+          "status": "covered",
+          "contract": "Golden IDs, field types and editor track/size contract; split layout, controls and footer.",
+          "checks": [
+            "persons.saved-schema",
+            "persons.rendered-geometry"
+          ]
+        },
+        {
+          "id": "geometry",
+          "status": "covered",
+          "contract": "31px header and reference row, 42px toolbar, approved typography, header/editor/footer coordinates; known synthetic data and clipped raster.",
+          "checks": [
+            "persons.rendered-geometry"
+          ]
+        },
+        {
+          "id": "columns",
+          "status": "covered",
+          "contract": "Column chooser hides only the chosen field.",
+          "checks": [
+            "persons.columns"
+          ]
+        },
+        {
+          "id": "export",
+          "status": "covered",
+          "contract": "All pages and only visible columns in actual downloaded XLSX.",
+          "checks": [
+            "persons.xlsx"
+          ]
+        },
+        {
+          "id": "maximize",
+          "status": "covered",
+          "contract": "Expanded table returns to original geometry and retains selection.",
+          "checks": [
+            "persons.maximize"
+          ]
+        },
+        {
+          "id": "filter-sort",
+          "status": "covered",
+          "contract": "On-demand filter values; Clear Filters and F8 preserve sort and columns.",
+          "checks": [
+            "persons.filters"
+          ]
+        },
+        {
+          "id": "appearance",
+          "status": "covered",
+          "contract": "Colors, font and size persist for one viewer and respect permission.",
+          "checks": [
+            "persons.appearance"
+          ]
+        },
+        {
+          "id": "popup",
+          "status": "covered",
+          "contract": "Escape, outside click, trigger and application tab switches close shortcuts.",
+          "checks": [
+            "persons.popup",
+            "persons.switch-tab"
+          ]
+        },
+        {
+          "id": "keyboard",
+          "status": "covered",
+          "contract": "Configured F7 invokes Create; F3 commits an edit; preferences reload.",
+          "checks": [
+            "persons.shortcuts",
+            "persons.save-reload"
+          ]
+        },
+        {
+          "id": "save-reload",
+          "status": "covered",
+          "contract": "Notes survive API save and full page reload; phone/title/legacy list contracts.",
+          "checks": [
+            "persons.save-reload",
+            "persons.data"
+          ]
+        },
+        {
+          "id": "brand-source",
+          "status": "covered",
+          "contract": "Lookup selection, keyboard/clipped popup, brand create/save-and-select and cancel.",
+          "checks": [
+            "persons.brand-lookup"
+          ]
+        },
+        {
+          "id": "authorization",
+          "status": "covered",
+          "contract": "Contract and person scopes enforced by API, separate from normal edit.",
+          "checks": [
+            "persons.authorization"
+          ]
+        },
+        {
+          "id": "performance",
+          "status": "covered",
+          "contract": "Client request paging and export across 102 items plus generic bounded grid filtering at 50000.",
+          "checks": [
+            "persons.xlsx",
+            "shared.grid-volume"
+          ]
+        },
+        {
+          "id": "full-editor-raster",
+          "status": "unverified",
+          "contract": "Authenticated pixel reference for the entire editor with the newer combined Brand field is unavailable.",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "brand.definition",
+      "revision": 1,
+      "status": "protected-reference",
+      "provenance": "Versioned design and runtime evidence in docs/brand-operational-integration.md",
+      "dependencies": [
+        "BrandsPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "SystemLookup",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/brand-design.json",
+          "format": "json",
+          "sha256": "2301d09a07904bfcfdba85c859ed99394032deeb581166b60e6855bec8efa9b6"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "fields-grid",
+          "status": "covered",
+          "contract": "Published schema positions, types and three view columns; hidden address retained.",
+          "checks": [
+            "brand.search",
+            "brand.save"
+          ]
+        },
+        {
+          "id": "geometry",
+          "status": "covered",
+          "contract": "Fixed frame, RTL grid inset and scroll containment.",
+          "checks": [
+            "brand.layout"
+          ]
+        },
+        {
+          "id": "search",
+          "status": "covered",
+          "contract": "Actual shared search filters Brand API rows.",
+          "checks": [
+            "brand.search"
+          ]
+        },
+        {
+          "id": "save-permissions",
+          "status": "covered",
+          "contract": "Row-version edit and schema migration preserve hidden address and authorization.",
+          "checks": [
+            "brand.save",
+            "brand.data"
+          ]
+        },
+        {
+          "id": "appearance",
+          "status": "covered",
+          "contract": "Save/reload levels and revoked preferences across frame regions.",
+          "checks": [
+            "brand.appearance"
+          ]
+        },
+        {
+          "id": "xlsx-maximize-keyboard",
+          "status": "unverified",
+          "contract": "Brand-specific workbook contents, maximize restore and customized keyboard matrix require additional evidence.",
+          "checks": []
+        },
+        {
+          "id": "full-raster",
+          "status": "unverified",
+          "contract": "Original owner-approved full-form screenshots are unavailable.",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "product-group.definition",
+      "revision": 1,
+      "status": "approved",
+      "provenance": "Registry receipt 71bde8e8-51d2-4d93-b73a-a8bab7f687cc and versioned owner design",
+      "dependencies": [
+        "ProductGroupOperationalPage",
+        "CascadingTreePanels",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/product-group-design.json",
+          "format": "json",
+          "sha256": "1ad5cfb5f9e983971bfd6aa310019a8b6ad7f88c877376742a84d33ac4ad8653"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-geometry",
+          "status": "covered",
+          "contract": "Published schema and compared tree pieces, header, report table, title and footer.",
+          "checks": [
+            "product-group.layout"
+          ]
+        },
+        {
+          "id": "tree-grid-save",
+          "status": "covered",
+          "contract": "Header/table layout, ancestry binding and server save/reload.",
+          "checks": [
+            "product-group.tree"
+          ]
+        },
+        {
+          "id": "keyboard",
+          "status": "covered",
+          "contract": "F2/F3/F4 and selection-preserving tree navigation.",
+          "checks": [
+            "product-group.shortcuts"
+          ]
+        },
+        {
+          "id": "authorization",
+          "status": "covered",
+          "contract": "Admin-only depth changes and permission-scoped CRUD.",
+          "checks": [
+            "product-group.authorization"
+          ]
+        },
+        {
+          "id": "data-volume",
+          "status": "covered",
+          "contract": "100000 SQL leaf paths with server paging/filtering/sort, concurrency and stale writes.",
+          "checks": [
+            "product-group.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "unverified",
+          "contract": "Form-specific durable appearance, workbook content and maximize behavior lack dedicated evidence.",
+          "checks": []
+        },
+        {
+          "id": "full-raster",
+          "status": "unverified",
+          "contract": "No authenticated screenshot baseline for the whole form; geometry parity is enforced.",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "yarn.definition",
+      "revision": 1,
+      "status": "approved",
+      "provenance": "Registry receipt a348e3e7-ae39-4ff6-b701-7dc55c3201c5 and yarn-operational-acceptance.json",
+      "dependencies": [
+        "ApprovedYarnsPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "FormSchemaPresentation",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/yarn-approved-design.json",
+          "format": "json",
+          "sha256": "9746520995b4bc2bad165bcc1bda1bb84cf140c52dfb3b198529430f5b98de6f"
+        },
+        {
+          "file": "src/forms/yarn-operational-acceptance.json",
+          "format": "json",
+          "sha256": "6000f575e84361e7d01249127d28a0f1210d846a8f0ba141832d98c7af6a433b"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-geometry",
+          "status": "covered",
+          "contract": "18 actual fields and labels match the approved section Canvas within 0.1px; input/derived formatting.",
+          "checks": [
+            "yarn.layout"
+          ]
+        },
+        {
+          "id": "grid-save-keyboard",
+          "status": "covered",
+          "contract": "Master and detail report binding, sticky header, typed runtime title, one-click Save and record identities.",
+          "checks": [
+            "yarn.runtime"
+          ]
+        },
+        {
+          "id": "api-concurrency-performance",
+          "status": "covered",
+          "contract": "SQL roundtrip, large numeric report, distinct bounded suggestions and stable pages.",
+          "checks": [
+            "yarn.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "unverified",
+          "contract": "Dedicated XLSX contents, personalized settings, maximize and shortcut matrix still need coverage.",
+          "checks": []
+        },
+        {
+          "id": "full-raster",
+          "status": "unverified",
+          "contract": "Owner section Canvas is covered geometrically; archived full raster is unverified.",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "warehouse.definition",
+      "revision": 1,
+      "status": "protected-reference",
+      "provenance": "Warehouse design/runtime inventory in docs/audits/approved-forms-baseline.md",
+      "dependencies": [
+        "WarehousesPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "SharedContactPopup"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/warehouse-design.json",
+          "format": "json",
+          "sha256": "a70d798d1192d0fb41a96320f869e936e6d4626f172f083e0d22b65ce5c7296d"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-layout",
+          "status": "covered",
+          "contract": "Stored editor and grid schema, fixed frame, visible footer and dock dialog.",
+          "checks": [
+            "warehouse.runtime"
+          ]
+        },
+        {
+          "id": "keyboard-save",
+          "status": "covered",
+          "contract": "Actual Create/F3/Cancel; persisted keeper and dock behavior and concurrency.",
+          "checks": [
+            "warehouse.runtime",
+            "warehouse.data"
+          ]
+        },
+        {
+          "id": "filter-permissions",
+          "status": "covered",
+          "contract": "Permission-checked server sort/filter and stable grid.",
+          "checks": [
+            "warehouse.data"
+          ]
+        },
+        {
+          "id": "performance",
+          "status": "covered",
+          "contract": "Browser first and last pages bounded through 50000 and SQL queries through 100000.",
+          "checks": [
+            "warehouse.virtualization",
+            "warehouse.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "unverified",
+          "contract": "Form-specific personal settings, XLSX contents and maximize coverage is incomplete.",
+          "checks": []
+        },
+        {
+          "id": "full-raster",
+          "status": "unverified",
+          "contract": "Original owner-approved full-form pixel and field coordinate baseline unavailable.",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "warehouse.zone",
+      "revision": 1,
+      "status": "operational-evidence",
+      "provenance": "Versioned reference with no independently authenticated activation receipt",
+      "dependencies": [
+        "WarehouseZones",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/warehouse-zone-design.json",
+          "format": "json",
+          "sha256": "e72fb199224f6f3b78588d3de55ee0fa92c4bae62b0b88b53664e7c4d1da9e51"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "zone-entry",
+          "status": "covered",
+          "contract": "Zone modal editing and retained keyboard/typing access in Warehouse workflows.",
+          "checks": [
+            "warehouse.runtime"
+          ]
+        },
+        {
+          "id": "data",
+          "status": "covered",
+          "contract": "Zone duplicate handling and single custodian or keeper history.",
+          "checks": [
+            "warehouse.zone-data"
+          ]
+        },
+        {
+          "id": "visual-and-tools",
+          "status": "unverified",
+          "contract": "Full independent appearance, grid toolbar and keyboard approval evidence remains unavailable.",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "business-contract.rules",
+      "revision": 1,
+      "status": "operational-evidence",
+      "provenance": "Business contract runtime and legal business-rule tests; no approved Laboratory visual receipt",
+      "dependencies": [
+        "BusinessContractPage",
+        "SystemDateInput",
+        "formInteraction"
+      ],
+      "assets": [],
+      "capabilities": [
+        {
+          "id": "create-cancel",
+          "status": "covered",
+          "contract": "Rendered create/cancel controls release draft and retain tab.",
+          "checks": [
+            "business-contract.runtime"
+          ]
+        },
+        {
+          "id": "versioned-rules",
+          "status": "covered",
+          "contract": "Contract lock after posting, explicit investor IDs, historical effective dates and capital cost flags.",
+          "checks": [
+            "business-contract.rules"
+          ]
+        },
+        {
+          "id": "schema-geometry",
+          "status": "unverified",
+          "contract": "Independent authenticated field/table geometry and owner screenshot unavailable.",
+          "checks": []
+        },
+        {
+          "id": "grid-tools",
+          "status": "unverified",
+          "contract": "No documented independent approved contract grid/filter/export/maximize/custom appearance requirements.",
+          "checks": []
+        },
+        {
+          "id": "keyboard-permission-matrix",
+          "status": "unverified",
+          "contract": "Dedicated browser locked/amend/persistence role matrix remains incomplete.",
+          "checks": []
+        }
+      ]
+    },
+    {
+      "id": "shared.operational",
+      "revision": 1,
+      "status": "protected-reference",
+      "provenance": "Published operational behavior references and existing approved integration tests; Laboratory drafts are outside the registry",
+      "dependencies": [
+        "BaseFormGridBoundary",
+        "OperationalFormFrame",
+        "ExcelGridColumnHeader",
+        "FormValueList",
+        "App"
+      ],
+      "assets": [],
+      "capabilities": [
+        {
+          "id": "grid",
+          "status": "covered",
+          "contract": "RTL/LTR resize bounds and typed sort/filter behaviors.",
+          "checks": [
+            "shared.grid"
+          ]
+        },
+        {
+          "id": "large-data",
+          "status": "covered",
+          "contract": "Deterministic Persian filtering and stable sort of up to 50000 rows.",
+          "checks": [
+            "shared.grid-volume"
+          ]
+        },
+        {
+          "id": "loading",
+          "status": "covered",
+          "contract": "Lazy-loaded forms, state preservation and failed-module recovery.",
+          "checks": [
+            "shared.lazy-navigation"
+          ]
+        },
+        {
+          "id": "revisions-permissions",
+          "status": "covered",
+          "contract": "Persisted shared title and theme versions, denied unauthorized changes, isolated overrides.",
+          "checks": [
+            "shared.versions-and-permissions"
+          ]
+        },
+        {
+          "id": "gate-integrity",
+          "status": "covered",
+          "contract": "Required named tests must be discovered; gate rejects missing or skipped evidence and baseline replacement.",
+          "checks": [
+            "gate.self-test"
+          ]
+        }
+      ]
+    }
+  ]
+}

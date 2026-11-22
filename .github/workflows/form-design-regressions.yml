@@ -5,6 +5,8 @@ on:
     branches: ['review/**', 'master']
   pull_request:
     branches: ['master']
+  schedule:
+    - cron: '15 3 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -53,11 +55,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
       - name: Theme permissions, immutable revisions and shared Title list protections
-        run: dotnet test tests/YarnTrade.Tests/YarnTrade.Tests.csproj --filter 'FullyQualifiedName~Theme_design|FullyQualifiedName~UserSettingsRules|FullyQualifiedName~Shared_title_list' --logger 'console;verbosity=minimal'
+        run: node frontend/tools/approved-form-gate.mjs theme-security
   operational:
     name: Approved form workflows (${{ matrix.scenario }})
     runs-on: ubuntu-latest
@@ -78,38 +83,44 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Exercise operational form in a disposable browser
         run: |
-          mkdir -p ../artifacts/{warehouse-check,warehouse-floors,yarn-operational-integration} ../review-artifacts
-          npm run dev -- --host 127.1.0.1 --strictPort > /tmp/approved-form-vite.log 2>&1 &
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.1.0.1:5173/ > /dev/null; then break; fi
-            sleep 1
-          done
           export FORM_TEST_BROWSER="$(command -v google-chrome)"
-          node tests/${{ matrix.scenario }}.browser.mjs
+          test -n "$FORM_TEST_BROWSER"
+          npm run test:approved -- ${{ matrix.scenario }}
   production-navigation:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --ignore-scripts --no-audit --no-fund
-      - run: node --test tests/approved-grid-stress.test.mjs tests/protected-form-designs.test.mjs src/components/base-form/excelGrid.test.mjs src/components/base-form/personsGolden.test.mjs
-      - run: npm run build
-      - name: Verify production navigation and recovery
+      - name: Require protected references, unit evidence and production browser coverage
+        env:
+          APPROVAL_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort &
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then break; fi
-            sleep 1
-          done
           export FORM_TEST_BROWSER="$(command -v google-chrome)"
-          npm run test:app-lazy-loading:browser
+          test -n "$FORM_TEST_BROWSER"
+          npm run test:approved -- production
+      - name: Prove the approved gate rejects controlled regressions
+        run: |
+          export FORM_TEST_BROWSER="$(command -v google-chrome)"
+          test -n "$FORM_TEST_BROWSER"
+          npm run test:approved:faults
+      - name: Archive fault-detection evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: approved-form-fault-detection
+          path: frontend/test-results/fault-injection
+          if-no-files-found: ignore
       - name: Upload Persons visual mismatch
         if: failure()
         uses: actions/upload-artifact@v4
@@ -122,6 +133,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -141,4 +155,4 @@ jobs:
           done
           exit 1
       - name: Run integration suite against disposable databases
-        run: dotnet test tests/YarnTrade.Tests/YarnTrade.Tests.csproj --filter 'FullyQualifiedName!~LocalDevelopment' --logger 'console;verbosity=minimal'
+        run: node frontend/tools/approved-form-gate.mjs integration

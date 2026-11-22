@@ -74,6 +74,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   await until(`!${find(panel + ' th[data-column="phone"]')}`, 'Phone column hidden')
   await click('ستون‌ها')
   await until(`!${find('.person-column-menu')}`, 'Column menu closed')
+  console.log('PASS Persons column visibility changes only the selected column')
   await evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true))))')
   const before = await rect()
   const beforeTable = await visibleTableHeight()
@@ -90,6 +91,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   assert.equal(await visibleTableHeight(), beforeTable, 'Restored visible table geometry')
   assert.equal(await selected(), 'person-4')
   assert.equal(await evaluate(`!!${find(panel + ' th[data-column="phone"]')}`), false)
+  console.log('PASS Persons maximize and restore retain the selected row and grid preferences')
 
   await send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: profile }, true)
   await click('خروجی اکسل')
@@ -104,6 +106,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   assert.match(xml, /PERSON-4<\/t>/, 'Export includes visible person data')
   assert.doesNotMatch(xml, /تلفن<\/t>|02112345678/, 'Hidden column and values are excluded')
   assert.equal(await selected(), 'person-4', 'Export preserves selection')
+  console.log('PASS Persons Excel contains both pages and excludes hidden columns')
 
   const filterTrigger = find(panel + ' th[data-column="personCode"] .excel-filter-trigger')
   const clear = button('پاک کردن فیلترها')
@@ -113,6 +116,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
       await send('Input.dispatchKeyEvent', {type, key, code:key, windowsVirtualKeyCode, text})
     }
   }
+  console.log('PASS Persons filter reset by button and F8 preserves scope, order and columns')
   assert.equal(await evaluate(`${clear}.disabled`), true)
   await mouse(find(panel + ' th[data-column="personCode"] .column-title'))
   const sort = await evaluate(`${find(panel + ' th[data-column="personCode"]')}.getAttribute('aria-sort')`)
@@ -166,6 +170,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   await evaluate("sessionStorage.removeItem('currentUser')")
   await load()
   assert.deepEqual(await appearance(), expected, 'Original viewer preferences remain intact')
+  console.log('PASS Persons appearance persists after reload and is permission and account scoped')
 
   await click('میان‌برهای صفحه‌کلید')
   const shortcut = button('میان‌برهای صفحه‌کلید')
@@ -182,6 +187,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   assert.equal(await select('.shortcut-settings select', 'F7'), 'F7')
   await click('میان‌برهای صفحه‌کلید')
   assert.equal(await evaluate(`${shortcut}.getAttribute('aria-expanded')`), 'false', 'Trigger toggles open popup closed')
+  console.log('PASS Persons shortcut popup dismisses by Escape, outside pointer and trigger')
   assert.equal(await evaluate(`[...document.querySelectorAll('${panel} .shortcut-bar button')].length`), 8)
   await evaluate(`${find(panel + ' .person-table-wrap')}.focus()`)
   await key('F7', 118)
@@ -191,5 +197,23 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   await click('میان‌برهای صفحه‌کلید')
   assert.equal(await evaluate(`${find('.shortcut-settings select')}.value`), 'F7')
   assert.equal(await select('.shortcut-settings select', 'Space'), 'Space')
+  await click('میان‌برهای صفحه‌کلید')
+  console.log('PASS Persons configured shortcut invokes create and survives reload')
+
+  const notes = find(panel + ' [data-field="notes"]')
+  const noteText = 'Approved synthetic note roundtrip'
+  await mouse(find(panel + ' tr[data-person-id="person-4"] td'))
+  await until(`${find(panel + ' tr.selected')}?.dataset.personId==='person-4'`, 'Synthetic person selected for edit')
+  await key('Insert', 45)
+  await until(`${notes} && !${notes}.disabled`, 'Person notes editable')
+  await evaluate(`${notes}.focus();${notes}.select()`)
+  await send('Input.insertText', {text:noteText})
+  await until(`${notes}.value===${JSON.stringify(noteText)}`, 'Person note typed')
+  await key('F3', 114)
+  await until(`${notes}.disabled`, 'F3 saved the edited person')
+  await load()
+  await until(`${find(panel + ' tr.selected')}?.dataset.personId==='person-4'`, 'Reload selected the saved person')
+  assert.equal(await evaluate(`${notes}.value`), noteText, 'Person note survived API Save and page reload')
+  console.log('PASS Persons note persists through F3 Save and API reload')
   console.log('PASS Persons icon toolbar, paged XLSX, saved appearance, user isolation and keyboard shortcuts')
 }
