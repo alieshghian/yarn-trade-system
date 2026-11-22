@@ -14,17 +14,34 @@ public sealed class PersonsGridController(AppDbContext db) : ControllerBase
     [HttpPost, RequirePermission("persons.view")]
     public async Task<ActionResult<ServerGridPage<PersonView>>> Query([FromBody] PersonsGridRequest request, CancellationToken ct)
     {
-        var page = Math.Max(1, request.Page);
+        var page = Math.Clamp(request.Page, 1, 1_000_000);
         var pageSize = Math.Clamp(request.PageSize, 1, 500);
         var language = request.Language == "fa" ? "fa" : "en";
         var query = BaseQuery();
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (!string.IsNullOrWhiteSpace(request.Search) && request.SearchMode is not ("startsWith" or "contains" or "exact"))
         {
             var term = request.Search.Trim();
-            query = query.Where(person => person.PersonCode.Contains(term) || person.DisplayName.Contains(term)
+            Expression<Func<Person, bool>> legacy = person => person.PersonCode.Contains(term) || person.DisplayName.Contains(term)
                 || (person.Mobile != null && person.Mobile.Contains(term)) || (person.Phone != null && person.Phone.Contains(term))
                 || (person.Job != null && (person.Job.NameFa.Contains(term) || person.Job.NameEn.Contains(term)))
-                || (person.Nationality != null && (person.Nationality.NameFa.Contains(term) || person.Nationality.NameEn.Contains(term))));
+                || (person.Nationality != null && (person.Nationality.NameFa.Contains(term) || person.Nationality.NameEn.Contains(term)));
+            query = query.Where(request.ReverseSearch
+                ? Expression.Lambda<Func<Person, bool>>(Expression.Not(legacy.Body), legacy.Parameters) : legacy);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var row = Expression.Parameter(typeof(Person), "person");
+            Expression<Func<Person, string>>[] values =
+            [
+                person => person.PersonCode, person => person.DisplayName,
+                person => person.Mobile ?? "", person => person.Phone ?? "",
+                person => person.Job == null ? "" : person.Job.NameFa,
+                person => person.Job == null ? "" : person.Job.NameEn,
+                person => person.Nationality == null ? "" : person.Nationality.NameFa,
+                person => person.Nationality == null ? "" : person.Nationality.NameEn
+            ];
+            var cells = values.Select(cell => new SearchRowParameter(cell.Parameters[0], row).Visit(cell.Body)).ToArray();
+            query = ServerReportQuery.ApplySearch(query, request.Search, request.SearchMode, request.ReverseSearch, row, cells);
         }
 
         var filters = request.Filters ?? new Dictionary<string, GridColumnFilterRequest>();
@@ -59,6 +76,11 @@ public sealed class PersonsGridController(AppDbContext db) : ControllerBase
     }
 
     private IQueryable<Person> BaseQuery() => db.Persons.AsNoTracking();
+
+    private sealed class SearchRowParameter(ParameterExpression previous, ParameterExpression current) : ExpressionVisitor
+    {
+        protected override Expression VisitParameter(ParameterExpression node) => node == previous ? current : base.VisitParameter(node);
+    }
 
     private static IQueryable<Person> ApplyFilters(IQueryable<Person> query, IEnumerable<KeyValuePair<string, GridColumnFilterRequest>> filters, string language)
     {
@@ -193,4 +215,5 @@ public sealed class PersonsGridController(AppDbContext db) : ControllerBase
 }
 
 public sealed record PersonsGridRequest(int Page = 1, int PageSize = 100, string Search = "", string Language = "fa",
-    Dictionary<string, GridColumnFilterRequest>? Filters = null, List<GridSortRequest>? Sort = null, string? OptionsColumn = null, string? OptionsSearch = null);
+    Dictionary<string, GridColumnFilterRequest>? Filters = null, List<GridSortRequest>? Sort = null, string? OptionsColumn = null, string? OptionsSearch = null,
+    string? SearchMode = null, bool ReverseSearch = false);

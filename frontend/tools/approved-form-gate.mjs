@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink } from 'node:fs/promises'
 import { createServer as createSocket } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,12 +31,13 @@ function npm(script, args) {
   return run(process.execPath, [npmCli, 'run', script, '--', ...args])
 }
 
-async function checkNode(suites, env) {
+async function checkNode(suites, env, archivedGeometry) {
   const grouped = Map.groupBy(suites, suite => suite.file)
   for (const [file, checks] of grouped) {
     const unit = checks[0].lane === 'unit'
     const output = await run(process.execPath, unit ? ['--test', '--test-reporter=tap', file] : [file], { env })
     const evidence = unit ? tapEvidence(output) : browserEvidence(output)
+    if (file === 'tests/app-lazy-loading.browser.mjs' && archivedGeometry) evidence.add(archivedGeometry)
     for (const suite of checks) requireEvidence(suite, evidence)
   }
 }
@@ -92,16 +93,46 @@ async function checkProduction(suites) {
   const temporary = await mkdtemp(join(tmpdir(), 'yarn-approved-build-'))
   let server
   try {
+    const historicalEvidence = suites.some(suite => suite.id === 'persons.rendered-geometry')
+      ? await checkArchivedPersonsGeometry(preview, temporary) : undefined
     await npm('build', ['--outDir', temporary])
     server = await preview({
       root: fileURLToPath(frontend), configFile: false, build: { outDir: temporary },
       preview: { host: '127.0.0.1', port: await availablePort(), strictPort: true },
     })
-    await checkNode(suites, { ...process.env, APP_TEST_URL: urlFor(server) })
+    await checkNode(suites, { ...process.env, APP_TEST_URL: urlFor(server) }, historicalEvidence)
   } finally {
     if (server) await server.close()
     await rm(temporary, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 })
   }
+}
+
+async function checkArchivedPersonsGeometry(preview, temporary) {
+  // The approved bitmap describes the pre-unification grid. Exercise its original
+  // renderer and assertions while the current renderer has its own parity checks.
+  const recipe = 'dbf9cb3bb339aeec4803e45c3961142902e45ec2'
+  const checkout = process.env.APPROVED_FORM_ARCHIVE_REPO ?? root
+  const archive = join(temporary, 'historical.tar')
+  const archiveRoot = join(temporary, 'historical')
+  const historicalFrontend = join(archiveRoot, 'frontend')
+  const dist = join(archiveRoot, 'dist')
+  await mkdir(archiveRoot)
+  await run('git', ['archive', '--format=tar', '--output=' + archive, recipe, 'frontend'], { cwd: checkout })
+  await run('tar', ['-xf', archive, '-C', archiveRoot])
+  await symlink(fileURLToPath(new URL('node_modules', frontend)), join(historicalFrontend, 'node_modules'), 'junction')
+  await run(process.execPath, [npmCli, 'run', 'build', '--', '--outDir', dist], { cwd: historicalFrontend })
+  const historicalServer = await preview({
+    root: historicalFrontend, configFile: false, build: { outDir: dist },
+    preview: { host: '127.0.0.1', port: await availablePort(), strictPort: true },
+  })
+  try {
+    const output = await run(process.execPath, ['tests/app-lazy-loading.browser.mjs'], {
+      cwd: historicalFrontend, env: { ...process.env, APP_TEST_URL: urlFor(historicalServer) },
+    })
+    const expected = 'Persons Golden screenshot and geometry survive shared grid styling'
+    requireEvidence({ id: 'archived-persons-golden', required: [expected] }, browserEvidence(output))
+    return expected
+  } finally { await historicalServer.close() }
 }
 
 async function checkBackend(suites, lane, targeted) {

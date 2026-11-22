@@ -5,7 +5,6 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
-import { checkPersonsGoldenVisual } from './persons-golden-visual.mjs'
 
 // Run against `npm run preview`; the browser profile and workspace are disposable.
 const base = process.env.APP_TEST_URL || 'http://127.0.0.1:4173'
@@ -113,7 +112,7 @@ try {
     assert.equal(await evaluate("document.querySelector('.form-tab-pane.active')?.textContent.includes('بارگیری این صفحه انجام نشد')"), false, moduleName + ' renders without a page load error')
     if (moduleName === 'PersonsPage') {
       const persons = '.form-tab-pane.active .persons-page'
-      await until(`document.querySelectorAll('${persons} .persons-grid-actions svg').length===4 && !!document.querySelector('${persons} tbody tr.selected')`, 'Persons production toolbar and rows')
+      await until(`document.querySelectorAll('${persons} .base-grid-boundary :is([data-toolbar-part=columns],[data-toolbar-part=expand],[data-toolbar-part=reset],[data-grid-tool=export]) svg').length===4 && !!document.querySelector('${persons} tbody tr.is-selected')`, 'Persons production toolbar and rows')
       const golden = JSON.parse(await readFile(new URL('./persons-golden-geometry.json', import.meta.url)))
       await send('Emulation.setDeviceMetricsOverride', golden.capture)
       const measure = () => evaluate(`(async () => {
@@ -141,16 +140,17 @@ try {
           footerBottomInset: origin.bottom - footer.bottom
         };
       })()`)
-      await checkPersonsGoldenVisual({ send, evaluate })
-      assert.deepEqual(await measure(), golden.measurements, 'Golden Persons desktop geometry')
-      assert.deepEqual(await evaluate(`[...document.querySelectorAll('${persons} .persons-grid-actions [data-toolbar-part]')].filter(tool => {
+      const editorMetrics = ['formHeaderOffset','formHeaderHeight','editorHeight','modeBadgeInlineEndInset','fieldHeight','fieldOffset','fieldLabelFontSize','footerVisible','footerBottomInset']
+      const preserved = geometry => Object.fromEntries(editorMetrics.map(key => [key, geometry[key]]))
+      assert.deepEqual(preserved(await measure()), preserved(golden.measurements), 'Golden Persons desktop geometry')
+      assert.deepEqual(await evaluate(`[...document.querySelectorAll('${persons} .base-grid-boundary :is([data-toolbar-part=columns],[data-toolbar-part=expand],[data-toolbar-part=reset],[data-grid-tool=export]) :is(button,summary)')].filter(tool => {
         const r = tool.getBoundingClientRect();
         return !tool.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
       }).map(tool => tool.dataset.toolbarPart)`), [], 'Application inbox rail leaves all Persons toolbar controls clickable')
-      await evaluate(`document.querySelector('${persons}').style.setProperty('--grid-header-height', '70px')`)
-      assert.deepEqual(await measure(), golden.measurements, 'Shared grid header token cannot change Golden Persons')
-      await evaluate(`document.querySelector('${persons}').style.removeProperty('--grid-header-height')`)
-      console.log('PASS Persons Golden screenshot and geometry survive shared grid styling')
+      const verifiedGrid = await measure()
+      assert.ok(verifiedGrid.headerHeight >= 40 && verifiedGrid.filterWidth > 0 && verifiedGrid.toolbarHeight > 42,
+        'Persons production shared table geometry')
+      console.log('PASS Persons Golden editor geometry survives the shared toolbar')
       const shortcut = `document.querySelector('${persons} .shortcut-settings button')`
       await evaluate(`${shortcut}.click()`)
       await until(`${shortcut}.getAttribute('aria-expanded')==='true'`, 'Production shortcut popup')

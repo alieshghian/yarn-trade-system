@@ -1,5 +1,4 @@
-.persons-settings-controls,
-.persons-grid-actions {
+.persons-settings-controls {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -24,11 +23,11 @@
 
 /* Golden Persons uses its own heading and row geometry. Shared grid styles
    continue to supply sorting, filters, and per-user appearance. */
-.persons-page .person-table {
+.persons-page .person-table:not(.base-grid-table) {
   --form-table-row-height: 31px;
 }
 
-.persons-page .person-table tbody td {
+.persons-page .person-table:not(.base-grid-table) tbody td {
   white-space: nowrap;
 }
 
@@ -36,24 +35,24 @@
   direction: ltr;
 }
 
-.persons-page .person-table .column-heading {
+.persons-page .person-table:not(.base-grid-table) .column-heading {
   height: 30px;
   grid-template-columns: minmax(0, 1fr) 27px;
 }
 
-.persons-page .person-table .column-heading .column-title {
+.persons-page .person-table:not(.base-grid-table) .column-heading .column-title {
   white-space: nowrap;
   padding: 5px 9px;
   line-height: normal;
 }
 
-.persons-page .person-table .column-heading .column-label {
+.persons-page .person-table:not(.base-grid-table) .column-heading .column-label {
   white-space: nowrap;
   line-height: inherit;
   text-overflow: ellipsis;
 }
 
-.persons-page .person-table .column-heading .excel-filter-trigger {
+.persons-page .person-table:not(.base-grid-table) .column-heading .excel-filter-trigger {
   width: 27px;
 }
 
@@ -65,72 +64,6 @@
   min-height: 36px;
 }
 
-.persons-page .grid-toolbar > .persons-grid-actions {
-  position: relative;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-}
-
-.app-shell .persons-page .grid-toolbar > .persons-grid-actions {
-  /* Keep the endmost tool clear of the application's fixed inbox rail. */
-  margin-inline-end: calc(var(--work-drawer-rail-width) - 10px);
-}
-
-.persons-grid-actions :is(button, summary) {
-  box-sizing: border-box;
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--paper, #fff);
-  color: var(--teal);
-  cursor: pointer;
-}
-
-.persons-grid-actions :is(button, summary):focus-visible {
-  outline: 2px solid var(--teal);
-  outline-offset: 2px;
-}
-
-.persons-grid-actions svg {
-  width: 19px;
-  height: 19px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.persons-grid-actions button:disabled {
-  cursor: default;
-  opacity: .45;
-}
-
-.persons-grid-actions [data-toolbar-part=export] button[aria-busy=true] {
-  cursor: wait;
-}
-
-.persons-grid-actions .grid-export-status:not(:empty) {
-  position: absolute;
-  inset-inline-end: 0;
-  inset-block-start: 100%;
-  z-index: 4;
-  width: max-content;
-  max-width: 200px;
-  padding: 4px 8px;
-  background: var(--paper);
-  border: 1px solid var(--line);
-}
-
-.persons-grid-actions .grid-export-status:empty {
-  position: absolute;
-}
-
 @media (max-width: 760px) {
   /* Reset the desktop named row positions along with the column spans. */
   .persons-page.person-layout-five .person-editor .person-form-grid > :is(label, .person-notes-active) {
@@ -139,37 +72,25 @@
 }
 
 @media (max-width: 520px) {
-  .persons-page .grid-toolbar {
+  .persons-page .person-grid-panel > .grid-toolbar {
     gap: 4px;
     flex-wrap: wrap;
   }
 
-  .persons-page .grid-toolbar > div:first-child {
+  .persons-page .person-grid-panel > .grid-toolbar > div:first-child {
     display: grid;
     gap: 0;
     line-height: 1.2;
   }
 
-  .persons-page .grid-toolbar > .persons-grid-actions {
-    gap: 3px;
-  }
-
-  .persons-page .persons-grid-pager button {
+.persons-page .persons-grid-pager button {
     padding-inline: 4px;
   }
-}
-
-.persons-page > .persons-grid-expanded {
-  position: fixed;
-  inset: 12px;
-  z-index: 100;
-  width: auto;
-  max-width: none;
-  height: auto;
-  margin: 0;
 }
 
 .operational-personal-host .person-form-grid .personal-selected {
   outline: 2px solid var(--teal);
   outline-offset: 1px;
 }
+
+.persons-grid-shared { flex: 1; height: auto; min-width: 0; }

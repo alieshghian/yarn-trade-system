@@ -87,7 +87,7 @@ test('Global user theme and font preferences remain inherited by the form', () =
   assert.match(app, /dataset\.userFontSize = fontSize/)
   assert.match(settings, /api<UserPreferences>\('\/api\/user-settings'\)/)
   for (const token of ['--user-font-family', '--ink', '--muted', '--line', '--cream', '--teal', '--gold']) assert.ok(css.includes(token))
-  assert.match(css, /\.persons-page \.person-table,\.persons-page \.person-table td\{font-size:var\(--form-table-size,13px\)\}/)
+  assert.match(css, /\.persons-page \.person-table:not\(\.base-grid-table\),\.persons-page \.person-table:not\(\.base-grid-table\) td\{font-size:var\(--form-table-size,13px\)\}/)
   assert.match(theme, /--form-table-size:13px;/)
 })
 

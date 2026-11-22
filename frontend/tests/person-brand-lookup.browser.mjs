@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { checkPersonsYarnGridParity } from './persons-yarn-grid-parity.scenarios.mjs'
 import { captureVisualCandidate } from './pending-form-visual-candidates.mjs'
 import { connectChromeDevTools } from './chrome-devtools.mjs'
 import { spawn } from 'node:child_process'
@@ -64,7 +65,7 @@ try {
   for (const company of [false,true]) {
     const token = await evaluate('performance.timeOrigin')
     await send('Page.navigate', {url:base+'/tests/person-brand-lookup.html?toolbar=1'+(company?'&company=1':'')})
-    await until('performance.timeOrigin!=='+token+'&&!!document.querySelector(".active tr[data-person-id]")','Persons geometry fixture')
+    await until('performance.timeOrigin!=='+token+'&&!!document.querySelector(".active tr[data-record-id]")','Persons geometry fixture')
     await until(company ? '!!document.querySelector(".person-director-field")' : '!!document.querySelector(".person-first-name-field")','Persons identity variant')
     await evaluate('document.fonts.ready.then(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve(true)))))')
     await checkPersonsEditorGeometry(evaluate, company)
@@ -197,6 +198,7 @@ try {
   assert.deepEqual(errors,[]);
   console.log('PASS optional blank choice and first result highlight, ArrowUp/Down, single Enter, visible create button, Insert from search; actual Persons lookup: standard height, blank choice, code/name, Insert real Brands create, save/select, preserved draft');
     await checkOperationalTools({ base, send, evaluate, until, profile })
+    await checkPersonsYarnGridParity({ base, send, evaluate, until })
     assert.deepEqual(errors, [])
   }
 } catch(error){console.error(error);process.exitCode=1}

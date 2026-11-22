@@ -12,29 +12,36 @@ assert.ok(npmCli, 'Use npm run test:approved:faults')
 
 const person = 'src/PersonsPage.tsx'
 const style = 'src/personsToolbar.css'
+const grid = 'src/components/base-form/BaseFormGridBoundary.tsx'
 const faults = [
   ['persons-editor-field-shift', 'person-brand-lookup', style, /\s*$/, '\n.persons-page .person-first-name-field { transform: translateX(5px); }\n', 'Persons editor Golden tracks for firstName'],
   ['persons-editor-label-size', 'person-brand-lookup', style, /\s*$/, '\n.persons-page .person-form-grid .person-phone-field > span { font-size: 14px !important; line-height: 21.4375px !important; }\n', 'phone label typography'],
   ['shared-xlsx-hidden-column', 'person-brand-lookup', 'src/components/base-form/BaseFormGridBoundary.tsx',
-    'columns: visible, rows: exportRows', 'columns, rows: exportRows', 'Brand workbook excludes hidden column'],
+    'columns: visible, rows: exportRows', 'columns, rows: exportRows', 'Hidden column and values are excluded'],
   ['contract-amendment-link', 'person-brand-lookup', 'src/BusinessContractPage.tsx',
     'previousVersionId: current.id, versionNumber:', "previousVersionId: 'wrong-version', versionNumber:", 'Amendment references its immutable predecessor'],
-  ['excel-button', 'person-brand-lookup', person, / *<span data-toolbar-part="export">[^\n]+<\/span>\r?\n/, '\n', 'Approved toolbar icons and appearance entry'],
-  ['grid-header-height', 'production', style, /\.persons-page \.person-table \.column-heading \{\r?\n  height: 30px;/,
-    '.persons-page .person-table .column-heading {\n  height: 48px;', 'Golden Persons grid visual diff'],
+  ['excel-button', 'person-brand-lookup', grid, "panel==='header'&&operationalBehavior.gridExport.enabled", "panel==='header'&&!operational?.clearColumnFilters&&operationalBehavior.gridExport.enabled", 'Approved toolbar icons and appearance entry'],
+  ['grid-header-height', 'production', style, /\s*$/, '\n.persons-shared-grid .excel-filter-trigger {display:none !important}\n', 'Persons production shared table geometry'],
   ['footer-hidden', 'production', style, /\s*$/, '\n.persons-page .shortcut-bar { display: none !important; }\n', 'Golden Persons desktop geometry'],
   ['create-shortcut', 'person-brand-lookup', person, 'shortcutMatches(event, shortcuts.new)', "shortcutMatches(event, 'F9')", 'Configured F7 enters create mode'],
-  ['column-management', 'person-brand-lookup', person, 'onChange={() => toggleColumn(column.key)}', 'onChange={() => {}}', 'Phone column hidden'],
+  ['column-management', 'person-brand-lookup', grid, 'visible: !item.visible','visible: item.visible', 'Phone column hidden'],
   ['popup-escape', 'person-brand-lookup', person, "event.key !== 'Escape' || !shortcutsTrigger.current", "event.key !== 'F10' || !shortcutsTrigger.current", 'Escape dismisses and returns focus'],
   ['field-persistence', 'person-brand-lookup', person, '  ...draft,', "  ...draft, notes: '',", 'Person note survived API Save and page reload'],
   ['required-test-skipped', 'unit', 'tests/approved-contract-integrity.test.mjs', "test('immutable records permit append", "test.skip('immutable records permit append", 'Required Node test was skipped or omitted'],
+  ['persons-search-missing', 'person-brand-lookup', grid, "inPanel('search',panel)&&<div", "inPanel('search',panel)&&!operational?.clearColumnFilters&&<div", 'Shared Persons global search exists'],
+  ['persons-search-focus', 'person-brand-lookup', grid, "functionKeyFromEvent(event) !== 'F1'", "functionKeyFromEvent(event) !== 'F10'", 'Persons F1 focuses actual search'],
+  ['persons-search-mode', 'person-brand-lookup', grid, 'setSearchMode(mode)', "setSearchMode('startsWith')", 'Persons contains search results'],
+  ['persons-reverse-search', 'person-brand-lookup', grid, 'setReverseSearch(value => !value)', 'setReverseSearch(false)', 'Persons reverse returns complementary result'],
+  ['persons-toolbar-alignment', 'person-brand-lookup', style, /\s*$/, '\n.persons-shared-grid [data-toolbar-part=counter] {margin-left:60px !important}\n', 'persons title and counter are centered in the shared lane'],
+  ['persons-maximize-selection', 'person-brand-lookup', grid, '    setExpanded(true)', '    setSelectedRow(null); setExpanded(true)', 'Expanded grid retains selected row'],
+  ['persons-appearance-scope', 'person-brand-lookup', 'src/components/base-form/OperationalFormFrame.tsx', 'encodeURIComponent(p.userId ?? currentUserKey())', "encodeURIComponent(p.formId==='persons'?'global':p.userId ?? currentUserKey())", 'Appearance is isolated by user'],
 ]
 
 function executeGate(directory, lane) {
   return new Promise((resolveRun, reject) => {
     const { APPROVAL_BASE_REF, ...environment } = process.env
     const child = spawn(process.execPath, [npmCli, 'run', 'test:approved', '--', lane], {
-      cwd: directory, env: environment, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: directory, env: { ...environment, APPROVED_FORM_ARCHIVE_REPO: resolve(app, '..') }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
     })
     let output = ''
     for (const stream of [child.stdout, child.stderr]) {

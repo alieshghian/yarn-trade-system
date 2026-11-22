@@ -295,6 +295,74 @@ public sealed partial class SecurityBaselineTests
     }
 
     [Fact]
+    public async Task Persons_SQL_grid_modes_reverse_filters_and_stable_pages_require_view_permission()
+    {
+        await using var sql = await A4SqlDatabase.CreateLatest(false);
+        await using var host = await CreateApp(sqlConnection: sql.Connection);
+        const string route = "/api/master-data/persons/grid";
+        const string actor = "persons-grid@example.test";
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Client.PostAsJsonAsync(route, new PersonsGridRequest())).StatusCode);
+        await CreateUser(host.App, actor);
+        await SignIn(host, actor);
+        await SetPermissions(host, actor, "persons.edit");
+        Assert.Equal(HttpStatusCode.Forbidden, (await host.Client.PostAsJsonAsync(route, new PersonsGridRequest())).StatusCode);
+        await SetPermissions(host, actor, "persons.view");
+
+        await using (var db = sql.Context())
+        {
+            db.Persons.AddRange(
+                new Person { PersonCode = "P-A", DisplayName = "Alpha", LastName = "Alpha", IsActive = true },
+                new Person { PersonCode = "P-B", DisplayName = "Group Alphabet", LastName = "Group Alphabet", IsActive = true },
+                new Person { PersonCode = "P-C", DisplayName = "XAlpha", LastName = "XAlpha", IsActive = false },
+                new Person { PersonCode = "P-D", DisplayName = "Other", LastName = "Other", IsActive = true });
+            db.Persons.AddRange(Enumerable.Range(0, 128).Select(index => new Person
+            {
+                PersonCode = $"LOAD-{index:000}", DisplayName = $"Fixture {index:000}", LastName = $"Fixture {index:000}"
+            }));
+            await db.SaveChangesAsync();
+        }
+
+        async Task<ServerGridPage<PersonView>> Query(PersonsGridRequest request)
+        {
+            using var response = await host.Client.PostAsJsonAsync(route, request);
+            response.EnsureSuccessStatusCode();
+            return (await response.Content.ReadFromJsonAsync<ServerGridPage<PersonView>>())!;
+        }
+        static string[] Codes(ServerGridPage<PersonView> page) => page.Items.Select(person => person.PersonCode).ToArray();
+        var search = new PersonsGridRequest(PageSize: 500, Search: "Alpha", Sort: [new("personCode", "asc")]);
+        Assert.Equal(["P-A", "P-B", "P-C"], Codes(await Query(search)));
+        Assert.Equal(["P-A", "P-B", "P-C"], Codes(await Query(search with { SearchMode = "contains" })));
+        Assert.Equal(["P-B"], Codes(await Query(search with { Search = "Alpha Group", SearchMode = "contains" })));
+        Assert.Empty((await Query(search with { Search = "Alpha Group" })).Items);
+        Assert.Equal(["P-A", "P-B"], Codes(await Query(search with { SearchMode = "startsWith" })));
+        Assert.Equal(["P-A"], Codes(await Query(search with { SearchMode = "exact" })));
+        var all = await Query(search with { Search = "" });
+        var complement = Codes(await Query(search with { SearchMode = "startsWith", ReverseSearch = true }));
+        Assert.Equal(Codes(all).Where(code => code is not ("P-A" or "P-B")), complement);
+        Assert.Contains("P-C", complement);
+        Assert.Contains("P-D", complement);
+        Assert.Equal(all.Total, (await Query(search with { Search = " ", SearchMode = "exact", ReverseSearch = true })).Total);
+
+        var active = new Dictionary<string, GridColumnFilterRequest> { ["isActive"] = new(SelectedValues: ["boolean:true"]) };
+        var filtered = search with { SearchMode = "contains", Filters = active, PageSize = 1 };
+        var first = await Query(filtered);
+        var second = await Query(filtered with { Page = 2 });
+        Assert.Equal(2, first.Total);
+        Assert.Equal(["P-A"], Codes(first));
+        Assert.Equal(["P-B"], Codes(second));
+        Assert.Equal(Codes(second), Codes(await Query(filtered with { Page = 2 })));
+        var options = await Query(filtered with { OptionsColumn = "personCode" });
+        Assert.Equal(["P-A", "P-B"], options.FilterValues!.Select(value => value?.ToString() ?? "").Order().ToArray());
+
+        var large = search with { Search = "Fixture", SearchMode = "startsWith", Page = 2, PageSize = 100 };
+        var finalPage = await Query(large);
+        Assert.Equal(128, finalPage.Total);
+        Assert.Equal(28, finalPage.Items.Count);
+        Assert.Equal("LOAD-100", finalPage.Items[0].PersonCode);
+        Assert.Equal(Codes(finalPage), Codes(await Query(large)));
+    }
+
+    [Fact]
     public async Task Persons_contract_creation_HTTP_requires_both_contract_and_person_permissions()
     {
         await using var host = await CreateApp();

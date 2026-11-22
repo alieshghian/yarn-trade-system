@@ -8,25 +8,9 @@ internal static class ServerReportQuery {
     public static async Task<ActionResult<ServerGridPage<T>>> Run<T>(IQueryable<T> query,WarehouseGridRequest request, CancellationToken ct, string[] searchable, string? recencyColumn=null) where T : class {
         string? Resolve(string id)=>searchable.FirstOrDefault(x=>string.Equals(x,id,StringComparison.OrdinalIgnoreCase));
         var page = Math.Clamp(request.Page, 1, 1000000); var size = Math.Clamp(request.PageSize, 1, 500);
-        if (!string.IsNullOrWhiteSpace(request.Search)) {
-            var parameter = Expression.Parameter(typeof(T), "row");
-            Expression match = Expression.Constant(true);
-            var normalized=request.Search.Trim();
-            foreach (var term in request.SearchMode=="exact" ? new[]{normalized} : normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)) {
-                Expression any = Expression.Constant(false);
-                foreach (var column in searchable) {
-                    var text = CellText(Expression.Property(parameter, column));
-                    var value = Expression.Constant(term);
-                    Expression condition = request.SearchMode == "exact" ? Expression.Equal(text, value)
-                        : request.SearchMode == "contains" ? Expression.Call(text, nameof(string.Contains), Type.EmptyTypes, value)
-                        : Expression.OrElse(Expression.Call(text, nameof(string.StartsWith), Type.EmptyTypes, value), Expression.Call(text, nameof(string.Contains), Type.EmptyTypes, Expression.Constant(" " + term)));
-                    any = Expression.OrElse(any, condition);
-                }
-                match = Expression.AndAlso(match, any);
-            }
-            if (request.ReverseSearch) match = Expression.Not(match);
-            query = query.Where(Expression.Lambda<Func<T, bool>>(match, parameter));
-        }
+        var searchRow = Expression.Parameter(typeof(T), "row");
+        query = ApplySearch(query, request.Search, request.SearchMode, request.ReverseSearch, searchRow,
+            searchable.Select(column => CellText(Expression.Property(searchRow, column))).ToArray());
         var searched=query;
         foreach (var (id, filter) in request.Filters ?? []) {
             var column = Resolve(id); if (column is null || id == request.OptionsColumn) continue;
@@ -79,6 +63,32 @@ internal static class ServerReportQuery {
         sorted = (sorted ?? (recencyColumn is null ? query.OrderBy(Selector<T>(searchable[0])) : query.OrderByDescending(SortSelector<T>(recencyColumn)))).ThenBy(IdSelector<T>());
         return new OkObjectResult(new ServerGridPage<T>(await sorted.Skip((page-1)*size).Take(size).ToArrayAsync(ct), total, page, size));
     }
+    internal static IQueryable<T> ApplySearch<T>(IQueryable<T> source, string? search, string? mode, bool reverse,
+        ParameterExpression row, IReadOnlyList<Expression> searchable)
+    {
+        if (string.IsNullOrWhiteSpace(search)) return source;
+        var text = search.Trim();
+        Expression match = Expression.Constant(true);
+        foreach (var term in mode == "exact" ? [text] : text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            Expression any = Expression.Constant(false);
+            foreach (var cell in searchable)
+            {
+                var value = Expression.Constant(term);
+                Expression condition = mode switch
+                {
+                    "exact" => Expression.Equal(cell, value),
+                    "contains" => Expression.Call(cell, nameof(string.Contains), Type.EmptyTypes, value),
+                    _ => Expression.OrElse(Expression.Call(cell, nameof(string.StartsWith), Type.EmptyTypes, value),
+                        Expression.Call(cell, nameof(string.Contains), Type.EmptyTypes, Expression.Constant(" " + term)))
+                };
+                any = Expression.OrElse(any, condition);
+            }
+            match = Expression.AndAlso(match, any);
+        }
+        return source.Where(Expression.Lambda<Func<T, bool>>(reverse ? Expression.Not(match) : match, row));
+    }
+
     private static Expression<Func<T,string>> Selector<T>(string column) {
         var p=Expression.Parameter(typeof(T),"row"); return Expression.Lambda<Func<T,string>>(CellText(Expression.Property(p,column)),p);
     }

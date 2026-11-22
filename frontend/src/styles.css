@@ -378,9 +378,9 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 .person-editor .person-title-entry button{padding:4px 8px;border:1px solid var(--line);border-radius:5px;background:var(--cream);color:var(--ink);font-size:10px}
 .person-editor .person-title-entry>small{color:#a34336;font-size:10px}
 .persons-page .person-editor .person-form-grid :is(input:not([type='checkbox']),select,textarea){font-size:var(--form-control-size,14px)}
-.persons-page .person-table,.persons-page .person-table td{font-size:var(--form-table-size,13px)}
+.persons-page .person-table:not(.base-grid-table),.persons-page .person-table:not(.base-grid-table) td{font-size:var(--form-table-size,13px)}
 
-.persons-page .person-table th,.persons-page .person-table .column-title{font-size:var(--form-table-header-size,14px)}
+.persons-page .person-table:not(.base-grid-table) th,.persons-page .person-table:not(.base-grid-table) .column-title{font-size:var(--form-table-header-size,14px)}
 
 /* Title entry follows the compact phone entry pattern; only the title text is editable. */
 .person-editor .person-title-entry .title-new-row{display:flex;gap:5px;align-items:center}
@@ -485,15 +485,15 @@ html,body,#root{max-width:100%;overflow-x:hidden}.app-shell>main,.content,.tabbe
 #root .person-number-wrap[data-standard-list] .number-actions>button{font-size:var(--component-popup-font-size,12px)!important}
 #root .person-number-wrap[data-standard-list]>.person-number-control{border-width:var(--lab-border-width,1px);border-style:var(--lab-border-style,solid);box-shadow:var(--lab-shadow,none);background-image:var(--lab-gradient,none)!important;--lab-effect-base-bg:var(--lab-bg,var(--lab-entry-field-bg,#f4f6f5))}
 #root .person-number-wrap[data-standard-list] .person-number-control>:is(input,textarea){padding:var(--lab-padding-y,5px) var(--lab-padding-x,8px)!important;line-height:var(--lab-line-height,1.2)!important}
-.persons-page .person-table .person-grid-phone{display:inline-block;direction:ltr;unicode-bidi:isolate}
-.persons-page .person-table .person-status{font-size:10px}
-.persons-page .person-table .column-title span,.persons-page .person-table .excel-filter-trigger{font-size:10px}
+.persons-page .person-table:not(.base-grid-table) .person-grid-phone{display:inline-block;direction:ltr;unicode-bidi:isolate}
+.persons-page .person-table:not(.base-grid-table) .person-status{font-size:10px}
+.persons-page .person-table:not(.base-grid-table) .column-title span,.persons-page .person-table:not(.base-grid-table) .excel-filter-trigger{font-size:10px}
 .person-column-menu{position:fixed;z-index:1000;padding:8px;background:#fff;border:1px solid #ccd9d5;border-radius:8px;box-shadow:0 10px 30px #102a2a25;display:grid;gap:5px;font-size:10px;overflow:auto}
 .person-column-menu label{display:flex;align-items:center;gap:7px;padding:3px}
 .person-column-menu button{border:0;border-top:1px solid var(--line);background:none;color:#27736a;padding:7px 3px 2px;text-align:start}
-.persons-page .person-table th:is(.column-drop-before,.column-drop-after)::after{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--teal);pointer-events:none}
-.persons-page .person-table th.column-drop-before::after{inset-inline-start:0}
-.persons-page .person-table th.column-drop-after::after{inset-inline-end:0}
+.persons-page .person-table:not(.base-grid-table) th:is(.column-drop-before,.column-drop-after)::after{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--teal);pointer-events:none}
+.persons-page .person-table:not(.base-grid-table) th.column-drop-before::after{inset-inline-start:0}
+.persons-page .person-table:not(.base-grid-table) th.column-drop-after::after{inset-inline-end:0}
 
 /* Configurable navigation uses the existing sidebar palette, icons and text rules. */
 .navigation-node>button{width:100%;min-width:0}.navigation-node>button b{text-overflow:ellipsis}.navigation-chevron{margin-inline-start:auto;font-style:normal}
@@ -959,7 +959,7 @@ body.is-designer-column-grab-pressed,body.is-designer-column-grab-pressed *{curs
 .laboratory-form-grid[data-layout-kind="schema-grid"][data-layout-device="desktop"]{min-width:var(--form-schema-grid-min-width,0px)}
 .laboratory-form-grid[data-layout-kind="schema-grid"][data-layout-device="tablet"]>.laboratory-designer-field,.laboratory-form-grid[data-layout-kind="schema-grid"][data-layout-device="mobile"]>.laboratory-designer-field{grid-row:auto!important}
 .excel-submenu-flyout>button i{width:22px;height:18px;flex:none;border-radius:2px}.excel-color-check{width:14px;flex:none;text-align:center;color:#17685f;font-weight:700}
-.excel-grid .column-title .column-sort-indicator{display:inline-flex;width:18px;height:12px;flex:none;align-items:center;justify-content:center;gap:1px;color:#80918e;line-height:1;opacity:.68}.excel-grid .column-title .column-sort-indicator svg{width:16px;height:10px;overflow:visible;fill:none;stroke:currentColor;stroke-width:1.375;stroke-linecap:round;stroke-linejoin:round}.excel-grid .column-title .column-sort-indicator small{font-size:8px;color:inherit}.base-grid-table .column-title{font-size:14px}.persons-page .person-table .column-title .column-sort-indicator{width:18px;height:12px;font-size:8px}.column-heading{grid-template-columns:minmax(0,1fr) 30px}.column-heading .excel-filter-trigger{width:30px;display:flex;align-items:center;justify-content:center;gap:2px}.excel-filter-symbol{width:14px;height:14px;flex:none;fill:currentColor;opacity:1}.excel-filter-caret{font-size:8px;line-height:1;color:inherit;opacity:.72}
+.excel-grid .column-title .column-sort-indicator{display:inline-flex;width:18px;height:12px;flex:none;align-items:center;justify-content:center;gap:1px;color:#80918e;line-height:1;opacity:.68}.excel-grid .column-title .column-sort-indicator svg{width:16px;height:10px;overflow:visible;fill:none;stroke:currentColor;stroke-width:1.375;stroke-linecap:round;stroke-linejoin:round}.excel-grid .column-title .column-sort-indicator small{font-size:8px;color:inherit}.base-grid-table .column-title{font-size:14px}.persons-page .person-table:not(.base-grid-table) .column-title .column-sort-indicator{width:18px;height:12px;font-size:8px}.column-heading{grid-template-columns:minmax(0,1fr) 30px}.column-heading .excel-filter-trigger{width:30px;display:flex;align-items:center;justify-content:center;gap:2px}.excel-filter-symbol{width:14px;height:14px;flex:none;fill:currentColor;opacity:1}.excel-filter-caret{font-size:8px;line-height:1;color:inherit;opacity:.72}
 .excel-grid .column-heading{grid-template-columns:minmax(0,1fr) 34px;background:inherit}.excel-grid .column-heading .excel-filter-trigger{width:34px;gap:1px;border-inline-start:0}.excel-grid .column-heading .excel-filter-trigger,.excel-grid .column-heading .excel-filter-trigger:hover,.excel-grid .column-heading .excel-filter-trigger.active,.excel-grid .column-heading .excel-filter-trigger.active:hover{background:inherit;color:#536763;box-shadow:none}.excel-grid .excel-filter-triangle{display:block;width:14px;height:11px;fill:currentColor}.excel-grid .excel-filter-icon{display:block;width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .base-grid-pagination{display:flex;align-items:center;justify-content:space-between;gap:8px}.base-grid-pagination>div{display:flex;align-items:center;gap:7px}.base-grid-pagination button{min-height:28px;padding:3px 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink)}.base-grid-pagination button:disabled{opacity:.45}.base-grid-pagination span{font-size:11px;color:var(--muted)}
 .persons-grid-pager{display:flex;align-items:center;gap:7px}.persons-grid-pager button{min-height:28px;padding:3px 9px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink)}.persons-grid-pager button:disabled{opacity:.45}.persons-grid-pager span{font-size:11px;color:var(--muted)}
@@ -1427,7 +1427,6 @@ nav .pending-form-design-menu>button[data-design-status="changed"],.sidebar nav 
 .base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar .grid-search-control{width:100%;min-width:0}
 .base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar [data-toolbar-part] input,.base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar [data-toolbar-part] summary{font-size:var(--grid-tool-font,inherit)}
 .base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar .grid-search-options{align-self:start;align-items:center;font-size:var(--grid-tool-font,14px);overflow:visible;white-space:normal;flex-wrap:wrap}
-.base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar[data-toolbar-compact="true"]{grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"columns expand title" "search search search"}
 .base-grid-boundary[data-toolbar-layout="laboratory"]>.grid-toolbar-panels>.grid-toolbar[data-toolbar-compact="true"] .grid-search-panel{justify-self:end;width:min(100%,520px)}
 .base-grid-boundary[data-toolbar-layout="laboratory"] .grid-toolbar-multiselection-frame{position:absolute;z-index:28;box-sizing:border-box;border:2px dashed #208579;border-radius:6px;background:rgb(32 133 121 / 4%);pointer-events:none}
 .base-grid-boundary[data-toolbar-layout="laboratory"] .grid-toolbar-multiselection-frame[hidden]{display:none}
@@ -1568,3 +1567,16 @@ html[lang^="fa"] .person-table-wrap .person-table{direction:rtl}
 #root{-webkit-user-select:none;user-select:none}
 #root :is(input,textarea):not(:disabled):not([readonly]),#root [contenteditable="true"]{-webkit-user-select:text;user-select:text}
 #root :is(input,textarea):is(:disabled,[readonly]){-webkit-user-select:none;user-select:none}
+
+.base-grid-boundary[data-toolbar-layout="laboratory"] > .grid-toolbar-panels > .grid-toolbar:has(> .grid-clear-filters-slot) {
+  grid-template-columns: repeat(4,max-content) minmax(0,1fr) max-content;
+  grid-template-areas: "columns expand export reset title search";
+}
+.base-grid-boundary[data-toolbar-layout="laboratory"] > .grid-toolbar-panels > .grid-toolbar[data-toolbar-compact="true"]:has(> .grid-clear-filters-slot) {
+  grid-template-columns: repeat(4,max-content) minmax(0,1fr);
+  grid-template-areas: "columns expand export reset title" "search search search search search";
+}
+.base-grid-boundary[data-toolbar-layout="laboratory"] > .grid-toolbar-panels > .grid-toolbar .grid-clear-filters-slot {
+  grid-area: reset;
+  min-width: 0;
+}

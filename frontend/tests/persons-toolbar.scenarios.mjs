@@ -9,7 +9,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   const panel = '.active .persons-page'
   const field = panel + ' input[data-field="personCode"]'
   const find = selector => `document.querySelector(${JSON.stringify(selector)})`
-  const button = label => `[...document.querySelectorAll('button,[role=button],[role=menuitem]')].find(e=>e.getClientRects().length&&(e.getAttribute('aria-label')===${JSON.stringify(label)}||e.textContent.trim()===${JSON.stringify(label)}))`
+  const button = label => `[...document.querySelectorAll('button,summary,[role=button],[role=menuitem]')].find(e=>e.getClientRects().length&&(e.getAttribute('aria-label')===${JSON.stringify(label)}||e.textContent.trim()===${JSON.stringify(label)}))`
   async function mouse(expression, button = 'left') {
     await until(`!!(${expression})`, 'Available control: ' + expression)
     await evaluate(`(${expression}).scrollIntoView({block:'nearest',inline:'nearest'})`)
@@ -34,12 +34,12 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   const load = async () => {
     const previousDocument = await evaluate('performance.timeOrigin')
     await send('Page.navigate', { url })
-    await until(`performance.timeOrigin!==${previousDocument}&&location.href===${JSON.stringify(url)}&&!!${find(panel + ' tr[data-person-id]')}`, 'Synthetic Persons loaded')
+    await until(`performance.timeOrigin!==${previousDocument}&&location.href===${JSON.stringify(url)}&&!!${find(panel + ' tr[data-record-id]')}`, 'Synthetic Persons loaded')
   }
   const select = async (selector, value) => evaluate(`(()=>{const e=${find(selector)};e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('change',{bubbles:true}));return e.value})()`)
-  const selected = () => evaluate(`${find(panel + ' tr.selected')}?.dataset.personId`)
+  const selected = () => evaluate(`${find(panel + ' tr.is-selected')}?.dataset.recordId`)
   const rect = () => evaluate(`(()=>{const r=${find(panel + ' .person-grid-panel')}.getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()`)
-  const visibleTableHeight = () => evaluate(`(()=>{const r=${find(panel + ' .person-table-wrap')}.getBoundingClientRect();return Math.min(innerHeight,r.bottom)-Math.max(0,r.top)})()`)
+  const visibleTableHeight = () => evaluate(`(()=>{const r=${find(panel + ' .base-grid-table-wrap')}.getBoundingClientRect();return Math.min(innerHeight,r.bottom)-Math.max(0,r.top)})()`)
   const appearance = () => evaluate(`(()=>{const s=getComputedStyle(${find(field)});return [s.fontFamily,s.fontSize,s.color,s.backgroundColor]})()`)
   const appearanceMenu = async (group, command) => {
     await mouse(find(field), 'right')
@@ -48,19 +48,38 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   }
 
   await load()
-  const missing = await evaluate(`['columns','expand','export','reset'].filter(part=>!document.querySelector('.persons-grid-actions [data-toolbar-part="'+part+'"] svg'))`)
+  const missing = await evaluate(`['columns','expand','export','reset'].filter(part=>!document.querySelector('.persons-shared-grid :is([data-toolbar-part="'+part+'"],[data-grid-tool="'+part+'"]) svg'))`)
   await mouse(find(panel + ' .form-settings-button'))
   const appearanceAvailable = await evaluate(`!!(${button('ذخیره تنظیمات')})`)
   assert.deepEqual({ missing, appearanceAvailable }, { missing: [], appearanceAvailable: true }, 'Approved toolbar icons and appearance entry')
   await click('خروج بدون ذخیره')
-  await mouse(find(panel + ' tr[data-person-id="person-4"] td'))
-  await until(`${find(panel + ' tr.selected')}?.dataset.personId==='person-4'`, 'Selected row')
+  const search = find(panel + ' input[type="search"]')
+  const physicalKey = async (key, keyCode) => {
+    for (const type of ['keyDown','keyUp']) await send('Input.dispatchKeyEvent',{type,key,code:key,windowsVirtualKeyCode:keyCode})
+  }
+  assert.ok(await evaluate(search + '!==null'), 'Shared Persons global search exists')
+  await evaluate(`${find(panel + ' .base-grid-table-wrap')}.focus()`)
+  await physicalKey('F1',112)
+  await until(`document.activeElement===${search}`, 'Persons F1 focuses actual search')
+  await send('Input.insertText',{text:'1'})
+  const total = count => `document.querySelector('${panel} [data-toolbar-part=counter]').textContent.includes('از ${count} رکورد')`
+  await until(total(13), 'Persons starts-with search results')
+  await mouse(find(panel + ' [data-toolbar-part="searchOption:contains"] input'))
+  await until(total(21), 'Persons contains search results')
+  await mouse(find(panel + ' [data-toolbar-part="searchOption:exact"] input'))
+  await until(total(0), 'Persons exact search results')
+  await mouse(find(panel + ' [data-toolbar-part=searchReverse] button'))
+  await until(total(102), 'Persons reverse returns complementary result')
+  await load()
+  console.log('PASS Persons shared F1 and all search modes enforce remote query semantics')
+  await mouse(find(panel + ' tr[data-record-id="person-4"] td'))
+  await until(`${find(panel + ' tr.is-selected')}?.dataset.recordId==='person-4'`, 'Selected row')
   await snapshot('toolbar')
   await click('ستون‌ها')
-  await mouse("Array.from(document.querySelectorAll('.person-column-menu label')).find(e=>e.textContent.trim()==='تلفن').querySelector('input')")
+  await mouse("Array.from(document.querySelectorAll('.grid-column-visibility-list label')).find(e=>e.textContent.trim()==='تلفن')?.querySelector('input')")
   await until(`!${find(panel + ' th[data-column="phone"]')}`, 'Phone column hidden')
   await click('ستون‌ها')
-  await until(`!${find('.person-column-menu')}`, 'Column menu closed')
+  await until(`!${find('.grid-column-visibility-list')}`, 'Column menu closed')
   console.log('PASS Persons column visibility changes only the selected column')
   await evaluate('(async()=>{await document.fonts.ready;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return true})()')
   const before = await rect()
@@ -68,12 +87,12 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   await click('بزرگ کردن فرم')
   await until(`${find(panel + ' [data-toolbar-part="expand"] button')}?.getAttribute('aria-pressed')==='true'`, 'Grid expanded')
   assert.ok(await visibleTableHeight() > beforeTable, 'Expanded grid has more visible table space')
-  await until(`${find(panel + ' tr.selected')}?.dataset.personId==='person-4'`, 'Expanded grid retains selected row')
+  await until(`${find(panel + ' tr.is-selected')}?.dataset.recordId==='person-4'`, 'Expanded grid retains selected row')
   assert.equal(await selected(), 'person-4')
   await snapshot('maximized')
   await click('کوچک کردن فرم')
   await until(`${find(panel + ' [data-toolbar-part="expand"] button')}?.getAttribute('aria-pressed')==='false'`, 'Grid restored')
-  await until(`${find(panel + ' tr.selected')}?.dataset.personId==='person-4'`, 'Restored grid retains selected row')
+  await until(`${find(panel + ' tr.is-selected')}?.dataset.recordId==='person-4'`, 'Restored grid retains selected row')
   assert.deepEqual(await rect(), before, 'Restored panel dimensions')
   assert.equal(await visibleTableHeight(), beforeTable, 'Restored visible table geometry')
   assert.equal(await selected(), 'person-4')
@@ -113,7 +132,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
     await until(`[...document.querySelectorAll('.filter-values label')].some(e=>e.textContent.trim()==='PERSON-4')`, 'Remote distinct codes for ' + method)
     await evaluate(`[...document.querySelectorAll('.filter-values label')].find(e=>e.textContent.trim()==='PERSON-4').querySelector('input').click()`)
     await mouse(find('.filter-actions .primary'))
-    await until(`!${clear}.disabled && document.querySelectorAll('${panel} tr[data-person-id]').length === 100 && document.querySelector('.grid-toolbar').textContent.includes('از 101 رکورد')`, 'Excluded a code from full server results')
+    await until(`!${clear}.disabled && !document.querySelector('${panel} tr[data-record-id="person-4"]') && document.querySelector('.grid-toolbar').textContent.includes('از 101 رکورد')`, 'Excluded a code from full server results')
     if (method === 'button') await mouse(clear)
     else {
       await mouse(filterTrigger)
@@ -192,7 +211,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   assert.equal(await evaluate(`${shortcut}.getAttribute('aria-expanded')`), 'false', 'Trigger toggles open popup closed')
   console.log('PASS Persons shortcut popup dismisses by Escape, outside pointer and trigger')
   assert.equal(await evaluate(`[...document.querySelectorAll('${panel} .shortcut-bar button')].length`), 8)
-  await evaluate(`${find(panel + ' .person-table-wrap')}.focus()`)
+  await evaluate(`${find(panel + ' .base-grid-table-wrap')}.focus()`)
   await key('F7', 118)
   await until(`${find(panel)}?.dataset.recordPresentation==='entry'`, 'Configured F7 enters create mode')
   await click('Escانصراف')
@@ -205,8 +224,8 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
 
   const notes = find(panel + ' [data-field="notes"]')
   const noteText = 'Approved synthetic note roundtrip'
-  await mouse(find(panel + ' tr[data-person-id="person-4"] td'))
-  await until(`${find(panel + ' tr.selected')}?.dataset.personId==='person-4'`, 'Synthetic person selected for edit')
+  await mouse(find(panel + ' tr[data-record-id="person-4"] td'))
+  await until(`${find(panel + ' tr.is-selected')}?.dataset.recordId==='person-4'`, 'Synthetic person selected for edit')
   await key('Insert', 45)
   await until(`${notes} && !${notes}.disabled`, 'Person notes editable')
   await evaluate(`${notes}.focus();${notes}.select()`)
@@ -215,7 +234,7 @@ export async function checkPersonsToolbar({ base, send, evaluate, until, profile
   await key('F3', 114)
   await until(`${notes}.disabled`, 'F3 saved the edited person')
   await load()
-  await until(`${find(panel + ' tr.selected')}?.dataset.personId==='person-4'`, 'Reload selected the saved person')
+  await until(`${find(panel + ' tr.is-selected')}?.dataset.recordId==='person-4'`, 'Reload selected the saved person')
   assert.equal(await evaluate(`${notes}.value`), noteText, 'Person note survived API Save and page reload')
   console.log('PASS Persons note persists through F3 Save and API reload')
   console.log('PASS Persons icon toolbar, paged XLSX, saved appearance, user isolation and keyboard shortcuts')

@@ -17,7 +17,15 @@ import { GridToolbarIcon } from './GridToolbarIcon'
 import './baseFormGridActions.css'
 
 export type GridColumn<Row> = ExcelGridColumn<Row>
-type GridNavigationRequest = { sequence: number, command: 'first' | 'last' | 'previous' | 'next' | 'up' | 'down' }
+export type GridNavigationRequest = { sequence: number, command: 'first' | 'last' | 'previous' | 'next' | 'up' | 'down', pageStep?: number }
+type OperationalGridOptions = {
+  clearColumnFilters?: boolean
+  preserveSelectionOnRefresh?: boolean
+  protectExportSnapshot?: boolean
+  bulkSelectionOnly?: boolean
+  intrinsicToolbarHeight?: boolean
+  initialColumnPreferences?: readonly { id: string; width: number; visible: boolean }[]
+}
 type GridTypography = { textAlign?:'start'|'center'|'end'|'left'|'right'; verticalTextAlign?:'top'|'center'|'bottom'; bold?: boolean; italic?: boolean; underline?: 'single' | 'double'; strikeThrough?: boolean; script?: 'superscript' | 'subscript'; textColor?: string; backgroundColor?: string; borderColor?: string; fontFamily?: string; fontSize?: number }
 export type BaseFormGridBoundaryProps<Row> = { renderCell?: (row: Row, columnId: string) => React.ReactNode, autoSelectFirstRow?:boolean, fillViewport?: boolean, rows: Row[], columns: GridColumn<Row>[], language: 'fa' | 'en' | 'zh', title?: string, gridId?: string, columnPreferencesStorageKey?: string, headerContent?:Partial<Record<GridToolbarPart,React.ReactNode>>, toolbarSettings?: GridToolbarSettings, designerToolbarSelection?: readonly GridToolbarPart[], onDesignerToolbarSelect?: (part:GridToolbarPart,toggle:boolean)=>void, onDesignerToolbarContextMenu?: (part:GridToolbarPart,x:number,y:number)=>void, onDesignerToolbarChange?: (part: GridToolbarPart, patch: GridToolbarPartStyle, related?:GridToolbarSettings) => void, appearanceStyle?: CSSProperties, filterPopupFontSize?: number, remoteQuery?: (query: GridQuery, signal?: AbortSignal) => Promise<GridPage<Row>>, remoteQueryScope?: number | string, resetRequest?: number, selectedRowId?: string | null, navigationRequest?: GridNavigationRequest, gridSearchPosition?: GridSearchPosition, designerMode?: boolean, readOnly?: boolean, designerHeaderHeight?: number, onDesignerHeaderHeightChange?: (height: number, phase: 'start' | 'change' | 'end') => void, onDesignerColumnWidthChange?: (columnId: string, width: number) => void, onDesignerColumnOrderChange?: (sourceColumnId: string, targetColumnId: string, position: 'before' | 'after') => void, designerColumnStyles?: Record<string, GridTypography>, designerHeaderStyles?: Record<string, GridTypography>, designerSelectedColumnIds?: string[], onDesignerColumnSelect?: (columnId: string, toggle: boolean) => void, onDesignerContextMenu?: (target: 'header' | 'row' | 'search', columnId: string | undefined, left: number, top: number, additive?: boolean) => void, onRowSelectionChange?: (row: Row | null) => void, onRowDoubleClick?: (row: Row) => void, onTotalChange?: (total: number) => void, onBulkDelete?:(rows:Row[])=>Promise<void>, bulkDeleteConfirm?:(count:number)=>string }
 type SelectedCell = { key: string, rowKey: string, rowIndex: number, columnId: string, columnLabel: string, value: GridValue }
@@ -27,7 +35,7 @@ const cellSelectionKey = (rowKey: string, columnId: string) => JSON.stringify([r
 const gridFontFamily = (font: string) => ({ inherit: 'inherit', vazirmatn: "'Vazirmatn',Tahoma,Arial,sans-serif", tahoma: 'Tahoma,Arial,sans-serif', segoe: "'Segoe UI',Tahoma,sans-serif", arial: 'Arial,sans-serif', naskh: "'Noto Naskh Arabic','B Nazanin',serif", aptos: 'Aptos,Arial,sans-serif', calibri: 'Calibri,Arial,sans-serif', cambria: 'Cambria,serif', consolas: 'Consolas,monospace', courier: "'Courier New',monospace", georgia: 'Georgia,serif', times: "'Times New Roman',serif", verdana: 'Verdana,sans-serif' }[font] ?? 'inherit')
 
 // Adapter boundary: shares the same typed Excel filtering and sorting used by the Persons grid.
-export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false, fillViewport = false, rows, columns: initialColumns, language, title, gridId, columnPreferencesStorageKey, headerContent, toolbarSettings = {}, onDesignerToolbarChange, designerToolbarSelection=[], onDesignerToolbarSelect, onDesignerToolbarContextMenu, appearanceStyle, filterPopupFontSize = 16, remoteQuery, remoteQueryScope, resetRequest = 0, selectedRowId, navigationRequest, gridSearchPosition = 'right', designerMode = false, readOnly = false, designerHeaderHeight = 42, onDesignerHeaderHeightChange, onDesignerColumnWidthChange, onDesignerColumnOrderChange, designerColumnStyles, designerHeaderStyles, designerSelectedColumnIds = [], onDesignerColumnSelect, onDesignerContextMenu, onRowSelectionChange, onRowDoubleClick, onTotalChange, onBulkDelete, bulkDeleteConfirm }: BaseFormGridBoundaryProps<Row>) {
+export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false, fillViewport = false, rows, columns: initialColumns, language, title, gridId, columnPreferencesStorageKey, headerContent, toolbarSettings = {}, onDesignerToolbarChange, designerToolbarSelection=[], onDesignerToolbarSelect, onDesignerToolbarContextMenu, appearanceStyle, filterPopupFontSize = 16, remoteQuery, remoteQueryScope, resetRequest = 0, selectedRowId, navigationRequest, gridSearchPosition = 'right', designerMode = false, readOnly = false, designerHeaderHeight = 42, onDesignerHeaderHeightChange, onDesignerColumnWidthChange, onDesignerColumnOrderChange, designerColumnStyles, designerHeaderStyles, designerSelectedColumnIds = [], onDesignerColumnSelect, onDesignerContextMenu, onRowSelectionChange, onRowDoubleClick, onTotalChange, onBulkDelete, bulkDeleteConfirm, operational }: BaseFormGridBoundaryProps<Row> & { operational?: OperationalGridOptions }) {
   const personalGrid = useContext(OperationalGridCustomizationContext)
   const personalGridId = gridId ?? title ?? 'main'
   const personalLayout = personalGrid?.layouts[personalGridId]
@@ -38,8 +46,12 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
   const [columnState, setColumns] = useState(() => {
     let saved: { id?: string; key?: string; width?: number; visible?: boolean }[] = []
     try { const value = JSON.parse(columnPreferencesStorageKey ? localStorage.getItem(columnPreferencesStorageKey) ?? '[]' : '[]'); if (Array.isArray(value)) saved = value } catch { /* Use the schema's initial grid columns. */ }
-    return initialColumns.map(column => {
-      const preference = saved.find(item => (item.id ?? item.key) === column.id)
+    const preferences = operational?.initialColumnPreferences ?? saved
+    const columnOrder = operational?.initialColumnPreferences
+      ? [...initialColumns].sort((left,right) => preferences.findIndex(item=>item.id===left.id)-preferences.findIndex(item=>item.id===right.id))
+      : initialColumns
+    return columnOrder.map(column => {
+      const preference = preferences.find(item => (item.id ?? ("key" in item ? item.key : undefined)) === column.id)
       return { ...column, width: personalLayout?.columnWidths?.[column.id] ?? preference?.width ?? column.width, visible: preference?.visible ?? true }
     })
   })
@@ -51,15 +63,15 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
   const previousColumnSchema = useRef(initialColumns)
   // Value adapters must match the current rows in the very first render when
   // switching datasets. Keep user widths/visibility without remounting the grid.
-  const columns=useMemo(()=>designerMode||readOnly?reconcileGridColumns(initialColumns,columnState,previousColumnSchema.current):columnState.map(column=>({...column,value:initialColumns.find(item=>item.id===column.id)?.value??column.value})),[initialColumns,columnState,designerMode,readOnly])
+  const columns=useMemo(()=>designerMode||(readOnly&&!operational?.initialColumnPreferences)?reconcileGridColumns(initialColumns,columnState,previousColumnSchema.current):columnState.map(column=>({...column,value:initialColumns.find(item=>item.id===column.id)?.value??column.value})),[initialColumns,columnState,designerMode,readOnly,operational?.initialColumnPreferences])
   useLayoutEffect(() => {
-    if (!designerMode && !readOnly) return
+    if (!designerMode && (!readOnly || operational?.initialColumnPreferences)) return
     const previous = previousColumnSchema.current
     previousColumnSchema.current = initialColumns
     setColumns(current => reconcileGridColumns(initialColumns, current, previous))
   }, [initialColumns, designerMode, readOnly])
   useLayoutEffect(() => {
-    if (!personalGrid) return
+    if (!personalGrid?.canResize) return
     const widths = personalGrid.layouts[personalGridId]?.columnWidths ?? {}
     setColumns(current => current.map(column => {
       const width = widths[column.id] ?? initialColumnWidths.current[column.id]
@@ -123,7 +135,8 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
         .filter(item => item.getClientRects().length > 0 && getComputedStyle(item).visibility !== 'hidden')
       const targetBoundary = event.target instanceof Element ? event.target.closest<HTMLElement>('.base-grid-boundary') : null
       const owner = targetBoundary && visibleBoundaries.includes(targetBoundary) ? targetBoundary : visibleBoundaries[0]
-      const search = owner?.querySelector<HTMLInputElement>('.grid-search-control input[type="search"]:not(:disabled)')
+      if (owner !== boundary.current) return
+      const search = owner?.querySelector<HTMLInputElement>('.grid-search-control input[type="search"]:not(:disabled):not([readonly])')
       if (!search) return
       event.preventDefault()
       event.stopImmediatePropagation()
@@ -152,18 +165,25 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
     return () => window.clearTimeout(timer)
   }, [searchDraft, searchMode, reverseSearch])
   const queryKey = virtualQueryKey({ scope: remoteQueryScope, searchQuery, filters, sort: sort ?? [], language, resetRequest })
+  const queryWithoutRevision = virtualQueryKey({ searchQuery, filters, sort: sort ?? [], language, resetRequest })
+  const previousQuery = useRef<string | undefined>(undefined)
   useLayoutEffect(() => {
     if (!remoteQuery) { setRemoteCache(undefined); return }
     const cache = new VirtualPageCache<Row>(queryKey, (page, signal) => remoteQuery({ page, pageSize: VIRTUAL_PAGE_SIZE, search: searchQuery.text, searchMode: searchQuery.mode, reverseSearch: searchQuery.reverse, filters, sort: sort ?? [], language }, signal))
     const unsubscribe = cache.subscribe(() => setCacheRevision(value => value + 1))
-    setRemoteCache(cache); setSelectedRow(selectedRowId??null); setSelectedCells([]); setSelectionAnchor(null); setCellMenu(null); onRowSelectionChange?.(null)
+    const retainSelection = operational?.preserveSelectionOnRefresh &&
+      (previousQuery.current === undefined || previousQuery.current === queryWithoutRevision)
+    previousQuery.current = queryWithoutRevision
+    setRemoteCache(cache); setSelectedRow(retainSelection ? selectedRowId ?? null : operational?.preserveSelectionOnRefresh ? null : selectedRowId ?? null)
+    setSelectedCells([]); setSelectionAnchor(null); setCellMenu(null)
+    if (!retainSelection) onRowSelectionChange?.(null)
     selectedIndex.current = null; pendingNavigation.current = null
     // A command awaiting results from the previous query must not replay here.
     lastNavigationSequence.current = navigationRequest?.sequence
     if (tableWrap.current) tableWrap.current.scrollTop = 0
     setViewport(current => ({ ...current, top: 0 }))
     return () => { unsubscribe(); cache.dispose() }
-  }, [remoteQuery, queryKey, onRowSelectionChange])
+  }, [remoteQuery, queryKey, queryWithoutRevision, onRowSelectionChange, operational?.preserveSelectionOnRefresh])
   const activeCache = remoteCache?.queryKey === queryKey ? remoteCache : undefined
   const searchableRows = useMemo(() => {
     if (!searchQuery.text) return rows
@@ -188,6 +208,7 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
   async function deleteGridSelection(){
     if(!onBulkDelete||readOnly||designerMode||bulk.busy||pendingNavigation.current)return
     if(!bulk.selection.size){
+      if (operational?.bulkSelectionOnly) return
       const candidates=remoteQuery?activeCache?.loadedRows()??[]:filtered
       const row=candidates.find((item,index)=>String((item as {id?:unknown}).id??index)===selectedRow)
       if(!row)return
@@ -233,7 +254,7 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
     if (!navigationRequest || navigationRequest.sequence === lastNavigationSequence.current || !total) return
     lastNavigationSequence.current = navigationRequest.sequence
     const anchor = pendingNavigation.current?.index ?? selectedIndex.current ?? range.first
-    const step = Math.max(1, Math.floor(viewport.height / rowHeight))
+    const step = navigationRequest.pageStep ?? Math.max(1, Math.floor(viewport.height / rowHeight))
     const target = { first: 0, last: total - 1, previous: anchor - step, next: anchor + step, up: anchor - 1, down: anchor + 1 }[navigationRequest.command]
     const index = Math.max(0, Math.min(total - 1, target))
     pendingNavigation.current = { index, queryKey }
@@ -271,9 +292,9 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
   }, [remoteQuery, activeCache, rowHeight, range.start, appearanceStyle])
   const loadFilterValues = useCallback(async (columnId: string, query: string): Promise<{ values: GridValue[], colors?: (string | null)[] }> => {
     if (!remoteQuery) return { values: [] }
-    const result = await remoteQuery({ page, pageSize: 100, search: searchQuery.text, searchMode: searchQuery.mode, reverseSearch: searchQuery.reverse, filters, sort: sort ?? [], optionsColumn: columnId, optionsSearch: query })
+    const result = await remoteQuery({ page, pageSize: 100, search: searchQuery.text, searchMode: searchQuery.mode, reverseSearch: searchQuery.reverse, filters, sort: sort ?? [], optionsColumn: columnId, optionsSearch: query, language })
     return { values: result.filterValues ?? [], colors: result.colorValues }
-  }, [remoteQuery, page, searchQuery, filters, sort])
+  }, [remoteQuery, page, searchQuery, filters, sort, language])
   const selectAllVisibleGridCells = () => {
     const first = range.start, last = Math.min(range.end, remoteQuery ? activeCache?.total ?? 0 : filtered.length)
     const next: SelectedCell[] = []
@@ -294,9 +315,18 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
       if (remoteQuery) {
         exportRows = []
         let expected = activeCache?.total ?? 0
+        let snapshotTotal: number | undefined
+        const seen = new Set<unknown>()
         for (let currentPage = 1, guard = 0; guard < 100000; currentPage++, guard++) {
           const result = await remoteQuery({ page: currentPage, pageSize: VIRTUAL_PAGE_SIZE, search: searchQuery.text, searchMode: searchQuery.mode, reverseSearch: searchQuery.reverse, filters, sort: sort ?? [], language })
           exportRows.push(...result.items)
+          if (operational?.protectExportSnapshot) {
+            snapshotTotal ??= result.total
+            for (const row of result.items) seen.add((row as {id: unknown}).id)
+            if (result.total !== snapshotTotal || exportRows.length !== seen.size || exportRows.length > snapshotTotal || (!result.items.length && exportRows.length < snapshotTotal)) {
+              throw Error(fa ? 'فهرست هنگام خروجی تغییر کرد. دوباره تلاش کنید.' : 'The result set changed during export. Try again.')
+            }
+          }
           expected = result.total
           if (!result.items.length || exportRows.length >= expected) break
         }
@@ -587,6 +617,8 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
       : expanded ? 'Shrink form' : 'Expand form'
   const exportLabel = fa ? 'خروجی اکسل' : language === 'zh' ? '导出 Excel' : 'Excel export'
   const columnsLabel = fa ? 'ستون‌ها' : language === 'zh' ? '列' : 'Columns'
+  const resetLabel = fa ? 'پاک کردن فیلترها' : language === 'zh' ? '清除筛选' : 'Clear filters'
+  const resetColumnFilters = () => { setFilters({}); setCellMenu(null) }
   const toggleExpanded = () => {
     if (expanded) {
       setExpanded(false)
@@ -634,7 +666,7 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
   const inPanel=(part:GridToolbarPart,panel:GridToolbarPart)=>(toolbarSettings[part]?.panelId??'header')===panel
   const panels=toolbarPanels(toolbarSettings).filter(panel => designerMode || panel === 'header' || Boolean(headerContent?.[panel]) || ['expand','title','counter','search','columns'].some(part => (toolbarSettings[part as GridToolbarPart]?.panelId ?? 'header') === panel))
   return <div ref={boundary} data-grid-id={personalGridId} data-toolbar-layout="laboratory" className={`base-grid-boundary${expanded ? ' is-expanded' : ''}${readOnly ? ' is-read-only' : ''}`} style={boundaryStyle} onKeyDownCapture={event=>{if(!(event.ctrlKey||event.metaKey)||event.altKey||(event.code!=='KeyA'&&event.key.toLowerCase()!=='a'))return;const target=event.target instanceof Element?event.target:null;if(target?.closest('input,textarea,select,[contenteditable="true"]'))return;if(target?.closest('.base-grid-table td[data-column]')){event.preventDefault();event.stopPropagation();selectAllVisibleGridCells();return}event.preventDefault()}}>
-    <div className="grid-toolbar-panels">{panels.map((panel,index)=><Fragment key={panel}>{toolbarSettings[panel]?.placement==='below'&&<span className="grid-toolbar-row-break" aria-hidden="true"/>}<div className={'grid-toolbar'+(panel==='header'&&showBulkStatus?' has-definition-selection':'')} data-toolbar-part={panel} data-toolbar-direction={fa?'rtl':'ltr'} data-panel-placement={toolbarSettings[panel]?.placement} {...toolProps(panel)} style={{...toolbarPartStyle(toolbarSettings[panel]),...(panel==='header'&&!designerMode?{width:'100%',minWidth:0,maxWidth:'100%',minHeight:personalLayout?.toolbarHeight??toolbarSettings[panel]?.height??120,transform:undefined}:{}),height:panel==='header'?(personalLayout?.toolbarHeight??toolbarSettings[panel]?.height??120):toolbarSettings[panel]?.height??120,direction:'ltr',gridRow:toolbarSettings[panel]?.placement==='below'?index+1:1,flex:panel==='header'&&!designerMode?'1 1 auto':toolbarSettings[panel]?.width?'0 0 auto':'1 1 420px'}}>
+    <div className="grid-toolbar-panels">{panels.map((panel,index)=><Fragment key={panel}>{toolbarSettings[panel]?.placement==='below'&&<span className="grid-toolbar-row-break" aria-hidden="true"/>}<div className={'grid-toolbar'+(panel==='header'&&showBulkStatus?' has-definition-selection':'')} data-toolbar-part={panel} data-toolbar-direction={fa?'rtl':'ltr'} data-panel-placement={toolbarSettings[panel]?.placement} {...toolProps(panel)} style={{...toolbarPartStyle(toolbarSettings[panel]),...(panel==='header'&&!designerMode?{width:'100%',minWidth:0,maxWidth:'100%',minHeight:personalLayout?.toolbarHeight??toolbarSettings[panel]?.height??120,transform:undefined}:{}),height:panel==='header'&&operational?.intrinsicToolbarHeight&&!personalLayout?.toolbarHeight?'auto':panel==='header'?(personalLayout?.toolbarHeight??toolbarSettings[panel]?.height??120):toolbarSettings[panel]?.height??120,direction:'ltr',gridRow:toolbarSettings[panel]?.placement==='below'?index+1:1,flex:panel==='header'&&!designerMode?'1 1 auto':toolbarSettings[panel]?.width?'0 0 auto':'1 1 420px'}}>
       {panel==='header'&&!showBulkStatus&&bulk.error&&<span role="alert">{bulk.error}</span>}
       {panel==='header'&&(showBulkStatus&&<div className="definition-bulk-status" role="status" aria-live="polite">{bulk.selection.size>0&&<span>{bulk.selection.size} {fa?'ردیف انتخاب‌شده':'rows selected'}</span>}{bulk.selection.size>0&&<button type="button" data-definition-bulk-delete disabled={bulk.busy} onClick={()=>void bulk.remove()}>{fa?'حذف انتخاب‌ها':'Delete selected'}</button>}{bulk.busy&&<span>{fa?'در حال بررسی…':'Checking…'}</span>}{bulk.error&&<span role="alert">{bulk.error}</span>}</div>)}
       {toolHandle(panel)}{designerMode&&panel!=='header'&&!['expand','title','counter','search','columns'].some(part=>inPanel(part as GridToolbarPart,panel))&&<span className="grid-toolbar-empty">هدر افزوده — اجزا را از «پنل میزبان» به این هدر منتقل کنید.</span>}
@@ -655,12 +687,13 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
           {toolHandle('searchOptions')}{(['startsWith', 'contains', 'exact'] as const).map(mode => { const active = searchMode === mode; return <label key={mode} className={active?'is-active-search-mode':undefined} data-search-active={active} data-toolbar-part={'searchOption:'+mode} {...toolProps(('searchOption:'+mode) as GridToolbarPart)} style={{...toolbarPartStyle(toolbarSettings[('searchOption:'+mode) as GridToolbarPart]),fontWeight:active?700:400}}>{toolHandle(('searchOption:'+mode) as GridToolbarPart)}<input type="radio" name={`laboratory-grid-search-mode-${radioGroupId}`} checked={active} aria-checked={active} disabled={readOnly} onChange={event => { if (event.currentTarget.checked) setSearchMode(mode) }} />{fa ? mode === 'startsWith' ? 'از ابتدای واژه یا عدد' : mode === 'contains' ? 'هر جای مقدار' : 'تطبیق کامل' : mode === 'startsWith' ? 'From word start' : mode === 'contains' ? 'Anywhere' : 'Exact match'}</label> })}
         </div>
       </div>}
-      {panel==='header'&&operationalBehavior.gridExport.enabled&&<div className="grid-export-slot grid-toolbar-fixed-control"><button type="button" className="grid-export-toggle" aria-label={exportLabel} title={exportLabel} disabled={exporting} aria-busy={exporting} onClick={()=>void exportGrid()}><GridToolbarIcon kind="excel" /></button><span className="grid-export-status" role="status" aria-live="polite">{exportStatus}</span></div>}
-      {inPanel('columns',panel)&&<div className="grid-columns-slot" data-toolbar-part="columns" {...toolProps('columns')} style={{...toolbarPartStyle(toolbarSettings.columns),border:0,padding:0,background:undefined}}>{toolHandle('columns')}<details ref={columnDetails} style={expandedColumnsStyle} onToggle={event=>{if(event.currentTarget.open){const r=event.currentTarget.getBoundingClientRect();const desired=Math.min(window.innerHeight*.55,columns.length*34+16),below=window.innerHeight-r.bottom-8,above=r.top-8,useBelow=below>=desired||below>=above,maxHeight=Math.max(40,Math.min(desired,useBelow?below:above));setColumnPopup({left:Math.max(8,Math.min(window.innerWidth-260,r.right-250)),top:useBelow?r.bottom+4:Math.max(8,r.top-maxHeight-4),maxHeight})}else setColumnPopup(null)}}><summary aria-label={columnsLabel} title={columnsLabel} style={{...toolbarPartStyle(toolbarSettings.columns),transform:undefined,width:toolbarSettings.columns?.width?'100%':undefined}}><GridToolbarIcon kind="columns" /></summary>{columnPopup&&createPortal(<div ref={columnPopupRef} style={{left:columnPopup.left,top:columnPopup.top,maxHeight:columnPopup.maxHeight}} className="grid-column-visibility-list" role="group" aria-label={fa?'نمایش ستون‌ها':'Column visibility'}>{columns.map(column => <label key={column.id}><input type="checkbox" checked={column.visible} onChange={() => setColumns(current => current.map(item => item.id === column.id ? { ...item, visible: !item.visible } : item))} /><span>{column.label}</span></label>)}</div>,document.body)}</details></div>}
+      {panel==='header'&&operationalBehavior.gridExport.enabled&&<div className="grid-export-slot grid-toolbar-fixed-control" data-grid-tool="export"><button type="button" className="grid-export-toggle" aria-label={exportLabel} title={exportLabel} disabled={exporting} aria-busy={exporting} onClick={()=>void exportGrid()}><GridToolbarIcon kind="excel" /></button><span className="grid-export-status" role="status" aria-live="polite">{exportStatus}</span></div>}
+      {panel === 'header' && operational?.clearColumnFilters && <div className="grid-clear-filters-slot grid-toolbar-fixed-control" data-toolbar-part="reset"><button type="button" className="grid-export-toggle" aria-label={resetLabel} title={resetLabel} aria-keyshortcuts="F8" disabled={readOnly || !Object.values(filters).some(Boolean)} onClick={resetColumnFilters}><GridToolbarIcon kind="reset" /></button></div>}
+      {inPanel('columns',panel)&&<div className="grid-columns-slot" data-toolbar-part="columns" {...toolProps('columns')} style={{...toolbarPartStyle(toolbarSettings.columns),border:0,padding:0,background:undefined}}>{toolHandle('columns')}<details ref={columnDetails} style={expandedColumnsStyle} onToggle={event=>{if(event.currentTarget.open){const r=event.currentTarget.getBoundingClientRect();const desired=Math.min(window.innerHeight*.55,columns.length*34+16),below=window.innerHeight-r.bottom-8,above=r.top-8,useBelow=below>=desired||below>=above,maxHeight=Math.max(40,Math.min(desired,useBelow?below:above));setColumnPopup({left:Math.max(8,Math.min(window.innerWidth-260,r.right-250)),top:useBelow?r.bottom+4:Math.max(8,r.top-maxHeight-4),maxHeight})}else setColumnPopup(null)}}><summary aria-label={columnsLabel} title={columnsLabel} style={{...toolbarPartStyle(toolbarSettings.columns),transform:undefined,width:toolbarSettings.columns?.width?'100%':undefined}}><GridToolbarIcon kind="columns" /></summary>{columnPopup&&createPortal(<div ref={columnPopupRef} style={{left:columnPopup.left,top:columnPopup.top,maxHeight:columnPopup.maxHeight}} className="grid-column-visibility-list" role="group" aria-label={fa?'نمایش ستون‌ها':'Column visibility'}>{columns.map(column => <label key={column.id}><input type="checkbox" checked={column.visible} disabled={Boolean(operational?.initialColumnPreferences && column.visible && visible.length === 1)} onChange={() => {setColumns(current => current.map(item => item.id === column.id ? { ...item, visible: !item.visible } : item)); if (operational?.clearColumnFilters && column.visible) setFilters(current => ({...current, [column.id]:undefined}))}} /><span>{column.label}</span></label>)}{operational?.initialColumnPreferences&&<button type="button" onClick={()=>setColumns(initialColumns.map(column=>({...column,visible:true})))}>{fa?'حالت پیش‌فرض':'Reset columns'}</button>}</div>,document.body)}</details></div>}
       {designerMode&&designerToolbarSelection.length>1&&<div className="grid-toolbar-multiselection-frame" data-toolbar-selection-parts={JSON.stringify(designerToolbarSelection)} aria-hidden="true" hidden/>}
     </div></Fragment>)}</div>
-    {onBulkDelete&&!designerMode&&!readOnly&&!showBulkStatus&&(bulk.selection.size>0||Boolean(selectedRow))&&<button hidden type="button" data-definition-bulk-delete disabled={bulk.busy} onClick={()=>void deleteGridSelection()}/>}
-    <div ref={tableWrap} dir="rtl" className={`base-grid-table-wrap${remoteQuery ? ' base-grid-virtual-wrap' : ''}`} onKeyDownCapture={event=>{if(event.key==='Delete'&&onBulkDelete&&!readOnly&&!designerMode&&!bulk.selection.size&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&!(event.target as Element).closest('input,textarea,select,button,[contenteditable="true"]')){event.preventDefault();event.stopPropagation();void deleteGridSelection();return}bulk.keyDown(event)}} data-definition-bulk-active={onBulkDelete&&(bulk.selection.size>0||Boolean(selectedRow))||undefined} data-virtual-metrics={activeCache ? JSON.stringify({ requests: activeCache.metrics.requests, peakConcurrent: activeCache.metrics.peakConcurrent, cachedPages: activeCache.cacheSize, loads: activeCache.metrics.completed }) : undefined} tabIndex={readOnly ? undefined : 0} onKeyDown={event => {
+    {onBulkDelete&&!designerMode&&!readOnly&&!showBulkStatus&&(bulk.selection.size>0||(!operational?.bulkSelectionOnly&&Boolean(selectedRow)))&&<button hidden type="button" data-definition-bulk-delete disabled={bulk.busy} onClick={()=>void deleteGridSelection()}/>}
+    <div ref={tableWrap} dir="rtl" className={`base-grid-table-wrap${remoteQuery ? ' base-grid-virtual-wrap' : ''}`} onKeyDownCapture={event=>{if(event.key==='Delete'&&onBulkDelete&&!operational?.bulkSelectionOnly&&!readOnly&&!designerMode&&!bulk.selection.size&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&!(event.target as Element).closest('input,textarea,select,button,[contenteditable="true"]')){event.preventDefault();event.stopPropagation();void deleteGridSelection();return}bulk.keyDown(event)}} data-definition-bulk-active={onBulkDelete&&(bulk.selection.size>0||(!operational?.bulkSelectionOnly&&Boolean(selectedRow)))||undefined} data-virtual-metrics={activeCache ? JSON.stringify({ requests: activeCache.metrics.requests, peakConcurrent: activeCache.metrics.peakConcurrent, cachedPages: activeCache.cacheSize, loads: activeCache.metrics.completed }) : undefined} tabIndex={readOnly ? undefined : 0} onKeyDown={event => {
       if (readOnly || designerMode || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || !['ArrowUp','ArrowDown'].includes(event.key)) return
       if ((event.target as HTMLElement).closest('input,textarea,select,button,a,[contenteditable="true"],thead')) return
       event.preventDefault(); event.stopPropagation()
@@ -673,6 +706,7 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
       setLocalNavigation(current => current + 1)
     }} aria-label={fa ? 'ردیف‌های جدول' : 'Table rows'} onScroll={remoteQuery ? event => { const top = event.currentTarget.scrollTop; setViewport(current => current.top === top ? current : { ...current, top }) } : undefined}>
       <ExcelGridFilterScope key={resetRequest} onReset={designerMode || readOnly ? undefined : () => {
+        if (operational?.clearColumnFilters) { resetColumnFilters(); return }
         setFilters({}); setSearchDraft(''); setReverseSearch(false)
         setSearchQuery({text:'', mode:searchMode, reverse:false}); setCellMenu(null)
       }}>
@@ -689,7 +723,7 @@ export function BaseFormGridBoundary<Row>({ renderCell, autoSelectFirstRow=false
               const rowPage = Math.floor(index / VIRTUAL_PAGE_SIZE) + 1
               const error = activeCache?.error(rowPage)
               const key = String((row as { id?: unknown } | undefined)?.id ?? index)
-              return <tr ref={remoteQuery && offset === 0 ? firstRow : undefined} key={remoteQuery ? index : key} data-row-index={index} data-grid-index={remoteQuery ? index : undefined} aria-rowindex={remoteQuery ? index + 2 : undefined} aria-busy={!row || undefined} aria-selected={onBulkDelete&&bulk.selection.size?bulk.selection.has(key):selectedRow===key} className={`${remoteQuery ? 'base-grid-virtual-row ' : ''}${index % 2 ? 'is-alternate' : ''}${(onBulkDelete&&bulk.selection.size?bulk.selection.has(key):selectedRow===key) ? ' is-selected' : ''}${bulk.blocked.has(key)?' bulk-delete-blocked':' '}`} onClick={row && !readOnly ? event => { if(bulk.busy)return; tableWrap.current?.focus({ preventScroll: true }); if(onBulkDelete&&!designerMode){void bulk.select({id:key,record:row},index,event);if(event.ctrlKey||event.metaKey||event.shiftKey){event.preventDefault();return;}} setSelectedCells([]); setSelectionAnchor(null); setCellMenu(null); selectedIndex.current = index; pendingNavigation.current = null; setSelectedRow(key); onRowSelectionChange?.(row) } : undefined} onDoubleClick={row && !readOnly ? () => onRowDoubleClick?.(row) : undefined}>
+              return <tr ref={remoteQuery && offset === 0 ? firstRow : undefined} key={remoteQuery ? index : key} data-row-index={index} data-grid-index={remoteQuery ? index : undefined} aria-rowindex={remoteQuery ? index + 2 : undefined} aria-busy={!row || undefined} data-record-id={row ? key : undefined} aria-selected={onBulkDelete&&bulk.selection.size?bulk.selection.has(key):selectedRow===key} className={`${remoteQuery ? 'base-grid-virtual-row ' : ''}${index % 2 ? 'is-alternate' : ''}${(onBulkDelete&&bulk.selection.size?bulk.selection.has(key):selectedRow===key) ? ' is-selected' : ''}${bulk.blocked.has(key)?' bulk-delete-blocked':' '}`} onClick={row && !readOnly ? event => { if(bulk.busy)return; tableWrap.current?.focus({ preventScroll: true }); if(onBulkDelete&&!designerMode){void bulk.select({id:key,record:row},index,event);if(event.ctrlKey||event.metaKey||event.shiftKey){event.preventDefault();return;}} setSelectedCells([]); setSelectionAnchor(null); setCellMenu(null); selectedIndex.current = index; pendingNavigation.current = null; setSelectedRow(key); onRowSelectionChange?.(row) } : undefined} onDoubleClick={row && !readOnly ? () => onRowDoubleClick?.(row) : undefined}>
                 {!row && error ? <td colSpan={visible.length} title={error}>{index === Math.max(range.start, (rowPage - 1) * VIRTUAL_PAGE_SIZE) && <button className="base-grid-page-retry" type="button" onClick={() => activeCache?.retry(rowPage)}>{fa ? 'دریافت نشد؛ تلاش مجدد' : 'Unable to load; retry'}</button>}</td> : visible.map(column => {
                   if (!row) return <td key={column.id}><span className="base-grid-row-placeholder" aria-hidden="true">…</span></td>
                   const cell = makeSelectedCell(row, key, index, column)

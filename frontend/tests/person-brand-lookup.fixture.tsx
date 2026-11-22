@@ -5,7 +5,7 @@ import PersonsPage, { type Person } from '../src/PersonsPage'
 import BrandsPage from '../src/BrandsPage'
 import {installFormInteraction} from '../src/formInteraction'
 import {setAccessPermissions} from '../src/api'
-import {applyGridFiltersAndSort, type ExcelGridColumn, type GridQuery} from '../src/components/base-form/excelGrid'
+import {applyGridFiltersAndSort, gridRowMatchesSearch, type ExcelGridColumn, type GridQuery} from '../src/components/base-form/excelGrid'
 import '../src/styles.css'
 import '../src/components/base-form/formTheme.css'
 if(!import.meta.env.DEV)throw Error('Development fixture only')
@@ -57,9 +57,10 @@ window.fetch=async(input,options)=>{
  }
  if(toolbarFixture && url.endsWith('/api/master-data/persons/latest'))return json(savedPerson ?? people[0])
  if(url.includes('/api/master-data/persons/grid')){
-   const {page,pageSize,filters,sort,optionsColumn}=JSON.parse(String(options?.body)) as GridQuery & {optionsColumn?: string}
-   const matches=applyGridFiltersAndSort(people,peopleColumns,filters,sort,'fa')
-   if(optionsColumn==='personCode')return json({filterValues:people.map(person=>person.personCode)})
+   const {page,pageSize,filters,sort,optionsColumn,search,searchMode,reverseSearch}=JSON.parse(String(options?.body)) as GridQuery
+   const searchable = search ? people.filter(person => gridRowMatchesSearch(person, peopleColumns, search, searchMode) !== Boolean(reverseSearch)) : people
+   const matches=applyGridFiltersAndSort(searchable,peopleColumns,filters,sort,'fa')
+   if(optionsColumn==='personCode')return json({filterValues:searchable.map(person=>person.personCode)})
    return json({items:matches.slice((page-1)*pageSize,page*pageSize),total:matches.length,page,pageSize})
  }
  return json({})

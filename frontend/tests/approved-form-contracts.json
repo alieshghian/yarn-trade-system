@@ -553,6 +553,22 @@
       "required": [
         "Contract real inputs stay contained and sections stack at the documented RTL breakpoint"
       ]
+    },
+    {
+      "id": "persons-yarn.toolbar-parity",
+      "lane": "person-brand-lookup",
+      "file": "tests/person-brand-lookup.browser.mjs",
+      "required": [
+        "Persons shared F1 and all search modes enforce remote query semantics",
+        "Yarn and Persons share accessible RTL toolbar geometry across four viewports"
+      ]
+    },
+    {
+      "id": "persons.sql-search-parity",
+      "lane": "integration",
+      "required": [
+        "Persons_SQL_grid_modes_reverse_filters_and_stable_pages_require_view_permission"
+      ]
     }
   ],
   "forms": [
@@ -2191,6 +2207,270 @@
           "contract": "Zone mutation endpoints require a lease; SQL prevents simultaneous editing and partial or duplicate batch inserts.",
           "checks": [
             "zone.lease-and-batch"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "persons.definition",
+      "revision": 3,
+      "status": "approved",
+      "provenance": "Golden d0f15535f712df68e437b4ae154470d3836666b1 and subsequent toolbar evidence in docs/audits/approved-form-regression-matrix.md The shared toolbar contract is verified with separate Golden legacy and current browser runs.",
+      "dependencies": [
+        "PersonsPage",
+        "ExcelGridColumnHeader",
+        "OperationalFormFrame",
+        "FormValueList",
+        "formInteraction",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/components/base-form/specs/persons.golden.v1.json",
+          "format": "json",
+          "sha256": "5f7608ba88b10b5d67b056c8bef045bcedb62e51cf4b75c03811d75257dee33a"
+        },
+        {
+          "file": "tests/persons-golden-geometry.json",
+          "format": "json",
+          "sha256": "175d68b1b884e55e29272b90fe367684fa423a7e60bab86d75ca1828f44036ec"
+        },
+        {
+          "file": "tests/persons-golden-grid.png",
+          "format": "bytes",
+          "sha256": "2124908ebd55a70ae4ea9b7b2100a22762a05b259fe0004be764dfd1e54b6e48"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "fields",
+          "status": "covered",
+          "contract": "Golden IDs, field types and editor track/size contract; split layout, controls and footer.",
+          "checks": [
+            "persons.saved-schema",
+            "persons.rendered-geometry"
+          ]
+        },
+        {
+          "id": "geometry",
+          "status": "covered",
+          "contract": "31px header and reference row, 42px toolbar, approved typography, header/editor/footer coordinates; known synthetic data and clipped raster.",
+          "checks": [
+            "persons.rendered-geometry"
+          ]
+        },
+        {
+          "id": "columns",
+          "status": "covered",
+          "contract": "Column chooser hides only the chosen field.",
+          "checks": [
+            "persons.columns"
+          ]
+        },
+        {
+          "id": "export",
+          "status": "covered",
+          "contract": "All pages and only visible columns in actual downloaded XLSX.",
+          "checks": [
+            "persons.xlsx"
+          ]
+        },
+        {
+          "id": "maximize",
+          "status": "covered",
+          "contract": "Expanded table returns to original geometry and retains selection.",
+          "checks": [
+            "persons.maximize"
+          ]
+        },
+        {
+          "id": "filter-sort",
+          "status": "covered",
+          "contract": "On-demand filter values; Clear Filters and F8 preserve sort and columns.",
+          "checks": [
+            "persons.filters"
+          ]
+        },
+        {
+          "id": "appearance",
+          "status": "covered",
+          "contract": "Colors, font and size persist for one viewer and respect permission.",
+          "checks": [
+            "persons.appearance"
+          ]
+        },
+        {
+          "id": "popup",
+          "status": "covered",
+          "contract": "Escape, outside click, trigger and application tab switches close shortcuts.",
+          "checks": [
+            "persons.popup",
+            "persons.switch-tab"
+          ]
+        },
+        {
+          "id": "keyboard",
+          "status": "covered",
+          "contract": "Configured F7 invokes Create; F3 commits an edit; preferences reload.",
+          "checks": [
+            "persons.shortcuts",
+            "persons.save-reload"
+          ]
+        },
+        {
+          "id": "save-reload",
+          "status": "covered",
+          "contract": "Notes survive API save and full page reload; phone/title/legacy list contracts.",
+          "checks": [
+            "persons.save-reload",
+            "persons.data"
+          ]
+        },
+        {
+          "id": "brand-source",
+          "status": "covered",
+          "contract": "Lookup selection, keyboard/clipped popup, brand create/save-and-select and cancel.",
+          "checks": [
+            "persons.brand-lookup"
+          ]
+        },
+        {
+          "id": "authorization",
+          "status": "covered",
+          "contract": "Contract and person scopes enforced by API, separate from normal edit.",
+          "checks": [
+            "persons.authorization"
+          ]
+        },
+        {
+          "id": "performance",
+          "status": "covered",
+          "contract": "Client request paging and export across 102 items plus generic bounded grid filtering at 50000.",
+          "checks": [
+            "persons.xlsx",
+            "shared.grid-volume"
+          ]
+        },
+        {
+          "id": "full-editor-raster",
+          "status": "partial",
+          "contract": "Both actual desktop identity layouts satisfy Golden tracks; combined Brand occupies the union of historical controls.",
+          "checks": [
+            "persons.full-editor",
+            "persons.rendered-geometry",
+            "persons.brand-lookup"
+          ],
+          "gap": "No authenticated full-editor raster for the combined Brand and personalized fonts."
+        },
+        {
+          "id": "personal-font-rollback",
+          "status": "covered",
+          "contract": "The font and size affect the selected input only. Discarded font stays absent after reload; committed settings are isolated by field and account.",
+          "checks": [
+            "persons.personal-font",
+            "persons.appearance"
+          ]
+        },
+        {
+          "id": "shared-persons-yarn-toolbar",
+          "status": "covered",
+          "contract": "Persons and Yarn use the shared toolbar, with operational F1, search modes, server reverse and bounded RTL layout.",
+          "checks": [
+            "persons-yarn.toolbar-parity",
+            "persons.sql-search-parity"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "yarn.definition",
+      "revision": 4,
+      "status": "approved",
+      "provenance": "Registry receipt a348e3e7-ae39-4ff6-b701-7dc55c3201c5 and yarn-operational-acceptance.json The shared toolbar contract is verified with separate Golden legacy and current browser runs.",
+      "dependencies": [
+        "ApprovedYarnsPage",
+        "OperationalFormFrame",
+        "BaseFormGridBoundary",
+        "FormSchemaPresentation",
+        "styles.css"
+      ],
+      "assets": [
+        {
+          "file": "src/forms/yarn-approved-design.json",
+          "format": "json",
+          "sha256": "9746520995b4bc2bad165bcc1bda1bb84cf140c52dfb3b198529430f5b98de6f"
+        },
+        {
+          "file": "src/forms/yarn-operational-acceptance.json",
+          "format": "json",
+          "sha256": "6000f575e84361e7d01249127d28a0f1210d846a8f0ba141832d98c7af6a433b"
+        }
+      ],
+      "capabilities": [
+        {
+          "id": "schema-geometry",
+          "status": "covered",
+          "contract": "18 actual fields and labels match the approved section Canvas within 0.1px; input/derived formatting.",
+          "checks": [
+            "yarn.layout"
+          ]
+        },
+        {
+          "id": "grid-save-keyboard",
+          "status": "covered",
+          "contract": "Master and detail report binding, sticky header, typed runtime title, one-click Save and record identities.",
+          "checks": [
+            "yarn.runtime"
+          ]
+        },
+        {
+          "id": "api-concurrency-performance",
+          "status": "covered",
+          "contract": "SQL roundtrip, large numeric report, distinct bounded suggestions and stable pages.",
+          "checks": [
+            "yarn.data"
+          ]
+        },
+        {
+          "id": "personal-xlsx-maximize",
+          "status": "covered",
+          "contract": "Workbook contains both color rows and excludes the hidden column. Maximize restores selection and settings. Personal field appearance previews, cancels and reloads. The approved physical shortcut matrix checks New, Copy Last, Copy Selected, Insert, Save, Cancel and selected-color deletion; the read-only role cannot mutate.",
+          "checks": [
+            "yarn.personal-tools",
+            "yarn.physical-keyboard"
+          ]
+        },
+        {
+          "id": "full-raster",
+          "status": "partial",
+          "contract": "All 18 fields and labels are compared to the approved editor Canvas; derived output is verified.",
+          "checks": [
+            "yarn.layout"
+          ],
+          "gap": "No authenticated full-form raster including visible grid, editor and footer."
+        },
+        {
+          "id": "release-fallback",
+          "status": "covered",
+          "contract": "Only exact release binding activates the approved route; failed receipts retain legacy route.",
+          "checks": [
+            "yarn.approved-release"
+          ]
+        },
+        {
+          "id": "approved-text-component",
+          "status": "covered",
+          "contract": "Title-derived component opens an actual text editor without dial code or telephone input.",
+          "checks": [
+            "yarn.text-component"
+          ]
+        },
+        {
+          "id": "shared-persons-yarn-toolbar",
+          "status": "covered",
+          "contract": "Persons and Yarn use the shared toolbar, with operational F1, search modes, server reverse and bounded RTL layout.",
+          "checks": [
+            "persons-yarn.toolbar-parity"
           ]
         }
       ]

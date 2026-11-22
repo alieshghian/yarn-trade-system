@@ -1,5 +1,6 @@
 import {useDefinitionRowSelection,deleteSelectedDefinitionRows} from './components/base-form/useDefinitionRowSelection'
-import {GridToolbarIcon} from './components/base-form/GridToolbarIcon'
+import {BaseFormGridBoundary, type GridNavigationRequest} from './components/base-form/BaseFormGridBoundary'
+import type {GridToolbarSettings} from './components/base-form/gridToolbarLayout'
 import {OperationalFormFrame, type OperationalSettingsControls} from './components/base-form/OperationalFormFrame'
 import { personsDefaultGridColumns, personsEditorTrackSizing, personsFieldPlacement, personsOperationalLayout } from './personsOperationalLayout'
 import {useFieldValidation} from './components/base-form/useFieldValidation'
@@ -20,6 +21,9 @@ import { suggestSerial } from './sequences'
 import './personsToolbar.css'
 
 const personsAppearance = { colors: true, typography: true, formSize: false, tablePresentation: false }
+const personsGridOptions = { clearColumnFilters: true, preserveSelectionOnRefresh: true, protectExportSnapshot: true, bulkSelectionOnly: true, intrinsicToolbarHeight: true }
+// Use the approved Yarn title/counter typography with the shared intrinsic layout.
+const personsGridToolbar: GridToolbarSettings = {title: {fontSize: 11, bold: true}, counter: {fontSize: 12, bold: false}}
 
 
 type ParameterType = 'Job' | 'Title' | 'Nationality'
@@ -52,8 +56,12 @@ const defaultColumns: ColumnState[] = personsDefaultGridColumns.map(column => ({
 
 function loadColumns(key: string, legacyKey = key): ColumnState[] {
   try {
-    const saved = JSON.parse(localStorage.getItem(key) ?? localStorage.getItem(legacyKey) ?? 'null') as { key: ColumnKey | 'creditLimitIRR', width: number, visible: boolean }[] | null
-    const current = saved?.map<ColumnState>(column => ({ ...column, key: column.key === 'creditLimitIRR' ? 'phone' : column.key, visible: column.key === 'creditLimitIRR' ? true : column.visible }))
+    type StoredColumn = Omit<ColumnState, 'key'> & { key?: ColumnKey | 'creditLimitIRR'; id?: ColumnKey }
+    const saved = JSON.parse(localStorage.getItem(key) ?? localStorage.getItem(legacyKey) ?? 'null') as StoredColumn[] | null
+    const current = saved?.flatMap<ColumnState>(column => {
+      const id = column.id ?? column.key
+      return id ? [{width: column.width, key: id === 'creditLimitIRR' ? 'phone' : id, visible: id === 'creditLimitIRR' || column.visible}] : []
+    })
     if (current?.length && defaultColumns.every(column => current.some(x => x.key === column.key))) return current
   } catch { /* تنظیمات معیوب با پیش‌فرض جایگزین می‌شود. */ }
   return defaultColumns
@@ -116,10 +124,14 @@ const demoPersons: Person[] = [
 type ContractCreation = { personId?: string, onSaved: (person: Person) => void, onCancel: () => void }
 export default function PersonsPage({ language, demoMode = false, contractCreation, lookupCreation, authenticatedUserId, active = true }: { language: Language, demoMode?: boolean, contractCreation?: ContractCreation, lookupCreation?: Omit<ContractCreation, 'personId'>, authenticatedUserId?: string, active?: boolean }) {
   const fa = language === 'fa'
+  const standalone = !contractCreation && !lookupCreation
   const [persons, setPersons] = useState<Person[]>([])
   const [brandCreation, setBrandCreation] = useState(false)
   const [parameters, setParameters] = useState<Parameter[]>([])
   const [selectedId, setSelectedId] = useState<string>('')
+  const [selectedGridPerson, setSelectedGridPerson] = useState<Person | null>(null)
+  const [gridRevision, setGridRevision] = useState(0)
+  const [navigationRequest, setNavigationRequest] = useState<GridNavigationRequest>()
   const [mode, setMode] = useState<Mode>('view')
   const [draft, setDraft] = useState<PersonDraft>(emptyDraft)
   const original = useRef(JSON.stringify(emptyDraft()))
@@ -134,11 +146,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const columnKey = `persons-columns:${authenticatedUserId ?? userKey}`
   const legacyColumnKey = `persons-columns:${userKey}`
   const shortcutKey = `persons-shortcuts:${userKey}`
-  const [gridNormalHeight, setGridNormalHeight] = useState<number | null>(null)
-  const gridPanel = useRef<HTMLElement>(null)
-  const gridExpanded = gridNormalHeight !== null
-  const [exporting, setExporting] = useState(false)
-  const [exportStatus, setExportStatus] = useState('')
   const [topHeight, setTopHeight] = useState(() => Number(localStorage.getItem(splitKey)) || defaultFormTheme.editorHeight)
   const [columns, setColumns] = useState<ColumnState[]>(() => loadColumns(columnKey, legacyColumnKey))
   const columnOwner = useRef(columnKey)
@@ -172,7 +179,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   selectedIdRef.current = selectedId
   gridQueryRef.current = { page: gridPage, pageSize: 100, search: '', filters, sort, language: fa ? 'fa' : 'en' }
 
-  const selected = persons.find(x => x.id === selectedId)
+  const selected = selectedGridPerson?.id === selectedId ? selectedGridPerson : persons.find(x => x.id === selectedId)
   const {validateFields}=useFieldValidation(formRef,{enabled:mode!=='view',entity:'persons',demo:demoMode,context:{currentId:mode==='edit'?selectedId:null,personType:draft.personType,titleId:draft.titleId||null,firstName:draft.firstName,lastName:draft.lastName},rules:{personCode:{required:true,maxLength:30,remote:true},lastName:{required:true,maxLength:200,remote:true},firstName:{maxLength:200,remote:true},titleId:{required:true},directorName:{maxLength:200},creditLimitIRR:{min:0}}})
   const dirty = mode !== 'view' && JSON.stringify(draft) !== original.current
   const jobs = parameters.filter(x => x.parameterType === 'Job' && x.code !== 'PARTNER')
@@ -186,13 +193,13 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     if (key === 'isActive') return person.isActive ? (fa ? 'فعال' : 'Active') : (fa ? 'غیرفعال' : 'Inactive')
     return String(person[key] ?? '')
   }, [fa])
-  const gridColumns = useMemo<ExcelGridColumn<Person>[]>(() => columns.map(column => ({
+  const gridColumns = useMemo<ExcelGridColumn<Person>[]>(() => (standalone ? defaultColumns : columns).map(column => ({
     id: column.key, label: ({ personCode: fa ? 'کد' : 'Code', displayName: fa ? 'نام / عنوان' : 'Name', job: fa ? 'شغل' : 'Job', nationality: fa ? 'ملیت' : 'Nationality', mobile: fa ? 'موبایل' : 'Mobile', phone: fa ? 'تلفن' : 'Phone', isActive: fa ? 'وضعیت' : 'Status' })[column.key],
     width: column.width, type: column.key === 'isActive' ? 'boolean' : 'text',
     value: person => column.key === 'isActive' ? person.isActive : columnValue(person, column.key),
     effectiveCellColor: column.key === 'isActive' ? (person: Person) => person.isActive ? '#e4f2ec' : '#eeeeee' : undefined,
     colorAwareSort: column.key === 'isActive'
-  })), [columns, fa, columnValue])
+  })), [columns, fa, columnValue, standalone])
   const filtered = useMemo(() => demoMode ? applyGridFiltersAndSort(persons, gridColumns, filters, sort, language === 'fa' ? 'fa' : 'en') : persons, [demoMode, persons, gridColumns, filters, sort, language])
   const selectedIndex = Math.max(0, filtered.findIndex(x => x.id === selectedId))
   const gridTotal = demoMode ? filtered.length : personTotal
@@ -200,17 +207,29 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   const gridStart = demoMode ? (filtered.length ? 1 : 0) : gridTotal ? (gridPage - 1) * 100 + 1 : 0
   const gridEnd = demoMode ? filtered.length : Math.min(gridTotal, gridPage * 100)
 
+  const queryPersons = useCallback((query: GridQuery, signal?: AbortSignal) =>
+    apiRequest<GridPage<Person>>('/api/master-data/persons/grid', { method: 'POST', body: JSON.stringify(query), signal }), [])
+  const selectGridPerson = useCallback((person: Person | null) => {
+    if (modeRef.current !== 'view') return
+    setSelectedGridPerson(person)
+    setSelectedId(person?.id ?? '')
+    if (!person) {
+      const empty = emptyDraft()
+      setDraft(empty)
+      original.current = JSON.stringify(empty)
+    }
+  }, [])
   const loadGrid = useCallback(async (query = gridQueryRef.current) => {
     if (demoMode) { setPersonTotal(demoPersons.length); return { items: demoPersons, total: demoPersons.length, page: 1, pageSize: 100 } }
-    const result = await apiRequest<GridPage<Person>>('/api/master-data/persons/grid', { method: 'POST', body: JSON.stringify(query) })
+    const result = await queryPersons(query)
     setPersons(result.items); setPersonTotal(result.total)
-    if (result.items.length && !result.items.some(person => person.id === selectedIdRef.current)) {
+    if (!standalone && result.items.length && !result.items.some(person => person.id === selectedIdRef.current)) {
       const next = result.items[0]
       setSelectedId(next.id)
       if (modeRef.current === 'view') { const value = copyDraft(next); setDraft(value); original.current = JSON.stringify(value) }
     }
     return result
-  }, [demoMode])
+  }, [demoMode, queryPersons, standalone])
   const loadGridFilterValues = useCallback(async (column: string, search: string): Promise<{ values: GridValue[], colors?: (string | null)[] }> => {
     if (demoMode) {
       const definition = gridColumns.find(item => item.id === column)
@@ -234,25 +253,29 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
         api<Parameter[]>('/api/master-data/parameters')
       ])
       setGridPage(1); setParameters(refs)
-      const latest=preferId||contractCreation?undefined:await api<Person>('/api/master-data/persons/latest').catch(()=>undefined)
+      const latest=preferId||!standalone?undefined:await api<Person>('/api/master-data/persons/latest').catch(()=>undefined)
       if(modeRef.current!=='view')return
       const next = people.items.find(x => x.id === preferId) ?? (preferId ? await api<Person>(`/api/master-data/persons/${preferId}`).catch(() => undefined) : undefined) ?? latest ?? people.items[0]
       setSelectedId(next?.id ?? '')
+      if (standalone) {
+        setSelectedGridPerson(next ?? null)
+        if (preferId || selectedIdRef.current) setGridRevision(value => value + 1)
+      }
       if (next) { const value = copyDraft(next); setDraft(value); original.current = JSON.stringify(value) }
     } catch (e) { setError(e instanceof Error ? e.message : String(e)) }
     finally { setLoading(false) }
-  }, [demoMode, loadGrid])
+  }, [demoMode, loadGrid, standalone])
 
   useEffect(() => { void load() }, [load])
   useEffect(() => {
     if (skipGridRefresh.current) { skipGridRefresh.current = false; return }
-    if (demoMode) return
+    if (demoMode || standalone) return
     const timer = window.setTimeout(() => {
       setGridLoading(true)
       void loadGrid().catch(e => setError(e instanceof Error ? e.message : String(e))).finally(() => setGridLoading(false))
     }, 120)
     return () => window.clearTimeout(timer)
-  }, [filters, sort, gridPage, fa, demoMode, loadGrid])
+  }, [filters, sort, gridPage, fa, demoMode, loadGrid, standalone])
   useEffect(() => {
     if (mode !== 'view' || !selected) return
     const value = copyDraft(selected); setDraft(value); original.current = JSON.stringify(value)
@@ -268,8 +291,8 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       setColumns(loadColumns(columnKey, legacyColumnKey)); setColumnMenuOpen(false)
       return
     }
-    localStorage.setItem(columnKey, JSON.stringify(columns))
-  }, [columnKey, legacyColumnKey, columns])
+    if (!standalone) localStorage.setItem(columnKey, JSON.stringify(columns))
+  }, [columnKey, legacyColumnKey, columns, standalone])
   useEffect(() => {
     if (!columnMenuOpen) return
     const position = () => {
@@ -349,7 +372,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [validateField])
 
   const beginNew = useCallback(async () => {
-    setGridNormalHeight(null)
     const value = emptyDraft()
     value.titleId = parameters.find(x=>x.parameterType==='Title'&&x.id===titleDefaultId)?.id??parameters.find(x => x.parameterType === 'Title' && x.code === 'MR')?.id ?? ''
     value.nationalityId = parameters.find(x => x.parameterType === 'Nationality' && x.code === 'IR')?.id ?? ''
@@ -372,7 +394,6 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [contractCreation, lookupCreation, loading, parameters, beginNew, persons, fa])
   const beginEdit = useCallback(() => {
     if (!selected || selected.isContractPartner && !contractCreation) return
-    setGridNormalHeight(null)
     const value = copyDraft(selected)
     if (!value.titleId) value.titleId = parameters.find(x => x.parameterType === 'Title' && x.code === (value.personType === 'Company' ? 'COMPANY' : 'MR'))?.id ?? ''
     setDraft(value); original.current = JSON.stringify(value); setMode('edit'); setError(''); setMessage(''); setFieldErrors({})
@@ -410,17 +431,30 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
   }, [selected, mode, fa, load, contractCreation])
 
   const bulkDeletePending=useRef(false)
-  const bulk=useDefinitionRowSelection<Person>({enabled:!demoMode&&!contractCreation&&mode==='view'&&hasPermission('persons.delete'),scope:JSON.stringify({filters,sort,language}),
-    onDelete:async rows=>{if(bulkDeletePending.current)throw Error('حذف در حال انجام است.');bulkDeletePending.current=true;try{await apiRequest('/api/master-data/persons/bulk-delete',{method:'POST',body:JSON.stringify({rows:rows.map(row=>({id:row.id,rowVersion:row.rowVersion}))})});await load()}finally{bulkDeletePending.current=false}},
+  const bulkDelete = useCallback(async (rows: Person[]) => {
+    if (bulkDeletePending.current) throw Error('حذف در حال انجام است.')
+    bulkDeletePending.current = true
+    try {
+      await apiRequest('/api/master-data/persons/bulk-delete',{method:'POST',body:JSON.stringify({rows:rows.map(row=>({id:row.id,rowVersion:row.rowVersion}))})})
+      await load()
+    } finally { bulkDeletePending.current = false }
+  }, [load])
+  const bulk=useDefinitionRowSelection<Person>({enabled:!standalone&&!demoMode&&!contractCreation&&mode==='view'&&hasPermission('persons.delete'),scope:JSON.stringify({filters,sort,language}),
+    onDelete:bulkDelete,
     range:async(start,end,signal)=>{const result:Person[]=[];for(let index=start;index<=end;){const page=Math.floor(index/100)+1;const data=await apiRequest<GridPage<Person>>('/api/master-data/persons/grid',{method:'POST',body:JSON.stringify({...gridQueryRef.current,page}),signal});for(;index<=end&&Math.floor(index/100)+1===page;index++){const row=data.items[index%100];if(!row)throw Error('بازه انتخاب تغییر کرده است؛ دوباره انتخاب کنید.');result.push(row)}}return result}
   })
   const move = useCallback((where: 'up' | 'down' | 'pageUp' | 'pageDown' | 'home' | 'end') => {
+    if (standalone) {
+      const command = {up:'up',down:'down',pageUp:'previous',pageDown:'next',home:'first',end:'last'} as const
+      setNavigationRequest(current => ({sequence:(current?.sequence ?? 0)+1,command:command[where],pageStep:10}))
+      return
+    }
     if (!filtered.length) return
     const delta = where === 'up' ? -1 : where === 'down' ? 1 : where === 'pageUp' ? -10 : where === 'pageDown' ? 10 : 0
     const index = where === 'home' ? 0 : where === 'end' ? filtered.length - 1 : Math.max(0, Math.min(filtered.length - 1, selectedIndex + delta))
     setSelectedId(filtered[index].id)
     document.querySelector(`[data-person-id="${filtered[index].id}"]`)?.scrollIntoView({ block: 'nearest' })
-  }, [filtered, selectedIndex])
+  }, [filtered, selectedIndex, standalone])
 
   useEffect(() => {
     if (!active || brandCreation) setShortcutsOpen(false)
@@ -620,44 +654,10 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
     return { id: title.id, nameFa: title.nameFa, nameEn: title.nameEn, code: title.code, personType: titlePersonType(title) ?? personType }
   }
 
-  const standalone = !contractCreation && !lookupCreation
   const gridTitle = fa ? 'فهرست اشخاص' : 'People'
   const columnsLabel = fa ? 'ستون‌ها' : 'Columns'
-  const expandLabel = fa ? (gridExpanded ? 'کوچک کردن فرم' : 'بزرگ کردن فرم') : (gridExpanded ? 'Shrink form' : 'Expand form')
-  const exportLabel = fa ? 'خروجی اکسل' : 'Excel export'
   const shortcutLabel = fa ? 'میان‌برهای صفحه‌کلید' : 'Keyboard shortcuts'
-  const resetFiltersLabel = fa ? 'پاک کردن فیلترها' : language === 'zh' ? '清除筛选' : 'Clear filters'
   const resetFilters = () => { setFilters({}); setGridPage(1) }
-  async function exportPersons() {
-    if (exporting) return
-    setExporting(true)
-    setExportStatus('')
-    try {
-      const visible = visibleColumns.map(column => gridColumns.find(item => item.id === column.key)!)
-      const query = gridQueryRef.current
-      const { downloadGridWorkbook } = await import('./components/base-form/exportGridWorkbook')
-      const rows = demoMode ? filtered : []
-      if (!demoMode) {
-        const seen = new Set<string>()
-        let total: number | undefined
-        for (let page = 1; total === undefined || rows.length < total; page++) {
-          const result = await apiRequest<GridPage<Person>>('/api/master-data/persons/grid', { method: 'POST', body: JSON.stringify({ ...query, page }) })
-          total ??= result.total
-          for (const row of result.items) seen.add(row.id)
-          rows.push(...result.items)
-          if (total !== result.total || rows.length !== seen.size || rows.length > total || (!result.items.length && rows.length < total)) {
-            throw new Error(fa ? 'فهرست اشخاص هنگام خروجی تغییر کرد. دوباره تلاش کنید.' : 'The person list changed during export. Try again.')
-          }
-        }
-      }
-      downloadGridWorkbook({ title: gridTitle, language, columns: visible, rows })
-      setExportStatus(fa ? 'فایل اکسل آماده شد.' : 'Excel file created.')
-    } catch (error) {
-      setExportStatus(error instanceof Error ? error.message : (fa ? 'خروجی اکسل انجام نشد.' : 'Excel export failed.'))
-    } finally {
-      setExporting(false)
-    }
-  }
   const place = (id: string) => standalone ? personsFieldPlacement(id, organization) : undefined
   const renderPage = (settings?: OperationalSettingsControls) => <div className={`persons-page${!contractCreation ? ' person-layout-five' : ''}`} ref={frameRef} data-operational-design={standalone ? personsOperationalLayout.id : undefined} data-record-presentation={mode!=='view'?'entry':selectedId?'view':'empty'} style={{ gridTemplateRows: `${topHeight}px 9px minmax(230px, 1fr)` }}>
     <section className="person-editor panel">
@@ -695,20 +695,27 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
       </div>
     </section>
     <div className="split-handle" onPointerDown={resizeStart}><span /></div>
-    {gridExpanded && <div aria-hidden="true" style={{ height: gridNormalHeight, flex: '0 0 auto' }} />}
-    <section ref={gridPanel} className={`person-grid-panel panel${gridExpanded ? ' persons-grid-expanded' : ''}`}>
+    <section className="person-grid-panel panel">
+      {standalone ? <div className="form-laboratory-page persons-shared-grid"><div className="laboratory-grid">
+        <BaseFormGridBoundary
+          gridId="persons" title={gridTitle} language={language} rows={persons} columns={gridColumns}
+          toolbarSettings={personsGridToolbar}
+          columnPreferencesStorageKey={columnKey} remoteQuery={demoMode ? undefined : queryPersons}
+          remoteQueryScope={gridRevision} autoSelectFirstRow readOnly={mode !== 'view'}
+          selectedRowId={selectedId || null} navigationRequest={navigationRequest}
+          onRowSelectionChange={selectGridPerson} onRowDoubleClick={beginEdit}
+          onBulkDelete={!demoMode && hasPermission('persons.delete') ? bulkDelete : undefined}
+          renderCell={(person, columnId) => cell(person, columnId as ColumnKey)}
+          operational={{...personsGridOptions, initialColumnPreferences:columns.map(({key,width,visible})=>({id:key,width,visible}))}}
+        />
+      </div></div> : <>
       <div className="grid-toolbar">
         <div><h2>{gridTitle}</h2><span>{fa ? `${gridStart} تا ${gridEnd} از ${gridTotal} رکورد` : `${gridStart}–${gridEnd} of ${gridTotal} records`}</span></div>
         <div className="persons-grid-pager"><button type="button" disabled={gridPage <= 1 || gridLoading} onClick={() => setGridPage(page => page - 1)}>{fa ? 'قبلی' : 'Previous'}</button><span>{gridPage} / {gridPageCount}</span><button type="button" disabled={gridPage >= gridPageCount || gridLoading} onClick={() => setGridPage(page => page + 1)}>{fa ? 'بعدی' : 'Next'}</button></div>
-        <div className={standalone ? 'persons-grid-actions' : undefined}>
+        <div >
           <details className="column-picker" ref={columnPicker} open={columnMenuOpen} data-toolbar-part="columns">
-            <summary role="button" aria-label={columnsLabel} title={columnsLabel} aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>{standalone ? <GridToolbarIcon kind="columns" /> : `☷ ${columnsLabel}`}</summary>
+            <summary role="button" aria-label={columnsLabel} title={columnsLabel} aria-expanded={columnMenuOpen} onClick={event => { event.preventDefault(); setColumnMenuOpen(current => !current) }}>{`☷ ${columnsLabel}`}</summary>
           </details>
-          {standalone && <><span data-toolbar-part="reset"><button type="button" aria-label={resetFiltersLabel} title={resetFiltersLabel}
-            aria-keyshortcuts="F8" disabled={!Object.values(filters).some(Boolean)} onClick={resetFilters}><GridToolbarIcon kind="reset" /></button></span>
-          <span data-toolbar-part="expand"><button type="button" aria-label={expandLabel} title={expandLabel} aria-pressed={gridExpanded} onClick={() => setGridNormalHeight(gridExpanded ? null : gridPanel.current?.getBoundingClientRect().height ?? null)}><GridToolbarIcon kind={gridExpanded ? 'restore' : 'expand'} /></button></span>
-          <span data-toolbar-part="export"><button type="button" aria-label={exportLabel} title={exportLabel} disabled={exporting} aria-busy={exporting} onClick={() => void exportPersons()}><GridToolbarIcon kind="excel" /></button></span>
-          <span className="grid-export-status" role="status">{exportStatus}</span></>}
         </div>
       </div>
       {columnMenuOpen && createPortal(<div ref={columnMenu} className="person-column-menu" dir={fa ? 'rtl' : 'ltr'} style={columnMenuPosition}>{columns.map(column => <label key={column.key}><input type="checkbox" checked={column.visible} disabled={column.visible && visibleColumns.length === 1} onChange={() => toggleColumn(column.key)} />{columnLabel(column.key)}</label>)}<button type="button" onClick={() => setColumns(defaultColumns)}>↺ {fa ? 'حالت پیش‌فرض' : 'Reset'}</button></div>, document.body)}
@@ -717,7 +724,7 @@ export default function PersonsPage({ language, demoMode = false, contractCreati
         <tr>{visibleColumns.map(column => <ExcelGridColumnHeader key={column.key} column={gridColumns.find(item => item.id === column.key)!} rows={persons} locale={fa ? 'fa' : 'en'} language={language} direction={fa ? 'rtl' : 'ltr'} filter={filters[column.key]} sort={sort} onSort={next => { setSort(next); setGridPage(1) }} onApplyFilter={filter => applyFilter(column.key, filter)} loadFilterValues={search => loadGridFilterValues(column.key, search)} thProps={{ 'data-column': column.key, className: columnDrop?.key === column.key ? `column-drop-${columnDrop.before ? 'before' : 'after'}` : undefined, onDragOver: event => columnDragOver(event, column.key), onDrop: event => dropColumn(event, column.key) }} titleProps={{ draggable: true, onDragStart: event => { draggedColumn.current = column.key; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', column.key); setColumnMenuOpen(false) }, onDragEnd: () => { draggedColumn.current = null; setColumnDrop(null) } }} resizer={<i className="column-resizer" onPointerDown={event => resizeColumn(event, column.key)} />} />)}</tr>
       </thead><tbody>
         {loading || gridLoading ? <tr><td colSpan={visibleColumns.length}>{fa ? 'در حال دریافت…' : 'Loading…'}</td></tr> : filtered.length ? filtered.map((person,index) => <tr key={person.id} data-person-id={person.id} className={(bulk.selection.size?bulk.selection.has(person.id):person.id===selectedId)?'selected'+(bulk.blocked.has(person.id)?' bulk-delete-blocked':''):bulk.blocked.has(person.id)?'bulk-delete-blocked':''} onClick={event=>{if(mode!=='view'||bulk.busy)return;(event.currentTarget.closest('.person-table-wrap') as HTMLElement)?.focus({preventScroll:true});void bulk.select(person,(gridPage-1)*100+index,event);if(event.ctrlKey||event.metaKey||event.shiftKey){event.preventDefault();return}setSelectedId(person.id)}} onDoubleClick={beginEdit}>{visibleColumns.map(column => <td key={column.key}>{cell(person, column.key)}</td>)}</tr>) : <tr><td colSpan={visibleColumns.length}>{fa ? 'رکوردی یافت نشد.' : 'No records found.'}</td></tr>}
-      </tbody></table></ExcelGridFilterScope></div>
+      </tbody></table></ExcelGridFilterScope></div></>}
       <div className="shortcut-bar">
         {mode === 'view' ? <>
           <Shortcut code={shortcuts.new} label={fa ? 'شخص جدید' : 'New'} onClick={beginNew} primary disabled={!hasPermission('persons.create')} />
