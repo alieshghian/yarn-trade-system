@@ -69,7 +69,16 @@ try {
  const pairGeometry=await evaluate("(()=>{const inputs=[...document.querySelectorAll('.new-number-row .number-pair-inputs input')];return inputs.map(e=>{const r=e.getBoundingClientRect();return{width:r.width,x:r.left+r.width/2,y:r.top+r.height/2,hit:document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===e}})})()");assert.ok(pairGeometry.every(r=>r.width>=55&&r.hit),'both paired inputs must be usable at a narrow 220px host');
  const compact=await evaluate("document.querySelector('[data-component-popup]').getBoundingClientRect().width");assert.ok(compact<300,'compact paired popup follows 220px field instead of the old fixed 420px minimum');assert.ok(pairGeometry[0].width<175,'packaging name uses less than half its previous 350px width');
  await evaluate("document.querySelector('[data-packaging-volume]').parentElement.style.width='320px'");await until("document.querySelector('[data-component-popup]').getBoundingClientRect().width>350",'popup grows with main field');await evaluate("document.querySelector('[data-packaging-volume]').parentElement.style.width='220px'");await until("document.querySelector('[data-component-popup]').getBoundingClientRect().width<300",'popup shrinks with main field');
- for(const [index,value] of [[0,'پالت'],[1,'1.5']]){const point=pairGeometry[index];await send('Input.dispatchMouseEvent',{type:'mousePressed',x:point.x,y:point.y,button:'left',clickCount:1});await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x,y:point.y,button:'left',clickCount:1});await send('Input.insertText',{text:value})}
+ for (const [index, value] of [[0, 'پالت'], [1, '1.5']]) {
+   const input = `document.querySelectorAll('.new-number-row .number-pair-inputs input')[${index}]`
+   await until(`(()=>{const e=${input};const r=e.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===e})()`, 'paired input hit target after resize')
+   const point = await evaluate(`(()=>{const r=${input}.getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}})()`)
+   await send('Input.dispatchMouseEvent', {type:'mousePressed', ...point, button:'left', clickCount:1})
+   await send('Input.dispatchMouseEvent', {type:'mouseReleased', ...point, button:'left', clickCount:1})
+   await until(`document.activeElement===${input}`, 'physical click focuses the intended packaging input')
+   await send('Input.insertText', {text:value})
+   assert.equal(await evaluate(`${input}.value`), value, 'physical keyboard input reaches its own packaging field')
+ }
  assert.equal(await evaluate("document.querySelector('.number-pair-inputs input').value"),'پالت','real pointer and keyboard type in packaging input');
  const initialPopup=await evaluate("(()=>{const r=document.querySelector('[data-component-popup]').getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}})()");
  const grip=await evaluate("(()=>{const r=document.querySelector('[data-popup-resize=left]').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}})()");

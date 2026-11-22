@@ -62,4 +62,5 @@ window.fetch=async(input,options)=>{
  }
  return json({})
 }
-createRoot(document.getElementById('root')!).render(<><div className="form-tab-pane active"><PersonsPage language="fa" authenticatedUserId={actor}/></div><div className="form-tab-pane" style={{display:'none'}}><BrandsPage language="fa"/></div></>)
+const toolbarHost = toolbarFixture ? { height: 'calc(100dvh - 110px)', overflow: 'auto' } : undefined
+createRoot(document.getElementById('root')!).render(<><div className="form-tab-pane active" style={toolbarHost}><PersonsPage language="fa" authenticatedUserId={actor}/></div><div className="form-tab-pane" style={{display:'none'}}><BrandsPage language="fa"/></div></>)
