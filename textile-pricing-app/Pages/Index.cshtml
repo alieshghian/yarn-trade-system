@@ -1,0 +1,98 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "محاسبه قیمت آنالیز";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>محاسبه قیمت آنالیز</h1>
+    </div>
+    <div class="stats-strip">
+        <span>نرخ دلار موثر: @Money(Model.Settings.EffectiveDollarRate)</span>
+        <span>ارزش افزوده: @Percent(Model.Settings.VatRate)</span>
+    </div>
+</section>
+
+<section class="workspace quick-price-layout">
+    <aside class="side-panel product-list-panel">
+        <form method="get" class="toolbar-form product-search" data-live-search-form>
+            <input name="Query" value="@Model.Query" class="form-control" placeholder="جست‌وجوی کد محصول..." autocomplete="off" data-live-search-input />
+        </form>
+        <div class="product-list">
+            @foreach (var product in Model.ProductRows)
+            {
+                <a class="product-list__item @(product.Code == Model.ProductCode ? "active" : "")" asp-page="/Index" asp-route-ProductCode="@product.Code" asp-route-Query="@Model.Query">
+                    <strong>@product.Code</strong>
+                    <small>فروش نهایی: @Money(product.FinalPrice)</small>
+                </a>
+            }
+        </div>
+    </aside>
+
+    <main class="report-panel">
+        <div class="report-title">
+            <div>
+                <p class="eyebrow">آنالیز محصول</p>
+                <h2>@Model.Calculation.Recipe.Code</h2>
+            </div>
+            <div class="pill-group">
+                <span>ضایعات @Percent(Model.Calculation.AppliedWasteRate)</span>
+            </div>
+        </div>
+
+        @if (Model.Calculation.MissingMaterials.Count > 0)
+        {
+            <div class="alert alert-warning">
+                چند قلم در لیست قیمت پیدا نشد: @string.Join("، ", Model.Calculation.MissingMaterials)
+            </div>
+        }
+
+        <div class="table-responsive">
+            <table class="table align-middle pricing-table">
+                <thead>
+                    <tr>
+                        <th>شرح</th>
+                        <th>نوع</th>
+                        <th>مقدار</th>
+                        <th>فی</th>
+                        <th>مبلغ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var line in Model.Calculation.Lines)
+                    {
+                        <tr>
+                            <td>@line.MaterialName</td>
+                            <td>@line.Kind</td>
+                            <td>@Number(line.Quantity)</td>
+                            <td>@Money(line.UnitPrice)</td>
+                            <td>@Money(line.CashAmount)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="summary-grid">
+            <div>
+                <span>جمع مواد و خدمات</span>
+                <strong>@Money(Model.Calculation.Summary.CashTotal)</strong>
+            </div>
+            <div>
+                <span>کسری و ضایعات</span>
+                <strong>@Money(Model.Calculation.Summary.CashWaste)</strong>
+            </div>
+            <div>
+                <span>قیمت تمام شده</span>
+                <strong>@Money(Model.Calculation.Summary.CashCost)</strong>
+            </div>
+        </div>
+    </main>
+</section>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string Number(decimal value) => string.Format("{0:N3}", value).TrimEnd('0').TrimEnd('.');
+    private static string Percent(decimal value) => string.Format("{0:N0}٪", value * 100);
+}

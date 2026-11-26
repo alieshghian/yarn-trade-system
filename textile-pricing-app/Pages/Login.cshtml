@@ -1,0 +1,51 @@
+@page
+@model LoginModel
+@{
+    ViewData["Title"] = "ورود";
+}
+
+<section class="auth-page">
+    <form method="post" class="auth-card" data-enter-submit>
+        <h1>ورود به سیستم</h1>
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <label asp-for="UserName">نام کاربری</label>
+        <input asp-for="UserName" class="form-control" autocomplete="username" autofocus />
+        <span asp-validation-for="UserName" class="text-danger"></span>
+
+        <label asp-for="Password">رمز عبور</label>
+        <input asp-for="Password" class="form-control" type="password" autocomplete="current-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+
+        <label asp-for="CaptchaCode">کد امنیتی</label>
+        <div class="captcha-row">
+            <div class="captcha-challenge" aria-label="کد امنیتی تصویری">
+                @for (var index = 0; index < Model.CaptchaQuestion.Length; index++)
+                {
+                    <span aria-hidden="true">@Model.CaptchaQuestion[index]</span>
+                }
+            </div>
+            <input asp-for="CaptchaCode"
+                   class="form-control captcha-input"
+                   inputmode="text"
+                   maxlength="6"
+                   autocomplete="off"
+                   autocapitalize="characters"
+                   spellcheck="false" />
+        </div>
+        <span asp-validation-for="CaptchaCode" class="text-danger"></span>
+
+        <button class="btn btn-dark" type="submit">ورود</button>
+    </form>
+</section>
+
+@section Scripts {
+    <script>
+        if (window.top !== window.self) {
+            const loginUrl = new URL(window.location.href);
+            loginUrl.searchParams.delete("embedded");
+            window.top.location.href = loginUrl.toString();
+        }
+    </script>
+    <partial name="_ValidationScriptsPartial" />
+}

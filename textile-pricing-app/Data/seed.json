@@ -1,0 +1,671 @@
+{
+    "settings":  {
+                     "dollarRate":  0,
+                     "vatRate":  0.06,
+                     "enforceAnalysisSelectionScope":  true,
+                     "sourceFile":  "1405-02-19.xlsm"
+                 },
+    "materials":  [
+                      {
+                          "name":  "رنگرزی و تکمیل 550 گرمی",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "رنگرزی و تکمیل 600 گرمی",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "رنگرزی و تکمیل 650 گرمی",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "رنگرزی و تکمیل 700 گرمی",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل پرو 3 رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل پرو 5 رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل سافت 6 رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل میکرو4.8 رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل ویسکوز  رنگی5.3",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سوپر450سفید",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سفید 300فیلامنت",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "رنگی 300 فیلامنت",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سفید مشبک",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "جمع شو",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سفید 150 جوشی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "چله رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سوپر 450",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "مولینه 300",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اسپان",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اسپان کرم",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "تکمیل شانل ویسکوز ویژه",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "تکمیل ساتن",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "تکمیل شانل ویژه",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شستشو",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "آیرو",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "رنگرزی و تکمیل 500 گرمی",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "لمینت",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "آستری",
+                          "kind":  "پارچه",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل بدون مواد با آیرو",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل بدون مواد",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل با مواد",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اجرت چله کشی شانل",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اجرت چله کشی فیلامنت",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بسته بندی",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "فیلامنت 150 مینگل",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اجرت بافت ژاکارد66",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اجرت بافت دابی",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اجرت بافت ژاکارد132",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بافت دابی دو غلطک",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بافت ژاکارد 66 دوغلطک",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل 6.7 رئوف",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سوپر 450 سفید",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سیم",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "تار سفید 75",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "نخ پرچمی نایس",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "نخ پرچمی الوا پرتراکم",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "مون رنگی 1.4",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "دیفن  خام",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "سان رنگی 2",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "رنبو رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "فارین رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "دیفن رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اف دی وای 75",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "دی تی وای 100",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اجرت آستری",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بسته بندی آستری",
+                          "kind":  "پارچه",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بوکله خام باتیس",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بوکله 2.4 رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "پرو 3 رئوف خام",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بوکله باتیس رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل خام پرو 5",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "کروچت رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "چله 300 نانومید",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اجرت چله 300 نانومید",
+                          "kind":  "خدمت",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل نمره 2 وارداتی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "فیلامنت300 وارداتی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "ATYملانژ 1380DTX",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "شانل پرو 2 رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "بوکله لاماری 3.7",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "نخ dty 150قهوه ای",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "مونو 60 دنیر تک رشته",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "چله رنگی 75",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "فندی خام",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "رنگرزی و تکمیل 550 گرمی نانومید",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "نخ پرچمی الوا متوسط",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "نخ پرچمی الوا کم تراکم",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "دلار",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "چله گونی بافت",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "اسپان سهیل رنگی",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "نخ نانومید",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "پنبه مشکی 2لا",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "پرنیان خام",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      },
+                      {
+                          "name":  "تکمیل خشک",
+                          "kind":  "کالا",
+                          "price":  0,
+                          "unit":  "ریال",
+                          "rialPrice":  0
+                      }
+                  ],
+    "profitTiers":  [
+                        {
+                            "breakpoint":  0.05,
+                            "percent":  5.0
+                        },
+                        {
+                            "breakpoint":  0.1,
+                            "percent":  10.0
+                        },
+                        {
+                            "breakpoint":  0.15,
+                            "percent":  15.0
+                        },
+                        {
+                            "breakpoint":  0.2,
+                            "percent":  20.0
+                        },
+                        {
+                            "breakpoint":  0.25,
+                            "percent":  25.0
+                        },
+                        {
+                            "breakpoint":  0.3,
+                            "percent":  30.0
+                        },
+                        {
+                            "breakpoint":  0.35,
+                            "percent":  35.0
+                        },
+                        {
+                            "breakpoint":  0.4,
+                            "percent":  40.0
+                        },
+                        {
+                            "breakpoint":  0.45,
+                            "percent":  45.0
+                        },
+                        {
+                            "breakpoint":  0.5,
+                            "percent":  50.0
+                        }
+                    ],
+    "wasteTiers":  [
+                       {
+                           "breakpoint":  0.02,
+                           "percent":  2.0
+                       },
+                       {
+                           "breakpoint":  0.07,
+                           "percent":  7.0
+                       },
+                       {
+                           "breakpoint":  0.04,
+                           "percent":  4.0
+                       },
+                       {
+                           "breakpoint":  0.2,
+                           "percent":  20.0
+                       },
+                       {
+                           "breakpoint":  0.25,
+                           "percent":  25.0
+                       },
+                       {
+                           "breakpoint":  0.3,
+                           "percent":  30.0
+                       },
+                       {
+                           "breakpoint":  0.3,
+                           "percent":  35.0
+                       },
+                       {
+                           "breakpoint":  0.4,
+                           "percent":  40.0
+                       },
+                       {
+                           "breakpoint":  0.45,
+                           "percent":  45.0
+                       },
+                       {
+                           "breakpoint":  0.5,
+                           "percent":  50.0
+                       }
+                   ],
+    "recipes":  [
+
+                ]
+}

@@ -1,0 +1,303 @@
+@page
+@model TemporaryPriceModel
+@{
+    ViewData["Title"] = "قیمت موقت";
+}
+
+<section class="temporary-price-workbench"
+         data-credit-multiplier="@Invariant(Model.CreditMultiplier)"
+         data-cash-discount="@Invariant(Model.CashDiscountPercent)"
+         data-credit-discount="@Invariant(Model.CreditDiscountPercent)">
+    <aside class="temporary-price-controls no-print">
+        <form method="get" class="temporary-price-picker" data-live-search-form>
+            <label for="ProductCode">محصول</label>
+            <div class="product-combobox" data-product-combobox>
+                <input
+                    id="ProductCodeSearch"
+                    type="text"
+                    class="form-control js-product-search"
+                    value="@Model.ProductLabel"
+                    placeholder="جست‌وجوی کد یا نام محصول..."
+                    autocomplete="off"
+                    aria-expanded="false" />
+                <input id="ProductCode" name="ProductCode" value="@Model.ProductCode" type="hidden" class="js-product-code" />
+                <button class="product-combobox__toggle" type="button" aria-label="نمایش محصولات"></button>
+                <div class="product-combobox__options">
+                    @foreach (var product in Model.Products)
+                    {
+                        var label = TemporaryPriceModel.FormatProductLabel(product);
+                        <button
+                            type="button"
+                            class="product-combobox__option"
+                            data-product-code="@product.Code"
+                            data-product-label="@label">
+                            @label
+                        </button>
+                    }
+                </div>
+            </div>
+
+            <label for="CustomerId">مشتری</label>
+            <select id="CustomerId" name="CustomerId" class="form-select" data-live-search-submit-on-change>
+                <option value="" selected="@(Model.Customer is null)">همه مشتریان</option>
+                @foreach (var customer in Model.Customers)
+                {
+                    <option value="@customer.Id" selected="@(Model.Customer?.Id == customer.Id)">@customer.Name</option>
+                }
+            </select>
+        </form>
+
+        @if (Model.Lines.Any(line => line.IsDollar))
+        {
+            <div class="temporary-price-settings temporary-price-settings--top">
+                <label>
+                    <span>قیمت دلار</span>
+                    <input class="form-control js-temp-global" data-temp-field="dollarRate" value="@Money(Model.DollarRate)" inputmode="decimal" />
+                </label>
+            </div>
+        }
+
+        <div class="temporary-material-list">
+            @for (var index = 0; index < Model.Lines.Count; index++)
+            {
+                var line = Model.Lines[index];
+                <label class="temporary-material-control">
+                    <span><b>@(index + 1)</b>@line.MaterialName</span>
+                    <input class="form-control js-temp-material"
+                           data-line-index="@index"
+                           data-quantity="@Invariant(line.Quantity)"
+                           data-is-dollar="@line.IsDollar.ToString().ToLowerInvariant()"
+                           value="@(line.IsDollar ? Number(line.EditableUnitPrice) : Money(line.EditableUnitPrice))"
+                           inputmode="decimal" />
+                    <small>@(line.IsDollar ? "دلار" : "ریال") | مقدار @Quantity(line.Quantity)</small>
+                </label>
+            }
+        </div>
+
+        <div class="temporary-price-settings">
+            <label>
+                <span>درصد کسری</span>
+                <input class="form-control js-temp-global" data-temp-field="wastePercent" value="@Number(Model.WastePercent)" inputmode="decimal" />
+            </label>
+            <label>
+                <span>درصد سود</span>
+                <input class="form-control js-temp-global" data-temp-field="profitPercent" data-temp-precise-value="@Invariant(Model.ProfitPercent)" value="@Number(Model.ProfitPercent)" inputmode="decimal" />
+            </label>
+            <label>
+                <span>درصد مالیات</span>
+                <input class="form-control js-temp-global" data-temp-field="vatPercent" value="@Number(Model.VatPercent)" inputmode="decimal" />
+            </label>
+        </div>
+    </aside>
+
+    <main class="temporary-price-preview">
+        <section class="print-sheet temporary-print-sheet">
+            <header class="print-header">
+                <div>
+                    <h1>محصول @Model.ProductCode</h1>
+                    @if (Model.Customer is not null)
+                    {
+                        <span>مشتری: @Model.Customer.Name</span>
+                    }
+                </div>
+                <div class="print-actions">
+                    <span>تاریخ: @Model.ReportDateText</span>
+                </div>
+            </header>
+
+            <table class="print-table temporary-price-table">
+                <thead>
+                    <tr>
+                        <th>ردیف</th>
+                        <th>شرح</th>
+                        <th>مقدار</th>
+                        <th>فی</th>
+                        <th>نقدی</th>
+                        <th>اعتباری</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < Model.Lines.Count; index++)
+                    {
+                        var line = Model.Lines[index];
+                        <tr data-preview-line="@index" data-preview-is-dollar="@line.IsDollar.ToString().ToLowerInvariant()">
+                            <td>@(index + 1)</td>
+                            <td>@line.MaterialName</td>
+                            <td>@Quantity(line.Quantity)</td>
+                            <td data-temp-output="unitPrice">0</td>
+                            <td data-temp-output="cashAmount">0</td>
+                            <td data-temp-output="creditAmount">0</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="4">جمع</th>
+                        <th data-temp-output="cashTotal">0</th>
+                        <th data-temp-output="creditTotal">0</th>
+                    </tr>
+                    <tr data-preview-summary="wastePercent">
+                        <th colspan="4">کسری و ضایعات (<span data-temp-output="wasteLabel">0٪</span>)</th>
+                        <th data-temp-output="cashWaste">0</th>
+                        <th data-temp-output="creditWaste">0</th>
+                    </tr>
+                    <tr>
+                        <th colspan="4">قیمت تمام شده</th>
+                        <th data-temp-output="cashCost">0</th>
+                        <th data-temp-output="creditCost">0</th>
+                    </tr>
+                    <tr data-preview-summary="profitPercent">
+                        <th colspan="4">قیمت با احتساب سود (<span data-temp-output="profitLabel">0٪</span>)</th>
+                        <th data-temp-output="cashSale">0</th>
+                        <th data-temp-output="creditSale">0</th>
+                    </tr>
+                    <tr>
+                        <th colspan="4">قیمت با تخفیف (نقدی @Number(Model.CashDiscountPercent)٪ / اعتباری @Number(Model.CreditDiscountPercent)٪)</th>
+                        <th data-temp-output="cashDiscounted">0</th>
+                        <th data-temp-output="creditDiscounted">0</th>
+                    </tr>
+                    <tr class="final-row" data-preview-summary="vatPercent">
+                        <th colspan="4">قیمت با ارزش افزوده (<span data-temp-output="vatLabel">0٪</span>)</th>
+                        <th data-temp-output="cashFinal">0</th>
+                        <th data-temp-output="creditFinal">0</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </section>
+    </main>
+</section>
+
+@section Scripts {
+    <script>
+        (() => {
+            const root = document.querySelector(".temporary-price-workbench");
+            if (!root) return;
+
+            const parseNumber = (value) => Number(String(value || "0").replace(/,/g, "").trim()) || 0;
+            const roundPrice = (value) => Math.round(Math.max(0, Number(value) || 0) / 100) * 100;
+            const formatMoney = (value) => roundPrice(value).toLocaleString("en-US");
+            const formatNumber = (value) => {
+                const rounded = Math.round((Number(value) || 0) * 100) / 100;
+                return rounded.toLocaleString("en-US", { maximumFractionDigits: 2 });
+            };
+            const setOutput = (name, value, formatter = formatMoney) => {
+                root.querySelectorAll(`[data-temp-output="${name}"]`).forEach((element) => {
+                    element.textContent = formatter(value);
+                });
+            };
+            const globalInput = (field) => root.querySelector(`[data-temp-field="${field}"]`);
+            const globalValue = (field) => {
+                const input = globalInput(field);
+                if (!input) return 0;
+                return parseNumber(input.dataset.tempUseDisplayValue === "true"
+                    ? input.value
+                    : input.dataset.tempPreciseValue || input.value);
+            };
+            const calculateCustomerPrice = (price, discountPercent) => roundPrice(price * (1 - discountPercent / 100));
+            const applyVat = (price, vatPercent) => roundPrice(price * (1 + vatPercent / 100));
+            const formatInput = (input) => {
+                input.value = parseNumber(input.value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+            };
+            const clearActivePreviewRows = () => {
+                root.querySelectorAll(".temporary-price-row--editing").forEach((row) => {
+                    row.classList.remove("temporary-price-row--editing");
+                });
+            };
+            const highlightEditedRows = (input) => {
+                clearActivePreviewRows();
+
+                if (input.classList.contains("js-temp-material")) {
+                    root.querySelector(`[data-preview-line="${input.dataset.lineIndex}"]`)
+                        ?.classList.add("temporary-price-row--editing");
+                    return;
+                }
+
+                const field = input.dataset.tempField;
+                if (field === "dollarRate") {
+                    root.querySelectorAll('[data-preview-is-dollar="true"]').forEach((row) => {
+                        row.classList.add("temporary-price-row--editing");
+                    });
+                    return;
+                }
+
+                root.querySelector(`[data-preview-summary="${field}"]`)
+                    ?.classList.add("temporary-price-row--editing");
+            };
+
+            const update = () => {
+                const dollarRate = globalValue("dollarRate");
+                const wastePercent = globalValue("wastePercent");
+                const profitPercent = globalValue("profitPercent");
+                const vatPercent = globalValue("vatPercent");
+                const creditMultiplier = parseNumber(root.dataset.creditMultiplier);
+                const cashDiscount = parseNumber(root.dataset.cashDiscount);
+                const creditDiscount = parseNumber(root.dataset.creditDiscount);
+                let rawCashTotal = 0;
+
+                root.querySelectorAll(".js-temp-material").forEach((input) => {
+                    const index = input.dataset.lineIndex;
+                    const quantity = parseNumber(input.dataset.quantity);
+                    const sourcePrice = parseNumber(input.value);
+                    const unitPrice = input.dataset.isDollar === "true" ? sourcePrice * dollarRate : sourcePrice;
+                    const cashAmount = quantity * unitPrice;
+                    const creditAmount = cashAmount * creditMultiplier;
+                    const row = root.querySelector(`[data-preview-line="${index}"]`);
+                    rawCashTotal += cashAmount;
+
+                    row.querySelector('[data-temp-output="unitPrice"]').textContent = formatMoney(unitPrice);
+                    row.querySelector('[data-temp-output="cashAmount"]').textContent = formatMoney(cashAmount);
+                    row.querySelector('[data-temp-output="creditAmount"]').textContent = formatMoney(creditAmount);
+                });
+
+                const cashTotal = roundPrice(rawCashTotal);
+                const creditTotal = roundPrice(cashTotal * creditMultiplier);
+                const cashWaste = roundPrice(cashTotal * wastePercent / 100);
+                const creditWaste = roundPrice(creditTotal * wastePercent / 100);
+                const cashCost = roundPrice(cashTotal + cashWaste);
+                const creditCost = roundPrice(creditTotal + creditWaste);
+                const cashSale = roundPrice(cashCost * (1 + profitPercent / 100));
+                const creditSale = roundPrice(creditCost * (1 + profitPercent / 100));
+                const cashDiscounted = calculateCustomerPrice(cashSale, cashDiscount);
+                const creditDiscounted = calculateCustomerPrice(creditSale, creditDiscount);
+
+                setOutput("cashTotal", cashTotal);
+                setOutput("creditTotal", creditTotal);
+                setOutput("cashWaste", cashWaste);
+                setOutput("creditWaste", creditWaste);
+                setOutput("cashCost", cashCost);
+                setOutput("creditCost", creditCost);
+                setOutput("cashSale", cashSale);
+                setOutput("creditSale", creditSale);
+                setOutput("cashDiscounted", cashDiscounted);
+                setOutput("creditDiscounted", creditDiscounted);
+                setOutput("cashFinal", applyVat(cashDiscounted, vatPercent));
+                setOutput("creditFinal", applyVat(creditDiscounted, vatPercent));
+                setOutput("wasteLabel", wastePercent, (value) => `${formatNumber(value)}٪`);
+                setOutput("profitLabel", profitPercent, (value) => `${formatNumber(value)}٪`);
+                setOutput("vatLabel", vatPercent, (value) => `${formatNumber(value)}٪`);
+            };
+
+            root.querySelectorAll(".js-temp-global, .js-temp-material").forEach((input) => {
+                input.addEventListener("focus", () => highlightEditedRows(input));
+                input.addEventListener("input", () => {
+                    input.dataset.tempUseDisplayValue = "true";
+                    update();
+                });
+                input.addEventListener("blur", () => {
+                    clearActivePreviewRows();
+                    formatInput(input);
+                    update();
+                });
+            });
+
+            update();
+        })();
+    </script>
+}
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string Number(decimal value) => string.Format("{0:N2}", value).TrimEnd('0').TrimEnd('.');
+    private static string Quantity(decimal value) => value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Invariant(decimal value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+}

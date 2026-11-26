@@ -1,0 +1,172 @@
+@inject TextilePricingApp.Services.PriceFreshnessService PriceFreshness
+@inject TextilePricingApp.Services.PageAccessService Access
+@{
+    var freshnessStatus = PriceFreshness.GetStatus();
+    var pagePath = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+    var formKey = pagePath switch
+    {
+        "/Materials" => "Materials",
+        "/MaterialUsage" => "MaterialUsage",
+        "/Customers" => "Customers",
+        "/CustomerProductAssignments" => "CustomerProductAssignments",
+        "/ProfitTiers" => "ProfitTiers",
+        "/WasteTiers" => "WasteTiers",
+        "/ProductGroups" => "ProductGroups",
+        "/Settings" => "Settings",
+        "/Analyses" => "Analyses",
+        "/Index" => "PriceAnalysis",
+        "/TemporaryPrice" => "TemporaryPrice",
+        "/FactoryPrices" => "FactoryPrices",
+        "/CustomerPrices" => "CustomerPrices",
+        "/CustomerPanel" => "CustomerPrices",
+        "/PriceSnapshots" => "PriceSnapshots",
+        "/AuditLogs" => "AuditLogs",
+        "/Users" => "Security",
+        "/Roles" => "Security",
+        _ => ""
+    };
+    var canEditCurrentPage = string.IsNullOrWhiteSpace(formKey) || Access.CanEdit(formKey);
+    var bodyClass = Access.IsAuthenticated && !canEditCurrentPage ? "view-only" : "";
+    var baseInfoPages = new[] { "/Materials", "/ProductGroups", "/Customers", "/CustomerProductAssignments", "/ProfitTiers", "/WasteTiers", "/Settings" };
+    var productAnalysisPages = new[] { "/Analyses", "/MaterialUsage", "/Index" };
+    var pricingPages = new[] { "/FactoryPrices", "/CustomerPrices", "/CustomerPanel", "/PriceSnapshots", "/TemporaryPrice" };
+    var managementPages = new[] { "/Users", "/Roles", "/AuditLogs" };
+    var isEmbedded = Context.Request.Query.ContainsKey("embedded") ||
+        (Context.Request.HasFormContentType && Context.Request.Form.ContainsKey("embedded"));
+    var requestPath = Context.Request.Path.Value ?? "";
+    var noChromePages = new[] { "/Login", "/Logout" };
+    var showAppChrome = Access.IsAuthenticated &&
+        !isEmbedded &&
+        !noChromePages.Contains(pagePath) &&
+        !noChromePages.Any(path => requestPath.StartsWith(path, StringComparison.OrdinalIgnoreCase));
+    var pageBodyClass = string.IsNullOrWhiteSpace(pagePath)
+        ? ""
+        : "page-" + pagePath.Trim('/').Replace("/", "-").ToLowerInvariant();
+    bodyClass = string.Join(" ", new[] { bodyClass, pageBodyClass, showAppChrome ? "app-chrome" : "", isEmbedded ? "app-embedded" : "" }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - نرم‌افزار آنالیز قیمت</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.rtl.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/TextilePricingApp.styles.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="@bodyClass">
+    @if (showAppChrome)
+    {
+    <div class="top-bars">
+        @if (Access.IsAuthenticated && freshnessStatus.HasWarning)
+        {
+            <div class="freshness-alert">
+                @freshnessStatus.Message
+            </div>
+        }
+        <header>
+            <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow">
+            <div class="container">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        @if (Access.IsAuthenticated)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark @(pagePath == "/Home" ? "active" : "")" asp-area="" asp-page="/Home">داشبورد</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark @(baseInfoPages.Contains(pagePath) ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    اطلاعات پایه
+                                </a>
+                                <ul class="dropdown-menu">
+                                    @if (Access.CanView("Materials")) { <li><a class="dropdown-item @(pagePath == "/Materials" ? "active" : "")" asp-area="" asp-page="/Materials">کالاها و خدمات</a></li> }
+                                    @if (Access.CanView("ProductGroups")) { <li><a class="dropdown-item @(pagePath == "/ProductGroups" ? "active" : "")" asp-area="" asp-page="/ProductGroups">گروه‌های محصول</a></li> }
+                                    @if (Access.CanView("Customers")) { <li><a class="dropdown-item @(pagePath == "/Customers" ? "active" : "")" asp-area="" asp-page="/Customers">مشتریان</a></li> }
+                                    @if (Access.CanView("CustomerProductAssignments")) { <li><a class="dropdown-item @(pagePath == "/CustomerProductAssignments" ? "active" : "")" asp-page="/CustomerProductAssignments">ارتباط کالا و مشتری</a></li> }
+                                    @if (Access.CanView("ProfitTiers")) { <li><a class="dropdown-item @(pagePath == "/ProfitTiers" ? "active" : "")" asp-area="" asp-page="/ProfitTiers">درصد سود محصولات</a></li> }
+                                    @if (Access.CanView("WasteTiers")) { <li><a class="dropdown-item @(pagePath == "/WasteTiers" ? "active" : "")" asp-area="" asp-page="/WasteTiers">درصد ضایعات</a></li> }
+                                    @if (Access.CanView("Settings")) { <li><a class="dropdown-item @(pagePath == "/Settings" ? "active" : "")" asp-area="" asp-page="/Settings">تنظیمات عمومی</a></li> }
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark @(productAnalysisPages.Contains(pagePath) ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    محصولات و آنالیز
+                                </a>
+                                <ul class="dropdown-menu">
+                                    @if (Access.CanView("Analyses")) { <li><a class="dropdown-item @(pagePath == "/Analyses" ? "active" : "")" asp-area="" asp-page="/Analyses">تعریف و آنالیز محصول</a></li> }
+                                    @if (Access.CanView("MaterialUsage")) { <li><a class="dropdown-item @(pagePath == "/MaterialUsage" ? "active" : "")" asp-area="" asp-page="/MaterialUsage">گزارش مصرف مواد</a></li> }
+                                    @if (Access.CanView("PriceAnalysis")) { <li><a class="dropdown-item @(pagePath == "/Index" ? "active" : "")" href="/QuickPrice">محاسبه قیمت آنالیز</a></li> }
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark @(pricingPages.Contains(pagePath) ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    قیمت‌گذاری
+                                </a>
+                                <ul class="dropdown-menu">
+                                    @if (Access.CanView("FactoryPrices")) { <li><a class="dropdown-item @(pagePath == "/FactoryPrices" ? "active" : "")" asp-area="" asp-page="/FactoryPrices">قیمت فروش کارخانه</a></li> }
+                                    @if (Access.CanView("CustomerPrices")) { <li><a class="dropdown-item @(pagePath == "/CustomerPrices" ? "active" : "")" asp-area="" asp-page="/CustomerPrices">قیمت فروش مشتریان</a></li> }
+                                    @if (Access.CanView("CustomerPrices")) { <li><a class="dropdown-item @(pagePath == "/CustomerPanel" ? "active" : "")" asp-area="" asp-page="/CustomerPanel">پنل مشتریان</a></li> }
+                                    @if (Access.CanView("TemporaryPrice")) { <li><a class="dropdown-item @(pagePath == "/TemporaryPrice" ? "active" : "")" asp-area="" asp-page="/TemporaryPrice">قیمت موقت</a></li> }
+                                    @if (Access.CanView("PriceSnapshots")) { <li><a class="dropdown-item @(pagePath == "/PriceSnapshots" ? "active" : "")" asp-area="" asp-page="/PriceSnapshots">آرشیو قیمت‌ها</a></li> }
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark @(managementPages.Contains(pagePath) ? "active" : "")" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    مدیریت سیستم
+                                </a>
+                                <ul class="dropdown-menu">
+                                    @if (Access.CanView("Security")) { <li><a class="dropdown-item @(pagePath == "/Users" ? "active" : "")" asp-area="" asp-page="/Users">کاربران</a></li> }
+                                    @if (Access.CanView("Security")) { <li><a class="dropdown-item @(pagePath == "/Roles" ? "active" : "")" asp-area="" asp-page="/Roles">نقش‌ها و دسترسی‌ها</a></li> }
+                                    @if (Access.CanView("AuditLogs")) { <li><a class="dropdown-item @(pagePath == "/AuditLogs" ? "active" : "")" asp-area="" asp-page="/AuditLogs">لاگ تغییرات</a></li> }
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown ms-auto">
+                                <a class="nav-link dropdown-toggle text-dark" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">@Access.DisplayName</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-page="/ChangePassword">تغییر رمز</a></li>
+                                    <li><a class="dropdown-item" asp-page="/License">لایسنس</a></li>
+                                    <li><a class="dropdown-item" asp-page="/Logout">خروج</a></li>
+                                </ul>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+            </nav>
+        </header>
+    </div>
+    <div class="app-tabbar" data-app-tabbar>
+        <div class="app-tabbar__scroller" data-app-tab-list></div>
+    </div>
+    }
+    <div class="container-fluid app-shell">
+        <main role="main" class="pb-3" data-app-main-panel data-app-tab-title="@ViewData["Title"]">
+            @RenderBody()
+        </main>
+        @if (showAppChrome)
+        {
+            <div class="app-tab-frame-stack" data-app-tab-frame-stack></div>
+        }
+    </div>
+
+    @if (!isEmbedded)
+    {
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            © تمامی حقوق محفوظ است.
+        </div>
+    </footer>
+    }
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,145 @@
+@page
+@model AuditLogsModel
+@{
+    ViewData["Title"] = "گزارش تغییرات";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>گزارش تغییرات</h1>
+    </div>
+</section>
+
+<section class="crud-layout audit-layout">
+    <aside class="side-panel settings-panel audit-filter-panel">
+        <h2 class="panel-title">فیلتر</h2>
+        <form method="get" class="toolbar-form audit-filter-form">
+            <label for="EntityType">نوع موجودیت</label>
+            <select id="EntityType" name="EntityType" class="form-select">
+                <option value="">همه</option>
+                @foreach (var type in Model.EntityTypes)
+                {
+                    <option value="@type" selected="@(type == Model.EntityType)">@type</option>
+                }
+            </select>
+
+            <label for="EntityId">شناسه</label>
+            <input id="EntityId" name="EntityId" value="@Model.EntityId" class="form-control" placeholder="مثلا کد محصول یا شناسه مشتری" />
+
+            <label for="EntityName">نام</label>
+            <input id="EntityName" name="EntityName" value="@Model.EntityName" class="form-control" placeholder="نام کالا، مشتری یا محصول" />
+
+            <label for="FieldName">فیلد</label>
+            <input id="FieldName" name="FieldName" value="@Model.FieldName" class="form-control" placeholder="قیمت، درصد سود، تخفیف..." />
+
+            <label for="Operation">عملیات</label>
+            <select id="Operation" name="Operation" class="form-select">
+                <option value="">همه</option>
+                @foreach (var operation in new[] { "ثبت", "ویرایش", "ویرایش گروهی", "محاسبه مجدد", "حذف", "کپی" })
+                {
+                    <option value="@operation" selected="@(operation == Model.Operation)">@operation</option>
+                }
+            </select>
+
+            <label for="ChangeKind">نوع تغییر</label>
+            <select id="ChangeKind" name="ChangeKind" class="form-select">
+                <option value="">همه</option>
+                <option value="Price" selected="@(Model.ChangeKind == "Price")">قیمت</option>
+                <option value="Percent" selected="@(Model.ChangeKind == "Percent")">درصد</option>
+                <option value="Number" selected="@(Model.ChangeKind == "Number")">عدد</option>
+                <option value="Text" selected="@(Model.ChangeKind == "Text")">متن</option>
+            </select>
+
+            <label for="From">از تاریخ میلادی</label>
+            <input id="From" name="From" value="@Model.From?.ToString("yyyy-MM-dd")" class="form-control" type="date" />
+
+            <label for="To">تا تاریخ میلادی</label>
+            <input id="To" name="To" value="@Model.To?.ToString("yyyy-MM-dd")" class="form-control" type="date" />
+
+            <label for="Search">جست‌وجو</label>
+            <input id="Search" name="Search" value="@Model.Search" class="form-control" placeholder="جست‌وجوی آزاد در لاگ" />
+
+            <label for="Take">تعداد</label>
+            <input id="Take" name="Take" value="@Model.Take" class="form-control" type="number" min="50" max="2000" step="50" />
+
+            <button class="btn btn-dark" type="submit">نمایش گزارش</button>
+            <a class="btn btn-outline-secondary" asp-page="/AuditLogs">پاک کردن فیلتر</a>
+        </form>
+    </aside>
+
+    <main class="report-panel audit-report-panel">
+        <div class="audit-summary">
+            <strong>@Model.Rows.Count</strong>
+            <span>تغییر ثبت‌شده</span>
+        </div>
+
+        <div class="table-responsive sticky-grid">
+            <table class="table audit-table">
+                <thead>
+                    <tr>
+                        <th>زمان</th>
+                        <th>بخش</th>
+                        <th>موجودیت</th>
+                        <th>فیلد</th>
+                        <th>از</th>
+                        <th>به</th>
+                        <th>عملیات</th>
+                        <th>نوع</th>
+                        <th>توضیح</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            <td>@AuditLogsModel.PersianDateTime(row.ChangedAt)</td>
+                            <td>@row.Area</td>
+                            <td>
+                                <strong>@row.EntityName</strong>
+                                <small>@row.EntityType | @row.EntityId</small>
+                            </td>
+                            <td>@row.FieldName</td>
+                            <td class="audit-value audit-value--old">@FormatValue(row.OldValue, row.ChangeKind)</td>
+                            <td class="audit-value audit-value--new">@FormatValue(row.NewValue, row.ChangeKind)</td>
+                            <td>@row.Operation</td>
+                            <td>@KindTitle(row.ChangeKind)</td>
+                            <td>@row.Note</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>
+
+@functions {
+    private static string KindTitle(string value) => value switch
+    {
+        "Price" => "قیمت",
+        "Percent" => "درصد",
+        "Number" => "عدد",
+        "Text" => "متن",
+        _ => value
+    };
+
+    private static string FormatValue(string value, string kind)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "-";
+        }
+
+        if (decimal.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var number))
+        {
+            return kind switch
+            {
+                "Price" => number.ToString("N0"),
+                "Percent" => $"{number:N2}٪".TrimEnd('0').TrimEnd('.'),
+                "Number" => number.ToString("N2").TrimEnd('0').TrimEnd('.'),
+                _ => value
+            };
+        }
+
+        return value;
+    }
+}

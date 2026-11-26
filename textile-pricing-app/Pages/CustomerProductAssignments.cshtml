@@ -1,0 +1,213 @@
+@page
+@model CustomerProductAssignmentsModel
+@inject TextilePricingApp.Services.PageAccessService AssignmentAccess
+@{
+    ViewData["Title"] = "ارتباط کالا و مشتری";
+    var canEdit = AssignmentAccess.CanEdit("CustomerProductAssignments");
+}
+<section class="page-heading"><div><h1>ارتباط کالا و مشتری</h1><p>یک کالا یا مشتری را انتخاب کنید تا ارتباط‌های آن در ستون وسط نمایش داده شود.</p></div></section>
+<section class="entity-panel mb-3" data-rubika-dispatch>
+    @if (canEdit) { <button type="button" class="btn btn-dark" data-rubika-prepare>ارسال قیمت برای مشتریان</button> }
+    <span>آخرین ارسال موفق (به وقت تهران): <span data-rubika-last>@TextilePricingApp.Services.RubikaDispatchRepository.DisplayDateTime(Model.LastSent)</span></span>
+    <p class="text-muted">ارسال فقط از ربات روبیکا به مشتریان دارای اتصال تأییدشده انجام می‌شود؛ حساب شخصی استفاده نمی‌شود. اتصال مشتری به ربات را در صفحهٔ مشتریان انجام دهید. جدول PDF شامل ردیف، کد کالا، کالا و قیمت است.</p>
+    <div role="status" aria-live="polite" data-rubika-status></div>
+    <details><summary>نتیجهٔ آخرین ارسال</summary><div data-rubika-results></div></details>
+</section>
+<dialog data-rubika-dialog style="max-width:800px;width:90%;max-height:85vh;overflow:auto;direction:rtl">
+    <h2>تأیید ارسال قیمت در روبیکا</h2>
+    <p data-rubika-summary></p>
+    <div data-rubika-preview></div>
+    <p>پیش از ارسال دوباره، نتیجهٔ ارسال قبلی را بررسی کنید؛ دریافت یا خوانده شدن پیام تضمین نمی‌شود.</p>
+    <button type="button" class="btn btn-dark" data-rubika-confirm>تأیید و ارسال</button>
+    <button type="button" class="btn btn-outline-secondary" data-rubika-dismiss>انصراف</button>
+</dialog>
+<div class="assignment-workspace" data-assignment-workspace>
+    <form hidden data-assignment-token>@Html.AntiForgeryToken()</form>
+    <section class="assignment-panel" data-side="product">
+        <h2>کالاها <small>(@Model.Products.Count)</small></h2>
+        <input class="form-control" type="search" placeholder="جست‌وجوی نام یا کد کالا" aria-label="جست‌وجوی کالا" data-assignment-search />
+        <div class="assignment-list">
+            <div class="assignment-list-heading"><span>کالا</span><span class="assignment-count">تعداد مشتریان</span>@if (canEdit) { <span class="assignment-edit-heading">عملیات</span> }</div>
+            @foreach (var item in Model.Products)
+            {
+                <div class="assignment-row" data-id="@item.Id" data-label="@item.Name" data-code="@item.Code">
+                    <input type="checkbox" hidden aria-label="اختصاص @item.Name" />
+                    <button type="button" class="assignment-select"><strong>@item.Code</strong><span>@item.Name</span></button>
+                    <span class="assignment-count" data-assignment-count aria-label="تعداد مشتریان">@Model.Counts.Products.GetValueOrDefault(item.Id)</span>
+                    @if (canEdit) { <button type="button" class="btn btn-sm btn-outline-dark assignment-edit" aria-label="ویرایش ارتباط‌های @item.Name">ویرایش</button> }
+                </div>
+            }
+            @if (Model.Products.Count == 0) { <p class="text-muted">کالایی ثبت نشده است.</p> }
+        </div>
+    </section>
+    <section class="assignment-panel assignment-panel--middle">
+        <h2 data-assignment-heading>ارتباط‌ها</h2>
+        <p class="text-muted" data-assignment-hint>از یکی از دو ستون کناری، ردیفی را انتخاب کنید.</p>
+        <div class="alert" hidden role="status" aria-live="polite" data-assignment-message></div>
+        <div class="assignment-list" data-assignment-relations></div>
+        <div class="assignment-actions" hidden data-assignment-actions>
+            <button type="button" class="btn btn-dark" data-assignment-save>ذخیره ارتباط‌ها</button>
+            <button type="button" class="btn btn-outline-secondary" data-assignment-cancel>انصراف</button>
+        </div>
+    </section>
+    <section class="assignment-panel" data-side="customer">
+        <h2>مشتریان <small>(@Model.Customers.Count)</small></h2>
+        <input class="form-control" type="search" placeholder="جست‌وجوی مشتری" aria-label="جست‌وجوی مشتری" data-assignment-search />
+        <div class="assignment-list">
+            <div class="assignment-list-heading"><span>مشتری</span><span class="assignment-count">تعداد کالاها</span>@if (canEdit) { <span class="assignment-edit-heading">عملیات</span> }</div>
+            @foreach (var item in Model.Customers)
+            {
+                <div class="assignment-row" data-id="@item.Id" data-label="@item.Name" data-code="">
+                    <input type="checkbox" hidden aria-label="اختصاص @item.Name" />
+                    <button type="button" class="assignment-select"><span>@item.Name</span></button>
+                    <span class="assignment-count" data-assignment-count aria-label="تعداد کالاها">@Model.Counts.Customers.GetValueOrDefault(item.Id)</span>
+                    @if (canEdit) { <button type="button" class="btn btn-sm btn-outline-dark assignment-edit" aria-label="ویرایش ارتباط‌های @item.Name">ویرایش</button> }
+                </div>
+            }
+            @if (Model.Customers.Count == 0) { <p class="text-muted">مشتری ثبت نشده است.</p> }
+        </div>
+    </section>
+</div>
+@section Scripts {
+<script src="~/js/rubika-dispatch.js" asp-append-version="true"></script>
+<script>
+(() => {
+    window.initializeRubikaDispatch?.();
+    const root = document.querySelector('[data-assignment-workspace]');
+    if (!root || root.dataset.bound) return;
+    root.dataset.bound = 'true';
+    const panels = [...root.querySelectorAll('[data-side]')];
+    const relations = root.querySelector('[data-assignment-relations]');
+    const heading = root.querySelector('[data-assignment-heading]');
+    const hint = root.querySelector('[data-assignment-hint]');
+    const message = root.querySelector('[data-assignment-message]');
+    const actions = root.querySelector('[data-assignment-actions]');
+    const save = root.querySelector('[data-assignment-save]');
+    let selected = null, editing = false, busy = false, original = new Set(), draft = new Set();
+    const opposite = () => panels.find(panel => panel.dataset.side !== selected.side);
+    const showMessage = (text, error = false) => {
+        message.textContent = text;
+        message.className = 'alert ' + (error ? 'alert-danger' : 'alert-success');
+        message.hidden = !text;
+    };
+    const render = () => {
+        panels.forEach(panel => panel.querySelectorAll('.assignment-row').forEach(row => {
+            const isOpposite = selected && panel.dataset.side !== selected.side;
+            row.classList.toggle('is-selected', !!selected && panel.dataset.side === selected.side && Number(row.dataset.id) === selected.id);
+            const check = row.querySelector('input[type=checkbox]');
+            check.hidden = !editing || !isOpposite;
+            const editButton = row.querySelector('.assignment-edit');
+            if (editButton) editButton.hidden = editing && !!isOpposite;
+            check.checked = draft.has(Number(row.dataset.id));
+            check.disabled = busy;
+            row.querySelectorAll('button').forEach(button => button.disabled = busy);
+        }));
+        panels.forEach(panel => {
+            const editHeading = panel.querySelector('.assignment-edit-heading');
+            if (editHeading) editHeading.hidden = editing && panel.dataset.side !== selected?.side;
+        });
+        actions.hidden = !editing;
+        save.disabled = busy;
+        root.querySelector('[data-assignment-cancel]').disabled = busy;
+        relations.replaceChildren();
+        if (!selected) return;
+        heading.textContent = (selected.side === 'product' ? 'مشتریانِ ' : 'کالاهایِ ') + selected.label;
+        hint.textContent = editing ? 'در ستون مقابل تیک بزنید یا بردارید، سپس ارتباط‌ها را ذخیره کنید.' : 'برای تغییر ارتباط‌ها، دکمهٔ ویرایش ردیف را بزنید.';
+        const rows = [...opposite().querySelectorAll('.assignment-row')].filter(row => draft.has(Number(row.dataset.id)));
+        rows.forEach(row => {
+            const entry = document.createElement('div');
+            entry.className = 'assignment-relation';
+            entry.dataset.id = row.dataset.id;
+            const label = document.createElement('span');
+            label.textContent = [row.dataset.code, row.dataset.label].filter(Boolean).join(' — ');
+            entry.append(label);
+            if (editing) {
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'btn btn-sm btn-outline-danger assignment-relation-remove';
+                remove.textContent = 'حذف';
+                remove.setAttribute('aria-label', `حذف ارتباط ${label.textContent}`);
+                remove.disabled = busy;
+                entry.append(remove);
+            }
+            relations.append(entry);
+        });
+        if (!rows.length) {
+            const empty = document.createElement('p');
+            empty.className = 'text-muted';
+            empty.textContent = 'هنوز ارتباطی انتخاب نشده است.';
+            relations.append(empty);
+        }
+    };
+    const dirty = () => original.size !== draft.size || [...original].some(id => !draft.has(id));
+    const load = async (side, row, edit) => {
+        if (busy) return;
+        if (editing && dirty() && !window.confirm('تغییرات ذخیره نشده‌اند. از آن‌ها صرف‌نظر شود؟')) return;
+        busy = true; render(); showMessage('');
+        try {
+            const url = new URL(window.location.href);
+            url.searchParams.set('handler', 'Relations');
+            url.searchParams.set('side', side);
+            url.searchParams.set('id', row.dataset.id);
+            const response = await fetch(url, { headers: { Accept: 'application/json' } });
+            if (!response.ok || !(response.headers.get('content-type') || '').includes('application/json')) throw new Error();
+            const result = await response.json();
+            selected = { side, id: Number(row.dataset.id), label: row.dataset.label };
+            original = new Set(result.ids); draft = new Set(result.ids); editing = edit;
+        } catch { showMessage('دریافت ارتباط‌ها انجام نشد. دوباره تلاش کنید.', true); }
+        finally { busy = false; render(); }
+    };
+    panels.forEach(panel => {
+        panel.querySelector('[data-assignment-search]').addEventListener('input', event => {
+            const normalize = text => text.replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLocaleLowerCase();
+            const query = normalize(event.target.value.trim());
+            panel.querySelectorAll('.assignment-row').forEach(row => row.hidden = !normalize(row.dataset.label + ' ' + row.dataset.code).includes(query));
+        });
+        panel.addEventListener('click', event => {
+            const button = event.target.closest('button');
+            if (!button) return;
+            const row = button.closest('.assignment-row');
+            if (!row) return;
+            load(panel.dataset.side, row, button.classList.contains('assignment-edit'));
+        });
+        panel.addEventListener('change', event => {
+            if (!editing || busy || panel.dataset.side === selected?.side || event.target.type !== 'checkbox') return;
+            const id = Number(event.target.closest('.assignment-row').dataset.id);
+            if (event.target.checked) draft.add(id); else draft.delete(id);
+            render(); showMessage('');
+        });
+    });
+    relations.addEventListener('click', event => {
+        const remove = event.target.closest('.assignment-relation-remove');
+        if (!remove || !editing || busy) return;
+        draft.delete(Number(remove.closest('.assignment-relation').dataset.id));
+        render(); showMessage('');
+    });
+    root.querySelector('[data-assignment-cancel]').addEventListener('click', () => {
+        draft = new Set(original); editing = false; render(); showMessage('');
+    });
+    save.addEventListener('click', async () => {
+        if (!selected || busy) return;
+        busy = true; render(); showMessage('');
+        try {
+            const url = new URL(window.location.href); url.searchParams.set('handler', 'Save');
+            const body = new FormData(root.querySelector('[data-assignment-token]'));
+            body.set('side', selected.side); body.set('id', String(selected.id));
+            draft.forEach(id => body.append('relatedIds', String(id)));
+            const response = await fetch(url, { method: 'POST', body, headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok || !(response.headers.get('content-type') || '').includes('application/json')) throw new Error();
+            const result = await response.json();
+            if (!result.saved) throw new Error();
+            panels.forEach(panel => {
+                const counts = panel.dataset.side === 'product' ? result.counts.products : result.counts.customers;
+                panel.querySelectorAll('.assignment-row').forEach(row => {
+                    row.querySelector('[data-assignment-count]').textContent = counts[row.dataset.id] || 0;
+                });
+            });
+            original = new Set(draft); editing = false; showMessage('ارتباط‌ها ذخیره شدند.');
+        } catch { showMessage('ذخیره انجام نشد. انتخاب‌های شما حفظ شده‌اند؛ دوباره تلاش کنید.', true); }
+        finally { busy = false; render(); }
+    });
+})();
+</script>
+}

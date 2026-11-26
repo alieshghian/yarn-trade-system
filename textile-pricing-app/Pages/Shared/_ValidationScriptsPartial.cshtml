@@ -1,0 +1,24 @@
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+<script>
+    if (window.jQuery && jQuery.validator) {
+        jQuery.extend(jQuery.validator.messages, {
+            required: "وارد کردن این فیلد الزامی است.",
+            remote: "لطفا مقدار این فیلد را اصلاح کنید.",
+            email: "لطفا یک نشانی ایمیل معتبر وارد کنید.",
+            url: "لطفا یک نشانی معتبر وارد کنید.",
+            date: "لطفا یک تاریخ معتبر وارد کنید.",
+            dateISO: "لطفا تاریخ را با قالب معتبر وارد کنید.",
+            number: "لطفا عدد معتبر وارد کنید.",
+            digits: "لطفا فقط رقم وارد کنید.",
+            equalTo: "لطفا مقدار یکسان وارد کنید.",
+            maxlength: jQuery.validator.format("حداکثر {0} کاراکتر وارد کنید."),
+            minlength: jQuery.validator.format("حداقل {0} کاراکتر وارد کنید."),
+            rangelength: jQuery.validator.format("تعداد کاراکتر باید بین {0} تا {1} باشد."),
+            range: jQuery.validator.format("مقدار باید بین {0} تا {1} باشد."),
+            max: jQuery.validator.format("مقدار باید کمتر یا برابر {0} باشد."),
+            min: jQuery.validator.format("مقدار باید بیشتر یا برابر {0} باشد."),
+            step: jQuery.validator.format("مقدار باید مضربی از {0} باشد.")
+        });
+    }
+</script>

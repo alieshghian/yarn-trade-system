@@ -1,0 +1,21 @@
+**/bin/
+**/obj/
+**/node_modules/
+Server/wwwroot/
+.run/
+backups/
+
+# Local configuration and operational data
+.vs/
+__pycache__/
+.env
+.env.*
+appsettings.Local.json
+*.log
+*.bak
+*.db
+*.db-*
+*.sqlite*
+*.pfx
+*.pem
+*.key

@@ -1,0 +1,101 @@
+@page
+@model UsersModel
+@{
+    ViewData["Title"] = "مدیریت کاربران";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>مدیریت کاربران</h1>
+    </div>
+    <a class="btn btn-outline-dark" asp-page="/Roles">نقش‌ها و دسترسی‌ها</a>
+</section>
+
+<section class="crud-layout users-layout">
+    <aside class="side-panel settings-panel">
+        @if (Model.Saved)
+        {
+            <div class="alert alert-success">کاربر ذخیره شد.</div>
+        }
+
+        <h2 class="panel-title">@(Model.Input.Id > 0 ? "ویرایش کاربر" : "کاربر جدید")</h2>
+        <a class="btn btn-outline-dark w-100 mb-3" asp-page="/Users">جدید</a>
+        <form method="post" asp-page-handler="Save" class="stack">
+            <input type="hidden" asp-for="Input.Id" />
+
+            <label asp-for="Input.UserName">نام کاربری</label>
+            <input asp-for="Input.UserName" class="form-control" autocomplete="off" />
+            <span asp-validation-for="Input.UserName" class="text-danger"></span>
+
+            <label asp-for="Input.DisplayName">نام نمایشی</label>
+            <input asp-for="Input.DisplayName" class="form-control" autocomplete="off" />
+
+            <label asp-for="Input.Password">رمز عبور @(Model.Input.Id > 0 ? "(درصورت تغییر پر شود)" : "")</label>
+            <input asp-for="Input.Password" class="form-control" type="password" autocomplete="new-password" />
+            <span asp-validation-for="Input.Password" class="text-danger"></span>
+
+            <label class="form-check">
+                <input asp-for="Input.IsActive" class="form-check-input" />
+                <span class="form-check-label">فعال</span>
+            </label>
+
+            <label class="form-check">
+                <input asp-for="Input.IsAdmin" class="form-check-input" />
+                <span class="form-check-label">مدیر سیستم</span>
+            </label>
+
+            <label>نقش‌ها</label>
+            <div class="check-list">
+                @foreach (var role in Model.Roles)
+                {
+                    <label class="form-check">
+                        <input class="form-check-input" type="checkbox" name="Input.RoleIds" value="@role.Id" checked="@Model.SelectedRoleIds.Contains(role.Id)" />
+                        <span class="form-check-label">@role.Name</span>
+                    </label>
+                }
+            </div>
+
+        <button class="btn btn-dark" type="submit">ذخیره کاربر (F3)</button>
+        </form>
+    </aside>
+
+    <main class="report-panel">
+        <div class="table-responsive">
+            <table class="table align-middle pricing-table compact-table">
+                <thead>
+                    <tr>
+                        <th>نام کاربری</th>
+                        <th>نام نمایشی</th>
+                        <th>وضعیت</th>
+                        <th>مدیر</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in Model.Users)
+                    {
+                        <tr>
+                            <td>@user.UserName</td>
+                            <td>@user.DisplayName</td>
+                            <td>@(user.IsActive ? "فعال" : "غیرفعال")</td>
+                            <td>@(user.IsAdmin ? "بله" : "خیر")</td>
+                            <td class="row-actions">
+                                <a class="btn btn-sm btn-outline-dark" asp-page="/Users" asp-route-EditId="@user.Id">ویرایش</a>
+                                @if (!user.IsAdmin)
+                                {
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@user.Id" onsubmit="return confirm('این کاربر حذف شود؟')">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">حذف</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

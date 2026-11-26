@@ -1,0 +1,217 @@
+@page
+@model SettingsModel
+@inject TextilePricingApp.Services.PageAccessService SettingsAccess
+@{
+    ViewData["Title"] = "تنظیمات";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>تنظیمات</h1>
+    </div>
+    <a class="btn btn-outline-dark" asp-page="/Index">بازگشت به آنالیز</a>
+</section>
+
+@if (SettingsAccess.IsAdmin)
+{
+    <section class="entity-panel mb-3">
+        <h2>ربات ارسال‌کنندهٔ روبیکا</h2>
+        <p>ارسال از API رسمی ربات انجام می‌شود؛ حساب شخصی دیگر استفاده نمی‌شود. توکن به‌صورت رمزگذاری‌شده ذخیره می‌شود و نمایش داده نمی‌شود.</p>
+        <p>ربات را در BotFather روبیکا بسازید و توکن را اینجا ثبت کنید. هر مشتری باید لینک اختصاصی خود را شروع کند؛ سپس اتصال او را در صفحهٔ مشتریان تأیید کنید.</p>
+        <p class="text-muted">برای لغو نشست حساب شخصیِ قبلی، در روبیکا از بخش دستگاه‌های فعال خارجش کنید. ربات هم باید قوانین و محدودیت‌های ارسال روبیکا را رعایت کند.</p>
+        @if (Model.RubikaMessage is not null) { <div class="alert alert-info" role="status">@Model.RubikaMessage</div> }
+        @if (Model.RubikaState.Connected)
+        {
+            <p>ربات متصل: @Model.RubikaState.Title</p>
+            <a href="@Model.RubikaState.ShareUrl" target="_blank" rel="noopener">باز کردن ربات</a>
+            <form method="post" asp-page-handler="RubikaDisconnect" data-no-ajax-post="true" onsubmit="return confirm('اتصال ربات از برنامه قطع شود؟')">
+                <button class="btn btn-outline-danger" type="submit">قطع اتصال ربات</button>
+            </form>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="RubikaBot" data-no-ajax-post="true" class="toolbar-form" autocomplete="off">
+                <label>توکن ربات <input name="botToken" class="form-control" type="password" dir="ltr" required maxlength="256" autocomplete="new-password" /></label>
+                <button class="btn btn-dark" type="submit">بررسی و اتصال ربات</button>
+            </form>
+        }
+    </section>
+}
+
+<section class="crud-layout settings-layout materials-layout">
+    <aside class="side-panel settings-panel base-info-side-panel">
+        <h2 class="panel-title">نرخ‌ها و مالیات</h2>
+        @if (Model.Saved)
+        {
+            <div class="alert alert-success">تنظیمات ذخیره شد.</div>
+        }
+        <form method="post" asp-page-handler="Save" class="settings-compact-form">
+            <div class="settings-control-row">
+                <label asp-for="Input.CompanyName" class="settings-control-label">نام شرکت (هدر PDF)</label>
+                <input asp-for="Input.CompanyName" class="form-control" maxlength="60" />
+                <span asp-validation-for="Input.CompanyName" class="text-danger"></span>
+            </div>
+            <div class="settings-control-row">
+                <label asp-for="Input.DollarRate" class="settings-control-label">قیمت دلار</label>
+                <input name="Input.DollarRate" value="@Money(Model.Input.DollarRate)" class="form-control js-money-input" inputmode="numeric" autocomplete="off" data-number-format="money" />
+                <span asp-validation-for="Input.DollarRate" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <span class="settings-control-label">
+                    <label asp-for="Input.DollarIncreasePercent">درصد افزایش دلار</label>
+                    <button class="settings-help-icon" type="button" title="نرخ موثر دلار: @Money(Model.Input.EffectiveDollarRate)" aria-label="راهنمای درصد افزایش دلار">?</button>
+                </span>
+                <input asp-for="Input.DollarIncreasePercent" class="form-control" type="number" min="0" step="0.01" />
+                <span asp-validation-for="Input.DollarIncreasePercent" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <span class="settings-control-label">
+                    <label asp-for="Input.VatPercent">مالیات بر ارزش افزوده</label>
+                    <button class="settings-help-icon" type="button" title="عدد را به درصد وارد کنید؛ مثلا ۶ یعنی ۶٪." aria-label="راهنمای مالیات بر ارزش افزوده">?</button>
+                </span>
+                <input asp-for="Input.VatPercent" class="form-control" type="number" step="0.01" />
+                <span asp-validation-for="Input.VatPercent" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <span class="settings-control-label">
+                    <label asp-for="Input.GlobalProfitPercent">سود همه محصولات</label>
+                    <button class="settings-help-icon" type="button" title="این درصد برای محاسبه فروش همه محصولات استفاده می‌شود." aria-label="راهنمای سود همه محصولات">?</button>
+                </span>
+                <input asp-for="Input.GlobalProfitPercent" class="form-control" type="number" min="0" step="0.01" />
+                <span asp-validation-for="Input.GlobalProfitPercent" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <span class="settings-control-label">
+                    <label asp-for="Input.CashPaymentDiscountPercent">تخفیف پرداخت نقدی</label>
+                    <button class="settings-help-icon" type="button" title="در صورت خرید نقدی، این درصد از قیمت مشتری کم می‌شود." aria-label="راهنمای تخفیف پرداخت نقدی">?</button>
+                </span>
+                <input asp-for="Input.CashPaymentDiscountPercent" class="form-control" type="number" min="0" max="100" step="0.01" />
+                <span asp-validation-for="Input.CashPaymentDiscountPercent" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <label asp-for="Input.ForeignTransportPerContainerUsd" class="settings-control-label">حمل خارجی ـ دلار</label>
+                <input asp-for="Input.ForeignTransportPerContainerUsd" class="form-control" type="number" min="0" step="0.01" />
+                <span asp-validation-for="Input.ForeignTransportPerContainerUsd" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <label asp-for="Input.DomesticTransportPerContainerRial" class="settings-control-label">حمل داخلی ـ ریال</label>
+                <input name="Input.DomesticTransportPerContainerRial" value="@Money(Model.Input.DomesticTransportPerContainerRial)" class="form-control js-money-input" inputmode="numeric" autocomplete="off" data-number-format="money" />
+                <span asp-validation-for="Input.DomesticTransportPerContainerRial" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <label asp-for="Input.DollarRefreshDays" class="settings-control-label">اعتبار دلار</label>
+                <input asp-for="Input.DollarRefreshDays" class="form-control" type="number" min="1" step="1" />
+                <span asp-validation-for="Input.DollarRefreshDays" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <label asp-for="Input.GoodsRefreshDays" class="settings-control-label">اعتبار کالا</label>
+                <input asp-for="Input.GoodsRefreshDays" class="form-control" type="number" min="1" step="1" />
+                <span asp-validation-for="Input.GoodsRefreshDays" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <label asp-for="Input.ServicesRefreshDays" class="settings-control-label">اعتبار خدمات</label>
+                <input asp-for="Input.ServicesRefreshDays" class="form-control" type="number" min="1" step="1" />
+                <span asp-validation-for="Input.ServicesRefreshDays" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row">
+                <span class="settings-control-label">
+                    <label asp-for="Input.PriceChangeConfirmationThresholdPercent">آستانه تأیید تغییر قیمت</label>
+                    <button class="settings-help-icon" type="button" title="اگر تغییر قیمت کالا یا خدمت از این درصد بیشتر باشد، تأیید کاربر الزامی می‌شود." aria-label="راهنمای آستانه تأیید تغییر قیمت">?</button>
+                </span>
+                <input asp-for="Input.PriceChangeConfirmationThresholdPercent" class="form-control" type="number" min="0" step="0.01" />
+                <span asp-validation-for="Input.PriceChangeConfirmationThresholdPercent" class="text-danger"></span>
+            </div>
+
+            <div class="settings-control-row settings-control-row--switch">
+                <span class="settings-control-label">
+                    <label asp-for="Input.EnforceAnalysisSelectionScope">کنترل گزینه‌های مجاز</label>
+                    <button class="settings-help-icon" type="button" title="در حالت غیرفعال، کمبوی اقلام آنالیز بر اساس نوع ردیف محدود نمی‌شود." aria-label="راهنمای کنترل گزینه‌های مجاز">?</button>
+                </span>
+                <div class="form-check form-switch settings-switch">
+                    <input asp-for="Input.EnforceAnalysisSelectionScope" class="form-check-input" type="checkbox" />
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-dark">ذخیره (F3)</button>
+        </form>
+    </aside>
+
+    <main class="report-panel">
+        <div class="summary-grid settings-summary">
+            <div>
+                <span>قیمت دلار فعلی</span>
+                <strong>@Money(Model.Input.DollarRate)</strong>
+                <small>آخرین ویرایش: @SettingsModel.PersianDate(Model.DollarUpdatedAt)</small>
+            </div>
+            <div>
+                <span>درصد افزایش دلار</span>
+                <strong>@Number(Model.Input.DollarIncreasePercent)٪</strong>
+                <small>نرخ موثر محاسبات: @Money(Model.Input.EffectiveDollarRate)</small>
+            </div>
+            <div>
+                <span>مالیات ارزش افزوده فعلی</span>
+                <strong>@Number(Model.Input.VatPercent)٪</strong>
+                <small>روی مبلغ فروش با سود اعمال می‌شود.</small>
+            </div>
+            <div>
+                <span>سود همه محصولات</span>
+                <strong>@Number(Model.Input.GlobalProfitPercent)٪</strong>
+                <small>در محاسبه همه محصولات اعمال می‌شود.</small>
+            </div>
+            <div>
+                <span>تخفیف پرداخت نقدی</span>
+                <strong>@Number(Model.Input.CashPaymentDiscountPercent)٪</strong>
+                <small>روی قیمت مشتری برای خرید نقدی اعمال می‌شود.</small>
+            </div>
+            <div>
+                <span>حمل خارجی هر کانتینر</span>
+                <strong>@Number(Model.Input.ForeignTransportPerContainerUsd) دلار</strong>
+                <small>در نرخ دلار ضرب و بر متراژ کانتینر تقسیم می‌شود.</small>
+            </div>
+            <div>
+                <span>حمل داخلی هر کانتینر</span>
+                <strong>@Money(Model.Input.DomesticTransportPerContainerRial) ریال</strong>
+                <small>بر متراژ کانتینر تقسیم می‌شود.</small>
+            </div>
+            <div>
+                <span>اعتبار قیمت دلار</span>
+                <strong>@Model.Input.DollarRefreshDays روز</strong>
+                <small>پس از این بازه هشدار داده می‌شود.</small>
+            </div>
+            <div>
+                <span>اعتبار قیمت کالا</span>
+                <strong>@Model.Input.GoodsRefreshDays روز</strong>
+                <small>برای ردیف‌های نوع کالا.</small>
+            </div>
+            <div>
+                <span>اعتبار قیمت خدمات</span>
+                <strong>@Model.Input.ServicesRefreshDays روز</strong>
+                <small>برای ردیف‌های نوع خدمت.</small>
+            </div>
+            <div>
+                <span>آستانه تأیید تغییر قیمت</span>
+                <strong>@Number(Model.Input.PriceChangeConfirmationThresholdPercent)٪</strong>
+                <small>برای تغییرات بزرگ‌تر از این درصد تأیید لازم است.</small>
+            </div>
+        </div>
+    </main>
+</section>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string Number(decimal value) => string.Format("{0:N2}", value).TrimEnd('0').TrimEnd('.');
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

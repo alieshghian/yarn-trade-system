@@ -1,0 +1,96 @@
+@page
+@model RolesModel
+@{
+    ViewData["Title"] = "نقش‌ها و دسترسی‌ها";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>نقش‌ها و دسترسی‌ها</h1>
+    </div>
+    <a class="btn btn-outline-dark" asp-page="/Users">کاربران</a>
+</section>
+
+<section class="crud-layout roles-layout">
+    <aside class="side-panel settings-panel">
+        @if (Model.Saved)
+        {
+            <div class="alert alert-success">نقش و دسترسی‌ها ذخیره شد.</div>
+        }
+
+        <h2 class="panel-title">@(Model.Input.Id > 0 ? "ویرایش نقش" : "نقش جدید")</h2>
+        <form method="post" asp-page-handler="Save" class="stack role-editor-form">
+            <input type="hidden" asp-for="Input.Id" />
+            <label asp-for="Input.Name" class="role-name-label">نام نقش</label>
+            <input asp-for="Input.Name" class="form-control role-name-input" autocomplete="off" />
+            <span asp-validation-for="Input.Name" class="text-danger role-name-validation"></span>
+
+            <div class="permission-table-wrap">
+                <table class="table align-middle pricing-table permission-table">
+                    <thead>
+                        <tr>
+                            <th>فرم</th>
+                            <th>مشاهده</th>
+                            <th>ویرایش</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < Model.Forms.Count; index++)
+                        {
+                            var form = Model.Forms[index];
+                            var permission = Model.CurrentPermissions.TryGetValue(form.Key, out var item) ? item : null;
+                            <tr>
+                                <td>
+                                    @form.Title
+                                    <input type="hidden" name="Permissions[@index].FormKey" value="@form.Key" />
+                                </td>
+                                <td class="text-center">
+                                    <input class="form-check-input" type="checkbox" name="Permissions[@index].CanView" value="true" checked="@(permission?.CanView == true)" />
+                                </td>
+                                <td class="text-center">
+                                    <input class="form-check-input" type="checkbox" name="Permissions[@index].CanEdit" value="true" checked="@(permission?.CanEdit == true)" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+        <button class="btn btn-dark role-save-button" type="submit">ذخیره نقش (F3)</button>
+        </form>
+    </aside>
+
+    <main class="report-panel">
+        <div class="table-responsive">
+            <table class="table align-middle pricing-table compact-table">
+                <thead>
+                    <tr>
+                        <th>نقش</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <tr>
+                            <td>@role.Name</td>
+                            <td class="row-actions">
+                                <a class="btn btn-sm btn-outline-dark" asp-page="/Roles" asp-route-EditId="@role.Id">ویرایش</a>
+                                @if (!role.IsSystem)
+                                {
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@role.Id" onsubmit="return confirm('این نقش حذف شود؟')">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">حذف</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

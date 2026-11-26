@@ -1,0 +1,100 @@
+@page
+@model CustomerPrintModel
+@{
+    ViewData["Title"] = "چاپ قیمت مشتری";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>چاپ قیمت مشتری @Model.ProductCode</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.rtl.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="print-body">
+    <main class="print-sheet">
+        <header class="print-header">
+            <div>
+                <h1>محصول @Model.ProductCode</h1>
+                @if (Model.Customer is not null)
+                {
+                    <span>مشتری: @Model.Customer.Name</span>
+                }
+            </div>
+            <div class="print-actions">
+                <span>تاریخ: @Model.ReportDateText</span>
+                <button class="btn btn-dark no-print" onclick="window.print()">چاپ</button>
+            </div>
+        </header>
+
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>شرح</th>
+                    <th>مقدار</th>
+                    <th>فی</th>
+                    <th>نقدی</th>
+                    <th>اعتباری</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < Model.Calculation.Lines.Count; index++)
+                {
+                    var line = Model.Calculation.Lines[index];
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@line.MaterialName</td>
+                        <td>@Quantity(line.Quantity)</td>
+                        <td>@Money(line.UnitPrice)</td>
+                        <td>@Money(line.CashAmount)</td>
+                        <td>@Money(line.CashAmount * Model.CreditMultiplier)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="4">جمع</th>
+                    <th>@Money(Model.CashTotal)</th>
+                    <th>@Money(Model.CreditTotal)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">کسری و ضایعات (@Percent(Model.Calculation.AppliedWasteRate))</th>
+                    <th>@Money(Model.CashWaste)</th>
+                    <th>@Money(Model.CreditWaste)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">قیمت تمام شده</th>
+                    <th>@Money(Model.CashCost)</th>
+                    <th>@Money(Model.CreditCost)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">قیمت با احتساب سود (@Number(Model.GlobalProfitPercent)٪)</th>
+                    <th>@Money(Model.CashFactorySale)</th>
+                    <th>@Money(Model.CreditFactorySale)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">قیمت با تخفیف (نقدی @Number(Model.AppliedCashDiscountPercent)٪ / اعتباری @Number(Model.CreditDiscountPercent)٪)</th>
+                    <th>@Money(Model.CashDiscountedPrice)</th>
+                    <th>@Money(Model.CreditDiscountedPrice)</th>
+                </tr>
+                <tr class="final-row">
+                    <th colspan="4">قیمت با ارزش افزوده (@Number(Model.VatPercent)٪)</th>
+                    <th>@Money(Model.CashPrice)</th>
+                    <th>@Money(Model.CreditPrice)</th>
+                </tr>
+            </tfoot>
+        </table>
+    </main>
+</body>
+</html>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string Number(decimal value) => string.Format("{0:N2}", value).TrimEnd('0').TrimEnd('.');
+    private static string Quantity(decimal value) => value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+    private static string Percent(decimal value) => $"{Number(value * 100)}٪";
+}

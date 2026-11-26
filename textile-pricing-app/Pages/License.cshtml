@@ -1,0 +1,72 @@
+@page
+@model LicenseModel
+@{
+    ViewData["Title"] = "لایسنس";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>لایسنس نرم‌افزار</h1>
+    </div>
+    <div class="page-heading-actions">
+        <a class="btn btn-outline-dark" asp-page="/Home">صفحه خانه</a>
+    </div>
+</section>
+
+<section class="report-panel license-panel">
+    <div class="license-status @(Model.Status.IsValid ? "is-valid" : "is-invalid")">
+        <strong>@(Model.Status.IsValid ? "معتبر" : "نامعتبر")</strong>
+        <span>@Model.Status.Message</span>
+    </div>
+
+    <div class="license-grid">
+        <div>
+            <label>کد درخواست لایسنس</label>
+            <textarea class="form-control license-hardware-id" readonly>@Model.Status.LicenseRequestCode</textarea>
+            <small class="field-hint">این کد را برای صدور license.lic ارسال کنید.</small>
+        </div>
+
+        <div>
+            <label>شناسه سخت‌افزار</label>
+            <input class="form-control" value="@Model.Status.HardwareId" readonly />
+        </div>
+
+        <div>
+            <label>مسیر فایل لایسنس</label>
+            <input class="form-control" value="@Model.Status.LicensePath" readonly />
+        </div>
+
+        <div>
+            <label>کلید عمومی</label>
+            <input class="form-control" value="@Model.Status.PublicKeySource" readonly />
+        </div>
+
+        <div>
+            <label>وضعیت قفل</label>
+            <input class="form-control" value="@(Model.Status.EnforcementEnabled ? "فعال" : "غیرفعال")" readonly />
+        </div>
+
+        <div>
+            <label>تطبیق سخت‌افزار</label>
+            <input class="form-control" value="@Model.Status.HardwareMatchCount / @Model.Status.RequiredHardwareMatches" readonly />
+        </div>
+    </div>
+
+    @if (Model.Status.Payload is not null)
+    {
+        <div class="summary-grid license-summary">
+            <div>
+                <span>مشتری</span>
+                <strong>@Model.Status.Payload.CustomerName</strong>
+            </div>
+            <div>
+                <span>تاریخ صدور</span>
+                <strong>@Model.Status.Payload.IssuedAtUtc.ToLocalTime().ToString("yyyy/MM/dd")</strong>
+            </div>
+            <div>
+                <span>انقضا</span>
+                <strong>@(Model.Status.Payload.ExpiresAtUtc is null ? "بدون انقضا" : Model.Status.Payload.ExpiresAtUtc.Value.ToLocalTime().ToString("yyyy/MM/dd"))</strong>
+            </div>
+        </div>
+    }
+</section>

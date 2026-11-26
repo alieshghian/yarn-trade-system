@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(LicenseFreeBuild)' == 'true'">
+    <DefineConstants>$(DefineConstants);LICENSE_FREE_BUILD</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugSymbols>false</DebugSymbols>
+    <DebugType>None</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Tools\**\*.cs" />
+    <Content Include="RubikaBridge\**\*" Exclude="RubikaBridge\**\__pycache__\**;RubikaBridge\**\*.pyc" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Remove="Tools\**\*" />
+    <None Remove="Tools\**\*" />
+    <Content Remove="artifacts\**\*;publish\**\*;release\**\*;App_Data\**\*;output\**\*;tmp\**\*" />
+    <None Remove="artifacts\**\*;publish\**\*;release\**\*;App_Data\**\*;output\**\*;tmp\**\*" />
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
+</Project>

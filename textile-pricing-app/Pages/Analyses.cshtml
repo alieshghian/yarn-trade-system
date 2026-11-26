@@ -1,0 +1,1449 @@
+@page
+@model AnalysesModel
+@{
+    ViewData["Title"] = "آنالیز محصولات";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>آنالیز محصولات</h1>
+    </div>
+    @if (Model.SelectedProduct is not null)
+    {
+        <a class="btn btn-outline-dark" asp-page="/Index" asp-route-ProductCode="@Model.SelectedProduct.Code">مشاهده قیمت</a>
+    }
+</section>
+
+<section class="crud-layout analyses-layout">
+    <aside class="side-panel product-list-panel">
+        <form method="get" class="toolbar-form product-search" data-live-search-form>
+            <input name="Query" value="@Model.Query" class="form-control" placeholder="جست‌وجوی کد، نام یا گروه محصول..." autocomplete="off" data-live-search-input />
+        </form>
+        <a class="btn btn-outline-dark w-100 mb-3" asp-page="/Analyses" asp-route-Query="@Model.Query" asp-route-NewProduct="true">محصول جدید</a>
+        <div class="product-list">
+            @foreach (var product in Model.Products)
+            {
+                <a class="product-list__item @(product.Id == Model.EditId ? "active" : "")" asp-page="/Analyses" asp-route-Query="@Model.Query" asp-route-EditId="@product.Id">
+                    <strong>@product.Code</strong>
+                    @if (!string.IsNullOrWhiteSpace(product.Name) || !string.IsNullOrWhiteSpace(product.ProductGroupName))
+                    {
+                        <span class="product-list__summary">
+                            @if (!string.IsNullOrWhiteSpace(product.Name))
+                            {
+                                @product.Name
+                            }
+                            @if (!string.IsNullOrWhiteSpace(product.Name) && !string.IsNullOrWhiteSpace(product.ProductGroupName))
+                            {
+                                <text> - </text>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(product.ProductGroupName))
+                            {
+                                @product.ProductGroupName
+                            }
+                        </span>
+                    }
+                    <small>@product.Components.Count قلم مصرفی</small>
+                </a>
+            }
+        </div>
+    </aside>
+
+    <main class="analysis-main">
+        <section class="entity-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">رکورد اصلی محصول</p>
+                    <h2>@Model.FormTitle</h2>
+                </div>
+                @if (Model.SelectedProduct is not null)
+                {
+                    <div class="row-actions">
+                        <a class="btn btn-outline-secondary" asp-page="/Index" asp-route-ProductCode="@Model.SelectedProduct.Code">مشاهده قیمت</a>
+                        @if (!Model.EditMode)
+                        {
+                            <a class="btn btn-dark" asp-page="/Analyses" asp-route-Query="@Model.Query" asp-route-EditId="@Model.SelectedProduct.Id" asp-route-EditMode="true">ویرایش محصول</a>
+                        }
+                        else
+                        {
+                            <a class="btn btn-outline-secondary" asp-page="/Analyses" asp-route-Query="@Model.Query" asp-route-EditId="@Model.SelectedProduct.Id">انصراف از ویرایش</a>
+                        }
+                    </div>
+                }
+            </div>
+
+            <form method="post"
+                  id="product-details-form"
+                  asp-page-handler="Save"
+                  asp-route-EditId="@Model.SelectedProduct?.Id"
+                  class="product-fields"
+                  enctype="multipart/form-data">
+                <input type="hidden" asp-for="Input.Id" />
+                <input type="hidden" asp-for="Input.ImagePath" />
+                <input type="hidden" asp-for="Input.ProfitCategoryName" />
+                <input type="hidden" name="Query" value="@Model.Query" />
+                <fieldset class="product-fields-fieldset" disabled="@(!Model.IsProductFormEditable)">
+
+                <div>
+                    <label asp-for="Input.Code">کد محصول</label>
+                    <input asp-for="Input.Code" class="form-control" />
+                    <span asp-validation-for="Input.Code" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Input.Name">نام محصول</label>
+                    <input asp-for="Input.Name" class="form-control" />
+                    <span asp-validation-for="Input.Name" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Input.ProductGroupName">دسته‌بندی فرعی (اختیاری)</label>
+                    <select asp-for="Input.ProductGroupName" class="form-select">
+                        <option value="">انتخاب کنید</option>
+                        @foreach (var group in Model.ProductGroups)
+                        {
+                            <option value="@group">@group</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Input.ProductGroupName" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="product-image-field">
+                    <label asp-for="ProductImage">تصویر محصول</label>
+                    <input asp-for="ProductImage" class="form-control" type="file" accept="image/png,image/jpeg,image/webp" />
+                    <span asp-validation-for="ProductImage" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Model.Input.ImagePath))
+                {
+                    <div class="product-image-preview">
+                        <img src="@Model.Input.ImagePath" alt="@Model.Input.Name" />
+                    </div>
+                }
+
+                <div>
+                    <label asp-for="Input.ProductType">نوع محصول</label>
+                    <select asp-for="Input.ProductType"
+                            class="form-select js-product-type"
+                            data-lining-value="@TextilePricingApp.Models.ProductType.Lining"
+                            data-laminated-value="@TextilePricingApp.Models.ProductType.Laminated"
+                            data-weaving-value="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                        @if (Model.Input.ProductType == TextilePricingApp.Models.ProductType.LegacyProduction)
+                        {
+                            <option value="@TextilePricingApp.Models.ProductType.LegacyProduction">نوع قدیمی تعیین‌نشده؛ یک نوع جدید انتخاب کنید</option>
+                        }
+                        @foreach (var type in Model.ProductTypeOptions)
+                        {
+                            <option value="@type.Value">@type.Label</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Input.ProductType" class="analysis-validation-tooltip product-field-validation"></span>
+                    @if (Model.Input.ProductType == TextilePricingApp.Models.ProductType.LegacyProduction)
+                    {
+                        <div class="alert alert-warning mt-2">این محصول با نوع قدیمی «تولیدی» ثبت شده است. برای ذخیره، یکی از چهار گروه اصلی کالا را انتخاب کنید.</div>
+                    }
+                </div>
+
+                <div>
+                    <label asp-for="Input.ProductStatus">وضعیت کالا</label>
+                    <select asp-for="Input.ProductStatus"
+                            class="form-select js-product-status"
+                            data-semi-finished-value="@TextilePricingApp.Models.ProductStatus.SemiFinished">
+                        @foreach (var status in Model.ProductStatusOptions)
+                        {
+                            <option value="@status.Value">@status.Label</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Input.ProductStatus" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Input.MeasurementUnit">واحد محصول</label>
+                    <select asp-for="Input.MeasurementUnit" class="form-select">
+                        @foreach (var unit in Model.MeasurementUnitOptions)
+                        {
+                            <option value="@unit">@unit</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Input.MeasurementUnit" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field" data-product-types="@TextilePricingApp.Models.ProductType.Commercial,@TextilePricingApp.Models.ProductType.Laminated">
+                    <label asp-for="Input.LaminationOrigin">مبدأ محصول</label>
+                    <select asp-for="Input.LaminationOrigin"
+                            class="form-select js-lamination-origin"
+                            data-foreign-value="@TextilePricingApp.Models.LaminationOriginCatalog.Foreign">
+                        @foreach (var origin in Model.LaminationOriginOptions)
+                        {
+                            <option value="@origin">@origin</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Input.LaminationOrigin" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field product-purchase-price-field" data-product-types="@TextilePricingApp.Models.ProductType.Commercial">
+                    <label asp-for="Input.ProductPurchasePrice">قیمت خرید</label>
+                    <input asp-for="Input.ProductPurchasePrice" class="form-control js-purchase-price" type="number" min="0" step="1" />
+                    <small class="form-text text-muted js-purchase-price-hint">ریال</small>
+                    <span asp-validation-for="Input.ProductPurchasePrice" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field js-foreign-product-field" data-product-types="@TextilePricingApp.Models.ProductType.Commercial,@TextilePricingApp.Models.ProductType.Laminated">
+                    <label asp-for="Input.ContainerMeters">متراژ در کانتینر</label>
+                    <input asp-for="Input.ContainerMeters" class="form-control" type="number" min="0.001" step="0.001" />
+                    <span asp-validation-for="Input.ContainerMeters" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.LayerType">نوع لایه</label>
+                    <select asp-for="Input.LayerType" class="form-select js-layer-type">
+                        <option value="تک لایه">تک لایه</option>
+                        <option value="دولایه">دولایه</option>
+                    </select>
+                    <span asp-validation-for="Input.LayerType" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.ChainType">چله</label>
+                    <select asp-for="Input.ChainType" class="form-select js-chain-type">
+                        <option value="تک چله">تک چله</option>
+                        <option value="دوچله">دوچله</option>
+                    </select>
+                    <span asp-validation-for="Input.ChainType" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field js-single-chain-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.WarpDensity">تراکم تار</label>
+                    <input asp-for="Input.WarpDensity" class="form-control" type="number" step="0.001" min="0" />
+                    <span asp-validation-for="Input.WarpDensity" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.WeftDensity">تراکم پود</label>
+                    <input asp-for="Input.WeftDensity" class="form-control" type="number" step="0.001" min="0" />
+                    <span asp-validation-for="Input.WeftDensity" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.WeftCount">تعداد پود</label>
+                    <input asp-for="Input.WeftCount" class="form-control" type="number" step="0.001" min="0" />
+                    <span asp-validation-for="Input.WeftCount" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.DyeType">رنگ</label>
+                    <select asp-for="Input.DyeType" class="form-select js-dye-type">
+                        <option value="رنگی">رنگی</option>
+                        <option value="رنگشو">رنگرزی</option>
+                    </select>
+                    <span asp-validation-for="Input.DyeType" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field"
+                     data-product-types="@TextilePricingApp.Models.ProductType.Commercial,@TextilePricingApp.Models.ProductType.WeavingAndFinishing"
+                     data-layer-types="تک لایه"
+                     data-layer-types-product="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.GramPerMeter">گرم بر متر</label>
+                    <input asp-for="Input.GramPerMeter" class="form-control" type="number" step="0.001" min="0" />
+                    <span asp-validation-for="Input.GramPerMeter" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field"
+                     data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing,@TextilePricingApp.Models.ProductType.Laminated"
+                     data-layer-types="دولایه"
+                     data-layer-types-product="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.FaceGramPerMeter">گرم بر متر رویه</label>
+                    <input asp-for="Input.FaceGramPerMeter" class="form-control" type="number" step="0.001" min="0" />
+                    <span asp-validation-for="Input.FaceGramPerMeter" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field"
+                     data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing,@TextilePricingApp.Models.ProductType.Laminated"
+                     data-layer-types="دولایه"
+                     data-layer-types-product="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.LiningGramPerMeter">گرم بر متر آستر</label>
+                    <input asp-for="Input.LiningGramPerMeter" class="form-control" type="number" step="0.001" min="0" />
+                    <span asp-validation-for="Input.LiningGramPerMeter" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field" data-product-types="@TextilePricingApp.Models.ProductType.Lining">
+                    <label asp-for="Input.BrushingMode">خارزنی</label>
+                    <select asp-for="Input.BrushingMode" class="form-select">
+                        <option value="بدون خار">بدون خار</option>
+                        <option value="تک مرحله‌ای">تک‌مرحله‌ای</option>
+                        <option value="دو مرحله‌ای">دو‌مرحله‌ای</option>
+                        <option value="چهار مرحله‌ای">چهار‌مرحله‌ای</option>
+                    </select>
+                    <span asp-validation-for="Input.BrushingMode" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Input.WasteCategoryName">دسته کسری و ضایعات</label>
+                    <select asp-for="Input.WasteCategoryName" class="form-select js-waste-category">
+                        <option value="">انتخاب کنید</option>
+                        @foreach (var item in Model.WasteTiers)
+                        {
+                            <option value="@item.CategoryName" data-waste-percent="@InputNumber(item.Percent)">@item.CategoryName - @Number(item.Percent)٪</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Input.WasteCategoryName" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field js-finishing-notes-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing,@TextilePricingApp.Models.ProductType.Lining">
+                    <label asp-for="Input.FinishingNotes">ملاحظات تکمیل</label>
+                    <textarea asp-for="Input.FinishingNotes" class="form-control" rows="3" maxlength="500" placeholder="ملاحظات مربوط به تکمیل محصول"></textarea>
+                    <span asp-validation-for="Input.FinishingNotes" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+
+                <div class="js-product-field js-dyeing-notes-field" data-product-types="@TextilePricingApp.Models.ProductType.WeavingAndFinishing">
+                    <label asp-for="Input.DyeingNotes">ملاحظات رنگرزی</label>
+                    <textarea asp-for="Input.DyeingNotes" class="form-control" rows="3" maxlength="500" placeholder="ملاحظات مربوط به رنگرزی محصول"></textarea>
+                    <span asp-validation-for="Input.DyeingNotes" class="analysis-validation-tooltip product-field-validation"></span>
+                </div>
+                </fieldset>
+
+            </form>
+
+            @if (Model.IsProductFormEditable)
+            {
+                var showDeleteProduct = Model.SelectedProduct is not null && Model.EditMode;
+                <div class="product-edit-actions @(showDeleteProduct ? "" : "product-edit-actions--single")">
+                    @if (showDeleteProduct)
+                    {
+                        <form method="post" asp-page-handler="DeleteProduct" asp-route-id="@Model.SelectedProduct!.Id" asp-route-Query="@Model.Query" onsubmit="return confirm('این محصول و همه اقلام مصرفی آن حذف شود؟')">
+                            <button class="btn btn-outline-danger" type="submit">حذف محصول</button>
+                        </form>
+                    }
+                    <button class="btn btn-dark" type="submit" form="product-details-form">ذخیره مشخصات محصول (F3)</button>
+                </div>
+            }
+        </section>
+
+        @if (false && Model.SelectedProduct is not null && Model.RulePreview is not null)
+        {
+            <section class="children-panel analysis-rule-preview" data-analysis-rule-preview>
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">فرم کنترل‌شده Rule Engine</p>
+                        <h2>ورود ردیف‌های آنالیز</h2>
+                    </div>
+                    <span class="count-badge">@AnalysesModel.RuleGroupLabel(Model.RulePreview.Group)</span>
+                </div>
+
+                <div class="alert alert-info">
+                    ردیف‌های این بخش ثابت‌اند؛ آیتم و مقدار را کاربر انتخاب می‌کند. اقلام اختیاری خالی ذخیره نمی‌شوند.
+                </div>
+
+                @if (Model.RuleComponentsSaved)
+                {
+                    <div class="alert alert-success">ردیف‌های تکمیل‌شده Rule Engine با موفقیت ذخیره شدند.</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.RuleSaveWarning))
+                {
+                    <div class="alert alert-warning">@Model.RuleSaveWarning</div>
+                }
+
+                @if (Model.RulePreview.Warnings.Count > 0)
+                {
+                    <div class="alert alert-warning" data-rule-warnings>
+                        <strong>هشدارهای نمایشی</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach (var warning in Model.RulePreview.Warnings)
+                            {
+                                <li>@warning</li>
+                            }
+                        </ul>
+                    </div>
+                }
+
+                @if (Model.RulePreview.Group == TextilePricingApp.Models.ProductRuleGroup.Unknown)
+                {
+                    <div class="alert alert-secondary">
+                        برای نوع «@TextilePricingApp.Models.ProductTypeCatalog.Label(Model.Input.ProductType)» قاعده‌ای فعال نیست.
+                    </div>
+                }
+                else
+                {
+                    <form method="post" asp-page-handler="SaveRuleComponents" asp-route-productId="@Model.SelectedProduct.Id" data-rule-entry-form>
+                        <input type="hidden" name="Query" value="@Model.Query" />
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        <div class="table-responsive child-table-wrap">
+                        <table class="table align-middle pricing-table" data-expected-analysis-rows>
+                            <thead>
+                                <tr>
+                                    <th>ردیف مورد انتظار</th>
+                                    <th>الزام</th>
+                                    <th>نوع ردیف</th>
+                                    <th>انتخاب آیتم</th>
+                                    <th>مقدار مصرف</th>
+                                    <th>واحد</th>
+                                    <th>پیشنهادها</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (var index = 0; index < Model.RulePreview.Rows.Count; index++)
+                                {
+                                    var row = Model.RulePreview.Rows[index];
+                                    var entry = index < Model.RuleComponents.Count
+                                        ? Model.RuleComponents[index]
+                                        : new TextilePricingApp.Models.AnalysisRuleComponentInput { RowKey = row.Definition.Key };
+                                    var selectedMaterial = row.AllowedMaterials.FirstOrDefault(material => material.Id == entry.MaterialId);
+                                    <tr data-rule-row="@row.Definition.Key">
+                                        <td>
+                                            <strong>@row.Definition.Title</strong>
+                                            <input type="hidden" asp-for="RuleComponents[index].RowKey" />
+                                            <input type="hidden" asp-for="RuleComponents[index].ExistingComponentId" />
+                                        </td>
+                                        <td>@(row.Definition.IsRequired ? "اجباری" : "اختیاری")</td>
+                                        <td>@AnalysesModel.RuleRowTypeLabel(row.Definition.RowType)</td>
+                                        <td>
+                                            <select asp-for="RuleComponents[index].MaterialId" class="form-select form-select-sm js-rule-material">
+                                                <option value="">انتخاب نشده</option>
+                                                @foreach (var material in row.AllowedMaterials)
+                                                {
+                                                    <option value="@material.Id" data-unit="@AnalysesModel.AnalysisDisplayUnit(material)">
+                                                        @material.Name - @material.Kind
+                                                    </option>
+                                                }
+                                            </select>
+                                            <small class="d-block text-muted mt-1">@AnalysesModel.RuleSelectionLabel(row.Definition.SelectionScope)</small>
+                                            <span asp-validation-for="RuleComponents[index].MaterialId" class="text-danger"></span>
+                                            @if (row.AllowedMaterials.Count == 0)
+                                            {
+                                                <small class="d-block text-danger">آیتم مجازی در Materials یافت نشد.</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <input asp-for="RuleComponents[index].Quantity" class="form-control form-control-sm" type="number" min="0" step="0.001" />
+                                            <span asp-validation-for="RuleComponents[index].Quantity" class="text-danger"></span>
+                                        </td>
+                                        <td>
+                                            <span class="component-unit-label js-rule-unit">@(selectedMaterial is null ? "—" : AnalysesModel.AnalysisDisplayUnit(selectedMaterial))</span>
+                                        </td>
+                                        <td>
+                                            @if (row.Suggestions.Count == 0)
+                                            {
+                                                <span class="text-muted">پیشنهادی یافت نشد</span>
+                                            }
+                                            else
+                                            {
+                                                <ol class="mb-0 ps-3 rule-suggestion-list">
+                                                    @foreach (var suggestion in row.Suggestions)
+                                                    {
+                                                        <li>
+                                                            @suggestion.Material.Name
+                                                            <span class="text-muted">— امتیاز @suggestion.Rank</span>
+                                                        </li>
+                                                    }
+                                                </ol>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        </div>
+                        <div class="form-actions mt-3">
+                        <button class="btn btn-dark" type="submit">اعتبارسنجی و ذخیره ردیف‌های تکمیل‌شده (F3)</button>
+                        </div>
+                    </form>
+                }
+
+                <div class="mt-4" data-unmatched-components>
+                    <h3 class="h6">سایر اقلام موجود</h3>
+                    @if (Model.RulePreview.UnmatchedComponents.Count == 0)
+                    {
+                        <p class="text-muted mb-0">قلم نامنطبقی وجود ندارد.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>کالا/خدمت</th>
+                                        <th>مقدار ذخیره‌شده</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var component in Model.RulePreview.UnmatchedComponents)
+                                    {
+                                        <tr>
+                                            <td>@component.MaterialName</td>
+                                            <td>@InputNumber(component.Quantity)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+
+        <section id="analysis-items-panel" class="children-panel" data-analysis-validation-failed="@Model.AnalysisValidationFailed.ToString().ToLowerInvariant()">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">زیرمجموعه‌های تکرارشونده</p>
+                    <h2>اقلام مصرفی محصول</h2>
+                </div>
+                @if (Model.SelectedProduct is not null)
+                {
+                    <div class="row-actions">
+                        <span class="count-badge" data-component-count>@Model.SelectedProduct.Components.Count قلم</span>
+                        @if (!Model.ShowAnalysisEditor)
+                        {
+                            <a class="btn btn-sm btn-dark" asp-page="/Analyses" asp-route-Query="@Model.Query" asp-route-EditId="@Model.SelectedProduct.Id" asp-route-EditMode="true" asp-fragment="analysis-items-panel">ویرایش آنالیز محصول</a>
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (Model.SelectedProduct is null)
+            {
+                <div class="alert alert-info">برای افزودن اقلام مصرفی، ابتدا مشخصات محصول را ذخیره کنید.</div>
+            }
+            else
+            {
+                @if (Model.ComponentsCopied)
+                {
+                    <div class="alert alert-success">اقلام مصرفی از محصول انتخاب‌شده کپی شد و اکنون قابل ویرایش است.</div>
+                }
+                @if (Model.ComponentsSaved)
+                {
+                    <div class="alert alert-success">مقدار اقلام مصرفی با موفقیت ذخیره شد.</div>
+                }
+                @if (Model.RuleComponentsSaved)
+                {
+                    <div class="alert alert-success">ردیف‌های تکمیل‌شده آنالیز با موفقیت ذخیره شدند.</div>
+                }
+                @if (Model.AnalysisItemsSaved)
+                {
+                    <div class="alert alert-success">اقلام مصرفی محصول با موفقیت ذخیره شدند.</div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.RuleSaveWarning))
+                {
+                    <div class="alert alert-warning">@Model.RuleSaveWarning</div>
+                }
+                @if (Model.RulePreview?.Group == TextilePricingApp.Models.ProductRuleGroup.Unknown)
+                {
+                    <div class="alert alert-secondary">برای نوع «@TextilePricingApp.Models.ProductTypeCatalog.Label(Model.Input.ProductType)» قاعده‌ای فعال نیست.</div>
+                }
+
+                <form id="analysis-items-form" method="post" asp-page-handler="SaveAnalysisItems" asp-route-productId="@Model.SelectedProduct.Id">
+                    <input type="hidden" name="Query" value="@Model.Query" />
+                    <input type="hidden" name="EditMode" value="true" />
+                    @if (Model.AnalysisValidationFailed)
+                    {
+                        <div class="alert alert-danger">اطلاعات ذخیره نشد. خطاهای زیر را اصلاح کنید و دوباره ثبت را بزنید.</div>
+                        var analysisErrors = ViewData.ModelState.Values
+                            .SelectMany(state => state.Errors)
+                            .Select(error => error.ErrorMessage)
+                            .Where(message => !string.IsNullOrWhiteSpace(message))
+                            .Distinct(StringComparer.CurrentCulture)
+                            .ToList();
+                        @if (analysisErrors.Count > 0)
+                        {
+                            <div class="component-validation-summary validation-summary-errors" role="alert">
+                                <ul>
+                                    @foreach (var error in analysisErrors)
+                                    {
+                                        <li>@error</li>
+                                    }
+                                </ul>
+                            </div>
+                        }
+                    }
+                </form>
+
+                @if (Model.ShowAnalysisEditor)
+                {
+                <form method="post" asp-page-handler="CopyComponents" class="inline-add-row copy-components-row" onsubmit="return confirm('اقلام فعلی این محصول با اقلام محصول انتخاب‌شده جایگزین شود؟')">
+                    <input type="hidden" asp-for="CopyInput.TargetProductId" />
+                    <input type="hidden" name="Query" value="@Model.Query" />
+
+                    <div>
+                        <label asp-for="CopyInput.SourceProductId">کپی اقلام مصرفی از محصول</label>
+                        <div class="product-combobox" data-copy-product-combobox>
+                            <input
+                                type="text"
+                                class="form-control js-copy-product-search"
+                                placeholder="جست‌وجوی کد محصول مبدا..."
+                                autocomplete="off"
+                                aria-expanded="false" />
+                            <input asp-for="CopyInput.SourceProductId" type="hidden" class="js-copy-product-id" />
+                            <button class="product-combobox__toggle" type="button" aria-label="نمایش محصولات"></button>
+                            <div class="product-combobox__options">
+                            @foreach (var product in Model.CopySourceProducts)
+                            {
+                                <button
+                                    type="button"
+                                    class="product-combobox__option"
+                                    data-product-id="@product.Id"
+                                    data-product-code="@product.Code"
+                                    data-product-label="@SourceProductLabel(product)">
+                                    @SourceProductLabel(product)
+                                </button>
+                            }
+                            </div>
+                        </div>
+                        <span asp-validation-for="CopyInput.SourceProductId" class="analysis-validation-tooltip"></span>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn btn-outline-dark" type="submit">کپی اقلام (F3)</button>
+                    </div>
+                </form>
+
+                <form method="post" asp-page-handler="AddComponent" class="inline-add-row analysis-component-add-row" data-ajax-add-component>
+                    <input type="hidden" asp-for="ComponentInput.ProductRecipeId" />
+                    <input type="hidden" name="Query" value="@Model.Query" />
+
+                    <div>
+                        <label asp-for="ComponentInput.MaterialName">کالا/خدمت</label>
+                        <div class="product-combobox"
+                             data-material-combobox
+                             data-material-live-refresh="true"
+                             data-material-refresh-url="@Url.Page("/Analyses", "RefreshMaterials", new { productId = Model.SelectedProduct!.Id })">
+                            <input
+                                type="text"
+                                class="form-control js-material-search"
+                                value="@ComponentMaterialLabel(Model.ComponentInput.MaterialName, Model.Materials)"
+                                placeholder="جست‌وجوی کالا یا خدمت..."
+                                autocomplete="off"
+                                aria-expanded="false" />
+                            <input asp-for="ComponentInput.MaterialName" type="hidden" class="js-material-name" />
+                            <button class="product-combobox__toggle" type="button" aria-label="نمایش کالاها و خدمات"></button>
+                            <button class="product-combobox__refresh" type="button" aria-label="به‌روزرسانی فهرست کالاها و خدمات" title="به‌روزرسانی فهرست"></button>
+                            <div class="product-combobox__options">
+                            @foreach (var material in Model.SelectableMaterials)
+                            {
+                                <button
+                                    type="button"
+                                    class="product-combobox__option"
+                                    data-material-name="@material.Name"
+                                    data-material-label="@($"{material.Name} - {material.Kind}")"
+                                    data-material-unit="@AnalysesModel.AnalysisDisplayUnit(material)">
+                                    @material.Name - @material.Kind
+                                </button>
+                            }
+                            </div>
+                        </div>
+                        <span asp-validation-for="ComponentInput.MaterialName" class="analysis-validation-tooltip"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="ComponentInput.Quantity">مقدار</label>
+                        <div class="component-quantity-with-unit">
+                            <input asp-for="ComponentInput.Quantity" class="form-control" type="number" step="0.001" />
+                            <span class="component-unit-label js-component-unit">@ComponentDisplayUnit(Model.ComponentInput.MaterialName, Model.Materials)</span>
+                        </div>
+                        <span asp-validation-for="ComponentInput.Quantity" class="analysis-validation-tooltip"></span>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn btn-dark" type="submit">افزودن قلم (F3)</button>
+                    </div>
+                    <div class="ajax-component-message" data-ajax-component-message role="status" aria-live="polite"></div>
+                </form>
+                }
+
+                <div class="table-responsive child-table-wrap analysis-items-table-wrap">
+                    <table class="table align-middle pricing-table analysis-items-table">
+                        <colgroup>
+                            <col class="analysis-items-table__material" />
+                            <col class="analysis-items-table__quantity" />
+                            <col class="analysis-items-table__unit" />
+                            <col class="analysis-items-table__unit-price" />
+                            <col class="analysis-items-table__amount" />
+                            <col class="analysis-items-table__actions" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>کالا/خدمت</th>
+                                <th>مقدار</th>
+                                <th>واحد</th>
+                                <th>فی (ریال)</th>
+                                <th>مبلغ (ریال)</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.RulePreview is not null)
+                            {
+                                @for (var ruleIndex = 0; ruleIndex < Model.RulePreview.Rows.Count; ruleIndex++)
+                                {
+                                    var row = Model.RulePreview.Rows[ruleIndex];
+                                    var isWeavingFee = row.Definition.Key == "weaving-fee";
+                                    var isDyeingFee = row.Definition.Key == "dyeing";
+                                    var warpingSourceKey = AnalysesModel.WarpingSourceRowKey(row.Definition.Key);
+                                    var isWarpingFee = warpingSourceKey is not null;
+                                    var warpingSourceIndex = warpingSourceKey is null
+                                        ? -1
+                                        : Enumerable.Range(0, Model.RulePreview.Rows.Count)
+                                            .FirstOrDefault(index => Model.RulePreview.Rows[index].Definition.Key == warpingSourceKey, -1);
+                                    var warpingQuantity = warpingSourceIndex >= 0 && warpingSourceIndex < Model.RuleComponents.Count
+                                        ? Model.RuleComponents[warpingSourceIndex].Quantity
+                                        : 0;
+                                    var warpingSourceMaterial = warpingSourceIndex >= 0 && warpingSourceIndex < Model.RuleComponents.Count
+                                        ? Model.RulePreview.Rows[warpingSourceIndex].AllowedMaterials
+                                            .FirstOrDefault(material => material.Id == Model.RuleComponents[warpingSourceIndex].MaterialId)
+                                        : null;
+                                    var warpingQuantityIsGrams = AnalysesModel.IsKilogramMaterial(warpingSourceMaterial?.MeasurementUnit);
+                                    var warpingCalculationQuantity = warpingQuantityIsGrams
+                                        ? warpingQuantity / 1000m
+                                        : warpingQuantity;
+                                    var dyeingBaseWeight = Model.Input.LayerType == "دولایه"
+                                        ? Model.Input.FaceGramPerMeter
+                                        : Model.Input.GramPerMeter;
+                                    if (isWeavingFee && ruleIndex < Model.RuleComponents.Count)
+                                    {
+                                        Model.RuleComponents[ruleIndex].Quantity = Model.Input.WeftDensity;
+                                    }
+                                    else if (isDyeingFee && ruleIndex < Model.RuleComponents.Count)
+                                    {
+                                        Model.RuleComponents[ruleIndex].Quantity = dyeingBaseWeight;
+                                    }
+                                    else if (isWarpingFee && ruleIndex < Model.RuleComponents.Count)
+                                    {
+                                        Model.RuleComponents[ruleIndex].Quantity = warpingCalculationQuantity;
+                                    }
+                                    var entry = ruleIndex < Model.RuleComponents.Count
+                                        ? Model.RuleComponents[ruleIndex]
+                                        : new TextilePricingApp.Models.AnalysisRuleComponentInput { RowKey = row.Definition.Key };
+                                    var selectedMaterial = row.AllowedMaterials.FirstOrDefault(material => material.Id == entry.MaterialId);
+                                    var selectedUnitPrice = selectedMaterial is null
+                                        ? 0
+                                        : selectedMaterial.RialPrice > 0 ? selectedMaterial.RialPrice : selectedMaterial.Price;
+                                    var defaultKeyword = row.Definition.SuggestedKeywords.FirstOrDefault() ?? row.Definition.Title;
+                                    var keywordMaterials = row.AllowedMaterials
+                                        .Where(material => row.Definition.SuggestedKeywords.Any(keyword =>
+                                            material.Name.Contains(keyword, StringComparison.CurrentCultureIgnoreCase)))
+                                        .ToList();
+                                    var keywordMaterialIds = keywordMaterials
+                                        .Select(material => material.Id)
+                                        .ToHashSet();
+                                    var dropdownMaterials = keywordMaterials
+                                        .Concat(row.AllowedMaterials.Where(material => !keywordMaterialIds.Contains(material.Id)))
+                                        .ToList();
+                                    if (selectedMaterial is not null && dropdownMaterials.All(material => material.Id != selectedMaterial.Id))
+                                    {
+                                        dropdownMaterials.Insert(0, selectedMaterial);
+                                    }
+                                    var rowStateClass = entry.MaterialId is > 0 && entry.Quantity > 0
+                                        ? "analysis-rule-row--completed"
+                                        : row.Definition.IsRequired
+                                            ? "analysis-rule-row--required"
+                                            : "analysis-rule-row--optional";
+                                    var rowHintClass = isWeavingFee || isDyeingFee || isWarpingFee
+                                        ? "analysis-rule-row--with-hint"
+                                        : "";
+                                    <tr class="analysis-rule-row @rowStateClass @rowHintClass" data-rule-row="@row.Definition.Key">
+                                        <td>
+                                            <input type="hidden" asp-for="RuleComponents[ruleIndex].RowKey" form="analysis-items-form" />
+                                            <input type="hidden" asp-for="RuleComponents[ruleIndex].ExistingComponentId" form="analysis-items-form" />
+                                            <div class="analysis-control-with-error">
+                                                <div class="product-combobox product-combobox--table js-rule-material-combobox"
+                                                     data-material-combobox
+                                                     data-material-refresh-url="@Url.Page("/Analyses", "RefreshMaterials", new { productId = Model.SelectedProduct.Id, rowKey = row.Definition.Key })">
+                                                    <input type="text"
+                                                           class="form-control form-control-sm js-material-search"
+                                                           value="@(selectedMaterial is null ? defaultKeyword : $"{selectedMaterial.Name} - {selectedMaterial.Kind}")"
+                                                           placeholder="@defaultKeyword"
+                                                           autocomplete="off"
+                                                           aria-expanded="false"
+                                                           disabled="@(!Model.ShowAnalysisEditor)" />
+                                                    <input asp-for="RuleComponents[ruleIndex].MaterialId" type="hidden" class="js-material-name" form="analysis-items-form" disabled="@(!Model.ShowAnalysisEditor)" />
+                                                    <button class="product-combobox__toggle" type="button" aria-label="نمایش گزینه‌های مجاز @row.Definition.Title" disabled="@(!Model.ShowAnalysisEditor)"></button>
+                                                    <button class="product-combobox__refresh" type="button" aria-label="به‌روزرسانی فهرست @row.Definition.Title" title="به‌روزرسانی فهرست" disabled="@(!Model.ShowAnalysisEditor)"></button>
+                                                    <div class="product-combobox__options">
+                                                    @foreach (var material in dropdownMaterials)
+                                                    {
+                                                        <button type="button"
+                                                                class="product-combobox__option"
+                                                                data-material-name="@material.Id"
+                                                                data-material-label="@($"{material.Name} - {material.Kind}")"
+                                                                data-material-price="@InputNumber(material.RialPrice > 0 ? material.RialPrice : material.Price)"
+                                                                data-material-unit="@AnalysesModel.AnalysisDisplayUnit(material)">@material.Name - @material.Kind</button>
+                                                    }
+                                                    </div>
+                                                </div>
+                                                <span asp-validation-for="RuleComponents[ruleIndex].MaterialId" class="analysis-validation-tooltip"></span>
+                                            </div>
+                                            @if (isWeavingFee)
+                                            {
+                                                <small class="d-block field-hint" data-weaving-density-hint>به ازای تراکم @InputNumber(Model.Input.WeftDensity)</small>
+                                            }
+                                            else if (isDyeingFee)
+                                            {
+                                                <small class="d-block field-hint" data-dyeing-weight-hint>بر مبنای @InputNumber(dyeingBaseWeight) گرم در هر متر</small>
+                                            }
+                                            else if (isWarpingFee)
+                                            {
+                                                <small class="d-block field-hint" data-warping-quantity-hint>
+                                                    @(warpingQuantityIsGrams
+                                                        ? $"بر اساس {InputNumber(warpingQuantity)} گرم"
+                                                        : $"بر اساس مقدار چله {InputNumber(warpingCalculationQuantity)}")
+                                                </small>
+                                            }
+                                            @if (dropdownMaterials.Count == 0)
+                                            {
+                                                <small class="d-block text-danger">موردی مطابق کلیدواژه و محدوده مجاز یافت نشد.</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="analysis-control-with-error">
+                                                @if (isWeavingFee)
+                                                {
+                                                    <input asp-for="RuleComponents[ruleIndex].Quantity" type="hidden" form="analysis-items-form" data-weaving-density-quantity="true" disabled="@(!Model.ShowAnalysisEditor)" />
+                                                    <input class="form-control form-control-sm component-quantity-input" type="number" value="@InputNumber(Model.Input.WeftDensity)" readonly data-weaving-display-quantity />
+                                                }
+                                                else if (isDyeingFee)
+                                                {
+                                                    <input asp-for="RuleComponents[ruleIndex].Quantity" type="hidden" form="analysis-items-form" data-dyeing-weight-quantity="true" disabled="@(!Model.ShowAnalysisEditor)" />
+                                                    <input class="form-control form-control-sm component-quantity-input" type="number" value="@InputNumber(dyeingBaseWeight)" readonly data-dyeing-display-quantity />
+                                                }
+                                                else if (isWarpingFee)
+                                                {
+                                                    <input asp-for="RuleComponents[ruleIndex].Quantity" type="hidden" form="analysis-items-form" data-warping-quantity="true" data-warp-source="@warpingSourceKey" disabled="@(!Model.ShowAnalysisEditor)" />
+                                                    <input class="form-control form-control-sm component-quantity-input" type="number" value="@InputNumber(warpingQuantityIsGrams ? warpingQuantity : warpingCalculationQuantity)" readonly data-warping-display-quantity />
+                                                }
+                                                else
+                                                {
+                                                    <input asp-for="RuleComponents[ruleIndex].Quantity" class="form-control form-control-sm component-quantity-input" type="number" min="0" step="0.001" form="analysis-items-form" disabled="@(!Model.ShowAnalysisEditor)" />
+                                                }
+                                                <span asp-validation-for="RuleComponents[ruleIndex].Quantity" class="analysis-validation-tooltip"></span>
+                                            </div>
+                                        </td>
+                                        <td><span class="component-unit-label js-rule-unit">@(isWeavingFee ? "تراکم" : isDyeingFee ? "گرم" : isWarpingFee ? (warpingQuantityIsGrams ? "گرم" : selectedMaterial is null ? "—" : AnalysesModel.AnalysisDisplayUnit(warpingSourceMaterial)) : selectedMaterial is null ? "—" : AnalysesModel.AnalysisDisplayUnit(selectedMaterial))</span></td>
+                                        <td class="analysis-money-cell"><span class="js-unit-price" data-value="@InputNumber(selectedUnitPrice)">@Money(selectedUnitPrice)</span></td>
+                                        <td class="analysis-money-cell"><span class="js-line-amount">۰</span></td>
+                                        <td></td>
+                                    </tr>
+                                }
+                            }
+
+                            @{
+                                var legacyComponents = Model.RulePreview?.UnmatchedComponents ?? Model.SelectedProduct.Components;
+                            }
+                            @for (var index = 0; index < legacyComponents.Count; index++)
+                            {
+                                var component = legacyComponents[index];
+                                var componentMaterial = Model.Materials.FirstOrDefault(material =>
+                                    material.Id == component.MaterialId ||
+                                    string.Equals(material.Name, component.MaterialName, StringComparison.CurrentCultureIgnoreCase));
+                                <tr class="analysis-legacy-row">
+                                    <td>
+                                        <div class="product-combobox product-combobox--table"
+                                             data-material-combobox
+                                             data-material-refresh-url="@Url.Page("/Analyses", "RefreshMaterials", new { productId = Model.SelectedProduct.Id })">
+                                            <input type="text" class="form-control form-control-sm js-material-search" value="@ComponentMaterialLabel(component.MaterialName, Model.Materials)" placeholder="جست‌وجوی کالا یا خدمت..." autocomplete="off" aria-expanded="false" disabled="@(!Model.ShowAnalysisEditor)" />
+                                            <input type="hidden" name="ComponentQuantities[@index].MaterialName" value="@component.MaterialName" class="js-material-name" form="analysis-items-form" disabled="@(!Model.ShowAnalysisEditor)" />
+                                            <button class="product-combobox__toggle" type="button" aria-label="نمایش کالاها و خدمات" disabled="@(!Model.ShowAnalysisEditor)"></button>
+                                            <button class="product-combobox__refresh" type="button" aria-label="به‌روزرسانی فهرست کالاها و خدمات" title="به‌روزرسانی فهرست" disabled="@(!Model.ShowAnalysisEditor)"></button>
+                                            <div class="product-combobox__options">
+                                                @if (!Model.SelectableMaterials.Any(material => string.Equals(material.Name, component.MaterialName, StringComparison.CurrentCultureIgnoreCase)))
+                                                {
+                                                    <button type="button" class="product-combobox__option" data-material-name="@component.MaterialName" data-material-label="@component.MaterialName" data-material-price="@InputNumber(componentMaterial is null ? 0 : componentMaterial.RialPrice > 0 ? componentMaterial.RialPrice : componentMaterial.Price)" data-material-unit="@(componentMaterial is null ? AnalysesModel.ComponentDisplayUnit(component.MeasurementUnit) : AnalysesModel.AnalysisDisplayUnit(componentMaterial))">@component.MaterialName</button>
+                                                }
+                                                @foreach (var material in Model.SelectableMaterials)
+                                                {
+                                                    <button type="button" class="product-combobox__option" data-material-name="@material.Name" data-material-label="@($"{material.Name} - {material.Kind}")" data-material-price="@InputNumber(material.RialPrice > 0 ? material.RialPrice : material.Price)" data-material-unit="@AnalysesModel.AnalysisDisplayUnit(material)">@material.Name - @material.Kind</button>
+                                                }
+                                            </div>
+                                        </div>
+                                        <span class="text-danger" asp-validation-for="ComponentQuantities[index].MaterialName"></span>
+                                    </td>
+                                    <td>
+                                        <input type="hidden" name="ComponentQuantities[@index].Id" value="@component.Id" form="analysis-items-form" />
+                                        <input name="ComponentQuantities[@index].Quantity" value="@InputNumber(AnalysesModel.AnalysisDisplayQuantity(component, componentMaterial))" class="form-control form-control-sm component-quantity-input" type="number" step="0.001" min="0.001" form="analysis-items-form" data-price-tab-target disabled="@(!Model.ShowAnalysisEditor)" />
+                                    </td>
+                                    <td><span class="component-unit-label js-row-component-unit">@(componentMaterial is null ? AnalysesModel.ComponentDisplayUnit(component.MeasurementUnit) : AnalysesModel.AnalysisDisplayUnit(componentMaterial))</span></td>
+                                    <td class="analysis-money-cell"><span class="js-unit-price" data-value="@InputNumber(componentMaterial is null ? 0 : componentMaterial.RialPrice > 0 ? componentMaterial.RialPrice : componentMaterial.Price)">@Money(componentMaterial is null ? 0 : componentMaterial.RialPrice > 0 ? componentMaterial.RialPrice : componentMaterial.Price)</span></td>
+                                    <td class="analysis-money-cell"><span class="js-line-amount">۰</span></td>
+                                    <td>
+                                        @if (Model.ShowAnalysisEditor)
+                                        {
+                                        <div class="row-actions">
+                                            <form method="post" asp-page-handler="DeleteComponent" asp-route-id="@component.Id" asp-route-productId="@Model.SelectedProduct.Id" asp-route-Query="@Model.Query" data-ajax-delete-component>
+                                                <button class="btn btn-sm btn-outline-danger" type="submit">حذف</button>
+                                            </form>
+                                        </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                        @if ((Model.RulePreview is not null && Model.RulePreview.Rows.Count > 0) || legacyComponents.Count > 0)
+                        {
+                            <tfoot>
+                                <tr class="analysis-items-total-row">
+                                    <td colspan="4">جمع مبالغ</td>
+                                    <td class="analysis-money-cell"><strong class="js-analysis-total">۰</strong></td>
+                                    <td></td>
+                                </tr>
+                                @if (Model.ShowAnalysisEditor)
+                                {
+                                <tr class="analysis-items-submit-row">
+                                    <td colspan="6" class="analysis-items-submit-cell">
+                                    <button class="btn btn-dark" type="submit" form="analysis-items-form">اعتبارسنجی و ثبت اقلام مصرفی (F3)</button>
+                                    </td>
+                                </tr>
+                                }
+                            </tfoot>
+                        }
+                    </table>
+                </div>
+            }
+        </section>
+    </main>
+</section>
+
+@functions {
+    private static string Number(decimal value) => string.Format("{0:N3}", value).TrimEnd('0').TrimEnd('.');
+    private static string Money(decimal value) => string.Format("{0:N0}", decimal.Round(value, 0, MidpointRounding.AwayFromZero));
+    private static string InputNumber(decimal value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static string SourceProductLabel(TextilePricingApp.Models.ProductRecipe product) =>
+        string.IsNullOrWhiteSpace(product.Name)
+            ? $"{product.Code} - {product.Components.Count} قلم مصرفی"
+            : $"{product.Code} - {product.Name} - {product.Components.Count} قلم مصرفی";
+
+    private static string ComponentMaterialLabel(string materialName, IReadOnlyList<TextilePricingApp.Models.MaterialItem> materials)
+    {
+        if (string.IsNullOrWhiteSpace(materialName))
+        {
+            return "";
+        }
+
+        var material = materials.FirstOrDefault(item => string.Equals(item.Name, materialName, StringComparison.CurrentCultureIgnoreCase));
+        return material is null ? materialName : $"{material.Name} - {material.Kind}";
+    }
+
+    private static string ComponentDisplayUnit(string materialName, IReadOnlyList<TextilePricingApp.Models.MaterialItem> materials)
+    {
+        var material = materials.FirstOrDefault(item => string.Equals(item.Name, materialName, StringComparison.CurrentCultureIgnoreCase));
+        return AnalysesModel.AnalysisDisplayUnit(material);
+    }
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const form = document.querySelector("[data-ajax-add-component]");
+            const tableBody = document.querySelector(".analysis-items-table tbody");
+            if (!form || !tableBody) {
+                return;
+            }
+
+            const message = form.querySelector("[data-ajax-component-message]");
+            const submitButton = form.querySelector('button[type="submit"]');
+            const combo = form.querySelector("[data-material-combobox]");
+            const search = combo?.querySelector(".js-material-search");
+            const materialInput = combo?.querySelector(".js-material-name");
+            const quantityInput = form.querySelector('[name="ComponentInput.Quantity"]');
+            const unitLabel = form.querySelector(".js-component-unit");
+            const token = form.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+            const money = (value) => new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(Number(value) || 0);
+
+            const updateCount = (count) => {
+                const badge = document.querySelector("[data-component-count]");
+                if (badge) {
+                    badge.textContent = `${count} قلم`;
+                }
+            };
+
+            const updateTotal = () => {
+                const total = [...document.querySelectorAll(".analysis-items-table tbody .js-line-amount")]
+                    .reduce((sum, cell) => sum + Number(cell.dataset.value || 0), 0);
+                const totalCell = document.querySelector(".js-analysis-total");
+                if (totalCell) {
+                    totalCell.textContent = money(total);
+                }
+            };
+
+            document.querySelectorAll("form[data-ajax-delete-component]").forEach((deleteForm) => {
+                deleteForm.addEventListener("submit", async (event) => {
+                    event.preventDefault();
+                    if (!window.confirm("این قلم حذف شود؟")) {
+                        return;
+                    }
+
+                    const deleteButton = deleteForm.querySelector('button[type="submit"]');
+                    const row = deleteForm.closest("tr");
+                    if (deleteButton) deleteButton.disabled = true;
+                    message.textContent = "";
+                    message.className = "ajax-component-message";
+                    try {
+                        const response = await fetch(deleteForm.action, {
+                            method: "POST",
+                            headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+                            body: new FormData(deleteForm)
+                        });
+                        if (!response.ok) {
+                            throw new Error("حذف قلم انجام نشد.");
+                        }
+
+                        const result = await response.json();
+                        row?.remove();
+                        updateCount(result.componentCount);
+                        updateTotal();
+                        message.className = "ajax-component-message text-success";
+                        message.textContent = "قلم حذف شد.";
+                    } catch (error) {
+                        if (deleteButton) deleteButton.disabled = false;
+                        message.className = "ajax-component-message text-danger";
+                        message.textContent = error.message || "حذف قلم انجام نشد؛ دوباره تلاش کنید.";
+                    }
+                });
+            });
+
+            const appendComponent = (component, deleteUrl) => {
+                const row = document.createElement("tr");
+                row.className = "analysis-legacy-row analysis-ajax-row";
+                row.dataset.componentId = String(component.id);
+
+                const materialCell = document.createElement("td");
+                const materialName = document.createElement("strong");
+                materialName.textContent = component.materialLabel;
+                materialCell.append(materialName);
+
+                const quantityCell = document.createElement("td");
+                const quantity = document.createElement("input");
+                quantity.className = "form-control form-control-sm component-quantity-input";
+                quantity.type = "number";
+                quantity.value = String(component.quantity);
+                quantity.readOnly = true;
+                quantityCell.append(quantity);
+
+                const unitCell = document.createElement("td");
+                const unit = document.createElement("span");
+                unit.className = "component-unit-label js-row-component-unit";
+                unit.textContent = component.unit;
+                unitCell.append(unit);
+
+                const unitPriceCell = document.createElement("td");
+                unitPriceCell.className = "analysis-money-cell";
+                const unitPrice = document.createElement("span");
+                unitPrice.className = "js-unit-price";
+                unitPrice.dataset.value = String(component.unitPrice);
+                unitPrice.textContent = money(component.unitPrice);
+                unitPriceCell.append(unitPrice);
+
+                const amountCell = document.createElement("td");
+                amountCell.className = "analysis-money-cell";
+                const amount = document.createElement("span");
+                amount.className = "js-line-amount";
+                amount.dataset.value = String(component.amount);
+                amount.textContent = money(component.amount);
+                amountCell.append(amount);
+
+                const actionCell = document.createElement("td");
+                const deleteButton = document.createElement("button");
+                deleteButton.type = "button";
+                deleteButton.className = "btn btn-sm btn-outline-danger";
+                deleteButton.textContent = "حذف";
+                deleteButton.addEventListener("click", async () => {
+                    if (!window.confirm("این قلم حذف شود؟")) {
+                        return;
+                    }
+                    deleteButton.disabled = true;
+                    try {
+                        const body = new FormData();
+                        body.append("__RequestVerificationToken", token);
+                        const response = await fetch(deleteUrl, {
+                            method: "POST",
+                            headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+                            body
+                        });
+                        if (!response.ok) {
+                            throw new Error("delete failed");
+                        }
+                        const result = await response.json();
+                        row.remove();
+                        updateCount(result.componentCount);
+                        updateTotal();
+                    } catch {
+                        deleteButton.disabled = false;
+                        message.className = "ajax-component-message text-danger";
+                        message.textContent = "حذف قلم انجام نشد؛ دوباره تلاش کنید.";
+                    }
+                });
+                actionCell.append(deleteButton);
+
+                row.append(materialCell, quantityCell, unitCell, unitPriceCell, amountCell, actionCell);
+                tableBody.append(row);
+                updateTotal();
+            };
+
+            form.addEventListener("submit", async (event) => {
+                event.preventDefault();
+                message.textContent = "";
+                message.className = "ajax-component-message";
+                submitButton.disabled = true;
+                try {
+                    const response = await fetch(form.action, {
+                        method: "POST",
+                        headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+                        body: new FormData(form)
+                    });
+                    const result = await response.json();
+                    if (!response.ok) {
+                        throw new Error((result.errors || []).join(" ") || "ثبت قلم انجام نشد.");
+                    }
+
+                    appendComponent(result.component, result.deleteUrl);
+                    updateCount(result.componentCount);
+                    if (search) search.value = "";
+                    if (materialInput) materialInput.value = "";
+                    if (quantityInput) quantityInput.value = "";
+                    if (unitLabel) unitLabel.textContent = "—";
+                    combo?.classList.remove("open");
+                    message.className = "ajax-component-message text-success";
+                    message.textContent = "قلم اضافه شد.";
+                    search?.focus();
+                } catch (error) {
+                    message.className = "ajax-component-message text-danger";
+                    message.textContent = error.message || "ثبت قلم انجام نشد؛ دوباره تلاش کنید.";
+                } finally {
+                    submitButton.disabled = false;
+                }
+            });
+        })();
+
+        (() => {
+            const productType = document.querySelector(".js-product-type");
+            const productStatus = document.querySelector(".js-product-status");
+            const layerType = document.querySelector(".js-layer-type");
+            const chainType = document.querySelector(".js-chain-type");
+            const dyeType = document.querySelector(".js-dye-type");
+            const laminationOrigin = document.querySelector(".js-lamination-origin");
+            const purchasePrice = document.querySelector(".js-purchase-price");
+            const purchasePriceHint = document.querySelector(".js-purchase-price-hint");
+            if (!productType || !productStatus || !layerType || !chainType || !dyeType || !laminationOrigin) {
+                return;
+            }
+
+            const productFields = document.querySelectorAll(".js-product-field");
+            const containsValue = (source, value) => (source || "").split(",").includes(value);
+            let productStatusWasChanged = false;
+
+            const syncProductFields = () => {
+                productFields.forEach((field) => {
+                    const productMatches = containsValue(field.dataset.productTypes, productType.value);
+                    const layerFilterApplies = !field.dataset.layerTypesProduct || field.dataset.layerTypesProduct === productType.value;
+                    const layerMatches = !field.dataset.layerTypes || !layerFilterApplies || containsValue(field.dataset.layerTypes, layerType.value);
+                    const chainMatches = !field.classList.contains("js-single-chain-field") || chainType.value === "تک چله";
+                    const dyeMatches = !field.classList.contains("js-dyeing-notes-field") ||
+                        (productType.value === productType.dataset.weavingValue && dyeType.value === "رنگشو");
+                    const finishingMatches = !field.classList.contains("js-finishing-notes-field") ||
+                        productType.value === productType.dataset.liningValue ||
+                        productType.value === productType.dataset.weavingValue;
+                    const laminationOriginMatches = !field.classList.contains("js-foreign-product-field") ||
+                        laminationOrigin.value === laminationOrigin.dataset.foreignValue;
+                    const visible = productMatches && layerMatches && chainMatches && dyeMatches && finishingMatches && laminationOriginMatches;
+                    field.hidden = !visible;
+                    field.querySelectorAll("input, select, textarea").forEach((control) => {
+                        control.disabled = !visible;
+                    });
+                });
+                const isForeign = laminationOrigin.value === laminationOrigin.dataset.foreignValue;
+                if (purchasePrice) {
+                    purchasePrice.step = isForeign ? "0.001" : "1";
+                }
+                if (purchasePriceHint) {
+                    purchasePriceHint.textContent = isForeign ? "دلار" : "ریال";
+                }
+            };
+
+            productStatus.addEventListener("change", () => {
+                productStatusWasChanged = true;
+            });
+            productType.addEventListener("change", () => {
+                if (!productStatusWasChanged && productType.value === productType.dataset.liningValue) {
+                    productStatus.value = productStatus.dataset.semiFinishedValue;
+                }
+                syncProductFields();
+            });
+            layerType.addEventListener("change", syncProductFields);
+            chainType.addEventListener("change", syncProductFields);
+            dyeType.addEventListener("change", syncProductFields);
+            laminationOrigin.addEventListener("change", syncProductFields);
+            syncProductFields();
+        })();
+
+        (() => {
+            const combo = document.querySelector("[data-material-combobox]");
+            const unitLabel = document.querySelector(".js-component-unit");
+            if (!combo || !unitLabel) {
+                return;
+            }
+
+            const search = combo.querySelector(".js-material-search");
+            const options = [...combo.querySelectorAll(".product-combobox__option")];
+            const setUnit = (option) => {
+                unitLabel.textContent = option?.dataset.materialUnit || "گرم";
+            };
+
+            options.forEach((option) => {
+                option.addEventListener("click", () => setUnit(option));
+            });
+
+            search?.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter") {
+                    return;
+                }
+
+                const firstVisible = options.find((option) => !option.hidden);
+                if (firstVisible) {
+                    setUnit(firstVisible);
+                }
+            });
+        })();
+
+        (() => {
+            document.querySelectorAll(".product-combobox--table[data-material-combobox]").forEach((combo) => {
+                const row = combo.closest("tr");
+                const unit = row?.querySelector(".js-row-component-unit");
+                if (!unit) {
+                    return;
+                }
+
+                const hidden = combo.querySelector(".js-material-name");
+                const syncUnit = (option) => {
+                    unit.textContent = option?.dataset.materialUnit || "گرم";
+                };
+
+                combo.addEventListener("material:selected", (event) => syncUnit(event.detail?.option));
+                const selectedOption = [...combo.querySelectorAll(".product-combobox__option")]
+                    .find((option) => option.dataset.materialName === hidden?.value);
+                syncUnit(selectedOption);
+            });
+        })();
+
+        (() => {
+            document.querySelectorAll("[data-rule-row]").forEach((row) => {
+                const combo = row.querySelector(".js-rule-material-combobox");
+                const material = combo?.querySelector(".js-material-name");
+                const unit = row.querySelector(".js-rule-unit");
+                if (!combo || !material || !unit) {
+                    return;
+                }
+
+                const syncUnit = (option) => {
+                    if (row.dataset.ruleRow === "weaving-fee") {
+                        unit.textContent = "تراکم";
+                    } else if (row.dataset.ruleRow === "dyeing") {
+                        unit.textContent = "گرم";
+                    } else if (!row.dataset.ruleRow?.startsWith("warping-service")) {
+                        unit.textContent = option?.dataset.materialUnit || "—";
+                    }
+                };
+                combo.addEventListener("material:selected", (event) => syncUnit(event.detail?.option));
+                const selectedOption = [...combo.querySelectorAll(".product-combobox__option")]
+                    .find((option) => option.dataset.materialName === material.value);
+                syncUnit(selectedOption);
+            });
+        })();
+
+        (() => {
+            const formatMoney = (value) => new Intl.NumberFormat("fa-IR", {
+                maximumFractionDigits: 0,
+                minimumFractionDigits: 0
+            }).format(Number.isFinite(value) ? value : 0);
+
+            const updateTotal = () => {
+                const total = [...document.querySelectorAll(".analysis-items-table tbody .js-line-amount")]
+                    .reduce((sum, cell) => sum + Number(cell.dataset.value || 0), 0);
+                const totalCell = document.querySelector(".js-analysis-total");
+                if (totalCell) {
+                    totalCell.textContent = formatMoney(total);
+                }
+            };
+
+            const updateRowPrice = (row) => {
+                const combo = row.querySelector("[data-material-combobox]");
+                const material = combo?.querySelector(".js-material-name");
+                const selectedOption = [...(combo?.querySelectorAll(".product-combobox__option") || [])]
+                    .find((option) => option.dataset.materialName === material?.value);
+                const quantity = Number(row.querySelector(".component-quantity-input")?.value || 0);
+                const displayUnit = row.querySelector(".js-rule-unit, .js-row-component-unit")?.textContent.trim() || "";
+                const unitPrice = Number(selectedOption?.dataset.materialPrice || 0);
+                const pricingQuantity = displayUnit === "گرم" ? quantity / 1000 : quantity;
+                const amount = unitPrice * pricingQuantity;
+                const unitPriceCell = row.querySelector(".js-unit-price");
+                const amountCell = row.querySelector(".js-line-amount");
+                if (unitPriceCell) {
+                    unitPriceCell.dataset.value = String(unitPrice);
+                    unitPriceCell.textContent = formatMoney(unitPrice);
+                }
+                if (amountCell) {
+                    amountCell.dataset.value = String(amount);
+                    amountCell.textContent = formatMoney(amount);
+                }
+                updateTotal();
+            };
+
+            document.querySelectorAll(".analysis-items-table tbody tr").forEach((row) => {
+                const combo = row.querySelector("[data-material-combobox]");
+                const quantity = row.querySelector(".component-quantity-input");
+                combo?.addEventListener("material:selected", () => updateRowPrice(row));
+                quantity?.addEventListener("input", () => updateRowPrice(row));
+                quantity?.addEventListener("change", () => updateRowPrice(row));
+                updateRowPrice(row);
+            });
+        })();
+
+        (() => {
+            const density = document.querySelector('[name="Input.WeftDensity"]');
+            const quantity = document.querySelector('[data-weaving-density-quantity="true"]');
+            const displayQuantity = document.querySelector("[data-weaving-display-quantity]");
+            const hint = document.querySelector("[data-weaving-density-hint]");
+            const row = document.querySelector('[data-rule-row="weaving-fee"]');
+            const combo = row?.querySelector(".js-rule-material-combobox");
+            const material = combo?.querySelector(".js-material-name");
+            if (!density || !quantity || !displayQuantity || !hint || !combo || !material) {
+                return;
+            }
+
+            const syncWeavingDensity = () => {
+                const value = density.value || "0";
+                quantity.value = value;
+                displayQuantity.value = value;
+                displayQuantity.dispatchEvent(new Event("input", { bubbles: true }));
+                hint.textContent = `به ازای تراکم ${value}`;
+            };
+
+            combo.addEventListener("material:selected", syncWeavingDensity);
+            density.addEventListener("input", syncWeavingDensity);
+            density.addEventListener("change", syncWeavingDensity);
+            syncWeavingDensity();
+        })();
+
+        (() => {
+            document.querySelectorAll('[data-warping-quantity="true"]').forEach((quantity) => {
+                const row = quantity.closest("[data-rule-row]");
+                const sourceKey = quantity.dataset.warpSource;
+                const sourceRow = document.querySelector(`[data-rule-row="${sourceKey}"]`);
+                const sourceQuantity = sourceRow?.querySelector('.component-quantity-input:not([readonly])');
+                const sourceUnit = sourceRow?.querySelector(".js-rule-unit");
+                const sourceCombo = sourceRow?.querySelector(".js-rule-material-combobox");
+                const combo = row?.querySelector(".js-rule-material-combobox");
+                const material = combo?.querySelector(".js-material-name");
+                const displayQuantity = row?.querySelector("[data-warping-display-quantity]");
+                const unit = row?.querySelector(".js-rule-unit");
+                const hint = row?.querySelector("[data-warping-quantity-hint]");
+                if (!row || !sourceQuantity || !sourceUnit || !sourceCombo || !combo || !material || !displayQuantity || !unit || !hint) {
+                    return;
+                }
+
+                const syncWarpingAmount = () => {
+                    const value = Number(sourceQuantity.value || 0);
+                    const isGram = sourceUnit.textContent.trim() === "گرم";
+                    const calculationQuantity = isGram ? value / 1000 : value;
+                    quantity.value = String(calculationQuantity);
+                    displayQuantity.value = String(isGram ? value : calculationQuantity);
+                    unit.textContent = isGram ? "گرم" : sourceUnit.textContent.trim() || "—";
+                    displayQuantity.dispatchEvent(new Event("input", { bubbles: true }));
+                    hint.textContent = isGram
+                        ? `بر اساس ${sourceQuantity.value || "0"} گرم`
+                        : `بر اساس مقدار چله ${sourceQuantity.value || "0"}`;
+                };
+
+                combo.addEventListener("material:selected", syncWarpingAmount);
+                sourceCombo.addEventListener("material:selected", syncWarpingAmount);
+                sourceQuantity.addEventListener("input", syncWarpingAmount);
+                sourceQuantity.addEventListener("change", syncWarpingAmount);
+                syncWarpingAmount();
+            });
+        })();
+
+        (() => {
+            const row = document.querySelector('[data-rule-row="dyeing"]');
+            const combo = row?.querySelector(".js-rule-material-combobox");
+            const material = combo?.querySelector(".js-material-name");
+            const quantity = row?.querySelector('[data-dyeing-weight-quantity="true"]');
+            const displayQuantity = row?.querySelector("[data-dyeing-display-quantity]");
+            const hint = row?.querySelector("[data-dyeing-weight-hint]");
+            const layerType = document.querySelector('[name="Input.LayerType"]');
+            const gramPerMeter = document.querySelector('[name="Input.GramPerMeter"]');
+            const faceGramPerMeter = document.querySelector('[name="Input.FaceGramPerMeter"]');
+            if (!row || !combo || !material || !quantity || !displayQuantity || !hint || !layerType || !gramPerMeter || !faceGramPerMeter) {
+                return;
+            }
+
+            const syncDyeingAmount = () => {
+                const baseWeight = Number(layerType.value === "دولایه" ? faceGramPerMeter.value : gramPerMeter.value) || 0;
+                quantity.value = String(baseWeight);
+                displayQuantity.value = String(baseWeight);
+                displayQuantity.dispatchEvent(new Event("input", { bubbles: true }));
+                hint.textContent = `بر مبنای ${baseWeight} گرم در هر متر`;
+            };
+
+            combo.addEventListener("material:selected", syncDyeingAmount);
+            layerType.addEventListener("change", syncDyeingAmount);
+            gramPerMeter.addEventListener("input", syncDyeingAmount);
+            faceGramPerMeter.addEventListener("input", syncDyeingAmount);
+            syncDyeingAmount();
+        })();
+
+        (() => {
+            const dyeType = document.querySelector(".js-dye-type");
+            const wasteCategory = document.querySelector(".js-waste-category");
+            if (!dyeType || !wasteCategory) {
+                return;
+            }
+
+            dyeType.addEventListener("change", () => {
+                const targetPercent = dyeType.value === "رنگشو" ? 7 : 2;
+                const targetOption = [...wasteCategory.options]
+                    .find((option) => Number(option.dataset.wastePercent) === targetPercent);
+                if (targetOption) {
+                    wasteCategory.value = targetOption.value;
+                }
+            });
+        })();
+
+        (() => {
+            const enhanceValidationIcons = () => {
+                document.querySelectorAll(".analysis-validation-tooltip.field-validation-error").forEach((icon) => {
+                    const inlineMessage = icon.textContent.trim();
+                    if (!inlineMessage && icon.dataset.validationEnhanced === "true") {
+                        return;
+                    }
+                    const message = inlineMessage || icon.dataset.validationMessage;
+                    if (!message) {
+                        return;
+                    }
+
+                    icon.dataset.validationMessage = message;
+                    icon.dataset.validationEnhanced = "true";
+                    icon.textContent = "";
+                    icon.title = message;
+                    icon.setAttribute("aria-label", message);
+                    icon.setAttribute("role", "img");
+                    icon.setAttribute("tabindex", "0");
+                });
+            };
+
+            enhanceValidationIcons();
+            new MutationObserver(enhanceValidationIcons).observe(document.body, {
+                attributes: true,
+                attributeFilter: ["class"],
+                characterData: true,
+                childList: true,
+                subtree: true
+            });
+
+            const panel = document.querySelector('[data-analysis-validation-failed="true"]');
+            if (!panel) {
+                return;
+            }
+
+            window.setTimeout(() => {
+                panel.scrollIntoView({ behavior: "auto", block: "start" });
+                panel.querySelector(".input-validation-error")?.focus({ preventScroll: true });
+            }, 100);
+        })();
+    </script>
+}

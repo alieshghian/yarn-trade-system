@@ -1,0 +1,83 @@
+@page
+@model PriceSnapshotsModel
+@{
+    ViewData["Title"] = "آرشیو قیمت‌ها";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>آرشیو قیمت‌ها</h1>
+    </div>
+</section>
+
+@if (Model.CreatedSnapshot is not null)
+{
+    <div class="alert alert-success snapshot-alert">
+        اسنپ‌شات PDF ثبت شد:
+        <a asp-page-handler="Download" asp-route-id="@Model.CreatedSnapshot.Id" target="_blank" rel="noopener">باز کردن PDF</a>
+    </div>
+}
+
+<section class="crud-layout price-snapshots-layout">
+    <aside class="side-panel settings-panel">
+        <h2 class="panel-title">جستجوی آرشیو</h2>
+        <form method="get" class="toolbar-form product-search factory-filter-form" data-live-search-form>
+            <label for="Query">جستجو</label>
+            <input id="Query" name="Query" value="@Model.Query" class="form-control" placeholder="مشتری، فایل، فیلتر یا کاربر..." autocomplete="off" data-live-search-input />
+
+            <label for="CustomerId">مشتری</label>
+            <select name="CustomerId" id="CustomerId" class="form-select" data-live-search-submit-on-change>
+                <option value="" selected="@(Model.CustomerId is null)">همه مشتریان</option>
+                @foreach (var customer in Model.Customers)
+                {
+                    <option value="@customer.Id" selected="@(customer.Id == Model.CustomerId)">@customer.Name</option>
+                }
+            </select>
+        </form>
+    </aside>
+
+    <main class="report-panel">
+        <div class="table-responsive">
+            <table class="table align-middle pricing-table compact-table snapshot-table">
+                <thead>
+                    <tr>
+                        <th>تاریخ ثبت</th>
+                        <th>مشتری</th>
+                        <th>فیلتر</th>
+                        <th>تعداد</th>
+                        <th>کاربر</th>
+                        <th>PDF</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7">آرشیوی ثبت نشده است.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr class="@(item.Id == Model.SnapshotId ? "table-success" : "")">
+                                <td>@PriceSnapshotsModel.PersianDateTime(item.CreatedAt)</td>
+                                <td>@item.CustomerName</td>
+                                <td>@(string.IsNullOrWhiteSpace(item.Query) ? "همه" : item.Query)</td>
+                                <td>@item.RowCount</td>
+                                <td>@item.CreatedBy</td>
+                                <td>
+                                    <a asp-page-handler="Download" asp-route-id="@item.Id" target="_blank" rel="noopener">باز کردن</a>
+                                </td>
+                                <td class="row-actions">
+                                    <a class="btn btn-sm btn-outline-dark" asp-page-handler="Download" asp-route-id="@item.Id" target="_blank" rel="noopener">PDF</a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>

@@ -1,0 +1,204 @@
+@page
+@model CustomerPanelModel
+@{
+    ViewData["Title"] = "پنل مشتریان";
+}
+
+<section class="page-heading no-print">
+    <div>
+        <h1>پنل مشتریان</h1>
+    </div>
+</section>
+
+<section class="crud-layout customer-panel-layout no-print">
+    <aside class="side-panel settings-panel factory-price-side-panel">
+        <h2 class="panel-title">فیلتر</h2>
+        <form method="get" class="toolbar-form product-search factory-filter-form" data-live-search-form>
+            <input id="Query" name="Query" value="@Model.Query" class="form-control" placeholder="جست‌وجوی کد، نام یا گروه محصول..." autocomplete="off" data-live-search-input />
+
+            <select name="CustomerId" id="CustomerId" class="form-select" data-live-search-submit-on-change>
+                <option value="" selected="@(Model.CustomerId is null)">همه مشتریان</option>
+                @foreach (var customer in Model.Customers)
+                {
+                    <option value="@customer.Id" selected="@(customer.Id == Model.CustomerId)">@customer.Name</option>
+                }
+            </select>
+
+            <select id="StatusFilter" name="StatusFilter" class="form-select" data-live-search-submit-on-change>
+                <option value="all" selected="@(Model.StatusFilter == "all")">همه وضعیت‌ها</option>
+                <option value="loss" selected="@(Model.StatusFilter == "loss")">زیان نقدی</option>
+                <option value="equal" selected="@(Model.StatusFilter == "equal")">بدون سود و زیان نقدی</option>
+                <option value="profit" selected="@(Model.StatusFilter == "profit")">سود نقدی</option>
+            </select>
+
+            <select id="SortBy" name="SortBy" class="form-select" data-live-search-submit-on-change>
+                <option value="default" selected="@(Model.SortBy == "default")">مرتب‌سازی پیش‌فرض</option>
+                <option value="base-profit" selected="@(Model.SortBy == "base-profit")">سود تعیین‌شده</option>
+                <option value="target-profit" selected="@(Model.SortBy == "target-profit")">سود مطلوب</option>
+                <option value="credit-profit" selected="@(Model.SortBy == "credit-profit")">سود اعتباری</option>
+                <option value="profit-gap" selected="@(Model.SortBy == "profit-gap")">فاصله تا سود مطلوب</option>
+            </select>
+
+            <select id="SortDirection" name="SortDirection" class="form-select" data-live-search-submit-on-change>
+                <option value="desc" selected="@(Model.SortDirection == "desc")">زیاد به کم</option>
+                <option value="asc" selected="@(Model.SortDirection == "asc")">کم به زیاد</option>
+            </select>
+
+        </form>
+
+        <div class="summary-grid settings-summary customer-rate-summary">
+            <div>
+                <span>تعداد محصولات</span>
+                <strong>@Model.Rows.Count</strong>
+                <small>ردیف</small>
+            </div>
+        </div>
+
+    </aside>
+
+    <main class="report-panel customer-panel-report">
+        <div class="customer-side-actions customer-report-actions no-print">
+            <form method="post" asp-page-handler="CreateSnapshot" class="inline-form">
+                <input type="hidden" name="CustomerId" value="@Model.CustomerId" />
+                <input type="hidden" name="Query" value="@Model.Query" />
+                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                <input type="hidden" name="SortBy" value="@Model.SortBy" />
+                <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+                <button class="btn btn-dark" type="submit">ثبت اسنپ‌شات PDF</button>
+            </form>
+            <button class="btn btn-outline-dark" type="button" onclick="window.print()">چاپ</button>
+        </div>
+
+        <div class="customer-panel-table-wrap">
+            <table class="customer-panel-table">
+                <colgroup>
+                    <col class="customer-panel-col-product" />
+                    <col class="customer-panel-col-previous" />
+                    <col class="customer-panel-col-price" />
+                    <col class="customer-panel-col-price" />
+                    <col class="customer-panel-col-print" />
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>محصول</th>
+                        <th>قیمت قبلی</th>
+                        <th>فروش نقدی</th>
+                        <th>فروش اعتباری</th>
+                        <th>چاپ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        var previous = Model.PreviousPrices.TryGetValue(row.ProductCode, out var previousPrice)
+                            ? previousPrice
+                            : null;
+                        <tr>
+                            <td>
+                                <div class="customer-panel-product">
+                                    <div class="product-row-media">
+                                        @if (!string.IsNullOrWhiteSpace(row.ImagePath))
+                                        {
+                                            <img src="@row.ImagePath" alt="@ProductTitle(row)" />
+                                        }
+                                        else
+                                        {
+                                            <img src="/images/no-picture.svg" alt="No Picture" />
+                                        }
+                                    </div>
+                                    <div class="product-row-copy">
+                                        <strong>@row.ProductCode</strong>
+                                        @if (!string.IsNullOrWhiteSpace(row.ProductName))
+                                        {
+                                            <span>@row.ProductName</span>
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(row.ProductGroupName))
+                                        {
+                                            <small>@row.ProductGroupName</small>
+                                        }
+                                        @if (row.IsVatExempt)
+                                        {
+                                            <small>بدون ارزش افزوده</small>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="customer-panel-previous">
+                                @if (previous is null)
+                                {
+                                    <span>-</span>
+                                }
+                                else
+                                {
+                                    <strong>نقدی @Money(previous.CashPrice)</strong>
+                                    <strong>اعتباری @Money(previous.CreditPrice)</strong>
+                                    <small>اعتبار: @PersianDate(previous.CreatedAt)</small>
+                                }
+                            </td>
+                            <td class="customer-panel-price">@Money(row.CustomerCashPrice)</td>
+                            <td class="customer-panel-price customer-panel-price--primary">@Money(row.CustomerPrice)</td>
+                            <td class="customer-panel-print">
+                                <a class="btn btn-sm btn-outline-dark" asp-page="/CustomerPrint" asp-route-CustomerId="@row.CustomerId" asp-route-ProductCode="@row.ProductCode" target="_blank">چاپ</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>
+
+<section class="customer-prices-print print-only" dir="rtl">
+    <table class="print-table customer-prices-print__table">
+        <thead>
+            <tr class="customer-prices-print__heading-row">
+                <th colspan="4">
+                    <header class="customer-prices-print__header">
+                        <div>
+                            <h1>پنل مشتریان</h1>
+                            <p>مشتری: @Model.ReportCustomerName</p>
+                        </div>
+                        <div>
+                            <span>تاریخ: @Model.ReportDateText</span>
+                            <span>تعداد ردیف: @Model.Rows.Count</span>
+                        </div>
+                    </header>
+                </th>
+            </tr>
+            <tr>
+                <th>ردیف</th>
+                <th>عنوان محصول</th>
+                <th>فروش نقدی</th>
+                <th>فروش اعتباری</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Rows.Count == 0)
+            {
+                <tr>
+                    <td colspan="4">ردیفی برای چاپ وجود ندارد.</td>
+                </tr>
+            }
+            else
+            {
+                @for (var index = 0; index < Model.Rows.Count; index++)
+                {
+                    var row = Model.Rows[index];
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@row.ProductCode</td>
+                        <td>@Money(row.CustomerCashPrice)</td>
+                        <td>@Money(row.CustomerPrice)</td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</section>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string ProductTitle(TextilePricingApp.Models.CustomerPriceRow row) =>
+        string.IsNullOrWhiteSpace(row.ProductName) ? row.ProductCode : $"{row.ProductCode} - {row.ProductName}";
+    private static string PersianDate(DateTime value) => TextilePricingApp.Services.CustomerPriceReportService.PersianDate(value);
+}

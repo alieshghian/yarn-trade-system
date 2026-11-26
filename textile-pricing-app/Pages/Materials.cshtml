@@ -1,0 +1,296 @@
+@page
+@model MaterialsModel
+@{
+    ViewData["Title"] = "کالاها و خدمات";
+    var printDate = PersianDate(DateTime.Now);
+}
+
+<section class="crud-layout materials-layout">
+    <aside class="side-panel base-info-side-panel no-print">
+        <h2 class="panel-title">@Model.FormTitle</h2>
+        <form method="post" asp-page-handler="Save" class="stack material-form" data-dollar-rate="@Model.DollarRate" data-price-change-threshold="@Model.PriceChangeConfirmationThresholdPercent" data-original-rial-price="@Model.Input.RialPrice">
+            <input type="hidden" asp-for="Input.Id" />
+            <input type="hidden" asp-for="PriceChangeConfirmed" class="js-price-change-confirmed" />
+            <input type="hidden" asp-for="Input.Kind" class="js-material-kind" />
+            <input type="hidden" name="Query" value="@Model.Query" />
+            <input type="hidden" name="KindFilter" value="@Model.ActiveKind" />
+
+            <label asp-for="Input.Name">نام کالا/خدمت</label>
+            <input asp-for="Input.Name" class="form-control" />
+            <span asp-validation-for="Input.Name" class="text-danger"></span>
+
+            <label>نوع</label>
+            <div class="readonly-chip">@Model.ActiveKind</div>
+
+            <label asp-for="Input.MeasurementUnit">واحد</label>
+            <select asp-for="Input.MeasurementUnit" class="form-select">
+                <option value="کیلوگرم">کیلوگرم</option>
+                <option value="متر">متر</option>
+            </select>
+            <span asp-validation-for="Input.MeasurementUnit" class="text-danger"></span>
+
+            <label asp-for="Input.Unit">واحد پولی</label>
+            <select asp-for="Input.Unit" class="form-select js-material-unit">
+                <option value="ریال">ریال</option>
+                <option value="دلار">دلار</option>
+            </select>
+            <small class="field-hint">نرخ دلار فعلی: @Money(Model.DollarRate)</small>
+
+            <label asp-for="Input.Price">قیمت</label>
+            <input name="Input.Price" value="@PriceMoney(Model.Input.Price, Model.Input.Unit)" class="form-control js-money-input js-material-price" inputmode="decimal" autocomplete="off" data-number-format="money" data-decimal-places="@(MaterialsModel.IsDollarUnit(Model.Input.Unit) ? 2 : 0)" />
+            <span asp-validation-for="Input.Price" class="text-danger"></span>
+
+            <label asp-for="Input.RialPrice">قیمت ریالی</label>
+            <input name="Input.RialPrice" value="@Money(Model.Input.RialPrice)" class="form-control js-money-input js-material-rial-price" inputmode="numeric" autocomplete="off" data-number-format="money" readonly />
+            <small class="field-hint">اگر واحد دلار باشد، قیمت در نرخ دلار ضرب می‌شود؛ اگر ریال باشد همان قیمت ثبت می‌شود.</small>
+
+            <button type="submit" class="btn btn-dark">ذخیره (F3)</button>
+            @if (Model.Input.Id > 0)
+            {
+                <a class="btn btn-outline-secondary" asp-page="/Materials" asp-route-Query="@Model.Query">انصراف</a>
+            }
+        </form>
+    </aside>
+
+    <main class="report-panel">
+        <div class="materials-print-header print-only">
+            <h1>لیست @Model.ActiveKind</h1>
+            <div class="materials-print-meta">
+                <span>تاریخ چاپ: @printDate</span>
+                <span>تعداد ردیف: @Model.Items.Count</span>
+                <span>جست‌وجو: @(string.IsNullOrWhiteSpace(Model.Query) ? "همه" : Model.Query)</span>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+        {
+            <div class="alert alert-success no-print">@Model.SuccessMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger no-print">@Model.ErrorMessage</div>
+        }
+
+        <form method="get" class="toolbar-form no-print" data-live-search-form>
+            <input type="hidden" name="KindFilter" value="@Model.ActiveKind" />
+            <input name="Query" value="@Model.Query" class="form-control" placeholder="جست‌وجو در نام، نوع، واحد پولی یا واحد..." autocomplete="off" data-live-search-input />
+        </form>
+        <nav class="material-tabs no-print" aria-label="نوع کالا و خدمت">
+            <a class="material-tab @(Model.ActiveKind == "نخ" ? "active" : "")" asp-page="/Materials" asp-route-Query="@Model.Query" asp-route-KindFilter="نخ">
+                <span>نخ</span>
+                <strong>@Model.YarnCount</strong>
+            </a>
+            <a class="material-tab @(Model.ActiveKind == "پارچه" ? "active" : "")" asp-page="/Materials" asp-route-Query="@Model.Query" asp-route-KindFilter="پارچه">
+                <span>پارچه</span>
+                <strong>@Model.FabricCount</strong>
+            </a>
+            <a class="material-tab @(Model.ActiveKind == "خدمت" ? "active" : "")" asp-page="/Materials" asp-route-Query="@Model.Query" asp-route-KindFilter="خدمت">
+                <span>خدمت</span>
+                <strong>@Model.ServiceCount</strong>
+            </a>
+        </nav>
+        <form id="bulk-price-form" method="post" asp-page-handler="SavePrices" data-price-change-threshold="@Model.PriceChangeConfirmationThresholdPercent">
+            <input type="hidden" name="Query" value="@Model.Query" />
+            <input type="hidden" name="KindFilter" value="@Model.ActiveKind" />
+            <input type="hidden" name="PriceChangeConfirmed" value="false" class="js-price-change-confirmed" />
+        </form>
+
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger no-print"></div>
+
+        <div class="table-responsive material-table-wrap">
+            <table class="table align-middle pricing-table materials-table @(Model.ActiveKind == "پارچه" ? "materials-table--fabric" : Model.ActiveKind == "خدمت" ? "materials-table--service" : "materials-table--yarn")">
+                <thead>
+                    <tr>
+                        <th>نام</th>
+                        <th>واحد</th>
+                        <th>قیمت</th>
+                        <th>قیمت ریالی</th>
+                        <th>آخرین ویرایش</th>
+                        <th class="no-print"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var index = 0; index < Model.Items.Count; index++)
+                    {
+                        var item = Model.Items[index];
+                        var isSystemProductMaterial = Model.IsSystemProductMaterial(item.Id);
+                        var isPriceOutdated = !isSystemProductMaterial && Model.IsPriceOutdated(item);
+                        var systemProductId = Model.GetSystemProductId(item.Id);
+                        <tr class="@(isPriceOutdated ? "material-row--outdated" : "") @(isSystemProductMaterial ? "material-row--system" : "")">
+                            <td>@item.Name</td>
+                            <td>@item.MeasurementUnit</td>
+                            <td>
+                                <input type="hidden" name="PriceInputs[@index].Id" value="@item.Id" form="bulk-price-form" />
+                                <div class="price-edit-cell">
+                                    <input
+                                        name="PriceInputs[@index].Price"
+                                        value="@PriceMoney(Model.PriceForDisplay(item), item.Unit)"
+                                        class="form-control form-control-sm js-money-input table-price-input"
+                                        inputmode="decimal"
+                                        autocomplete="off"
+                                        data-number-format="money"
+                                        data-decimal-places="@(MaterialsModel.IsDollarUnit(item.Unit) ? 2 : 0)"
+                                        data-original-price="@MaterialsModel.RoundPriceByUnit(item.Price, item.Unit).ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                        data-price-tab-target
+                                        readonly="@isSystemProductMaterial"
+                                        title="@(isSystemProductMaterial ? "قیمت سیستمی برابر فروش نقدی کارخانه است" : null)"
+                                        form="bulk-price-form" />
+                                    <span class="material-currency-badge">@item.Unit</span>
+                                    <span class="price-diff-badge" aria-live="polite"></span>
+                                </div>
+                            </td>
+                            <td>@Money(item.RialPrice)</td>
+                            <td>@PersianDate(item.LastEditedAt)</td>
+                            <td class="row-actions no-print">
+                                @if (isSystemProductMaterial && systemProductId is > 0)
+                                {
+                                    <a class="btn btn-sm btn-outline-primary"
+                                       asp-page="/Analyses"
+                                       asp-route-EditId="@systemProductId"
+                                       asp-route-EditMode="true"
+                                       title="اصلاح قیمت این پارچه از طریق آنالیز محصول انجام می‌شود">
+                                        آنالیز محصول
+                                    </a>
+                                }
+                                @if (!isSystemProductMaterial)
+                                {
+                                    <a class="btn btn-sm btn-outline-dark icon-btn" asp-page="/Materials" asp-route-Query="@Model.Query" asp-route-KindFilter="@Model.ActiveKind" asp-route-EditId="@item.Id" title="ویرایش" aria-label="ویرایش @item.Name">
+                                        <span aria-hidden="true">✎</span>
+                                    </a>
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" asp-route-Query="@Model.Query" asp-route-KindFilter="@Model.ActiveKind" onsubmit="return confirm('این مورد حذف شود؟')">
+                                        <button class="btn btn-sm btn-outline-danger icon-btn" type="submit" title="حذف" aria-label="حذف @item.Name">
+                                            <span aria-hidden="true">×</span>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <table class="materials-print-table print-only">
+            <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>نام</th>
+                    <th>واحد</th>
+                    <th>قیمت</th>
+                    <th>قیمت ریالی</th>
+                    <th>آخرین ویرایش</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < Model.Items.Count; index++)
+                {
+                    var item = Model.Items[index];
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@item.Name</td>
+                        <td>@item.MeasurementUnit</td>
+                        <td>@PriceMoney(item.Price, item.Unit) @item.Unit</td>
+                        <td>@Money(item.RialPrice)</td>
+                        <td>@PersianDate(item.LastEditedAt)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="bulk-grid-actions no-print">
+            <button class="btn btn-dark" type="submit" form="bulk-price-form">ثبت همه قیمت‌ها (F3)</button>
+            <a class="btn btn-outline-dark" asp-page="/Materials" asp-page-handler="Print" asp-route-KindFilter="@Model.ActiveKind" asp-route-Query="@Model.Query" target="_blank" rel="noopener">چاپ لیست</a>
+        </div>
+    </main>
+</section>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string PriceMoney(decimal value, string unit) =>
+        MaterialsModel.IsDollarUnit(unit) ? string.Format("{0:N2}", value) : Money(value);
+    private static string PersianDate(DateTime value)
+    {
+        var local = value.Kind == DateTimeKind.Utc ? value.ToLocalTime() : value;
+        var calendar = new System.Globalization.PersianCalendar();
+        return $"{calendar.GetYear(local):0000}/{calendar.GetMonth(local):00}/{calendar.GetDayOfMonth(local):00}";
+    }
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const form = document.querySelector(".material-form");
+            if (!form) return;
+
+            const price = form.querySelector(".js-material-price");
+            const unit = form.querySelector(".js-material-unit");
+            const rialPrice = form.querySelector(".js-material-rial-price");
+            const dollarRate = Number(form.dataset.dollarRate || 0);
+
+            const updateRialPrice = () => {
+                const numericPrice = Number((price.value || "0").replace(/,/g, ""));
+                const rialValue = unit.value === "دلار"
+                    ? numericPrice * dollarRate
+                    : numericPrice;
+                rialPrice.value = Math.round(rialValue).toLocaleString("en-US");
+            };
+
+            const updatePricePrecision = () => {
+                price.dataset.decimalPlaces = unit.value === "دلار" ? "2" : "0";
+            };
+
+            price.addEventListener("input", updateRialPrice);
+            unit.addEventListener("change", () => {
+                updatePricePrecision();
+                updateRialPrice();
+            });
+            updatePricePrecision();
+            updateRialPrice();
+
+            form.addEventListener("submit", (event) => {
+                if (form.querySelector(".js-price-change-confirmed")?.value === "true") return;
+                const oldPrice = Number(form.dataset.originalRialPrice || 0);
+                const newPrice = Math.round(Number((rialPrice.value || "0").replace(/,/g, "")) || 0);
+                const threshold = Number(form.dataset.priceChangeThreshold || 0);
+                const change = oldPrice <= 0 ? (newPrice > 0 ? Infinity : 0) : Math.abs(newPrice - oldPrice) / oldPrice * 100;
+                if (change > threshold) {
+                    const confirmed = window.confirm(`قیمت بیش از ${threshold}% تغییر کرده است. آیا از ثبت این تغییر مطمئن هستید؟`);
+                    if (!confirmed) {
+                        event.preventDefault();
+                        return;
+                    }
+                    form.querySelector(".js-price-change-confirmed").value = "true";
+                }
+            }, true);
+        })();
+
+        (() => {
+            const form = document.querySelector("#bulk-price-form");
+            if (!form) return;
+            form.addEventListener("submit", (event) => {
+                if (form.querySelector(".js-price-change-confirmed")?.value === "true") return;
+                const threshold = Number(form.dataset.priceChangeThreshold || 0);
+                const changedInputs = [...document.querySelectorAll(".table-price-input")].filter(input => {
+                    if (input.readOnly) return false;
+                    const oldPrice = Number(input.dataset.originalPrice || 0);
+                    const newPrice = Number((input.value || "0").replace(/,/g, "")) || 0;
+                    return oldPrice !== newPrice;
+                });
+                const largeChanges = changedInputs.filter(input => {
+                    const oldPrice = Number(input.dataset.originalPrice || 0);
+                    const newPrice = Number((input.value || "0").replace(/,/g, "")) || 0;
+                    const change = oldPrice <= 0 ? (newPrice > 0 ? Infinity : 0) : Math.abs(newPrice - oldPrice) / oldPrice * 100;
+                    return change > threshold;
+                });
+                if (largeChanges.length > 0) {
+                    const confirmed = window.confirm(`${largeChanges.length} قیمت بیش از ${threshold}% تغییر کرده است. آیا از ثبت این تغییرات مطمئن هستید؟`);
+                    if (!confirmed) {
+                        event.preventDefault();
+                        return;
+                    }
+                    form.querySelector(".js-price-change-confirmed").value = "true";
+                }
+            }, true);
+        })();
+    </script>
+}

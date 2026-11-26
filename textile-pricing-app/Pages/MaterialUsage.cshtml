@@ -1,0 +1,79 @@
+@page
+@model MaterialUsageModel
+@{
+    ViewData["Title"] = "گزارش مصرف کالا و خدمات";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>گزارش مصرف کالا و خدمات</h1>
+    </div>
+</section>
+
+<section class="crud-layout material-usage-layout materials-layout">
+    <aside class="side-panel base-info-side-panel">
+        <h2 class="panel-title">کالا و خدمات</h2>
+        <form method="get" class="toolbar-form stacked-toolbar" data-live-search-form>
+            <input name="Query" value="@Model.Query" class="form-control" placeholder="جست‌وجوی کالا، خدمت یا محصول..." autocomplete="off" data-live-search-input />
+        </form>
+
+        <div class="product-list material-usage-list">
+            @foreach (var material in Model.Materials)
+            {
+                <a class="product-list__item @(material.MaterialId == Model.MaterialId ? "active" : "")"
+                   asp-page="/MaterialUsage"
+                   asp-route-Query="@Model.Query"
+                   asp-route-MaterialId="@material.MaterialId">
+                    <strong>@material.MaterialName</strong>
+                    <small>@material.Kind - @material.UsageCount آنالیز</small>
+                </a>
+            }
+        </div>
+    </aside>
+
+    <main class="report-panel">
+        <div class="panel-heading">
+            <div>
+                <p class="eyebrow">محل مصرف در آنالیزها</p>
+                <h2>@(Model.SelectedMaterial?.MaterialName ?? "همه موارد")</h2>
+            </div>
+            <span class="count-badge">@Model.Rows.Count ردیف</span>
+        </div>
+
+        <div class="table-responsive material-usage-table-wrap">
+            <table class="table align-middle pricing-table material-usage-table">
+                <thead>
+                    <tr>
+                        <th>کالا/خدمت</th>
+                        <th>نوع</th>
+                        <th>کد محصول</th>
+                        <th>نوع محصول</th>
+                        <th>کسری و ضایعات</th>
+                        <th>مقدار مصرف</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        <tr>
+                            <td>@row.MaterialName</td>
+                            <td>@row.Kind</td>
+                            <td>@row.ProductCode</td>
+                            <td>@TextilePricingApp.Models.ProductTypeCatalog.Label(row.ProductType)</td>
+                            <td>@row.WasteCategoryName</td>
+                            <td>@Number(row.Quantity)</td>
+                            <td class="row-actions">
+                                <a class="btn btn-sm btn-outline-dark" asp-page="/Analyses" asp-route-EditId="@row.ProductRecipeId">ویرایش آنالیز</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>
+
+@functions {
+    private static string Number(decimal value) => string.Format("{0:N3}", value).TrimEnd('0').TrimEnd('.');
+}

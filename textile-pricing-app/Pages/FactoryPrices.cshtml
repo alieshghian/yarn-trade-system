@@ -1,0 +1,451 @@
+@page
+@model FactoryPricesModel
+@{
+    ViewData["Title"] = "قیمت فروش کارخانه";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>قیمت فروش کارخانه</h1>
+    </div>
+    <div class="stats-strip">
+        <span>مالیات بر ارزش افزوده: @Number(Model.VatPercent)٪</span>
+    </div>
+</section>
+
+<section class="crud-layout factory-prices-layout materials-layout">
+    <aside class="side-panel settings-panel factory-price-side-panel">
+        @if (Model.Saved)
+        {
+            <div class="alert alert-success">قیمت فروش کارخانه ذخیره شد.</div>
+        }
+
+        <h2 class="panel-title">فیلتر محصولات</h2>
+        <form method="get" asp-page="/FactoryPrices" class="toolbar-form product-search factory-filter-form" data-live-search-form>
+            <input name="Query" value="@Model.Query" class="form-control" placeholder="جست‌وجوی کد، نام یا گروه محصول..." autocomplete="off" data-live-search-input />
+            <fieldset class="factory-search-mode" aria-label="نوع تطبیق جست‌وجو">
+                <label><input type="radio" name="SearchMode" value="contains" checked="@(Model.SearchMode != "exact")" data-live-search-submit-on-change /> شامل</label>
+                <label><input type="radio" name="SearchMode" value="exact" checked="@(Model.SearchMode == "exact")" data-live-search-submit-on-change /> دقیقاً</label>
+            </fieldset>
+            <select name="StatusFilter" class="form-select" data-live-search-submit-on-change>
+                <option value="all" selected="@(Model.StatusFilter == "all")">همه وضعیت‌ها</option>
+                <option value="loss" selected="@(Model.StatusFilter == "loss")">زیر قیمت تمام‌شده</option>
+                <option value="equal" selected="@(Model.StatusFilter == "equal")">بدون سود</option>
+                <option value="profit" selected="@(Model.StatusFilter == "profit")">سود</option>
+            </select>
+            <select name="SortBy" class="form-select" data-live-search-submit-on-change>
+                <option value="default" selected="@(Model.SortBy == "default")">مرتب‌سازی پیش‌فرض</option>
+                <option value="base-profit" selected="@(Model.SortBy == "base-profit")">سود تعیین‌شده</option>
+                <option value="target-profit" selected="@(Model.SortBy == "target-profit")">سود مطلوب</option>
+                <option value="credit-profit" selected="@(Model.SortBy == "credit-profit")">سود اعتباری</option>
+                <option value="profit-gap" selected="@(Model.SortBy == "profit-gap")">فاصله تا سود مطلوب</option>
+            </select>
+            <select name="SortDirection" class="form-select" data-live-search-submit-on-change>
+                <option value="desc" selected="@(Model.SortDirection == "desc")">زیاد به کم</option>
+                <option value="asc" selected="@(Model.SortDirection == "asc")">کم به زیاد</option>
+            </select>
+            <div class="form-check">
+                <input id="OnlyWithTargetProfit" name="OnlyWithTargetProfit" value="true" class="form-check-input" type="checkbox" checked="@Model.OnlyWithTargetProfit" data-live-search-submit-on-change />
+                <label for="OnlyWithTargetProfit" class="form-check-label">فقط دارای اختلاف با قیمت مطلوب</label>
+            </div>
+        </form>
+
+        <h2 class="panel-title mt-4">اعمال گروهی</h2>
+        <form method="post" asp-page-handler="Apply" class="stack">
+            <input type="hidden" name="Query" value="@Model.Query" />
+            <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+            <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+            <input type="hidden" name="SortBy" value="@Model.SortBy" />
+            <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+            <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+
+            <label asp-for="Input.Scope">دامنه اعمال</label>
+            <select asp-for="Input.Scope" class="form-select">
+                <option value="filtered">محصولات فیلتر شده</option>
+                <option value="all">همه محصولات</option>
+            </select>
+
+            <label asp-for="Input.Mode">نوع تغییر</label>
+            <select asp-for="Input.Mode" class="form-select">
+                <option value="increase">افزایش درصدی</option>
+                <option value="decrease">کاهش درصدی</option>
+                <option value="set">ثبت درصد ثابت</option>
+            </select>
+
+            <label asp-for="Input.Value">درصد</label>
+            <input asp-for="Input.Value" class="form-control" type="number" min="0" step="0.01" />
+            <span asp-validation-for="Input.Value" class="text-danger"></span>
+
+                <button class="btn btn-dark" type="submit">اعمال تغییر (F3)</button>
+        </form>
+    </aside>
+
+    <main class="report-panel factory-price-panel">
+        @if (Model.HasPendingBulkConfirmation || Model.HasPendingSingleConfirmation || Model.HasPendingGridConfirmation || Model.HasPendingBaseProfitGroupConfirmation)
+        {
+            <div class="factory-preview-panel">
+                <strong>پیش‌نمایش تغییر قیمت کارخانه</strong>
+
+                <div class="factory-preview-actions">
+                <form method="post" asp-page-handler="ExportPreview" class="form-actions" data-no-ajax-post>
+                    <input type="hidden" name="Query" value="@Model.Query" />
+                    <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+                    <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                    <input type="hidden" name="SortBy" value="@Model.SortBy" />
+                    <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+                    <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+                    @if (Model.HasPendingBulkConfirmation)
+                    {
+                        <input type="hidden" name="previewMode" value="bulk" />
+                        <input type="hidden" asp-for="Input.Scope" />
+                        <input type="hidden" asp-for="Input.Mode" />
+                        <input type="hidden" asp-for="Input.Value" />
+                    }
+                    else if (Model.HasPendingBaseProfitGroupConfirmation)
+                    {
+                        <input type="hidden" name="previewMode" value="base-profit-group" />
+                    }
+                    else if (Model.HasPendingSingleConfirmation)
+                    {
+                        <input type="hidden" name="previewMode" value="single" />
+                        <input type="hidden" asp-for="SingleInput.ProductCode" />
+                        <input type="hidden" asp-for="SingleInput.Price" />
+                    }
+                    else if (Model.HasPendingGridConfirmation)
+                    {
+                        <input type="hidden" name="previewMode" value="grid" />
+                        @for (var index = 0; index < Model.PriceInputs.Count; index++)
+                        {
+                            <input type="hidden" name="PriceInputs[@index].ProductCode" value="@Model.PriceInputs[index].ProductCode" />
+                            <input type="hidden" name="PriceInputs[@index].Price" value="@Model.PriceInputs[index].Price" />
+                        }
+                    }
+                    <button class="btn btn-outline-success" type="submit" data-no-f3>خروجی اکسل</button>
+                </form>
+
+                @if (Model.HasPendingBaseProfitGroupConfirmation && !Model.HasPendingBulkConfirmation)
+                {
+                    <form method="post" asp-page-handler="ApplyBaseProfitGroup" class="form-actions">
+                        <input type="hidden" name="Query" value="@Model.Query" />
+                        <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+                        <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                        <input type="hidden" name="SortBy" value="@Model.SortBy" />
+                        <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+                        <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+                        <button class="btn btn-dark" type="submit" data-no-f3>تایید و اعمال مطلوب</button>
+                    </form>
+                }
+
+                @if (Model.HasPendingBulkConfirmation)
+                {
+                    <form method="post" asp-page-handler="Apply" class="form-actions">
+                        <input type="hidden" name="Query" value="@Model.Query" />
+                        <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+                        <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                        <input type="hidden" name="SortBy" value="@Model.SortBy" />
+                        <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+                        <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+                        <input type="hidden" asp-for="Input.Scope" />
+                        <input type="hidden" asp-for="Input.Mode" />
+                        <input type="hidden" asp-for="Input.Value" />
+                        <input type="hidden" name="Input.ConfirmWarnings" value="true" />
+                        <button class="btn btn-dark" type="submit" data-no-f3>تایید و اعمال تغییر گروهی</button>
+                    </form>
+                }
+
+                @if (Model.HasPendingSingleConfirmation)
+                {
+                    <form method="post" asp-page-handler="SaveOne" class="form-actions">
+                        <input type="hidden" name="Query" value="@Model.Query" />
+                        <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+                        <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                        <input type="hidden" name="SortBy" value="@Model.SortBy" />
+                        <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+                        <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+                        <input type="hidden" asp-for="SingleInput.ProductCode" />
+                        <input type="hidden" asp-for="SingleInput.Price" />
+                        <input type="hidden" name="SingleInput.ConfirmWarnings" value="true" />
+                        <button class="btn btn-dark" type="submit">تایید و ثبت قیمت (F3)</button>
+                    </form>
+                }
+
+                @if (Model.HasPendingGridConfirmation)
+                {
+                    <form method="post" asp-page-handler="SavePrices" class="form-actions">
+                        <input type="hidden" name="Query" value="@Model.Query" />
+                        <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+                        <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                        <input type="hidden" name="SortBy" value="@Model.SortBy" />
+                        <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+                        <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+                        <input type="hidden" name="Input.ConfirmWarnings" value="true" />
+                        @for (var index = 0; index < Model.PriceInputs.Count; index++)
+                        {
+                            <input type="hidden" name="PriceInputs[@index].ProductCode" value="@Model.PriceInputs[index].ProductCode" />
+                            <input type="hidden" name="PriceInputs[@index].Price" value="@Model.PriceInputs[index].Price" />
+                        }
+                        <button class="btn btn-dark" type="submit">تایید و ثبت همه قیمت‌ها (F3)</button>
+                    </form>
+                }
+
+                <div class="form-actions">
+                    <a class="btn btn-outline-dark" asp-page="/FactoryPrices" asp-route-Query="@Model.Query" asp-route-SearchMode="@Model.SearchMode" asp-route-StatusFilter="@Model.StatusFilter" asp-route-SortBy="@Model.SortBy" asp-route-SortDirection="@Model.SortDirection" asp-route-OnlyWithTargetProfit="@Model.OnlyWithTargetProfit" asp-route-SuppressBaseProfitGroupPreview="true">لغو</a>
+                </div>
+                </div>
+            </div>
+        }
+
+        <form id="factory-price-bulk-form" method="post" asp-page-handler="SavePrices">
+            <input type="hidden" name="Query" value="@Model.Query" />
+            <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+            <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+            <input type="hidden" name="SortBy" value="@Model.SortBy" />
+            <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+            <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+        </form>
+
+        <div class="factory-edit-toolbar">
+            <button class="btn btn-outline-dark" type="button" onclick="window.print()">چاپ قیمت‌ها</button>
+            <button class="btn btn-outline-dark" type="button" data-factory-edit-toggle>ویرایش قیمت‌ها</button>
+        </div>
+
+        <div class="factory-price-list">
+            @for (var index = 0; index < Model.Rows.Count; index++)
+            {
+                var row = Model.Rows[index];
+                <article class="factory-price-row @row.StatusCssClass @(row.HasPendingChange ? "factory-price-row--pending" : "")">
+                    <div class="factory-price-row__product">
+                        <div class="product-row-media">
+                            @if (!string.IsNullOrWhiteSpace(row.ImagePath))
+                            {
+                                <img src="@row.ImagePath" alt="@ProductTitle(row)" />
+                            }
+                            else
+                            {
+                                <img src="/images/no-picture.svg" alt="No Picture" />
+                            }
+                        </div>
+                        <div class="product-row-copy">
+                            <strong>@row.ProductCode</strong>
+                            @if (!string.IsNullOrWhiteSpace(row.ProductName))
+                            {
+                                <span>@row.ProductName</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(row.ProductGroupName))
+                            {
+                                <small>@row.ProductGroupName</small>
+                            }
+                            <span>@(row.HasFactoryPrice ? $"ویرایش: {FactoryPricesModel.PersianDate(row.LastEditedAt)}" : "محاسبه خودکار")</span>
+                        </div>
+                    </div>
+
+                    <div class="factory-price-status" title="سود فعلی: @SignedPercent(row.CurrentProfitPercent) - سود مطلوب: @SignedPercent(row.BaseProfitPercent)">
+                        <em>@row.StatusText</em>
+                        <small class="@row.BaseProfitCssClass">سود تعیین شده @SignedPercent(row.BaseProfitPercent)</small>
+                        @if (row.HasPendingChange && row.PendingProfitPercent is not null)
+                        {
+                            <small class="factory-pending-value @row.PendingProfitCssClass">جدید @SignedPercent(row.PendingProfitPercent.Value)</small>
+                        }
+                    </div>
+
+                    <div class="factory-price-metric" title="مواد و خدمات + کسری و ضایعات">
+                        <span>قیمت تمام‌شده</span>
+                        <strong>@Money(row.CostBasePrice)</strong>
+                    </div>
+
+                    <div class="factory-price-metric" title="فروش کارخانه بعد از تخفیف نقدی تنظیمات">
+                        <span>فروش نقدی</span>
+                        <strong class="price-with-percent">@Money(row.CashFactoryPrice) <small class="factory-profit-inline @row.CashProfitCssClass" title="درصد سود نقدی نسبت به قیمت تمام‌شده">(@SignedPercent(row.CashProfitPercent))</small></strong>
+                        <small class="factory-vat-value">با مالیات: @Money(row.CashFactoryPriceWithVat)</small>
+                        @if (row.HasPendingChange && row.PendingCashFactoryPrice is not null)
+                        {
+                            <small class="factory-pending-value @row.PendingCashProfitCssClass" title="قیمت نقدی جدید بعد از تایید">جدید: @Money(row.PendingCashFactoryPrice.Value) (@SignedPercent(row.PendingCashProfitPercent ?? 0))</small>
+                            @if (row.PendingCashFactoryPriceWithVat is not null)
+                            {
+                                <small class="factory-vat-value">با مالیات جدید: @Money(row.PendingCashFactoryPriceWithVat.Value)</small>
+                            }
+                        }
+                        @if (row.HasBaseProfitDrift)
+                        {
+                            <small class="factory-base-price-hint factory-base-price-hint--cash" title="قیمت نقدی با اعمال درصد سود مطلوب">مطلوب: @Money(row.CashBaseProfitPrice) (@SignedPercent(row.CashBaseProfitPercent))</small>
+                        }
+                    </div>
+
+                    <div class="factory-price-metric factory-price-metric--primary">
+                        <span>فروش اعتباری</span>
+                        <strong class="price-with-percent">@Money(row.FactoryPrice) <small class="factory-profit-inline @row.CurrentProfitCssClass">(@SignedPercent(row.CurrentProfitPercent))</small></strong>
+                        <small class="factory-vat-value">با مالیات: @Money(row.FactoryPriceWithVat)</small>
+                        @if (row.HasPendingChange && row.PendingFactoryPrice is not null)
+                        {
+                            <small class="factory-pending-value @row.PendingProfitCssClass" title="قیمت جدید بعد از تایید">جدید: @Money(row.PendingFactoryPrice.Value) (@SignedPercent(row.PendingProfitPercent ?? 0))</small>
+                            @if (row.PendingFactoryPriceWithVat is not null)
+                            {
+                                <small class="factory-vat-value">با مالیات جدید: @Money(row.PendingFactoryPriceWithVat.Value)</small>
+                            }
+                        }
+                        @if (row.HasBaseProfitDrift)
+                        {
+                            <small class="factory-base-price-hint" title="قیمت پیشنهادی با اعمال درصد سود مطلوب">مطلوب: @Money(row.BaseProfitPrice) (@SignedPercent(row.BaseProfitPercent))</small>
+                        }
+                    </div>
+
+                    <div class="factory-price-row__base-action">
+                        @if (row.HasBaseProfitDrift)
+                        {
+                            <form method="post" asp-page-handler="ApplyBaseProfit" class="factory-base-profit-action">
+                                <input type="hidden" name="Query" value="@Model.Query" />
+                                <input type="hidden" name="SearchMode" value="@Model.SearchMode" />
+                                <input type="hidden" name="StatusFilter" value="@Model.StatusFilter" />
+                                <input type="hidden" name="SortBy" value="@Model.SortBy" />
+                                <input type="hidden" name="SortDirection" value="@Model.SortDirection" />
+                                <input type="hidden" name="OnlyWithTargetProfit" value="@Model.OnlyWithTargetProfit.ToString().ToLowerInvariant()" />
+                                <input type="hidden" name="productCode" value="@row.ProductCode" />
+                                <button class="btn btn-sm btn-outline-primary" type="submit" data-no-f3>اعمال مطلوب</button>
+                            </form>
+                        }
+                    </div>
+
+                    <div class="factory-price-row__form">
+                        <input type="hidden" name="PriceInputs[@index].ProductCode" value="@row.ProductCode" form="factory-price-bulk-form" />
+                        <div class="factory-price-input-wrap">
+                            <input name="PriceInputs[@index].Price" value="@Money(row.FactoryPriceWithVat)" class="form-control js-money-input factory-price-input" inputmode="numeric" autocomplete="off" data-number-format="money" data-round-step="100" data-price-tab-target data-factory-price-input data-cost-base="@Money(row.CostBasePrice)" data-base-profit="@Number(row.BaseProfitPercent)" data-vat-rate="@Number(Model.VatPercent)" title="قیمت را با ارزش افزوده وارد کنید" form="factory-price-bulk-form" />
+                            <span class="factory-cash-profit-badge" title="درصد سود نسبت به قیمت تمام‌شده"></span>
+                        </div>
+                    </div>
+                </article>
+            }
+        </div>
+
+        <div class="bulk-grid-actions">
+            <button class="btn btn-dark" type="submit" form="factory-price-bulk-form">ثبت همه قیمت‌ها (F3)</button>
+        </div>
+    </main>
+</section>
+
+<section class="factory-prices-print print-only" dir="rtl">
+    <table class="print-table factory-prices-print__table">
+        <thead>
+            <tr class="factory-prices-print__heading-row">
+                <th colspan="7">
+                    <header class="customer-prices-print__header">
+                        <div>
+                            <h1>قیمت فروش کارخانه</h1>
+                            <p>
+                                فیلتر: @(string.IsNullOrWhiteSpace(Model.Query) ? "همه محصولات" : Model.Query)
+                                | وضعیت: @Model.StatusFilter
+                            </p>
+                        </div>
+                        <div>
+                            <span>تاریخ: @FactoryPricesModel.PersianDate(DateTime.Now)</span>
+                            <span>تعداد ردیف: @Model.Rows.Count</span>
+                            <span>مالیات بر ارزش افزوده: @Number(Model.VatPercent)٪</span>
+                        </div>
+                    </header>
+                </th>
+            </tr>
+            <tr>
+                <th>ردیف</th>
+                <th>محصول</th>
+                <th>قیمت تمام‌شده</th>
+                <th>فروش نقدی</th>
+                <th>فروش اعتباری</th>
+                <th>قیمت مطلوب</th>
+                <th>وضعیت و تغییرات</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Rows.Count == 0)
+            {
+                <tr>
+                    <td colspan="7">محصولی برای چاپ وجود ندارد.</td>
+                </tr>
+            }
+            else
+            {
+                @for (var index = 0; index < Model.Rows.Count; index++)
+                {
+                    var row = Model.Rows[index];
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>
+                            <strong>@row.ProductCode</strong>
+                            @if (!string.IsNullOrWhiteSpace(row.ProductName))
+                            {
+                                <span class="factory-prices-print__detail">@row.ProductName</span>
+                            }
+                        </td>
+                        <td>
+                            <span class="factory-prices-print__detail">قیمت تمام‌شده: @Money(row.CostBasePrice)</span>
+                            <span class="factory-prices-print__detail">درصد سود تعیین‌شده: @SignedPercent(row.BaseProfitPercent)</span>
+                        </td>
+                        <td>
+                            <span class="factory-prices-print__detail">قیمت: @Money(row.CashFactoryPrice) (@SignedPercent(row.CashProfitPercent))</span>
+                            <span class="factory-prices-print__detail">با مالیات: @Money(row.CashFactoryPriceWithVat)</span>
+                        </td>
+                        <td>
+                            <span class="factory-prices-print__detail">قیمت: @Money(row.FactoryPrice) (@SignedPercent(row.CurrentProfitPercent))</span>
+                            <span class="factory-prices-print__detail">با مالیات: @Money(row.FactoryPriceWithVat)</span>
+                        </td>
+                        <td>
+                            <span class="factory-prices-print__detail">اعتباری: @Money(row.BaseProfitPrice) (@SignedPercent(row.BaseProfitPercent))</span>
+                            <span class="factory-prices-print__detail">نقدی: @Money(row.CashBaseProfitPrice) (@SignedPercent(row.CashBaseProfitPercent))</span>
+                        </td>
+                        <td>
+                            <span class="factory-prices-print__detail">@row.StatusText</span>
+                            @if (row.HasFactoryPrice)
+                            {
+                                <span class="factory-prices-print__detail">آخرین ویرایش: @FactoryPricesModel.PersianDate(row.LastEditedAt)</span>
+                            }
+                            else
+                            {
+                                <span class="factory-prices-print__detail">قیمت محاسبه خودکار</span>
+                            }
+                            @if (row.HasPendingChange && row.PendingCashFactoryPrice is not null)
+                            {
+                                <span class="factory-prices-print__detail">نقدی جدید: @Money(row.PendingCashFactoryPrice.Value) (@SignedPercent(row.PendingCashProfitPercent ?? 0))</span>
+                                @if (row.PendingCashFactoryPriceWithVat is not null)
+                                {
+                                    <span class="factory-prices-print__detail">نقدی جدید با مالیات: @Money(row.PendingCashFactoryPriceWithVat.Value)</span>
+                                }
+                            }
+                            @if (row.HasPendingChange && row.PendingFactoryPrice is not null)
+                            {
+                                <span class="factory-prices-print__detail">اعتباری جدید: @Money(row.PendingFactoryPrice.Value) (@SignedPercent(row.PendingProfitPercent ?? 0))</span>
+                                @if (row.PendingFactoryPriceWithVat is not null)
+                                {
+                                    <span class="factory-prices-print__detail">اعتباری جدید با مالیات: @Money(row.PendingFactoryPriceWithVat.Value)</span>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</section>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string Number(decimal value) => string.Format("{0:N2}", value).TrimEnd('0').TrimEnd('.');
+    private static string ProductTitle(FactoryPricesModel.FactoryPriceRow row) =>
+        string.IsNullOrWhiteSpace(row.ProductName) ? row.ProductCode : $"{row.ProductCode} - {row.ProductName}";
+
+    private static string SignedPercent(decimal value)
+    {
+        var text = Math.Abs(value).ToString("N1", System.Globalization.CultureInfo.InvariantCulture);
+        return value < 0 ? $"\u200E-{text}٪\u200E" : $"\u200E{text}٪\u200E";
+    }
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+@section Styles {
+    <style media="print">
+        @@page {
+            size: A4 landscape;
+            margin: 10mm;
+        }
+    </style>
+}

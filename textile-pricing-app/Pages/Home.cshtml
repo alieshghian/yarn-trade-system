@@ -1,0 +1,142 @@
+@page
+@model HomeModel
+@{
+    ViewData["Title"] = "صفحه خانه";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>صفحه خانه</h1>
+    </div>
+</section>
+
+<section class="report-panel home-panel">
+    @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+    {
+        <div class="alert alert-success">@Model.SuccessMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger">@Model.ErrorMessage</div>
+    }
+
+    <section class="home-freshness-panel">
+        <div class="panel-heading">
+            <div>
+                <p class="eyebrow">وضعیت بروزرسانی</p>
+                <h2>موارد نیازمند اصلاح</h2>
+            </div>
+            <span class="count-badge">@(Model.OutdatedGoods.Count + Model.OutdatedServices.Count + (Model.IsDollarOutdated ? 1 : 0)) مورد</span>
+        </div>
+
+        @if (!Model.HasOutdatedItems)
+        {
+            <div class="alert alert-success">همه قیمت‌های کنترل‌شده بروز هستند.</div>
+        }
+        else
+        {
+            @if (!Model.CanEditPriceRefresh)
+            {
+                <div class="alert alert-warning">شما این موارد را می‌بینید، اما دسترسی ویرایش قیمت کالا و خدمات را ندارید.</div>
+            }
+            <div class="home-freshness-grid @(Model.CanEditPriceRefresh ? "" : "readonly-scope")">
+                @if (Model.IsDollarOutdated)
+                {
+                    <form method="post" asp-page-handler="SaveDollar" class="home-quick-card">
+                        <div>
+                            <strong>نرخ دلار</strong>
+                            <small>آخرین ویرایش: @HomeModel.PersianDate(Model.Settings.DollarUpdatedAt)</small>
+                        </div>
+                        <div class="home-quick-edit">
+                            <input name="DollarRate" value="@HomeModel.Money(Model.DollarRate)" class="form-control js-money-input" inputmode="numeric" autocomplete="off" data-number-format="money" readonly="@(!Model.CanEditPriceRefresh)" />
+                            <button class="btn btn-dark" type="submit" disabled="@(!Model.CanEditPriceRefresh)">ثبت (F3)</button>
+                        </div>
+                    </form>
+                }
+
+                @if (Model.OutdatedGoods.Count > 0 || Model.OutdatedServices.Count > 0)
+                {
+                    <form method="post" asp-page-handler="SavePrices" class="home-prices-form">
+                        <div class="home-prices-header">
+                            <strong>کالاها و خدمات</strong>
+                            <div class="home-prices-actions">
+                                <button class="btn btn-outline-dark" type="submit" form="home-extend-validity-form" data-no-f3 disabled="@(!Model.CanEditPriceRefresh)">تمدید اعتبار</button>
+                                <button class="btn btn-dark" type="submit" disabled="@(!Model.CanEditPriceRefresh)">ثبت قیمت‌های تغییرکرده (F3)</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive home-freshness-table-wrap material-table-wrap">
+                            <table class="table align-middle pricing-table materials-table home-freshness-table">
+                                <thead>
+                                    <tr>
+                                        <th>نام</th>
+                                        <th>قیمت فعلی</th>
+                                        <th>قیمت جدید</th>
+                                        <th>واحد</th>
+                                        <th>قیمت ریالی</th>
+                                        <th>آخرین ویرایش</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        var rows = Model.OutdatedGoods.Concat(Model.OutdatedServices).ToList();
+                                    }
+                                    @for (var index = 0; index < rows.Count; index++)
+                                    {
+                                        var item = rows[index];
+                                        <tr>
+                                            <td>@item.Name</td>
+                                            <td>@HomeModel.Money(item.Price)</td>
+                                            <td>
+                                                <input type="hidden" name="PriceInputs[@index].Id" value="@item.Id" />
+                                                <div class="price-edit-cell">
+                                                    <input
+                                                        name="PriceInputs[@index].Price"
+                                                        value="@HomeModel.Money(item.Price)"
+                                                        class="form-control form-control-sm js-money-input table-price-input"
+                                                        inputmode="numeric"
+                                                        autocomplete="off"
+                                                        data-number-format="money"
+                                                        data-original-price="@decimal.Round(item.Price, 0, MidpointRounding.AwayFromZero)"
+                                                        data-price-tab-target
+                                                        readonly="@(!Model.CanEditPriceRefresh)" />
+                                                    <span class="price-diff-badge" aria-live="polite"></span>
+                                                </div>
+                                            </td>
+                                            <td>@item.Unit</td>
+                                            <td>@HomeModel.Money(item.RialPrice)</td>
+                                            <td>@HomeModel.PersianDate(item.LastEditedAt)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </form>
+                    <form id="home-extend-validity-form" method="post" asp-page-handler="ExtendValidity"></form>
+                }
+            </div>
+        }
+    </section>
+
+    <div class="home-links">
+        <a asp-page="/Materials">
+            <strong>اطلاعات پایه</strong>
+            <span>کالاها، خدمات، مشتریان و تنظیمات</span>
+        </a>
+        <a asp-page="/Analyses">
+            <strong>آنالیز محصولات</strong>
+            <span>تعریف محصولات و اقلام مصرفی</span>
+        </a>
+        <a href="/QuickPrice">
+            <strong>آنالیز قیمت</strong>
+            <span>محاسبه قیمت فروش محصول</span>
+        </a>
+        <a asp-page="/FactoryPrices">
+            <strong>قیمت فروش کارخانه</strong>
+            <span>مدیریت قیمت مستقل فروش</span>
+        </a>
+        <a asp-page="/CustomerPrices">
+            <strong>قیمت مشتریان</strong>
+            <span>نمایش قیمت اختصاصی مشتریان</span>
+        </a>
+    </div>
+</section>

@@ -1,0 +1,64 @@
+@page
+@model ProductGroupsModel
+@{
+    ViewData["Title"] = "گروه‌های محصول";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>گروه‌های محصول</h1>
+    </div>
+    <a class="btn btn-outline-dark" asp-page="/Analyses">بازگشت به محصولات</a>
+</section>
+
+<section class="crud-layout product-groups-layout materials-layout">
+    <aside class="side-panel base-info-side-panel">
+        <h2 class="panel-title">@Model.FormTitle</h2>
+        <a class="btn btn-outline-dark w-100 mb-3" asp-page="/ProductGroups">جدید</a>
+        <form method="post" asp-page-handler="Save" class="stack">
+            <input type="hidden" asp-for="Input.Id" />
+
+            <label asp-for="Input.Name">نام گروه محصول</label>
+            <input asp-for="Input.Name" class="form-control" />
+            <span asp-validation-for="Input.Name" class="text-danger"></span>
+
+            <button type="submit" class="btn btn-dark">ذخیره (F3)</button>
+            @if (Model.Input.Id > 0)
+            {
+                <a class="btn btn-outline-secondary" asp-page="/ProductGroups">انصراف</a>
+            }
+        </form>
+    </aside>
+
+    <main class="report-panel">
+        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+        <div class="table-responsive material-table-wrap">
+            <table class="table align-middle pricing-table compact-table">
+                <thead>
+                    <tr>
+                        <th>نام گروه محصول</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>@item.Name</td>
+                            <td class="row-actions">
+                                <a class="btn btn-sm btn-outline-dark" asp-page="/ProductGroups" asp-route-EditId="@item.Id">ویرایش</a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@item.Id" onsubmit="return confirm('این گروه محصول حذف شود؟')">
+                                    <button class="btn btn-sm btn-outline-danger" type="submit">حذف</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </main>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

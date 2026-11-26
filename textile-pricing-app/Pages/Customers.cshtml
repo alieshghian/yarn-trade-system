@@ -1,0 +1,463 @@
+@page
+@using System.Globalization
+@model CustomersModel
+@{
+    ViewData["Title"] = "مشتریان";
+}
+
+<section class="page-heading">
+    <div>
+        <h1>مشتریان</h1>
+    </div>
+    <a class="btn btn-outline-dark" asp-page="/CustomerPrices" asp-route-CustomerId="@Model.SelectedCustomer?.Id">قیمت مشتریان</a>
+</section>
+
+<section class="crud-layout analyses-layout customers-layout">
+    <aside class="side-panel product-list-panel">
+        <form method="get" class="toolbar-form product-search" data-live-search-form>
+            <input name="Query" value="@Model.Query" class="form-control" placeholder="جست‌وجوی نام یا موبایل مشتری..." autocomplete="off" data-live-search-input />
+        </form>
+
+        <a class="btn btn-outline-dark w-100 mb-3" asp-page="/Customers" asp-route-Query="@Model.Query" asp-route-NewCustomer="true">مشتری جدید</a>
+
+        <div class="product-list">
+            @foreach (var customer in Model.Customers)
+            {
+                <a class="product-list__item @(customer.Id == Model.EditId ? "active" : "")" asp-page="/Customers" asp-route-Query="@Model.Query" asp-route-ProductQuery="@Model.ProductQuery" asp-route-EditId="@customer.Id">
+                    <strong>@customer.Name</strong>
+                    <small dir="ltr">@customer.MobileNumber</small>
+                    <small>@(Model.DiscountCounts.TryGetValue(customer.Id, out var discountCount) ? discountCount : 0) کالای اختصاص‌یافته</small>
+                </a>
+            }
+        </div>
+    </aside>
+
+    <main class="analysis-main">
+        <section class="entity-panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>@Model.FormTitle</h2>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+            {
+                <div class="alert alert-success">@Model.SuccessMessage</div>
+            }
+
+            <form method="post" asp-page-handler="Save" class="product-fields">
+                <input type="hidden" asp-for="Input.Id" />
+                <input type="hidden" name="Query" value="@Model.Query" />
+                <input type="hidden" name="ProductQuery" value="@Model.ProductQuery" />
+
+                <div>
+                    <label asp-for="Input.Name">نام مشتری</label>
+                    <input asp-for="Input.Name" class="form-control" />
+                    <span asp-validation-for="Input.Name" class="text-danger"></span>
+                </div>
+
+                <div>
+                    <label asp-for="Input.MobileNumber">شماره موبایل</label>
+                    <input asp-for="Input.MobileNumber" class="form-control" type="tel" dir="ltr" autocomplete="tel" maxlength="20" />
+                    <span asp-validation-for="Input.MobileNumber" class="text-danger"></span>
+                </div>
+                <div class="form-check form-switch customer-vat-switch">
+                    <input asp-for="Input.IsVatExempt" class="form-check-input" type="checkbox" />
+                    <label asp-for="Input.IsVatExempt" class="form-check-label">بدون ارزش افزوده</label>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn btn-dark" type="submit">ذخیره مشتری (F3)</button>
+                    @if (Model.Input.Id > 0)
+                    {
+                        <a class="btn btn-outline-secondary" asp-page="/Customers" asp-route-Query="@Model.Query">انصراف</a>
+                    }
+                    @if (Model.SelectedCustomer is not null)
+                    {
+                        <button class="btn btn-outline-danger" type="submit" form="delete-customer-form">حذف مشتری</button>
+                    }
+                </div>
+            </form>
+
+            @if (Model.SelectedCustomer is not null)
+            {
+                <form id="delete-customer-form" method="post" asp-page-handler="Delete" asp-route-id="@Model.SelectedCustomer.Id" asp-route-Query="@Model.Query" onsubmit="return confirm('این مشتری و تخفیف‌های اختصاصی او حذف شود؟')"></form>
+            }
+        </section>
+
+        @if (Model.SelectedCustomer is not null)
+        {
+            var connection = Model.BotConnection;
+            <section class="entity-panel mb-3">
+                <h2>اتصال مشتری به ربات روبیکا</h2>
+                @if (Model.BotMessage is not null) { <div class="alert alert-info" role="status">@Model.BotMessage</div> }
+                @if (!Model.BotConnected)
+                {
+                    <p>ابتدا توکن ربات را در تنظیمات عمومی ثبت کنید. ارسال از حساب شخصی غیرفعال است.</p>
+                }
+                else
+                {
+                    <p>وضعیت: @(connection.PendingChatId.Length > 0 ? "در انتظار تأیید شما" : connection.ChatId.Length > 0 ? "متصل و تأییدشده" : "هنوز متصل نیست")</p>
+                    <p>برای اتصال روی لوکال، مشتری ربات را باز کند و کد اتصال را به‌تنهایی در یک پیام عادی ارسال کند؛ بدون /start. باز کردن لینک یا زدن دکمهٔ Start به‌تنهایی اتصال را کامل نمی‌کند. پس از دریافت درخواست، هویت مشتری را بررسی و تأیید کنید.</p>
+                    @if (connection.ChatId.Length > 0) { <p>شناسهٔ چت: <span dir="ltr">@connection.ChatId</span></p> }
+                    @if (connection.PendingChatId.Length > 0)
+                    {
+                        <div class="alert alert-warning">
+                            <p>درخواست اتصال از: @connection.PendingName</p>
+                            <p dir="ltr">@connection.PendingChatId</p>
+                            <form method="post" asp-page-handler="BotConnection" data-no-ajax-post="true" onsubmit="return confirm('هویت این حساب را با مشتری بررسی کرده‌اید و اجازهٔ دریافت قیمت‌های او را تأیید می‌کنید؟')">
+                                <input type="hidden" name="customerId" value="@Model.SelectedCustomer.Id" />
+                                <input type="hidden" name="expectedChat" value="@connection.PendingChatId" />
+                                <button type="submit" name="action" value="approve" class="btn btn-dark">تأیید اتصال این مشتری</button>
+                            </form>
+                        </div>
+                    }
+                    <form method="post" asp-page-handler="BotConnection" data-no-ajax-post="true" class="form-actions">
+                        <input type="hidden" name="customerId" value="@Model.SelectedCustomer.Id" />
+                        <button type="submit" name="action" value="invite" class="btn btn-outline-dark">ساخت کد اتصال جدید</button>
+                        <button type="submit" name="action" value="refresh" class="btn btn-outline-secondary">بررسی درخواست اتصال</button>
+                        <button type="submit" name="action" value="unlink" class="btn btn-outline-danger" onclick="return confirm('اتصال مشتری و لینک دعوت قبلی لغو شود؟')">لغو اتصال / دعوت</button>
+                    </form>
+                    @if (Model.BotInviteUrl is not null)
+                    {
+                        @if (Model.BotInviteCommand is not null)
+                        {
+                            <label for="bot-connection-code">کد خصوصی اتصال — این متن را به‌تنهایی برای ربات ارسال کنید</label>
+                            <input id="bot-connection-code" class="form-control" dir="ltr" readonly value="@Model.BotInviteCommand" onclick="this.select()" autocomplete="off" />
+                            <button type="button" class="btn btn-outline-dark mt-2" onclick="const field = document.getElementById('bot-connection-code'); field.select(); if(navigator.clipboard) navigator.clipboard.writeText(field.value).then(() => { this.textContent = 'کد کپی شد'; }).catch(() => { this.textContent = 'متن انتخاب شد؛ دستی کپی کنید'; }); else this.textContent = 'متن انتخاب شد؛ دستی کپی کنید';">کپی کد اتصال</button>
+                            <p>این کد پس از تازه‌سازی صفحه هم باقی می‌ماند؛ پس از استفاده یا انقضا پنهان می‌شود. ساخت کد جدید، کد قبلی را باطل می‌کند.</p>
+                        }
+                        else if (connection.ChatId.Length == 0 && connection.PendingChatId.Length == 0)
+                        {
+                            <p>برای دریافت کد قابل ارسال، «ساخت کد اتصال جدید» را بزنید. دعوت‌های قدیمی فقط به‌صورت هش ذخیره شده‌اند و کد آن‌ها قابل بازیابی نیست.</p>
+                        }
+                    }
+                }
+            </section>
+        }
+        <section class="children-panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>تخفیف‌های مشتری روی قیمت فروش کارخانه</h2>
+                </div>
+                @if (Model.SelectedCustomer is not null)
+                {
+                    <div class="customer-discount-heading-meta">
+                        <span class="count-badge">@Model.DiscountRows.Count تخفیف</span>
+                        <span class="vat-rate-badge">ارزش افزوده: @Number(Model.CustomerVatRate * 100)٪</span>
+                    </div>
+                }
+            </div>
+
+            @if (Model.SelectedCustomer is null)
+            {
+                <div class="alert alert-info">برای ثبت تخفیف محصول، ابتدا مشتری را ذخیره کنید.</div>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="SaveDiscount" class="inline-add-row">
+                    <input type="hidden" asp-for="DiscountInput.CustomerId" />
+                    <input type="hidden" name="Query" value="@Model.Query" />
+                    <input type="hidden" name="ProductQuery" value="@Model.ProductQuery" />
+
+                    <div>
+                        <label asp-for="DiscountInput.ProductCode">محصول</label>
+                        <div class="product-combobox" data-copy-product-combobox>
+                            <input
+                                type="text"
+                                class="form-control js-copy-product-search"
+                                placeholder="جست‌وجوی کد محصول..."
+                                autocomplete="off"
+                                aria-expanded="false" />
+                            <input asp-for="DiscountInput.ProductCode" type="hidden" class="js-copy-product-id" />
+                            <button class="product-combobox__toggle" type="button" aria-label="نمایش محصولات"></button>
+                            <div class="product-combobox__options">
+                            @foreach (var product in Model.ProductChoices)
+                            {
+                                <button
+                                    type="button"
+                                    class="product-combobox__option"
+                                    data-product-id="@product.Code"
+                                    data-product-code="@product.Code"
+                                    data-product-label="@product.Code">
+                                    @product.Code
+                                </button>
+                            }
+                            </div>
+                        </div>
+                        <span asp-validation-for="DiscountInput.ProductCode" class="text-danger"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="DiscountInput.CreditDiscountPercent">درصد تخفیف اعتباری</label>
+                        <input asp-for="DiscountInput.CreditDiscountPercent" class="form-control" type="number" min="0" max="100" step="0.01" />
+                        <span asp-validation-for="DiscountInput.CreditDiscountPercent" class="text-danger"></span>
+                    </div>
+
+                    <div>
+                        <label asp-for="DiscountInput.CashDiscountPercent">درصد تخفیف نقدی</label>
+                        <input asp-for="DiscountInput.CashDiscountPercent" class="form-control" type="number" min="0" max="100" step="0.01" />
+                        <span asp-validation-for="DiscountInput.CashDiscountPercent" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn btn-dark" type="submit">ثبت تخفیف (F3)</button>
+                    </div>
+                </form>
+
+                <form method="get" class="toolbar-form product-search" data-live-search-form>
+                    <input type="hidden" name="Query" value="@Model.Query" />
+                    <input type="hidden" name="EditId" value="@Model.SelectedCustomer.Id" />
+                    <input name="ProductQuery" value="@Model.ProductQuery" class="form-control" placeholder="جست‌وجوی کد محصول..." autocomplete="off" data-live-search-input />
+                </form>
+
+                @if (Model.DiscountRows.Count == 0)
+                {
+                    <div class="alert alert-info">برای این مشتری هنوز کالایی اختصاص داده نشده است.</div>
+                }
+                else
+                {
+                    <form method="post" asp-page-handler="SaveDiscountRows" asp-route-customerId="@Model.SelectedCustomer.Id" class="customer-discount-edit-form" data-customer-discount-form>
+                        <input type="hidden" name="Query" value="@Model.Query" />
+                        <input type="hidden" name="ProductQuery" value="@Model.ProductQuery" />
+                        <div class="customer-discount-list">
+                            @for (var index = 0; index < Model.DiscountRows.Count; index++)
+                            {
+                                var row = Model.DiscountRows[index];
+                                <article class="customer-discount-card"
+                                         data-customer-discount-row
+                                         data-cash-base="@Invariant(row.FactoryCashPrice)"
+                                         data-credit-base="@Invariant(row.FactoryPrice)"
+                                         data-vat-rate="@Invariant(row.VatRate)">
+                                    <div class="factory-price-row__product customer-discount-product">
+                                        <div class="product-row-media">
+                                            @if (!string.IsNullOrWhiteSpace(row.ImagePath))
+                                            {
+                                                <img src="@row.ImagePath" alt="@ProductTitle(row)" />
+                                            }
+                                            else
+                                            {
+                                                <img src="/images/no-picture.svg" alt="No Picture" />
+                                            }
+                                        </div>
+                                        <div class="product-row-copy">
+                                            <strong>@row.ProductCode</strong>
+                                            @if (!string.IsNullOrWhiteSpace(row.ProductName))
+                                            {
+                                                <span>@row.ProductName</span>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(row.ProductGroupName))
+                                            {
+                                                <small>@row.ProductGroupName</small>
+                                            }
+                                            <small class="customer-last-edited">آخرین ویرایش: @CustomersModel.PersianDate(row.LastEditedAt)</small>
+                                        </div>
+                                    </div>
+
+                                    <input type="hidden" name="DiscountRowsInput[@index].ProductCode" value="@row.ProductCode" />
+
+                                    <div class="customer-discount-grid">
+                                        <div class="customer-discount-kind">
+                                            <span>نقدی</span>
+                                            <div class="customer-discount-bases">
+                                                <small>کارخانه: @Money(row.FactoryCashPrice)</small>
+                                                <small>با ارزش افزوده: @Money(row.FactoryCashPriceWithVat)</small>
+                                            </div>
+                                            <label>درصد</label>
+                                            <input name="DiscountRowsInput[@index].CashDiscountPercent"
+                                                   class="form-control"
+                                                   type="number"
+                                                   step="0.01"
+                                                   inputmode="decimal"
+                                                   value="@Number(row.CashDiscountPercent)"
+                                                   data-discount-percent="cash" />
+                                            <label>مبلغ با ارزش افزوده</label>
+                                            <input class="form-control"
+                                                   type="text"
+                                                   value="@Money(row.CustomerCashPrice)"
+                                                   data-round-step="100"
+                                                   title="قیمت نقدی را با ارزش افزوده وارد کنید"
+                                                   data-discount-price="cash" />
+                                        </div>
+
+                                        <div class="customer-discount-kind">
+                                            <span>اعتباری</span>
+                                            <div class="customer-discount-bases">
+                                                <small>کارخانه: @Money(row.FactoryPrice)</small>
+                                                <small>با ارزش افزوده: @Money(row.FactoryPriceWithVat)</small>
+                                            </div>
+                                            <label>درصد</label>
+                                            <input name="DiscountRowsInput[@index].CreditDiscountPercent"
+                                                   class="form-control"
+                                                   type="number"
+                                                   step="0.01"
+                                                   inputmode="decimal"
+                                                   value="@Number(row.CreditDiscountPercent)"
+                                                   data-discount-percent="credit" />
+                                            <label>مبلغ با ارزش افزوده</label>
+                                            <input class="form-control"
+                                                   type="text"
+                                                   value="@Money(row.CustomerCreditPrice)"
+                                                   data-round-step="100"
+                                                   title="قیمت اعتباری را با ارزش افزوده وارد کنید"
+                                                   data-discount-price="credit" />
+                                        </div>
+                                    </div>
+
+                                    <div class="customer-discount-actions">
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                type="submit"
+                                                form="delete-discount-@index">
+                                            حذف ارتباط کالا
+                                        </button>
+                                    </div>
+                                </article>
+                            }
+                        </div>
+                        <div class="form-actions mt-3">
+                            <button class="btn btn-dark" type="submit">ذخیره ویرایش تخفیف‌ها (F3)</button>
+                        </div>
+                    </form>
+
+                    @for (var index = 0; index < Model.DiscountRows.Count; index++)
+                    {
+                        var row = Model.DiscountRows[index];
+                        <form id="delete-discount-@index" method="post" asp-page-handler="DeleteDiscount" asp-route-customerId="@Model.SelectedCustomer.Id" asp-route-productCode="@row.ProductCode" asp-route-Query="@Model.Query" asp-route-ProductQuery="@Model.ProductQuery" onsubmit="return confirm('ارتباط این کالا با مشتری و تخفیف آن حذف شود؟')"></form>
+                    }
+                }
+            }
+        </section>
+    </main>
+</section>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string Number(decimal value) => string.Format("{0:N2}", value).TrimEnd('0').TrimEnd('.');
+    private static string Invariant(decimal value) => value.ToString(CultureInfo.InvariantCulture);
+    private static string ProductTitle(CustomersModel.CustomerDiscountRow row) =>
+        string.IsNullOrWhiteSpace(row.ProductName) ? row.ProductCode : $"{row.ProductCode} - {row.ProductName}";
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelectorAll("[data-customer-discount-row]").forEach((row) => {
+            const vatRate = parseGroupedNumber(row.dataset.vatRate);
+            const roundPrice = (value) => Math.round(Math.max(0, Number(value) || 0) / 100) * 100;
+            const formatPercent = (value) => {
+                const numeric = Number(value) || 0;
+                const rounded = Math.round(numeric * 100) / 100;
+                return Number.isInteger(rounded) ? String(rounded) : String(rounded.toFixed(2)).replace(/0+$/, "").replace(/\.$/, "");
+            };
+            const formatMoney = (value) => roundPrice(value).toLocaleString("en-US");
+            const rawPriceDigits = (input) => String(input.dataset.rawDigits || input.value || "").replace(/\D/g, "");
+            const setPriceDigits = (input, digits) => {
+                const normalized = String(digits || "").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+                input.dataset.rawDigits = normalized;
+                input.value = normalized === "" ? "" : Number(normalized).toLocaleString("en-US");
+                input.setSelectionRange(input.value.length, input.value.length);
+            };
+            const formatPriceInput = (input) => {
+                if (String(input.value || "").trim() === "") {
+                    input.dataset.rawDigits = "";
+                    return;
+                }
+
+                setPriceDigits(input, String(parseGroupedNumber(input.value)));
+            };
+            const controls = {
+                cash: {
+                    base: parseGroupedNumber(row.dataset.cashBase),
+                    percent: row.querySelector("[data-discount-percent='cash']"),
+                    price: row.querySelector("[data-discount-price='cash']")
+                },
+                credit: {
+                    base: parseGroupedNumber(row.dataset.creditBase),
+                    percent: row.querySelector("[data-discount-percent='credit']"),
+                    price: row.querySelector("[data-discount-price='credit']")
+                }
+            };
+
+            const updatePrice = (kind) => {
+                const item = controls[kind];
+                const percent = Number(item.percent.value) || 0;
+                const withoutVat = roundPrice(item.base * (1 - percent / 100));
+                item.percent.value = formatPercent(percent);
+                item.price.value = formatMoney(withoutVat * (1 + vatRate));
+            };
+
+            const updatePercent = (kind, formatPrice = false) => {
+                const item = controls[kind];
+                if (String(item.price.value || "").trim() === "") {
+                    return;
+                }
+
+                if (item.base <= 0) {
+                    item.percent.value = "0";
+                    return;
+                }
+
+                const displayPrice = parseGroupedNumber(item.price.value);
+                const withoutVat = vatRate > 0 ? roundPrice(displayPrice / (1 + vatRate)) : roundPrice(displayPrice);
+                const percent = (1 - withoutVat / item.base) * 100;
+                item.percent.value = formatPercent(percent);
+                if (formatPrice) {
+                    item.price.value = formatMoney(displayPrice);
+                }
+            };
+
+            Object.entries(controls).forEach(([kind, item]) => {
+                updatePercent(kind, true);
+                item.percent?.addEventListener("input", () => updatePrice(kind));
+                item.percent?.addEventListener("blur", () => updatePrice(kind));
+                item.price?.addEventListener("focus", () => {
+                    item.price.dataset.rawDigits = String(parseGroupedNumber(item.price.value));
+                });
+                item.price?.addEventListener("keydown", (event) => {
+                    if (event.ctrlKey || event.metaKey || event.altKey) {
+                        return;
+                    }
+
+                    if (/^\d$/.test(event.key)) {
+                        event.preventDefault();
+                        setPriceDigits(item.price, rawPriceDigits(item.price) + event.key);
+                        updatePercent(kind);
+                        return;
+                    }
+
+                    if (event.key === "Backspace") {
+                        event.preventDefault();
+                        setPriceDigits(item.price, rawPriceDigits(item.price).slice(0, -1));
+                        if (rawPriceDigits(item.price) !== "") {
+                            updatePercent(kind);
+                        }
+                        return;
+                    }
+
+                    if (event.key === "Delete") {
+                        event.preventDefault();
+                        setPriceDigits(item.price, "");
+                        return;
+                    }
+                });
+                item.price?.addEventListener("input", () => {
+                    setPriceDigits(item.price, rawPriceDigits(item.price));
+                    if (rawPriceDigits(item.price) !== "") {
+                        updatePercent(kind);
+                    }
+                });
+                item.price?.addEventListener("blur", () => updatePercent(kind, true));
+            });
+        });
+
+        document.querySelectorAll("[data-customer-discount-form]").forEach((form) => {
+            form.addEventListener("submit", () => {
+                form.querySelectorAll("[data-customer-discount-row]").forEach((row) => {
+                    row.querySelectorAll("[data-discount-price]").forEach((input) => {
+                        input.dispatchEvent(new Event("blur"));
+                    });
+                });
+            });
+        });
+    </script>
+}

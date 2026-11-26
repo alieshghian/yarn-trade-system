@@ -1,0 +1,88 @@
+@page
+@model PrintModel
+@{
+    ViewData["Title"] = "چاپ آنالیز";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>چاپ آنالیز @Model.ProductCode</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.rtl.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="print-body">
+    <main class="print-sheet">
+        <header class="print-header">
+            <div>
+                <h1>آنالیز پارچه</h1>
+                <strong>@Model.ProductCode</strong>
+            </div>
+            <div class="print-actions">
+                <span>تاریخ: @Model.ReportDateText</span>
+                <button class="btn btn-dark no-print" onclick="window.print()">چاپ</button>
+            </div>
+        </header>
+
+        <table class="print-table">
+            <thead>
+                <tr>
+                    <th>ردیف</th>
+                    <th>شرح</th>
+                    <th>مقدار</th>
+                    <th>فی</th>
+                    <th>مبلغ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var index = 0; index < Model.Calculation.Lines.Count; index++)
+                {
+                    var line = Model.Calculation.Lines[index];
+                    <tr>
+                        <td>@(index + 1)</td>
+                        <td>@line.MaterialName</td>
+                        <td>@Number(line.Quantity)</td>
+                        <td>@Money(line.UnitPrice)</td>
+                        <td>@Money(line.CashAmount)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="4">جمع</th>
+                    <th>@Money(Model.Calculation.Summary.CashTotal)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">کسری و ضایعات (@Percent(Model.Calculation.AppliedWasteRate))</th>
+                    <th>@Money(Model.Calculation.Summary.CashWaste)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">قیمت تمام شده</th>
+                    <th>@Money(Model.Calculation.Summary.CashCost)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">فروش با سود (@Percent(Model.Calculation.AppliedProfitRate))</th>
+                    <th>@Money(Model.Calculation.Summary.CashSale)</th>
+                </tr>
+                <tr>
+                    <th colspan="4">ارزش افزوده</th>
+                    <th>@Money(Model.Calculation.Summary.CashVat)</th>
+                </tr>
+                <tr class="final-row">
+                    <th colspan="4">فروش با ارزش افزوده</th>
+                    <th>@Money(Model.Calculation.Summary.CashFinal)</th>
+                </tr>
+            </tfoot>
+        </table>
+    </main>
+</body>
+</html>
+
+@functions {
+    private static string Money(decimal value) => string.Format("{0:N0}", value);
+    private static string Number(decimal value) => string.Format("{0:N3}", value).TrimEnd('0').TrimEnd('.');
+    private static string Percent(decimal value) => string.Format("{0:N0}٪", value * 100);
+}
